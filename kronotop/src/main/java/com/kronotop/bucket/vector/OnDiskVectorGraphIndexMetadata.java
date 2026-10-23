@@ -78,14 +78,11 @@ public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata,
             return null;
         }
         int offset = HEADER_SIZE + ordinal * ORDINAL_SLOT_SIZE;
-        long length = mappedMemory.get(ValueLayout.JAVA_LONG, offset + 24);
-        if (length == 0) {
-            return null;
-        }
         long segmentId = mappedMemory.get(ValueLayout.JAVA_LONG, offset);
         byte[] prefix = new byte[8];
         MemorySegment.copy(mappedMemory, ValueLayout.JAVA_BYTE, offset + 8, prefix, 0, 8);
         long position = mappedMemory.get(ValueLayout.JAVA_LONG, offset + 16);
+        long length = mappedMemory.get(ValueLayout.JAVA_LONG, offset + 24);
         long handle = mappedMemory.get(ValueLayout.JAVA_LONG, offset + 32);
         int shardId = mappedMemory.get(ValueLayout.JAVA_INT, offset + 40);
         byte[] objectIdBytes = new byte[OBJECTID_SIZE];

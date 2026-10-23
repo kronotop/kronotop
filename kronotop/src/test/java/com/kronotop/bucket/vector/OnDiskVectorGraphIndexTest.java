@@ -210,4 +210,49 @@ class OnDiskVectorGraphIndexTest {
             }
         }
     }
+
+    @Test
+    void shouldExcludeDeletedNodeFromSearchResults(@TempDir Path tempDir) throws IOException {
+        // Behavior: After markNodeDeletedInMemory, the ordinal is not returned by search or by a search handle.
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            ObjectId oid1 = new ObjectId();
+            ObjectId oid2 = new ObjectId();
+            ObjectId oid3 = new ObjectId();
+
+            OnHeapVectorGraphIndex heapIndex = new OnHeapVectorGraphIndex(3, VSF);
+            heapIndex.addGraphNode(oid1, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            heapIndex.addGraphNode(oid2, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+            heapIndex.addGraphNode(oid3, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+
+            try (OnDiskVectorGraphIndex diskIndex = flushAndOpen(tempDir, heapIndex)) {
+                float[] queryVector = {0.9f, 0.1f, 0.0f};
+                assertEquals(3, diskIndex.search(queryVector, 3).getNodes().length);
+
+                int oid1Ordinal = diskIndex.getMetadata().findNodeRef(oid1).ordinal();
+                assertFalse(diskIndex.isNodeDeleted(oid1Ordinal));
+                diskIndex.markNodeDeletedInMemory(oid1Ordinal);
+                assertTrue(diskIndex.isNodeDeleted(oid1Ordinal));
+
+                SearchResult after = diskIndex.search(queryVector, 3);
+                assertEquals(2, after.getNodes().length);
+                for (SearchResult.NodeScore ns : after.getNodes()) {
+                    assertNotEquals(oid1Ordinal, ns.node);
+                }
+
+                SearchHandle handle = diskIndex.openSearchHandle(queryVector);
+                try {
+                    SearchResult viaHandle = handle.searcher().search(handle.ssp(), 3, handle.acceptOrds());
+                    assertEquals(2, viaHandle.getNodes().length);
+                    for (SearchResult.NodeScore ns : viaHandle.getNodes()) {
+                        assertNotEquals(oid1Ordinal, ns.node);
+                    }
+                } finally {
+                    handle.searcher().close();
+                    if (handle.extraResource() != null) {
+                        handle.extraResource().close();
+                    }
+                }
+            }
+        }
+    }
 }

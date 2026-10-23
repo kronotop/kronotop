@@ -125,9 +125,7 @@ public class OnDiskVectorGraphIndexMetadataWriter {
             for (int i = 0; i < ordinalSlots; i++) {
                 DocumentLocation entry = slots[i];
                 if (entry == null) {
-                    // This should never happen!
-                    logger.error("No document location for disk ordinal {} while writing {}", i, path);
-                    throw new IllegalStateException("No document location for disk ordinal " + i);
+                    throw new IllegalStateException("No document location for disk ordinal " + i + " while writing " + path);
                 }
                 ordinalSection.putLong(entry.entryMetadata().segmentId());
                 ordinalSection.put(entry.entryMetadata().prefix());

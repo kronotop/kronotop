@@ -16,14 +16,18 @@
 
 package com.kronotop.bucket.index;
 
+import com.apple.foundationdb.KeySelector;
+import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.transaction.TransactionManager;
 import org.bson.BsonArray;
 import org.bson.BsonDocument;
 import org.bson.BsonValue;
@@ -34,11 +38,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.IntConsumer;
 
 /**
  * Manages vector index entries and mutation logs for crash recovery in FoundationDB.
  */
 public final class VectorIndexMaintainer extends IndexMaintainer {
+    public static final int DELETED_ORDINALS_PAGE_SIZE = 10_000;
 
     /**
      * Returns which of the given ObjectIds already have an entry in this vector index.
@@ -187,6 +193,32 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
                 ordinal
         );
         tr.set(indexSubspace.pack(tuple), new byte[0]);
+    }
+
+    /**
+     * Reads every deleted ordinal of an on-disk graph and passes it to the sink. The read is paged with one
+     * transaction per page, so a large set does not hit the transaction time limit.
+     */
+    public static void loadDeletedOrdinals(TransactionManager transactionManager,
+                                           DirectorySubspace indexSubspace,
+                                           String baseName,
+                                           IntConsumer sink) {
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.DELETED_ORDINALS.getValue(), baseName));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+        while (true) {
+            List<KeyValue> page;
+            try (Transaction tr = transactionManager.create()) {
+                page = tr.getRange(begin, end, DELETED_ORDINALS_PAGE_SIZE).asList().join();
+            }
+            for (KeyValue kv : page) {
+                sink.accept((int) indexSubspace.unpack(kv.getKey()).getLong(2));
+            }
+            if (page.size() < DELETED_ORDINALS_PAGE_SIZE) {
+                return;
+            }
+            begin = KeySelector.firstGreaterThan(page.getLast().getKey());
+        }
     }
 
     /**

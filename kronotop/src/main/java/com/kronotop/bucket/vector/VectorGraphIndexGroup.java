@@ -113,6 +113,7 @@ public class VectorGraphIndexGroup {
      * @return opened indexes, or an empty list if the directory doesn't exist or contains no valid index sets
      */
     public static List<OnDiskVectorGraphIndex> openOnDiskIndexes(
+            Context context,
             DirectorySubspace indexSubspace,
             Path bucketDataDir,
             UUID bucketId,
@@ -160,9 +161,11 @@ public class VectorGraphIndexGroup {
         try {
             for (String baseName : completeBaseNames) {
                 Path indexFile = indexDir.resolve(baseName + ".index");
-                opened.add(new OnDiskVectorGraphIndex(indexSubspace, indexFile, similarityFunction));
+                OnDiskVectorGraphIndex onDisk = new OnDiskVectorGraphIndex(indexSubspace, indexFile, similarityFunction);
+                opened.add(onDisk);
+                onDisk.loadDeletedOrdinals(context);
             }
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             for (OnDiskVectorGraphIndex idx : opened) {
                 try {
                     idx.close();
@@ -298,6 +301,44 @@ public class VectorGraphIndexGroup {
     }
 
     /**
+     * Marks the node of the object as deleted in every on-disk index that holds it, unless the node carries a
+     * newer versionstamp than the delete. One transaction covers all on-disk indexes. The bits are set only
+     * after the commit, so a failed commit leaves the node visible and the caller records a retry.
+     *
+     * @return {@code true} if at least one on-disk index holds the node, regardless of its versionstamp
+     */
+    public boolean markNodeDeletedOnDisk(ObjectId objectId, Versionstamp deleteVs) {
+        if (onDiskIndexes.isEmpty()) {
+            return false;
+        }
+        boolean found = false;
+        List<MarkedNode> marked = new ArrayList<>();
+        try (Transaction tr = context.getTransactionManager().create()) {
+            for (OnDiskVectorGraphIndex onDisk : onDiskIndexes) {
+                GraphNodeRef ref = onDisk.getMetadata().findNodeRef(objectId);
+                if (ref == null) {
+                    continue;
+                }
+                found = true;
+                if (deleteVs.compareTo(ref.versionstamp()) > 0) {
+                    onDisk.markNodeDeleted(tr, ref.ordinal());
+                    marked.add(new MarkedNode(onDisk, ref.ordinal()));
+                }
+            }
+            if (!marked.isEmpty()) {
+                tr.commit().join();
+            }
+        }
+        for (MarkedNode node : marked) {
+            node.index().markNodeDeletedInMemory(node.ordinal());
+        }
+        return found;
+    }
+
+    private record MarkedNode(OnDiskVectorGraphIndex index, int ordinal) {
+    }
+
+    /**
      * Returns the live list of on-disk indexes in this group.
      */
     public List<OnDiskVectorGraphIndex> getOnDiskIndexes() {
@@ -380,7 +421,7 @@ public class VectorGraphIndexGroup {
         try {
             Files.createDirectories(indexDir);
             indexPath = index.flush(indexDir);
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             LOGGER.error("Failed to flush vector graph index to {}", indexDir, e);
             return;
         }

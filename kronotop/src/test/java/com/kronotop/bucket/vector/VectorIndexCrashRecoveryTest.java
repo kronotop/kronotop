@@ -180,6 +180,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Load on-disk indexes
         List<OnDiskVectorGraphIndex> onDiskIndexes = VectorGraphIndexGroup.openOnDiskIndexes(
+                context,
                 vectorIndex.subspace(),
                 service.getBucketDataDir(),
                 metadata.uuid(),
@@ -523,6 +524,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Load on-disk indexes
         List<OnDiskVectorGraphIndex> onDiskIndexes = VectorGraphIndexGroup.openOnDiskIndexes(
+                context,
                 vectorIndex.subspace(),
                 service.getBucketDataDir(),
                 metadata.uuid(),
@@ -546,9 +548,9 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        // On-disk metadata should now return null for the deleted ObjectId
+        // The on-disk index now hides the deleted ObjectId
         OnDiskVectorGraphIndex onDisk = group.getOnDiskIndexes().getFirst();
-        assertNull(onDisk.getMetadata().findDocumentLocation(onDisk.getMetadata().findNodeRef(oid2).ordinal()));
+        assertTrue(onDisk.isNodeDeleted(onDisk.getMetadata().findNodeRef(oid2).ordinal()));
 
         // Other ObjectIds should still be accessible on disk
         int ordinal1 = onDisk.getMetadata().findNodeRef(oid1).ordinal();

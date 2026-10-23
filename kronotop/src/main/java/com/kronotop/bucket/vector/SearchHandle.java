@@ -18,6 +18,7 @@ package com.kronotop.bucket.vector;
 
 import io.github.jbellis.jvector.graph.GraphSearcher;
 import io.github.jbellis.jvector.graph.similarity.SearchScoreProvider;
+import io.github.jbellis.jvector.util.Bits;
 
 import java.io.Closeable;
 
@@ -29,11 +30,13 @@ import java.io.Closeable;
  * @param ssp           the score provider configured for the query vector
  * @param metadata      the index metadata used to resolve ordinals to document locations
  * @param extraResource an optional resource to close alongside the searcher (e.g., an on-disk view)
+ * @param acceptOrds    the ordinals the search may return; on-disk indexes exclude deleted ordinals here
  */
 public record SearchHandle(
         GraphSearcher searcher,
         SearchScoreProvider ssp,
         VectorGraphIndexMetadata metadata,
-        Closeable extraResource
+        Closeable extraResource,
+        Bits acceptOrds
 ) {
 }

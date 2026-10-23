@@ -18,7 +18,6 @@ package com.kronotop.bucket.vector;
 
 import io.github.jbellis.jvector.graph.GraphSearcher;
 import io.github.jbellis.jvector.graph.SearchResult;
-import io.github.jbellis.jvector.util.Bits;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -61,13 +60,13 @@ public class VectorSearchSession implements Closeable {
             try {
                 SearchResult result;
                 if (firstSearch) {
-                    result = entry.searcher().search(entry.ssp(), topK, rerankK, threshold, 0.0f, Bits.ALL);
+                    result = entry.searcher().search(entry.ssp(), topK, rerankK, threshold, 0.0f, entry.acceptOrds());
                 } else {
                     result = entry.searcher().resume(topK, rerankK);
                 }
                 VectorSearchUtils.mergeResults(result.getNodes(), entry.metadata(), heap, topK);
             } catch (Exception e) {
-                // Searcher failed (e.g., underlying index was flushed) — treat as exhausted.
+                // Searcher failed (for example: underlying index was flushed) -- treat as exhausted.
                 exhaustedEntries.add(i);
             }
         }

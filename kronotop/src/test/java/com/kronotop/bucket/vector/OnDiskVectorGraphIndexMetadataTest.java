@@ -83,11 +83,11 @@ class OnDiskVectorGraphIndexMetadataTest {
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
         ObjectId oid = new ObjectId();
         EntryMetadata expected = newEntryMetadata(42L, 1024L, 256L, 9999L);
-        heapMeta.put(oid, 3, TestUtil.zeroVersionstamp(), 0, expected);
+        heapMeta.put(oid, 0, TestUtil.zeroVersionstamp(), 0, expected);
 
         Path path = writeAndOpen(heapMeta);
         try (OnDiskVectorGraphIndexMetadata diskMeta = new OnDiskVectorGraphIndexMetadata(path)) {
-            DocumentLocation loc = diskMeta.findDocumentLocation(3);
+            DocumentLocation loc = diskMeta.findDocumentLocation(0);
             assertNotNull(loc);
             assertEquals(oid, loc.objectId());
             assertEquals(0, loc.shardId());
@@ -101,20 +101,24 @@ class OnDiskVectorGraphIndexMetadataTest {
     }
 
     @Test
-    void shouldReturnNullForDeletedOrdinalGap() throws IOException {
-        // Behavior: Ordinals that have no entry (gaps) return null.
+    void shouldRenumberOrdinalsWithMap() throws IOException {
+        // Behavior: The ordinal map renumbers heap ordinals to dense disk ordinals. Both lookup directions
+        // use the disk ordinal.
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
-        heapMeta.put(new ObjectId(), 0, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1L, 0L, 10L, 100L));
-        heapMeta.put(new ObjectId(), 5, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2L, 0L, 10L, 200L));
+        ObjectId first = new ObjectId();
+        ObjectId second = new ObjectId();
+        heapMeta.put(first, 0, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1L, 0L, 10L, 100L));
+        heapMeta.put(second, 5, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2L, 0L, 10L, 200L));
 
-        Path path = writeAndOpen(heapMeta);
+        Path path = tempDir.resolve("renumbered.vmeta");
+        OnDiskVectorGraphIndexMetadataWriter.write(path, heapMeta, Map.of(0, 0, 5, 1));
         try (OnDiskVectorGraphIndexMetadata diskMeta = new OnDiskVectorGraphIndexMetadata(path)) {
-            assertNotNull(diskMeta.findDocumentLocation(0));
-            assertNull(diskMeta.findDocumentLocation(1));
-            assertNull(diskMeta.findDocumentLocation(2));
-            assertNull(diskMeta.findDocumentLocation(3));
-            assertNull(diskMeta.findDocumentLocation(4));
-            assertNotNull(diskMeta.findDocumentLocation(5));
+            assertEquals(0, diskMeta.findNodeRef(first).ordinal());
+            assertEquals(1, diskMeta.findNodeRef(second).ordinal());
+            assertEquals(first, diskMeta.findDocumentLocation(0).objectId());
+            assertEquals(second, diskMeta.findDocumentLocation(1).objectId());
+            assertEquals(200L, diskMeta.findDocumentLocation(1).entryMetadata().handle());
+            assertNull(diskMeta.findDocumentLocation(5));
         }
     }
 

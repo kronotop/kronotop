@@ -189,7 +189,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         FailedOps failedOps = ReplayFailedOpsLog.replay(
                 context, group, onHeap, vectorIndex.subspace(), executor);
         assertTrue(failedOps.deletes().isEmpty());
-        assertNotNull(onDisk.getMetadata().findDocumentLocation(ref.ordinal()));
+        assertFalse(onDisk.isNodeDeleted(ref.ordinal()));
 
         try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.deleteFailedOpLog(tr, vectorIndex.subspace(), versionstamp(4), oid.toByteArray());
@@ -198,7 +198,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         failedOps = ReplayFailedOpsLog.replay(
                 context, group, onHeap, vectorIndex.subspace(), executor);
         assertTrue(failedOps.deletes().isEmpty());
-        assertNull(onDisk.getMetadata().findDocumentLocation(ref.ordinal()));
+        assertTrue(onDisk.isNodeDeleted(ref.ordinal()));
         group.closeAll();
     }
 

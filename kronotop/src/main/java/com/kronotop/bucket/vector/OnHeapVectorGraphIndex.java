@@ -226,7 +226,7 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
             VectorFloat<?> query = vts.createFloatVector(queryVector);
             GraphSearcher searcher = new GraphSearcher(builder.getGraph());
             SearchScoreProvider ssp = DefaultSearchScoreProvider.exact(query, similarityFunction, ravv);
-            return new SearchHandle(searcher, ssp, metadata, null);
+            return new SearchHandle(searcher, ssp, metadata, null, Bits.ALL);
         } finally {
             rwLock.readLock().unlock();
         }

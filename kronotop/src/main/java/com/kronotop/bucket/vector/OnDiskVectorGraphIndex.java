@@ -19,6 +19,7 @@ package com.kronotop.bucket.vector;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.index.VectorIndexMaintainer;
 import io.github.jbellis.jvector.disk.RandomAccessReader;
@@ -30,6 +31,7 @@ import io.github.jbellis.jvector.graph.disk.OnDiskGraphIndex;
 import io.github.jbellis.jvector.graph.similarity.DefaultSearchScoreProvider;
 import io.github.jbellis.jvector.graph.similarity.SearchScoreProvider;
 import io.github.jbellis.jvector.quantization.PQVectors;
+import io.github.jbellis.jvector.util.AtomicFixedBitSet;
 import io.github.jbellis.jvector.util.Bits;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import io.github.jbellis.jvector.vector.VectorizationProvider;
@@ -55,6 +57,8 @@ public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
     private final PQVectors pqVectors;
     private final DirectorySubspace indexSubspace;
     private final String baseName;
+    private final AtomicFixedBitSet deletedOrdinals;
+    private final Bits liveOrdinals;
 
     public OnDiskVectorGraphIndex(
             DirectorySubspace indexSubspace,
@@ -65,6 +69,8 @@ public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
         this.similarityFunction = similarityFunction;
         this.readerSupplier = ReaderSupplierFactory.open(indexPath);
         this.graph = OnDiskGraphIndex.load(readerSupplier);
+        this.deletedOrdinals = new AtomicFixedBitSet(graph.getIdUpperBound());
+        this.liveOrdinals = Bits.inverseOf(deletedOrdinals);
 
         String fileName = indexPath.getFileName().toString();
         this.baseName = fileName.substring(0, fileName.lastIndexOf('.'));
@@ -98,7 +104,7 @@ public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
         } else {
             ssp = DefaultSearchScoreProvider.exact(query, similarityFunction, view);
         }
-        return new SearchHandle(searcher, ssp, metadata, view);
+        return new SearchHandle(searcher, ssp, metadata, view, liveOrdinals);
     }
 
     /**
@@ -118,7 +124,7 @@ public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
             } else {
                 scoreProvider = DefaultSearchScoreProvider.exact(query, similarityFunction, view);
             }
-            return searcher.search(scoreProvider, topK, rerankK, threshold, 0.0f, acceptOrds);
+            return searcher.search(scoreProvider, topK, rerankK, threshold, 0.0f, Bits.intersectionOf(acceptOrds, liveOrdinals));
         } catch (Exception e) {
             throw new KronotopException(e);
         }
@@ -133,10 +139,32 @@ public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
     }
 
     /**
-     * Records the ordinal as deleted in FDB under the given transaction. The caller commits.
+     * Records the ordinal as deleted in FDB under the given transaction. The caller commits, then calls
+     * {@link #markNodeDeletedInMemory}.
      */
     public void markNodeDeleted(Transaction tr, int ordinal) {
         VectorIndexMaintainer.setDeletedOrdinal(tr, indexSubspace, baseName, ordinal);
+    }
+
+    /**
+     * Hides the ordinal from search. Call after the FDB write of {@link #markNodeDeleted} is committed.
+     */
+    public void markNodeDeletedInMemory(int ordinal) {
+        deletedOrdinals.set(ordinal);
+    }
+
+    /**
+     * Returns whether the ordinal is hidden from search. Used by tests.
+     */
+    boolean isNodeDeleted(int ordinal) {
+        return deletedOrdinals.get(ordinal);
+    }
+
+    /**
+     * Loads the deleted ordinals of this index from FDB. Called once at bootstrap.
+     */
+    public void loadDeletedOrdinals(Context context) {
+        VectorIndexMaintainer.loadDeletedOrdinals(context.getTransactionManager(), indexSubspace, baseName, deletedOrdinals::set);
     }
 
     public int size() {
