@@ -23,8 +23,11 @@ import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,6 +49,17 @@ class VectorSearchSessionTest {
 
     private EntryMetadata newEntryMetadata(long segment) {
         return new EntryMetadata(1L, new byte[8], 0L, segment, 1L);
+    }
+
+    private OnDiskVectorGraphIndex flushAndOpen(Path tempDir, OnHeapVectorGraphIndex heapIndex) throws IOException {
+        heapIndex.flush(tempDir);
+        heapIndex.close();
+
+        Path indexFile = Files.list(tempDir)
+                .filter(p -> p.toString().endsWith(".index"))
+                .findFirst()
+                .orElseThrow(() -> new IOException("No .index file found after flush"));
+        return new OnDiskVectorGraphIndex(null, indexFile, VectorSimilarityFunction.COSINE);
     }
 
     @Test
@@ -122,6 +136,34 @@ class VectorSearchSessionTest {
                 // Second call should use resume() path — no exception thrown
                 List<MergedNodeScore> second = session.search(2, 0.0f, 1.0f);
                 assertNotNull(second);
+            }
+        }
+    }
+
+    @Test
+    void shouldKeepDeletedOrdinalExcludedOnResume(@TempDir Path tempDir) throws IOException {
+        // Behavior: An on-disk handle carries the live ordinals as acceptOrds. The first search and the resumed
+        // search both skip the deleted ordinal.
+        ObjectId oid1 = new ObjectId();
+        ObjectId oid2 = new ObjectId();
+        OnHeapVectorGraphIndex heapIndex = new OnHeapVectorGraphIndex(3, VectorSimilarityFunction.COSINE);
+        heapIndex.addGraphNode(oid1, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        heapIndex.addGraphNode(oid2, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.8f, 0.6f, 0.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+
+        try (OnDiskVectorGraphIndex index = flushAndOpen(tempDir, heapIndex)) {
+            index.markNodeDeletedInMemory(index.getMetadata().findNodeRef(oid1).ordinal());
+
+            SearchHandle handle = index.openSearchHandle(new float[]{1.0f, 0.0f, 0.0f});
+            try (VectorSearchSession session = new VectorSearchSession(List.of(handle))) {
+                List<MergedNodeScore> first = session.search(1, 0.0f, 1.0f);
+                assertEquals(1, first.size());
+                assertEquals(oid2, first.getFirst().location().objectId());
+
+                List<MergedNodeScore> second = session.search(1, 0.0f, 1.0f);
+                for (MergedNodeScore r : second) {
+                    assertNotEquals(oid1, r.location().objectId());
+                }
             }
         }
     }

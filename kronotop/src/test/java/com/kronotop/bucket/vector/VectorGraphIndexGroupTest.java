@@ -1616,6 +1616,23 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    void shouldNotMarkOnDiskNodeWithSameVersionstampAsDelete(@TempDir Path tempDir) throws IOException {
+        // Behavior: An UPDATE deletes the old node and adds the new node. Both carry the versionstamp of the
+        // UPDATE. If the delete fails and the new node is flushed to disk before the retry, the retry finds the
+        // new node under the same ObjectId. The retry must not mark it deleted, because the new node is not
+        // older than the delete.
+        OnHeapVectorGraphIndex heapIndex = newIndex();
+        ObjectId objectId = new ObjectId();
+        heapIndex.addGraphNode(objectId, versionstamp(5), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+
+        OnDiskVectorGraphIndex onDisk = flushToOnDisk(tempDir, heapIndex, "same-vs");
+        group.addOnDisk(onDisk);
+
+        assertTrue(group.markNodeDeletedOnDisk(objectId, versionstamp(5)));
+        assertFalse(onDisk.isNodeDeleted(onDisk.getMetadata().findNodeRef(objectId).ordinal()));
+    }
+
+    @Test
     void shouldLoadDeletedOrdinalsOnBootstrap() throws IOException {
         // Behavior: openOnDiskIndexes reads (DELETED_ORDINALS, baseName, ordinal) from FDB into the bitset.
         BucketService service = context.getService(BucketService.NAME);
@@ -1647,6 +1664,53 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         List<MergedNodeScore> results = group.searchAll(new float[]{1.0f, 0.0f, 0.0f}, 2, 0.0f, 1.0f);
         assertEquals(1, results.size());
         assertNotEquals(objectId, results.getFirst().location().objectId());
+    }
+
+    @Test
+    void shouldLoadDeletedOrdinalsPerOnDiskIndex() throws IOException {
+        // Behavior: Deleted ordinals are keyed by the index base name. Ordinal 0 deleted in one on-disk index
+        // stays live in another on-disk index after bootstrap.
+        BucketService service = context.getService(BucketService.NAME);
+        ObjectId objectIdA = new ObjectId();
+        ObjectId objectIdB = new ObjectId();
+        OnHeapVectorGraphIndex heapA = group.getOrCreateOnHeap(DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
+        heapA.addGraphNode(objectIdA, versionstamp(1), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        group.flush(service.getBucketDataDir());
+        OnHeapVectorGraphIndex heapB = group.getOrCreateOnHeap(DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
+        heapB.addGraphNode(objectIdB, versionstamp(1), 0, newEntryMetadata(2), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
+        group.flush(service.getBucketDataDir());
+
+        List<OnDiskVectorGraphIndex> flushed = new ArrayList<>(group.getOnDiskIndexes());
+        assertEquals(2, flushed.size());
+        OnDiskVectorGraphIndex flushedA = flushed.stream()
+                .filter(index -> index.getMetadata().findNodeRef(objectIdA) != null)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(0, flushedA.getMetadata().findNodeRef(objectIdA).ordinal());
+        try (Transaction tr = context.getTransactionManager().create()) {
+            flushedA.markNodeDeleted(tr, 0);
+            tr.commit().join();
+        }
+        for (OnDiskVectorGraphIndex index : flushed) {
+            group.getOnDiskIndexes().remove(index);
+            index.close();
+        }
+
+        List<OnDiskVectorGraphIndex> reopened = VectorGraphIndexGroup.openOnDiskIndexes(
+                context,
+                vectorIndex.subspace(),
+                service.getBucketDataDir(), metadata.uuid(),
+                vectorIndex.definition().id(), VectorSimilarityFunction.COSINE);
+        assertEquals(2, reopened.size());
+        for (OnDiskVectorGraphIndex index : reopened) {
+            group.addOnDisk(index);
+            boolean holdsA = index.getMetadata().findNodeRef(objectIdA) != null;
+            assertEquals(holdsA, index.isNodeDeleted(0));
+        }
+
+        List<MergedNodeScore> results = group.searchAll(new float[]{1.0f, 0.0f, 0.0f}, 2, 0.0f, 1.0f);
+        assertEquals(1, results.size());
+        assertEquals(objectIdB, results.getFirst().location().objectId());
     }
 
     @Test
