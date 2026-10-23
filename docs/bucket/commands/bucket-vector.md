@@ -118,8 +118,8 @@ controlling latency when the filter is highly selective and most candidates do n
 
 ## Routing
 
-The command must be sent to a node that owns at least one shard assigned to the bucket. If the bucket's shards are all
-hosted on other nodes, the server rejects the request with a redirect to the appropriate node.
+The command must be sent to the primary of at least one shard assigned to the bucket. Any other member, including a
+standby, rejects the request with a redirect to the primary. Use `BUCKET.LOCATE` to find it.
 
 ## Errors
 
@@ -144,11 +144,11 @@ Namespace errors:
 
 Bucket errors:
 
-| Error Code           | Error message                        | Cause                                                                                     |
-|----------------------|--------------------------------------|-------------------------------------------------------------------------------------------|
-| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -                                                                                         |
-| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                         |
-| `REJECT`             | `<shardId> <host>:<port>`            | The bucket's shards are hosted on another member. The message carries the target address. |
+| Error Code           | Error message                        | Cause                                                                                                    |
+|----------------------|--------------------------------------|----------------------------------------------------------------------------------------------------------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -                                                                                                        |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                                        |
+| `REJECT`             | `<shardId> <host>:<port>`            | This member is not the primary of any of the bucket's shards. The message carries the primary's address. |
 
 Index errors:
 

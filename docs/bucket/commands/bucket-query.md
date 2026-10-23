@@ -110,10 +110,8 @@ See [SNAPSHOTREAD](../../transactions/commands/snapshotread.md) for details.
 
 ## Routing
 
-`BUCKET.QUERY` can be executed from any node. When the query is sent to a node that does not own the bucket's shards,
-it still returns correct results, but with higher latency because the data is read from the owning nodes. For best
-performance,
-use `BUCKET.LOCATE` to find the node that owns the bucket's shards and send the query there.
+The command must be sent to the primary of at least one shard assigned to the bucket. Any other member, including a
+standby, rejects the request with a redirect to the primary. Use `BUCKET.LOCATE` to find it.
 
 ## Errors
 
@@ -137,10 +135,11 @@ Namespace errors:
 
 Bucket errors:
 
-| Error Code           | Error message                        | Cause |
-|----------------------|--------------------------------------|-------|
-| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -     |
-| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -     |
+| Error Code           | Error message                        | Cause                                                                                                    |
+|----------------------|--------------------------------------|----------------------------------------------------------------------------------------------------------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -                                                                                                        |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                                        |
+| `REJECT`             | `<shardId> <host>:<port>`            | This member is not the primary of any of the bucket's shards. The message carries the primary's address. |
 
 ## Examples
 

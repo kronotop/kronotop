@@ -26,7 +26,7 @@ RESP3 output.
 - `STOPPED`: the member has been shut down or marked for removal.
 - `UNKNOWN`: the member's state has not been determined.
 
-**Roles** describe a member's relationship to a shard. The `primary` owns the shard and serves writes.
+**Roles** describe a member's relationship to a shard. The `primary` owns the shard and serves all Bucket commands.
 A `standby` replicates from the primary and can be promoted to primary.
 
 ---

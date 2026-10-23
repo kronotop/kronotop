@@ -93,7 +93,7 @@ Bucket data is partitioned into shards. Each shard owns exactly one volume, name
 (`bucket-shard-0`, `bucket-shard-1`, and so on). A bucket spans one or more shards, so its documents are
 distributed across one or more volumes. Within a volume, each bucket's data is isolated by a prefix.
 
-Shard ownership is assigned through cluster routing: one member is the primary and serves writes, standby members
+Shard ownership is assigned through cluster routing: one member is the primary and serves all Bucket commands, standby members
 replicate from it and can be promoted. Each shard also carries a status that controls traffic: `READWRITE`,
 `READONLY`, or `INOPERABLE`. Routing and status are managed with the
 [admin command interface](admin/cluster/operations-guide.md).

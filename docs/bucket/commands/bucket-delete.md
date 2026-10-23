@@ -96,12 +96,8 @@ When one batch is enough, send the command with `CLOSE`. The command deletes the
 
 ## Routing
 
-`BUCKET.DELETE` is a metadata operation and can be executed from any node. The exception is a bucket with a vector
-index.
-A vector-indexed bucket is pinned to a single shard, and deleting a document must also remove its vector from the local
-graph, so the command must be sent to the node that owns that shard. When the shard is hosted on another node, the
-server
-rejects the request with a redirect to that node.
+The command must be sent to the primary of at least one shard assigned to the bucket. Any other member, including a
+standby, rejects the request with a redirect to the primary. Use `BUCKET.LOCATE` to find it.
 
 ## Errors
 
@@ -129,7 +125,7 @@ Bucket errors:
 |----------------------|--------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
 | `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -                                                                                                                                |
 | `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                                                                |
-| `REJECT`             | `<shardId> <host>:<port>`            | Only when the bucket has a vector index: the bucket's shard is hosted on another member. The message carries the target address. |
+| `REJECT`             | `<shardId> <host>:<port>`            | This member is not the primary of any of the bucket's shards. The message carries the primary's address.                         |
 
 Index errors:
 
