@@ -389,13 +389,13 @@ public abstract class AbstractBucketHandler implements Handler {
     }
 
     /**
-     * Returns the first shard from the bucket's shard list that is owned by this cluster member.
-     * If no local shard exists, redirects the client to the primary owner of the first shard.
+     * Returns the first shard from the bucket's shard list where this cluster member is the primary.
+     * If there is none, redirects the client to the primary owner of the first shard.
      *
      * @param metadata the bucket metadata containing the shard list
      * @return the local shard
      * @throws KronotopException if the bucket has no shards assigned, or no route is found
-     * @throws RejectException   if none of the bucket's shards are local
+     * @throws RejectException   if this member is not the primary of any of the bucket's shards
      */
     BucketShard findLocalShard(BucketMetadata metadata) {
         // Potential optimization: cache the selected shardId in BucketMetadata cache or somewhere else.
@@ -403,18 +403,17 @@ public abstract class AbstractBucketHandler implements Handler {
             throw new KronotopException("No shards assigned to bucket: '" + metadata.name() + "'");
         }
         for (int shardId : metadata.shards()) {
-            BucketShard shard = service.getShard(shardId);
-            if (shard == null) {
-                continue;
+            Route route = service.findRoute(shardId);
+            if (Objects.isNull(route)) {
+                throw new KronotopException("No route found for Bucket shard: " + shardId);
             }
-            return shard;
+            if (route.primary().equals(context.getMember())) {
+                return service.getShard(shardId);
+            }
         }
 
         int shardId = metadata.shards().getFirst();
         Route route = service.findRoute(shardId);
-        if (Objects.isNull(route)) {
-            throw new KronotopException("No route found for Bucket shard: " + shardId);
-        }
         throw new RejectException(shardId, route.primary().getExternalAdvertise());
     }
 

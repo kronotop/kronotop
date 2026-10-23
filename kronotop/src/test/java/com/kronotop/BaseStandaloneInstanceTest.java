@@ -23,6 +23,10 @@ import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketMetadataVersionBarrier;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.maintenance.IndexBuildingTask;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.RoutingTable;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.BucketCreateArgs;
 import com.kronotop.commands.KronotopCommandBuilder;
@@ -40,10 +44,13 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -82,6 +89,21 @@ public class BaseStandaloneInstanceTest extends BaseTest {
         MockChannelHandlerContext ctx = new MockChannelHandlerContext(instance.getChannel());
         Session.registerSession(context, ctx);
         return Session.extractSessionFromChannel(ctx.channel());
+    }
+
+    /**
+     * Replaces a route in the live routing table. No routing event runs.
+     */
+    protected void setRoute(RoutingService routing, ShardKind kind, int shardId, Route route) throws Exception {
+        Field tableField = RoutingService.class.getDeclaredField("routingTable");
+        tableField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        AtomicReference<RoutingTable> tableRef = (AtomicReference<RoutingTable>) tableField.get(routing);
+        RoutingTable table = tableRef.get();
+
+        Method setMethod = RoutingTable.class.getDeclaredMethod("set", ShardKind.class, int.class, Route.class);
+        setMethod.setAccessible(true);
+        setMethod.invoke(table, kind, shardId, route);
     }
 
     protected void createBucket(String bucket, List<Integer> shards, String indexes) {

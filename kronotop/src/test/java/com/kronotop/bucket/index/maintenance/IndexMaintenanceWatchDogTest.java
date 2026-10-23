@@ -30,7 +30,6 @@ import com.kronotop.bucket.index.*;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.RoutingTable;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.JSONUtil;
@@ -40,7 +39,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.*;
@@ -436,18 +434,6 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
             setRoute(routing, ShardKind.BUCKET, SHARD_ID, originalRoute);
             watchdog.shutdown();
         }
-    }
-
-    private void setRoute(RoutingService routing, ShardKind kind, int shardId, Route route) throws Exception {
-        Field tableField = RoutingService.class.getDeclaredField("routingTable");
-        tableField.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        AtomicReference<RoutingTable> tableRef = (AtomicReference<RoutingTable>) tableField.get(routing);
-        RoutingTable table = tableRef.get();
-
-        Method setMethod = RoutingTable.class.getDeclaredMethod("set", ShardKind.class, int.class, Route.class);
-        setMethod.setAccessible(true);
-        setMethod.invoke(table, kind, shardId, route);
     }
 
     /**
