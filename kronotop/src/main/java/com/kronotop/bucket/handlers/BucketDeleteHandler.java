@@ -58,8 +58,8 @@ public class BucketDeleteHandler extends AbstractBucketHandler implements Handle
             Transaction tr = TransactionUtil.getOrCreateTransaction(service.getContext(), session);
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, session, message.getBucket(), message.getArguments());
 
+            checkBucketOwnership(metadata);
             if (!metadata.vectorIndexes().isEmpty()) {
-                checkBucketOwnership(metadata);
                 checkVectorIndexRecoveryState(metadata);
             }
 

@@ -28,6 +28,11 @@ import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.commands.*;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
@@ -2352,5 +2357,46 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
                 assertTrue(Long.parseLong(line.substring("plan_cache_misses:".length())) >= 1, line);
             }
         }
+    }
+
+    @Test
+    void shouldRejectQueryWhenMemberIsStandby() throws Exception {
+        // Behavior: BUCKET.QUERY returns a REJECT error with the shard id and the primary's address
+        // when this member is a standby of the bucket's shard.
+        insertRaw("{\"name\": \"Alice\"}");
+
+        Member primary = createMemberWithEphemeralPort();
+        Member standby = context.getMember();
+        RoutingService routing = context.getService(RoutingService.NAME);
+        setRoute(routing, ShardKind.BUCKET, TEST_SHARD_ID, new Route(primary, Set.of(standby), ShardStatus.READWRITE));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}").encode(buf);
+
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        String content = ((ErrorRedisMessage) response).content();
+        assertEquals("REJECT " + TEST_SHARD_ID + " " + primary.getExternalAddress(), content);
+    }
+
+    @Test
+    void shouldRejectQueryWhenMemberIsNotInRoute() throws Exception {
+        // Behavior: BUCKET.QUERY returns a REJECT error with the shard id and the primary's address
+        // when this member is neither the primary nor a standby of the bucket's shard.
+        insertRaw("{\"name\": \"Alice\"}");
+
+        Member primary = createMemberWithEphemeralPort();
+        RoutingService routing = context.getService(RoutingService.NAME);
+        setRoute(routing, ShardKind.BUCKET, TEST_SHARD_ID, new Route(primary, Set.of(), ShardStatus.READWRITE));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}").encode(buf);
+
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        String content = ((ErrorRedisMessage) response).content();
+        assertEquals("REJECT " + TEST_SHARD_ID + " " + primary.getExternalAddress(), content);
     }
 }

@@ -16,9 +16,17 @@
 
 package com.kronotop.bucket.pipeline;
 
+import com.kronotop.cluster.Route;
+
 import java.util.*;
 
 public class BaseExecutor {
+
+    boolean isPrimary(QueryContext ctx, int shardId) {
+        Route route = ctx.env().bucketService().findRoute(shardId);
+        return route != null && route.primary().equals(ctx.env().bucketService().getContext().getMember());
+    }
+
     PipelineNode findHeadNode(PipelineNode node) {
         if (Objects.isNull(node)) {
             return null;

@@ -28,6 +28,11 @@ import com.kronotop.bucket.BsonHelper;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.*;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.BucketCreateArgs;
 import com.kronotop.commands.BucketQueryArgs;
@@ -1386,5 +1391,46 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         assertErrorReply("ERR Duplicate 'NAMESPACE' argument",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_DELETE,
                         List.of("test-bucket", "{}", "NAMESPACE", "a", "NAMESPACE", "b")));
+    }
+
+    @Test
+    void shouldRejectDeleteWhenMemberIsStandby() throws Exception {
+        // Behavior: BUCKET.DELETE returns a REJECT error with the shard id and the primary's address
+        // when this member is a standby of the bucket's shard, even without a vector index.
+        insertRaw("{\"name\": \"Alice\"}");
+
+        Member primary = createMemberWithEphemeralPort();
+        Member standby = context.getMember();
+        RoutingService routing = context.getService(RoutingService.NAME);
+        setRoute(routing, ShardKind.BUCKET, TEST_SHARD_ID, new Route(primary, Set.of(standby), ShardStatus.READWRITE));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.delete(TEST_BUCKET, "{}").encode(buf);
+
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        String content = ((ErrorRedisMessage) response).content();
+        assertEquals("REJECT " + TEST_SHARD_ID + " " + primary.getExternalAddress(), content);
+    }
+
+    @Test
+    void shouldRejectDeleteWhenMemberIsNotInRoute() throws Exception {
+        // Behavior: BUCKET.DELETE returns a REJECT error with the shard id and the primary's address
+        // when this member is neither the primary nor a standby of the bucket's shard.
+        insertRaw("{\"name\": \"Alice\"}");
+
+        Member primary = createMemberWithEphemeralPort();
+        RoutingService routing = context.getService(RoutingService.NAME);
+        setRoute(routing, ShardKind.BUCKET, TEST_SHARD_ID, new Route(primary, Set.of(), ShardStatus.READWRITE));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.delete(TEST_BUCKET, "{}").encode(buf);
+
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        String content = ((ErrorRedisMessage) response).content();
+        assertEquals("REJECT " + TEST_SHARD_ID + " " + primary.getExternalAddress(), content);
     }
 }

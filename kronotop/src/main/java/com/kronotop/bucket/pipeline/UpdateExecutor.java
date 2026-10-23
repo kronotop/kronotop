@@ -162,9 +162,8 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
             for (Map.Entry<Integer, List<DocumentRef>> documentRefGroupByShard : byShardId.entrySet()) {
                 int shardId = documentRefGroupByShard.getKey();
-                BucketShard shard = ctx.env().bucketService().getShard(shardId);
-
-                if (shard != null) {
+                if (isPrimary(ctx, shardId)) {
+                    BucketShard shard = ctx.env().bucketService().getShard(shardId);
                     handleLocalUpdate(
                             tr, ctx, shard, shardId,
                             documentRefGroupByShard.getValue(), parsedQuery, positionalFields,
@@ -358,9 +357,8 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
     private BucketShard findLocalBucketShard(QueryContext ctx) {
         for (int shardId : ctx.metadata().shards()) {
-            BucketShard shard = ctx.env().bucketService().getShard(shardId);
-            if (shard != null) {
-                return shard;
+            if (isPrimary(ctx, shardId)) {
+                return ctx.env().bucketService().getShard(shardId);
             }
         }
         throw new IllegalStateException("No local shard found in the bucket's shard list");

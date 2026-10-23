@@ -73,7 +73,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
             for (Map.Entry<Integer, List<DocumentRef>> item : byShardId.entrySet()) {
                 int shardId = item.getKey();
 
-                BucketShard shard = ctx.env().bucketService().getShard(shardId);
+                BucketShard shard = isPrimary(ctx, shardId) ? ctx.env().bucketService().getShard(shardId) : null;
                 VolumeSession session = new VolumeSession(tr, ctx.metadata().prefix());
 
                 List<DocumentRef> docRefs = item.getValue();
