@@ -320,6 +320,9 @@ public class VectorGraphIndexGroup {
                     continue;
                 }
                 found = true;
+                if (onDisk.isNodeDeleted(ref.ordinal())) {
+                    continue;
+                }
                 if (deleteVs.compareTo(ref.versionstamp()) > 0) {
                     onDisk.markNodeDeleted(tr, ref.ordinal());
                     marked.add(new MarkedNode(onDisk, ref.ordinal()));
