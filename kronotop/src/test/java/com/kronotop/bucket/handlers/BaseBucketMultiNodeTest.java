@@ -83,7 +83,8 @@ abstract class BaseBucketMultiNodeTest extends BaseClusterTest {
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             Attribute<Boolean> attr = node1.getContext().getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
-            return attr.get() != null && attr.get();
+            return attr.get() != null && attr.get()
+                    && !node1.getContext().getShardRegistry().getShardIds(ShardKind.BUCKET).isEmpty();
         });
 
         String node1Id = node1.getContext().getMember().getId();
