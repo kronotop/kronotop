@@ -479,7 +479,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             // Flush before vectorGraphExecutor shuts down. Flush retries failed vector node adds on
             // that executor, and a terminated executor rejects every retry.
             try {
+                LOGGER.info("Flushing vector graph indexes");
+                long start = System.nanoTime();
                 vectorGraphRegistry.flushAll(bucketDataDir);
+                LOGGER.info("Flushed vector graph indexes in {} ms", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
             } catch (Exception e) {
                 LOGGER.error("Failed to flush vector graph indexes on shutdown", e);
             }
