@@ -13,6 +13,7 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
 
 import pyarrow.parquet as pq
@@ -21,6 +22,9 @@ import pyarrow.parquet as pq
 def convert(parquet_path: str, output_path: str) -> None:
     reader = pq.ParquetFile(parquet_path)
     total = 0
+
+    out_dir = os.path.dirname(os.path.abspath(output_path))
+    os.makedirs(out_dir, exist_ok=True)
 
     with open(output_path, "w", encoding="utf-8") as out:
         for batch in reader.iter_batches(batch_size=1000):
@@ -52,8 +56,8 @@ def main() -> None:
 
     try:
         convert(args.parquet, args.output)
-    except FileNotFoundError:
-        print(f"Error: file not found: {args.parquet}", file=sys.stderr)
+    except FileNotFoundError as e:
+        print(f"Error: file not found: {e.filename}", file=sys.stderr)
         sys.exit(1)
 
 
