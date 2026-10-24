@@ -16,19 +16,18 @@ The shaded JAR is produced at `target/kronotop-benchmark-*.jar`.
 
 **1. Download the dataset from HuggingFace**
 
-Go to https://huggingface.co/datasets/m-newhauser/senator-tweets, download the Parquet files
-under `data/`, and place them in a local directory, e.g.:
+```bash
+mkdir -p senator-tweets/data
+curl -L -o senator-tweets/data/train-00000-of-00001.parquet \
+    https://huggingface.co/datasets/m-newhauser/senator-tweets/resolve/main/data/train-00000-of-00001.parquet
+```
 
-```
-senator-tweets/
-└── data/
-    ├── train-00000-of-00001.parquet
-    └── test-00000-of-00001.parquet
-```
+Source: https://huggingface.co/datasets/m-newhauser/senator-tweets
 
 **2. Generate the JSONL file**
 
-`uv` is the most practical way to run a Python script:
+`uv` is the most practical way to run a Python script. Run from the `kronotop-benchmark/` directory
+(the script lives in `kronotop-benchmark/scripts/`):
 
 ```bash
 uv run --with pyarrow scripts/prepare_senator_tweets.py \
@@ -61,18 +60,18 @@ java -jar target/kronotop-benchmark-*.jar vector tweets \
 ```
 
 ```bash
-java -jar kronotop-benchmark/target/kronotop-benchmark-2026.10-2.jar vector tweets 
-    --threads 8 
-    --search-rounds 100 
-    --top-k 10 
+java -jar kronotop-benchmark/target/kronotop-benchmark-2026.10-2.jar vector tweets \
+    --threads 8 \
+    --search-rounds 100 \
+    --top-k 10 \
     --data ~/kronotop-vector-demo/senator-tweets/train.jsonl
 ```
 
 ```bash
-java -jar kronotop-benchmark/target/kronotop-benchmark-2026.10-2.jar vector tweets 
-    --threads 8 
-    --skip-load 
-    --search-rounds 100 
+java -jar kronotop-benchmark/target/kronotop-benchmark-2026.10-2.jar vector tweets \
+    --threads 8 \
+    --skip-load \
+    --search-rounds 100 \
     --top-k 10
 ```
 
