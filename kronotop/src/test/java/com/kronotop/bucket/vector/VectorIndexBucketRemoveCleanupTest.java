@@ -89,7 +89,7 @@ class VectorIndexBucketRemoveCleanupTest extends BaseVectorHookIntegrationTest {
 
         // Create the disk directory to simulate the flushed state
         Path bucketVectorDir = VectorGraphIndexGroup.resolveVectorDir(
-                        getBucketService().getBucketDataDir())
+                        getBucketService().getBucketDataDir(), VectorGraphIndexGroup.ownerShardId(metadata))
                 .resolve(metadata.uuid().toString());
         try {
             Files.createDirectories(bucketVectorDir);

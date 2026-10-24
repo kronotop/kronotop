@@ -24,11 +24,9 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
 import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.vector.VectorGraphIndexGroup;
 import com.kronotop.bucket.vector.VectorGraphIndexRegistry;
 import com.kronotop.cluster.BaseBroadcastEvent;
 import com.kronotop.directory.KronotopDirectory;
-import com.kronotop.internal.DirectoryUtil;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KeyWatcher;
@@ -44,7 +42,6 @@ import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
@@ -143,9 +140,7 @@ public class NamespaceService extends CommandHandlerService implements KronotopS
         VectorGraphIndexRegistry vectorRegistry = bucketService.getVectorGraphRegistry();
         Set<UUID> removedBucketIds = vectorRegistry.remove(event.namespace());
         for (UUID bucketId : removedBucketIds) {
-            Path bucketVectorDir = VectorGraphIndexGroup.resolveVectorDir(
-                    bucketService.getBucketDataDir()).resolve(bucketId.toString());
-            DirectoryUtil.deleteRecursively(bucketVectorDir);
+            bucketService.deleteVectorIndexFiles(bucketId, null);
         }
     }
 

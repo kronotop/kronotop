@@ -183,6 +183,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
                 context,
                 vectorIndex.subspace(),
                 service.getBucketDataDir(),
+                VectorGraphIndexGroup.ownerShardId(metadata),
                 metadata.uuid(),
                 vectorIndex.definition().id(),
                 VectorSimilarityFunction.COSINE
@@ -527,6 +528,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
                 context,
                 vectorIndex.subspace(),
                 service.getBucketDataDir(),
+                VectorGraphIndexGroup.ownerShardId(metadata),
                 metadata.uuid(),
                 vectorIndex.definition().id(),
                 VectorSimilarityFunction.COSINE

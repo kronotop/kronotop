@@ -22,7 +22,6 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.DataStructureKind;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.vector.VectorGraphIndexGroup;
 import com.kronotop.bucket.vector.VectorGraphIndexRegistry;
 import com.kronotop.cluster.BaseBroadcastEvent;
 import com.kronotop.cluster.BroadcastEventKind;
@@ -31,7 +30,6 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
-import com.kronotop.internal.DirectoryUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KeyWatcher;
 import com.kronotop.journal.*;
@@ -46,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -182,9 +179,7 @@ public class BucketEventsWatcher implements Runnable {
                 registry.remove(evt.namespace(), evt.bucket());
 
                 // Delete vector index disk files for the entire bucket
-                Path bucketVectorDir = VectorGraphIndexGroup.resolveVectorDir(bucketService.getBucketDataDir())
-                        .resolve(metadata.uuid().toString());
-                DirectoryUtil.deleteRecursively(bucketVectorDir);
+                bucketService.deleteVectorIndexFiles(metadata.uuid(), null);
 
                 String tag = WorkerTag.generate(DataStructureKind.BUCKET, metadata.name());
                 List<Worker> workers = context.getWorkerRegistry().get(metadata.namespace(), tag);
@@ -208,10 +203,7 @@ public class BucketEventsWatcher implements Runnable {
                 VectorGraphIndexRegistry registry = bucketService.getVectorGraphRegistry();
                 registry.remove(evt.namespace(), evt.bucket(), evt.indexId());
 
-                Path indexDir = VectorGraphIndexGroup.resolveVectorDir(bucketService.getBucketDataDir())
-                        .resolve(evt.bucketId().toString())
-                        .resolve(Long.toString(evt.indexId()));
-                DirectoryUtil.deleteRecursively(indexDir);
+                bucketService.deleteVectorIndexFiles(evt.bucketId(), evt.indexId());
 
                 BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr.snapshot(), evt.namespace(), evt.bucket());
                 byte[] value = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(metadata.version()).array();

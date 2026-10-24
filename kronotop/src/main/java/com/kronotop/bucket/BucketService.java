@@ -39,6 +39,7 @@ import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.core.InfoCollector;
+import com.kronotop.internal.DirectoryUtil;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.metrics.InfoReport;
 import com.kronotop.server.ServerKind;
@@ -51,6 +52,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.stream.Stream;
 
@@ -356,6 +358,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                         context,
                         vectorIndex.subspace(),
                         bucketDataDir,
+                        VectorGraphIndexGroup.ownerShardId(metadata),
                         metadata.uuid(),
                         definition.id(),
                         OnHeapVectorGraphIndex.toSimilarityFunction(definition.distance())
@@ -393,7 +396,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
     private boolean hasOnDiskIndexes(BucketMetadata metadata, VectorIndex vectorIndex) {
         Path indexDir = VectorGraphIndexGroup
-                .resolveVectorDir(bucketDataDir)
+                .resolveVectorDir(bucketDataDir, VectorGraphIndexGroup.ownerShardId(metadata))
                 .resolve(metadata.uuid().toString())
                 .resolve(Long.toString(vectorIndex.definition().id()));
         if (!Files.isDirectory(indexDir)) {
@@ -404,6 +407,19 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         } catch (IOException e) {
             // Assume data exists so bootstrapVectorGroup takes the slow-path rather than skipping recovery.
             return true;
+        }
+    }
+
+    /**
+     * Deletes vector index files of the bucket from every owned shard. A null indexId deletes all indexes of the bucket.
+     */
+    public void deleteVectorIndexFiles(UUID bucketId, Long indexId) {
+        for (int shardId : getServiceContext().shards().keySet()) {
+            Path dir = VectorGraphIndexGroup.resolveVectorDir(bucketDataDir, shardId).resolve(bucketId.toString());
+            if (indexId != null) {
+                dir = dir.resolve(Long.toString(indexId));
+            }
+            DirectoryUtil.deleteRecursively(dir);
         }
     }
 

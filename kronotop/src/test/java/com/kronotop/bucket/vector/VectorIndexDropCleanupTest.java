@@ -115,7 +115,7 @@ class VectorIndexDropCleanupTest extends BaseBucketHandlerTest {
 
         // Create the disk directory to simulate the flushed state
         Path indexDir = VectorGraphIndexGroup.resolveVectorDir(
-                        getBucketService().getBucketDataDir())
+                        getBucketService().getBucketDataDir(), VectorGraphIndexGroup.ownerShardId(metadata))
                 .resolve(metadata.uuid().toString())
                 .resolve(Long.toString(indexId));
         try {
@@ -192,7 +192,7 @@ class VectorIndexDropCleanupTest extends BaseBucketHandlerTest {
 
         // Verify no disk directory exists
         Path indexDir = VectorGraphIndexGroup.resolveVectorDir(
-                        getBucketService().getBucketDataDir())
+                        getBucketService().getBucketDataDir(), VectorGraphIndexGroup.ownerShardId(metadata))
                 .resolve(metadata.uuid().toString())
                 .resolve(Long.toString(indexId));
         assertFalse(Files.exists(indexDir));

@@ -61,7 +61,6 @@ import java.util.stream.Stream;
  */
 public class VectorGraphIndexGroup {
     private static final Logger LOGGER = LoggerFactory.getLogger(VectorGraphIndexGroup.class);
-    public static String VECTOR_INDEX_DIR = "vector-indexes";
     private final List<OnHeapVectorGraphIndex> onHeapIndexes = new CopyOnWriteArrayList<>();
     private final List<OnDiskVectorGraphIndex> onDiskIndexes = new CopyOnWriteArrayList<>();
     private final ConcurrentHashMap<ObjectId, Versionstamp> deleteTombstones = new ConcurrentHashMap<>();
@@ -99,10 +98,21 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Resolves the root directory where all vector index files are stored under the given base directory.
+     * Resolves the root directory for vector index files of the given shard.
      */
-    public static Path resolveVectorDir(Path baseDir) {
-        return baseDir.resolve(VECTOR_INDEX_DIR);
+    public static Path resolveVectorDir(Path bucketDataDir, int shardId) {
+        return bucketDataDir
+                .resolve("shards")
+                .resolve(Integer.toString(shardId))
+                .resolve("derived-indexes")
+                .resolve("vector");
+    }
+
+    /**
+     * Returns the shard that owns the vector index files of the bucket.
+     */
+    public static int ownerShardId(BucketMetadata metadata) {
+        return metadata.shards().getFirst();
     }
 
     /**
@@ -116,11 +126,12 @@ public class VectorGraphIndexGroup {
             Context context,
             DirectorySubspace indexSubspace,
             Path bucketDataDir,
+            int shardId,
             UUID bucketId,
             long indexId,
             VectorSimilarityFunction similarityFunction
     ) throws IOException {
-        Path indexDir = resolveVectorDir(bucketDataDir)
+        Path indexDir = resolveVectorDir(bucketDataDir, shardId)
                 .resolve(bucketId.toString())
                 .resolve(Long.toString(indexId));
         if (!Files.isDirectory(indexDir)) {
@@ -416,7 +427,7 @@ public class VectorGraphIndexGroup {
 
         Versionstamp firstVersionstamp = index.getFirstVersionstamp();
         Versionstamp latestVersionstamp = index.getLatestVersionstamp();
-        Path indexDir = resolveVectorDir(bucketDataDir)
+        Path indexDir = resolveVectorDir(bucketDataDir, ownerShardId(metadata))
                 .resolve(metadata.uuid().toString())
                 .resolve(Long.toString(vectorIndex.definition().id()));
         Path indexPath;
