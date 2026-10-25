@@ -27,6 +27,7 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.*;
+import com.kronotop.internal.FileUtil;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
@@ -432,6 +433,7 @@ public class VectorGraphIndexGroup {
                 .resolve(Long.toString(vectorIndex.definition().id()));
         Path indexPath;
         try {
+            FileUtil.deleteDirectory(indexDir);
             Files.createDirectories(indexDir);
             indexPath = index.flush(indexDir);
         } catch (IOException | RuntimeException e) {
