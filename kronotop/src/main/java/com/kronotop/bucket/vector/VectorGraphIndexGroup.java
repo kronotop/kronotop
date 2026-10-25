@@ -461,6 +461,10 @@ public class VectorGraphIndexGroup {
                     "no versionstamp range recorded, advanceVersionstamp was never called", index.getId());
             return;
         }
+        // TODO: Known gap: [first, latest] is a rough range, not the exact set of versionstamps this graph holds.
+        //  A write always goes to the last on-heap graph. A late post-commit hook or a retried failed add
+        //  can put an older versionstamp into the new graph, inside this range. The clear below then drops
+        //  its mutation log entry while its node is still only on heap. After a crash, recovery skips it.
         truncateMutationLog(firstVersionstamp, latestVersionstamp);
     }
 
