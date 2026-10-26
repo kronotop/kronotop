@@ -203,7 +203,7 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
      * Appends an insert or update mutation to the mutation log for crash recovery.
      * The log key is versionstamped to preserve mutation ordering.
      */
-    public static void setMutationLog(
+    public static void appendMutation(
             Transaction tr,
             DirectorySubspace indexSubspace,
             MutationLogKind kind,
@@ -225,7 +225,7 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
      * Appends a delete mutation to the mutation log for crash recovery.
      * The log key is versionstamped to preserve mutation ordering.
      */
-    public static void deleteMutationLog(
+    public static void appendDeleteMutation(
             Transaction tr,
             DirectorySubspace indexSubspace,
             byte[] objectId,

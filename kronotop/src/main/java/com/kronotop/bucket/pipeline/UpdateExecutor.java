@@ -518,7 +518,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                 // Drop old entry
                 VectorIndexMaintainer.dropEntry(tr, objectIdBytes, vectorIndex, ctx.metadata());
                 int deleteUserVersion = ctx.getAndIncrementUserVersion();
-                VectorIndexMaintainer.deleteMutationLog(
+                VectorIndexMaintainer.appendDeleteMutation(
                         tr, vectorIndex.subspace(), objectIdBytes, deleteUserVersion
                 );
                 deletedVectors.add(new DeletedVector(objectId, deleteUserVersion));
@@ -535,7 +535,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
                     // Write mutation log entry for crash recovery
                     int userVersion = ctx.getAndIncrementUserVersion();
-                    VectorIndexMaintainer.setMutationLog(
+                    VectorIndexMaintainer.appendMutation(
                             tr, vectorIndex.subspace(), MutationLogKind.UPDATE,
                             objectIdBytes,
                             new IndexEntry(container.getShardId(), container.getEntryMetadata()).encode(),
@@ -747,7 +747,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                     tr, vectorIndex, ctx.metadata(), objectIdBytes,
                     encodedIndexEntry, vector
             );
-            VectorIndexMaintainer.setMutationLog(
+            VectorIndexMaintainer.appendMutation(
                     tr, vectorIndex.subspace(), MutationLogKind.INSERT,
                     objectIdBytes, encodedIndexEntry, vector, userVersion
             );

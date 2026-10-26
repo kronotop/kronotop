@@ -363,7 +363,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.setMutationLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
             tr.commit().join();
         }
 
@@ -393,7 +393,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.setMutationLog(tr, vectorIndex.subspace(), MutationLogKind.UPDATE, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.UPDATE, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
             tr.commit().join();
         }
 
@@ -422,7 +422,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] objectIdBytes = objectId.toByteArray();
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.deleteMutationLog(tr, vectorIndex.subspace(), objectIdBytes, entry.userVersion());
+            VectorIndexMaintainer.appendDeleteMutation(tr, vectorIndex.subspace(), objectIdBytes, entry.userVersion());
             tr.commit().join();
         }
 

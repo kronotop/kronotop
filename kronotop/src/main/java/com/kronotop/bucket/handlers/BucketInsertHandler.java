@@ -232,7 +232,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                         encodedIndexEntry,
                         vector
                 );
-                VectorIndexMaintainer.setMutationLog(
+                VectorIndexMaintainer.appendMutation(
                         tr,
                         vectorIndex.subspace(),
                         MutationLogKind.INSERT,

@@ -862,7 +862,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         byte[] encodedEntry = new IndexEntry(1, VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test").encode()).encode();
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.setMutationLog(
+            VectorIndexMaintainer.appendMutation(
                     tr,
                     vectorIndex.subspace(),
                     MutationLogKind.INSERT,
