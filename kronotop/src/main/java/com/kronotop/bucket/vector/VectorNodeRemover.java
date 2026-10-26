@@ -20,8 +20,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import org.bson.types.ObjectId;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -30,7 +28,6 @@ import java.util.List;
  * deletes. Call {@link #remove} for each deleted vector, then {@link #flush} once at the end of the batch.
  */
 public class VectorNodeRemover extends BaseVectorNode {
-    private static final Logger LOGGER = LoggerFactory.getLogger(VectorNodeRemover.class);
     private final long vectorIndexId;
     private final VectorGraphIndexGroup group;
     private Versionstamp maxVs = null;
@@ -62,7 +59,7 @@ public class VectorNodeRemover extends BaseVectorNode {
     /**
      * Marks the node of the given object as deleted in every on-heap and on-disk graph that holds it, unless the
      * node carries a newer versionstamp than the delete. If no graph holds the node yet, a delete tombstone is
-     * stored. If the delete fails, a retry entry is recorded.
+     * stored.
      *
      * @param objectId the object id of the deleted vector
      * @param deleteVs the versionstamp of the delete operation
@@ -72,33 +69,25 @@ public class VectorNodeRemover extends BaseVectorNode {
             maxVs = deleteVs;
         }
 
-        try {
-            boolean found = false;
-            for (OnHeapVectorGraphIndex onHeap : group.getOnHeapIndexes()) {
-                if (onHeap.getMetadata().findNodeRef(objectId) != null) {
-                    found = true;
-                    // The versionstamp compare runs under the metadata lock, so a concurrent newer add
-                    // cannot lose its mapping to this delete. A graph flushed in the meantime throws, the
-                    // retry entry below finds the node on disk.
-                    onHeap.markNodeDeleted(objectId, deleteVs);
-                }
+        boolean found = false;
+        for (OnHeapVectorGraphIndex onHeap : group.getOnHeapIndexes()) {
+            if (onHeap.getMetadata().findNodeRef(objectId) != null) {
+                found = true;
+                // The versionstamp compare runs under the metadata lock, so a concurrent newer add
+                // cannot lose its mapping to this delete.
+                onHeap.markNodeDeleted(objectId, deleteVs);
             }
-            boolean foundOnDisk = group.markNodeDeletedOnDisk(objectId, deleteVs);
-            found = found || foundOnDisk;
+        }
+        boolean foundOnDisk = group.markNodeDeletedOnDisk(objectId, deleteVs);
+        found = found || foundOnDisk;
 
-            // On-heap markNodeDeleted removes the ObjectId mapping. A retry of a delete operation that already
-            // marked the node then finds nothing and stores a tombstone for a node that is already gone.
-            // This is harmless: a later add for the same ObjectId is either newer (tombstone is consumed,
-            // node is added) or older (skipping it is correct). If no add comes, the tombstone stays in
-            // the map. This is accepted.
-            if (!found) {
-                group.putDeleteTombstone(objectId, deleteVs);
-            }
-        } catch (Exception e) {
-            group.recordFailedOp(RetryEntry.delete(metadata, deleteVs, vectorIndexId, objectId));
-            LOGGER.warn("Failed to delete vector node from graph indexes, objectId={}, vectorIndexId={}, versionstamp={}, recorded a retry entry: {}",
-                    objectId, vectorIndexId, deleteVs, e.toString());
-            LOGGER.debug("Stack trace for failed vector node delete, objectId={}", objectId, e);
+        // On-heap markNodeDeleted removes the ObjectId mapping. A second delete of the same object then
+        // finds nothing and stores a tombstone for a node that is already gone.
+        // This is harmless: a later add for the same ObjectId is either newer (tombstone is consumed,
+        // node is added) or older (skipping it is correct). If no add comes, the tombstone stays in
+        // the map. This is accepted.
+        if (!found) {
+            group.putDeleteTombstone(objectId, deleteVs);
         }
     }
 

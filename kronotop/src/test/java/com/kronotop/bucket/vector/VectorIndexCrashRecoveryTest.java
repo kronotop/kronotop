@@ -263,19 +263,19 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldReturnEmptyFailedOpsWhenNoMutationLogEntries() {
-        // Behavior: Recovery returns empty failed ops when the mutation log is empty.
+    void shouldRecoverNothingWhenNoMutationLogEntries() {
+        // Behavior: Recovery on an empty mutation log completes and leaves the on-heap index empty.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        FailedOps failedOps = VectorIndexCrashRecovery.recover(
+        VectorIndexCrashRecovery.recover(
                 context, vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        assertTrue(failedOps.adds().isEmpty());
-        assertTrue(failedOps.deletes().isEmpty());
+        assertEquals(1, group.getOnHeapIndexes().size());
+        assertEquals(0, group.getOnHeapIndexes().getLast().size());
         group.closeAll();
     }
 
@@ -907,12 +907,11 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         Versionstamp expected = Versionstamp.complete(trVersion, maxUserVersion);
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        FailedOps failedOps = VectorIndexCrashRecovery.recover(
+        VectorIndexCrashRecovery.recover(
                 context, vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        assertTrue(failedOps.adds().isEmpty());
         assertEquals(1, group.getOnHeapIndexes().size());
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         assertEquals(total, recovered.size());

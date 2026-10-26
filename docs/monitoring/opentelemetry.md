@@ -266,8 +266,6 @@ The `volumeN` lines are not sent.
 |--------------------------|-------------------------------------|---------|
 | `vector_indexes`         | `kronotop_vector_indexes`           | gauge   |
 | `vector_bytes_used`      | `kronotop_vector_bytes_used`        | gauge   |
-| `vector_pending_retries` | `kronotop_vector_pending_retries`   | gauge   |
-| `vector_retried_ops`     | `kronotop_vector_retried_ops_total` | counter |
 
 ### ZMap
 

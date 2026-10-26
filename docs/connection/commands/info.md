@@ -198,8 +198,6 @@ the cluster port.
 |--------------------------|----------------------------------------------------------------------------------------------|
 | `vector_indexes`         | Vector graph indexes held in memory.                                                         |
 | `vector_bytes_used`      | Total heap usage of those indexes, in bytes.                                                 |
-| `vector_pending_retries` | Failed vector node adds and deletes waiting for the background retry.                        |
-| `vector_retried_ops`     | Operations the retry replayed successfully.                                                  |
 
 ### ZMap
 

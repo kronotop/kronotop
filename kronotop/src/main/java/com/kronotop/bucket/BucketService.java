@@ -50,7 +50,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -84,7 +83,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private final PlanCache planCache = new PlanCache();
     private final BucketMetrics metrics = new BucketMetrics();
     private final Planner planner;
-    private final FailedVectorNodeOpRetrier failedVectorNodeOpRetrier;
     private final long vectorFlushThresholdBytes;
     private final int pqTrainingThreshold;
     private final int pqSubspaceDivisor;
@@ -123,7 +121,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         routing.registerHook(RoutingEventKind.HAND_OVER_SHARD_OWNERSHIP, new HandOverShardOwnershipHook());
         routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
 
-        this.failedVectorNodeOpRetrier = new FailedVectorNodeOpRetrier(context, Duration.ofSeconds(5));
         this.bucketEventsWatcher = new BucketEventsWatcher(context, planCache);
         this.planner = new Planner(planCache, metrics);
         this.queryExecutor = new QueryExecutor(this);
@@ -176,10 +173,8 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         collector.put(InfoReport.BUCKET_SECTION, "index_maintenance_last_run", lastRun);
 
         int[] indexes = new int[1];
-        int[] pending = new int[1];
         long[] bytes = new long[1];
         vectorGraphRegistry.forEachGroup(group -> {
-            pending[0] += group.pendingFailedOps();
             for (OnHeapVectorGraphIndex index : group.getOnHeapIndexes()) {
                 indexes[0]++;
                 bytes[0] += index.ramBytesUsed();
@@ -187,8 +182,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         });
         collector.put(InfoReport.VECTOR_SECTION, "vector_indexes", indexes[0]);
         collector.put(InfoReport.VECTOR_SECTION, "vector_bytes_used", bytes[0]);
-        collector.put(InfoReport.VECTOR_SECTION, "vector_pending_retries", pending[0]);
-        collector.put(InfoReport.VECTOR_SECTION, "vector_retried_ops", metrics.getVectorRetriedOps());
     }
 
     public Route findRoute(int shardId) {
@@ -274,68 +267,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         }
     }
 
-    private void recordFailedAdds(
-            List<FailedOps.Add> failedAdds,
-            VectorGraphIndexGroup group,
-            BucketMetadata metadata,
-            VectorIndex vectorIndex
-    ) {
-        for (FailedOps.Add failedAdd : failedAdds) {
-            CollectedVector cv = new CollectedVector(
-                    failedAdd.objectId(),
-                    failedAdd.shardId(),
-                    failedAdd.metadata(),
-                    failedAdd.vector(),
-                    vectorIndex.definition(),
-                    failedAdd.versionstamp().getUserVersion());
-            RetryEntry entry = RetryEntry.add(metadata, failedAdd.versionstamp(), cv);
-            group.recordFailedOp(entry);
-        }
-    }
-
-    private void recordFailedDeletes(
-            List<FailedOps.Delete> failedDeletes,
-            VectorGraphIndexGroup group,
-            BucketMetadata metadata,
-            VectorIndex vectorIndex) {
-        for (FailedOps.Delete failedDelete : failedDeletes) {
-            RetryEntry entry = RetryEntry.delete(
-                    metadata,
-                    failedDelete.versionstamp(),
-                    vectorIndex.definition().id(),
-                    failedDelete.objectId()
-            );
-            group.recordFailedOp(entry);
-        }
-    }
-
-    /**
-     * Replays the FAILED_OP_LOG of the vector index into the on-heap index of the group.
-     * Entries that fail again are recorded on the group for a later retry.
-     */
-    private void replayFailedOpLog(
-            VectorGraphIndexGroup group,
-            BucketMetadata metadata,
-            VectorIndex vectorIndex
-    ) {
-        OnHeapVectorGraphIndex onHeap = group.getOrCreateOnHeap(
-                vectorIndex.definition().dimensions(),
-                OnHeapVectorGraphIndex.toSimilarityFunction(vectorIndex.definition().distance()),
-                pqTrainingThreshold,
-                pqSubspaceDivisor
-        );
-        // Replay the FAILED_OP_LOG
-        FailedOps failedOps = ReplayFailedOpsLog.replay(
-                context,
-                group,
-                onHeap,
-                vectorIndex.subspace(),
-                vectorGraphExecutor
-        );
-        recordFailedAdds(failedOps.adds(), group, metadata, vectorIndex);
-        recordFailedDeletes(failedOps.deletes(), group, metadata, vectorIndex);
-    }
-
     /**
      * Loads a vector graph index group from the disk and replays mutation log entries for crash recovery.
      * If no disk data and no mutation log entries exist, returns an immediately ready group (fast-path).
@@ -367,7 +298,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                     group.addOnDisk(onDisk);
                 }
 
-                FailedOps failedOps = VectorIndexCrashRecovery.recover(
+                VectorIndexCrashRecovery.recover(
                         context,
                         vectorIndex.subspace(),
                         group,
@@ -377,12 +308,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                         pqTrainingThreshold,
                         pqSubspaceDivisor
                 );
-                recordFailedAdds(failedOps.adds(), group, metadata, vectorIndex);
-                recordFailedDeletes(failedOps.deletes(), group, metadata, vectorIndex);
-
-                // Replay FAILED_OP_LOG
-                replayFailedOpLog(group, metadata, vectorIndex);
-
                 group.markReady();
             } catch (Exception e) {
                 LOGGER.error("Vector index bootstrap failed for bucket={}, indexId={}",
@@ -442,7 +367,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             initializeBucketShardsIfOwned(shardId);
         }
 
-        failedVectorNodeOpRetrier.start();
         executor.submit(bucketEventsWatcher);
         Runnable evictionWorker = context.getBucketMetadataCache().createEvictionWorker(context::now, 1000 * 5 * 60);
         scheduler.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
@@ -451,9 +375,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     @Override
     public void shutdown() {
         try {
-            // Stop the retrier before vectorGraphExecutor shuts down. Otherwise, the two can race
-            // while re-adding failed vector nodes.
-            failedVectorNodeOpRetrier.shutdown();
             bucketEventsWatcher.shutdown();
 
             for (BucketShard shard : getServiceContext().shards().values()) {
@@ -476,8 +397,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                 LOGGER.warn("{} service cannot be stopped gracefully (scheduler)", NAME);
             }
 
-            // Flush before vectorGraphExecutor shuts down. Flush retries failed vector node adds on
-            // that executor, and a terminated executor rejects every retry.
+            // Flush before vectorGraphExecutor shuts down.
             try {
                 LOGGER.info("Flushing vector graph indexes");
                 long start = System.nanoTime();

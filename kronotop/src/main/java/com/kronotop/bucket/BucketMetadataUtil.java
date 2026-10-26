@@ -557,25 +557,6 @@ public class BucketMetadataUtil {
     }
 
     /**
-     * Opens bucket metadata without a caller-supplied transaction. Returns the cached metadata
-     * when available, otherwise creates a new transaction, and loads it from the FoundationDB.
-     *
-     * @param context   the context providing environment and services
-     * @param namespace the namespace containing the bucket
-     * @param bucket    the bucket name
-     * @return the bucket metadata
-     */
-    public static BucketMetadata open(Context context, String namespace, String bucket) {
-        BucketMetadata metadata = getCachedAndRefreshStatistics(context, namespace, bucket);
-        if (metadata != null) {
-            return metadata;
-        }
-        try (Transaction tr = context.getTransactionManager().create()) {
-            return open(context, tr, namespace, bucket);
-        }
-    }
-
-    /**
      * Reloads bucket metadata directly from the database, bypassing the cache check.
      * Updates the cache with the fresh data. Use when strong consistency is required.
      *

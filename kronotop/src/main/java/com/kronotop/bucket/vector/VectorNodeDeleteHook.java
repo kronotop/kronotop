@@ -19,6 +19,8 @@ package com.kronotop.bucket.vector;
 import com.kronotop.CommitHook;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -28,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
  * indexes. Waits for the transaction version, then hands the batch to {@link VectorNodeRemover}.
  */
 public final class VectorNodeDeleteHook extends BaseVectorNode implements CommitHook {
+    private static final Logger LOGGER = LoggerFactory.getLogger(VectorNodeDeleteHook.class);
     private final long vectorIndexId;
     private final List<DeletedVector> deletedVectors;
     private final CompletableFuture<byte[]> trVersionFuture;
@@ -50,7 +53,12 @@ public final class VectorNodeDeleteHook extends BaseVectorNode implements Commit
         byte[] trVersion = trVersionFuture.join();
         VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndexId);
         for (DeletedVector dv : deletedVectors) {
-            remover.remove(dv, trVersion);
+            try {
+                remover.remove(dv, trVersion);
+            } catch (Exception e) {
+                LOGGER.warn("Failed to delete vector node from graph indexes for objectId={}, "
+                        + "delete will be recovered from mutation log on next restart", dv.objectId(), e);
+            }
         }
         remover.flush();
     }

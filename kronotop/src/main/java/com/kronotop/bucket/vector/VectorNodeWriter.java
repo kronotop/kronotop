@@ -46,10 +46,6 @@ public final class VectorNodeWriter extends BaseVectorNode {
     public void write(CollectedVector cv, Versionstamp addVs) {
         VectorGraphIndexGroup group = awaitReadyGroup(cv.definition().id());
 
-        // An older add retry of this object must not run after this add. A later delete removes the
-        // mapping, and a stale retry would then add the node back for a deleted document.
-        group.discardStaleFailedAdd(cv.objectId(), addVs);
-
         // Pre-check: skip the expensive graph add if a newer DELETE tombstone already exists.
         if (consumeNewerDeleteTombstone(group, cv.objectId(), addVs)) {
             return;
@@ -66,12 +62,7 @@ public final class VectorNodeWriter extends BaseVectorNode {
         // Post-check: catch tombstones set by a concurrent DELETE during addGraphNode.
         Versionstamp deleteVs = group.removeDeleteTombstone(cv.objectId());
         if (deleteVs != null && deleteVs.compareTo(addVs) > 0) {
-            try {
-                graph.markNodeDeleted(cv.objectId(), deleteVs);
-            } catch (IllegalStateException e) {
-                // The graph was flushed after addGraphNode. The node is on disk, the delete retry finds it there.
-                group.recordFailedOp(RetryEntry.delete(metadata, deleteVs, cv.definition().id(), cv.objectId()));
-            }
+            graph.markNodeDeleted(cv.objectId(), deleteVs);
             return;
         }
 

@@ -24,8 +24,7 @@ public enum IndexSubspaceMagic {
     STAT_HINTS((byte) 0x05),
     TASKS((byte) 0x06),
     MUTATION_LOG((byte) 0x07),
-    FAILED_OP_LOG((byte) 0x08),
-    DELETED_ORDINALS((byte) 0x09);
+    DELETED_ORDINALS((byte) 0x08);
 
     public final byte value;
 

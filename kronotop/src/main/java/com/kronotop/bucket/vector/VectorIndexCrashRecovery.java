@@ -32,7 +32,6 @@ import com.kronotop.volume.EntryMetadata;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
@@ -48,19 +47,15 @@ public final class VectorIndexCrashRecovery {
 
     /**
      * Replays mutation log entries into the on-heap index. Deletes are also applied to the on-disk indexes
-     * of the group. An entry that fails to apply does not stop the replay. It is returned in {@link FailedOps}.
-     *
-     * @return the adds and deletes that failed to apply
+     * of the group.
      */
-    static FailedOps replayMutationLog(
+    static void replayMutationLog(
             VectorGraphIndexGroup group,
             OnHeapVectorGraphIndex onHeap,
             List<KeyValue> entries,
             DirectorySubspace indexSubspace,
             ExecutorService executor
     ) {
-        List<FailedOps.Add> failedAdds = new ArrayList<>();
-        List<FailedOps.Delete> failedDeletes = new ArrayList<>();
         for (KeyValue kv : entries) {
             MutationLogValue logValue = MutationLogValue.decode(kv.getValue());
             ObjectId objectId = new ObjectId(logValue.objectIdBytes());
@@ -71,52 +66,30 @@ public final class VectorIndexCrashRecovery {
                     VectorIndexValue payload = logValue.vectorPayload();
                     IndexEntry indexEntry = payload.indexEntry();
                     EntryMetadata metadata = EntryMetadata.decode(indexEntry.entryMetadata());
-                    try {
-                        onHeap.addGraphNode(
-                                objectId,
-                                versionstamp,
-                                indexEntry.shardId(),
-                                metadata,
-                                payload.vector(),
-                                executor
-                        ).join();
-                    } catch (Exception exp) {
-                        FailedOps.Add failedAdd = new FailedOps.Add(
-                                versionstamp,
-                                objectId,
-                                indexEntry.shardId(),
-                                metadata,
-                                payload.vector()
-                        );
-                        failedAdds.add(failedAdd);
-                    }
+                    onHeap.addGraphNode(
+                            objectId,
+                            versionstamp,
+                            indexEntry.shardId(),
+                            metadata,
+                            payload.vector(),
+                            executor
+                    ).join();
                 }
                 case DELETE -> {
-                    try {
-                        onHeap.markNodeDeleted(objectId, versionstamp);
-                        group.markNodeDeletedOnDisk(objectId, versionstamp);
-                    } catch (Exception exp) {
-                        FailedOps.Delete failedDelete = new FailedOps.Delete(
-                                objectId,
-                                versionstamp
-                        );
-                        failedDeletes.add(failedDelete);
-                    }
+                    onHeap.markNodeDeleted(objectId, versionstamp);
+                    group.markNodeDeletedOnDisk(objectId, versionstamp);
                 }
             }
 
             onHeap.advanceVersionstamp(versionstamp);
         }
-        return new FailedOps(failedAdds, failedDeletes);
     }
 
     /**
      * Scans the mutation log for entries newer than the latest on-disk versionstamp and
      * replays them into a fresh on-heap index with PQ configuration.
-     *
-     * @return the adds and deletes that failed to apply
      */
-    public static FailedOps recover(
+    public static void recover(
             Context context,
             DirectorySubspace indexSubspace,
             VectorGraphIndexGroup group,
@@ -147,8 +120,6 @@ public final class VectorIndexCrashRecovery {
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
         // Read mutation log entries
-        List<FailedOps.Add> failedAdds = new ArrayList<>();
-        List<FailedOps.Delete> failedDeletes = new ArrayList<>();
         while (true) {
             List<KeyValue> page;
             try (Transaction tr = context.getTransactionManager().create()) {
@@ -162,16 +133,12 @@ public final class VectorIndexCrashRecovery {
                     pqTrainingThreshold,
                     pqSubspaceDivisor
             );
-            FailedOps failedOps = replayMutationLog(group, onHeap, page, indexSubspace, executor);
-            failedAdds.addAll(failedOps.adds());
-            failedDeletes.addAll(failedOps.deletes());
+            replayMutationLog(group, onHeap, page, indexSubspace, executor);
 
             if (page.size() < PAGE_SIZE) {
                 break;
             }
             begin = KeySelector.firstGreaterThan(page.getLast().getKey());
         }
-
-        return new FailedOps(failedAdds, failedDeletes);
     }
 }

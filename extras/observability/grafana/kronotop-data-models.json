@@ -510,47 +510,6 @@
     },
     {
       "type": "timeseries",
-      "title": "Pending retries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "kronotop_vector_pending_retries{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
-          "legendFormat": "{{instance}}",
-          "refId": "{{instance}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "gridPos": {
-        "w": 6,
-        "h": 8,
-        "x": 12,
-        "y": 27
-      },
-      "id": 13
-    },
-    {
-      "type": "timeseries",
       "title": "Vector ops/s",
       "datasource": {
         "type": "prometheus",
@@ -565,15 +524,6 @@
           "expr": "rate(kronotop_bucket_vector_searches_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
           "legendFormat": "bucket_vector_searches {{instance}}",
           "refId": "bucket_vector_searches {{instance}}"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "rate(kronotop_vector_retried_ops_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
-          "legendFormat": "vector_retried_ops {{instance}}",
-          "refId": "vector_retried_ops {{instance}}"
         }
       ],
       "fieldConfig": {
@@ -594,7 +544,7 @@
       "gridPos": {
         "w": 6,
         "h": 8,
-        "x": 18,
+        "x": 12,
         "y": 27
       },
       "id": 14

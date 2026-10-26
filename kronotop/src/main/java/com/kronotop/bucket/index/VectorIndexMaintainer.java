@@ -19,7 +19,6 @@ package com.kronotop.bucket.index;
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.MutationType;
-import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
@@ -163,26 +162,6 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
     }
 
     /**
-     * Records a failed insert or update on the vector graph in the failed op log.
-     * The log key is the given versionstamp, so a later write with the same versionstamp replaces the entry.
-     */
-    public static void setFailedOpLog(Transaction tr,
-                                      DirectorySubspace indexSubspace,
-                                      MutationLogKind kind,
-                                      Versionstamp versionstamp,
-                                      byte[] objectId,
-                                      byte[] encodedIndexEntry,
-                                      float[] vector) {
-        Tuple tuple = Tuple.from(
-                IndexSubspaceMagic.FAILED_OP_LOG.getValue(),
-                versionstamp
-        );
-        byte[] key = indexSubspace.pack(tuple);
-        byte[] value = MutationLogValue.encode(kind, objectId, encodedIndexEntry, vector);
-        tr.set(key, value);
-    }
-
-    /**
      * Writes the deleted ordinal of an on-disk graph under {@code (DELETED_ORDINALS, baseName, ordinal)}.
      */
     public static void setDeletedOrdinal(Transaction tr, DirectorySubspace indexSubspace, String baseName, int ordinal) {
@@ -218,33 +197,6 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
             }
             begin = KeySelector.firstGreaterThan(page.getLast().getKey());
         }
-    }
-
-    /**
-     * Removes every entry from the failed op log of the vector index.
-     */
-    public static void truncateFailedOpLog(Transaction tr, DirectorySubspace indexSubspace) {
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.FAILED_OP_LOG.getValue()));
-        tr.clear(Range.startsWith(prefix));
-    }
-
-    /**
-     * Records a failed delete on the vector graph in the failed op log.
-     * The log key is the given versionstamp, so a later write with the same versionstamp replaces the entry.
-     */
-    public static void deleteFailedOpLog(
-            Transaction tr,
-            DirectorySubspace indexSubspace,
-            Versionstamp versionstamp,
-            byte[] objectId
-    ) {
-        Tuple tuple = Tuple.from(
-                IndexSubspaceMagic.FAILED_OP_LOG.getValue(),
-                versionstamp
-        );
-        byte[] key = indexSubspace.pack(tuple);
-        byte[] value = MutationLogValue.encode(MutationLogKind.DELETE, objectId);
-        tr.set(key, value);
     }
 
     /**

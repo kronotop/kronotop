@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.vector;
 
-import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -45,7 +44,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
-import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -1010,224 +1008,12 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         assertEquals(newer, group.removeDeleteTombstone(objectId));
     }
 
-    private List<KeyValue> getFailedOpLogEntries(DirectorySubspace indexSubspace) {
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.FAILED_OP_LOG.getValue()));
-        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-        try (Transaction tr = context.getTransactionManager().create()) {
-            return tr.getRange(begin, end).asList().join();
-        }
-    }
-
-    @Test
-    void shouldWriteRemainingFailedAddToFailedOpLogOnFlush(@TempDir Path tempDir) {
-        // Behavior: An add that still fails after the retries in flush is written to the failed op log
-        // under its versionstamp with the INSERT kind, the object id and the vector payload.
-        ObjectId objectId = new ObjectId();
-        Versionstamp versionstamp = versionstamp(7);
-        EntryMetadata entryMetadata = newEntryMetadata(1);
-        float[] vector = new float[]{1.0f, 0.0f, 0.0f};
-        // A definition with an unknown id makes every retry fail, so the entry stays recorded.
-        VectorIndexDefinition definition = vectorIndex.definition();
-        VectorIndexDefinition unknownDefinition = new VectorIndexDefinition(Long.MAX_VALUE, definition.name(),
-                definition.selector(), definition.dimensions(), definition.distance(), definition.status());
-        CollectedVector cv = new CollectedVector(objectId, 0, entryMetadata, vector, unknownDefinition, 7);
-        group.recordFailedOp(RetryEntry.add(metadata, versionstamp, cv));
-
-        group.flush(tempDir);
-
-        List<KeyValue> entries = getFailedOpLogEntries(vectorIndex.subspace());
-        assertEquals(1, entries.size());
-        KeyValue kv = entries.get(0);
-        assertEquals(versionstamp, vectorIndex.subspace().unpack(kv.getKey()).getVersionstamp(1));
-        MutationLogValue decoded = MutationLogValue.decode(kv.getValue());
-        assertEquals(MutationLogKind.INSERT, decoded.kind());
-        assertArrayEquals(objectId.toByteArray(), decoded.objectIdBytes());
-        assertEquals(0, decoded.vectorPayload().indexEntry().shardId());
-        assertArrayEquals(entryMetadata.encode(), decoded.vectorPayload().indexEntry().entryMetadata());
-        assertArrayEquals(vector, decoded.vectorPayload().vector());
-    }
-
-    @Test
-    void shouldReplaceFailedOpLogOnFlush(@TempDir Path tempDir) {
-        // Behavior: Flush truncates the failed op log before writing, so an older entry in the log
-        // is replaced and only the operations that still fail remain.
-        ObjectId staleObjectId = new ObjectId();
-        EntryMetadata entryMetadata = newEntryMetadata(1);
-        float[] vector = new float[]{1.0f, 0.0f, 0.0f};
-        byte[] encodedIndexEntry = new IndexEntry(0, entryMetadata.encode()).encode();
-        try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, versionstamp(3),
-                    staleObjectId.toByteArray(), encodedIndexEntry, vector);
-            tr.commit().join();
-        }
-        assertEquals(1, getFailedOpLogEntries(vectorIndex.subspace()).size());
-
-        ObjectId objectId = new ObjectId();
-        Versionstamp versionstamp = versionstamp(7);
-        VectorIndexDefinition definition = vectorIndex.definition();
-        VectorIndexDefinition unknownDefinition = new VectorIndexDefinition(Long.MAX_VALUE, definition.name(),
-                definition.selector(), definition.dimensions(), definition.distance(), definition.status());
-        CollectedVector cv = new CollectedVector(objectId, 0, entryMetadata, vector, unknownDefinition, 7);
-        group.recordFailedOp(RetryEntry.add(metadata, versionstamp, cv));
-
-        group.flush(tempDir);
-
-        List<KeyValue> entries = getFailedOpLogEntries(vectorIndex.subspace());
-        assertEquals(1, entries.size());
-        KeyValue kv = entries.get(0);
-        assertEquals(versionstamp, vectorIndex.subspace().unpack(kv.getKey()).getVersionstamp(1));
-        assertArrayEquals(objectId.toByteArray(), MutationLogValue.decode(kv.getValue()).objectIdBytes());
-    }
-
-    @Test
-    void shouldNotWriteFailedOpLogWhenNoFailedOps(@TempDir Path tempDir) {
-        // Behavior: A flush with no recorded failed operations leaves the failed op log empty.
-        group.flush(tempDir);
-
-        assertTrue(getFailedOpLogEntries(vectorIndex.subspace()).isEmpty());
-    }
-
     private VectorGraphIndexGroup registryGroup() {
         BucketService service = context.getService(BucketService.NAME);
         VectorGraphIndexGroup registryGroup = service.getVectorGraphRegistry().computeIfAbsent(
                 metadata, vectorIndex, () -> service.bootstrapVectorGroup(metadata, vectorIndex));
         registryGroup.awaitReady();
         return registryGroup;
-    }
-
-    @Test
-    void shouldRetryFailedAddAndAddNodeToOnHeapGraph() {
-        // Behavior: A successful add retry adds the node to the on-heap graph and removes the entry,
-        // so a second retry pass has nothing to do.
-        VectorGraphIndexGroup registryGroup = registryGroup();
-        ObjectId objectId = new ObjectId();
-        CollectedVector cv = new CollectedVector(objectId, 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f},
-                vectorIndex.definition(), 7);
-        registryGroup.recordFailedOp(RetryEntry.add(metadata, versionstamp(7), cv));
-
-        assertEquals(1, registryGroup.retryFailedOps());
-
-        assertTrue(registryGroup.getOnHeapIndexes().getLast().getMetadata().findNodeRef(objectId) != null);
-        assertEquals(0, registryGroup.retryFailedOps());
-    }
-
-    @Test
-    void shouldRetryFailedDeleteAndMarkNodeDeleted() {
-        // Behavior: A successful delete retry marks the node as deleted in the on-heap graph and removes
-        // the entry, so a second retry pass has nothing to do.
-        VectorGraphIndexGroup registryGroup = registryGroup();
-        BucketService service = context.getService(BucketService.NAME);
-        ObjectId objectId = new ObjectId();
-        CollectedVector cv = new CollectedVector(objectId, 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f},
-                vectorIndex.definition(), 1);
-        new VectorNodeWriter(service, metadata).write(cv, versionstamp(1));
-        OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
-        assertTrue(onHeap.getMetadata().findNodeRef(objectId) != null);
-
-        registryGroup.recordFailedOp(RetryEntry.delete(metadata, versionstamp(2), vectorIndex.definition().id(), objectId));
-
-        assertEquals(1, registryGroup.retryFailedOps());
-
-        assertNull(onHeap.getMetadata().findNodeRef(objectId));
-        assertEquals(0, registryGroup.retryFailedOps());
-    }
-
-    @Test
-    void shouldNotLetStaleAddRetryOverrideNewerVector() {
-        // Behavior: An add fails and is recorded for retry. Before the retry runs, the same document is
-        // updated: the delete stores a tombstone, and the new add consumes it and enters the graph.
-        // The retry of the old add must not add a second live node for the same object. The object
-        // stays bound to the new vector, search returns the new vector, and a later delete removes
-        // every node of the object.
-        VectorGraphIndexGroup registryGroup = registryGroup();
-        BucketService service = context.getService(BucketService.NAME);
-        long vectorIndexId = vectorIndex.definition().id();
-        ObjectId objectId = new ObjectId();
-        float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
-        float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
-        CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), oldVector,
-                vectorIndex.definition(), 1);
-        CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), newVector,
-                vectorIndex.definition(), 3);
-
-        // Step 1: the first add fails and waits for a retry.
-        registryGroup.recordFailedOp(RetryEntry.add(metadata, versionstamp(1), oldCv));
-
-        // Step 2: the document is updated before the retry runs.
-        VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndexId);
-        remover.remove(objectId, versionstamp(2));
-        remover.flush();
-        new VectorNodeWriter(service, metadata).write(newCv, versionstamp(3));
-        OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
-        int newOrdinal = onHeap.getMetadata().findNodeRef(objectId).ordinal();
-        assertTrue(newOrdinal >= 0);
-
-        // Step 3: the stale add is retried.
-        registryGroup.retryFailedOps();
-
-        assertEquals(newOrdinal, onHeap.getMetadata().findNodeRef(objectId).ordinal());
-        List<MergedNodeScore> results = registryGroup.searchAll(oldVector, 2, 0.0f, 1.0f);
-        assertEquals(1, results.size());
-        assertEquals(newCv.metadata(), results.getFirst().location().entryMetadata());
-
-        // Step 4: a later delete must leave no live node for the object.
-        remover = new VectorNodeRemover(service, metadata, vectorIndexId);
-        remover.remove(objectId, versionstamp(4));
-        remover.flush();
-
-        assertNull(onHeap.getMetadata().findNodeRef(objectId));
-        assertTrue(registryGroup.searchAll(oldVector, 2, 0.0f, 1.0f).isEmpty());
-    }
-
-    @Test
-    void shouldKeepNewerFailedOpWhenOlderIsRecorded(@TempDir Path tempDir) {
-        // Behavior: A failed op with an older versionstamp does not overwrite a newer one for the same
-        // object, so only the newer entry reaches the failed op log on flush.
-        ObjectId objectId = new ObjectId();
-        EntryMetadata entryMetadata = newEntryMetadata(1);
-        float[] vector = new float[]{1.0f, 0.0f, 0.0f};
-        // A definition with an unknown id makes every retry fail, so the entry stays recorded.
-        VectorIndexDefinition definition = vectorIndex.definition();
-        VectorIndexDefinition unknownDefinition = new VectorIndexDefinition(Long.MAX_VALUE, definition.name(),
-                definition.selector(), definition.dimensions(), definition.distance(), definition.status());
-        Versionstamp newer = versionstamp(2);
-        Versionstamp older = versionstamp(1);
-        group.recordFailedOp(RetryEntry.add(metadata, newer,
-                new CollectedVector(objectId, 0, entryMetadata, vector, unknownDefinition, 2)));
-        group.recordFailedOp(RetryEntry.add(metadata, older,
-                new CollectedVector(objectId, 0, entryMetadata, vector, unknownDefinition, 1)));
-
-        group.flush(tempDir);
-
-        List<KeyValue> entries = getFailedOpLogEntries(vectorIndex.subspace());
-        assertEquals(1, entries.size());
-        assertEquals(newer, vectorIndex.subspace().unpack(entries.get(0).getKey()).getVersionstamp(1));
-    }
-
-    @Test
-    void shouldDropFailedOpWhenBucketUuidDiffers(@TempDir Path tempDir) {
-        // Behavior: A retry entry whose bucket UUID differs from the current bucket is dropped without
-        // a retry, so it is neither applied to the graph nor written to the failed op log.
-        ObjectId objectId = new ObjectId();
-        CollectedVector cv = new CollectedVector(objectId, 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f},
-                vectorIndex.definition(), 7);
-        RetryEntry entry = new RetryEntry(metadata.namespace(), metadata.name(), UUID.randomUUID(), versionstamp(7),
-                RetryEntry.Kind.ADD, objectId, vectorIndex.definition().id(), cv);
-        group.recordFailedOp(entry);
-
-        assertEquals(0, group.retryFailedOps());
-
-        group.flush(tempDir);
-        assertTrue(getFailedOpLogEntries(vectorIndex.subspace()).isEmpty());
-        BucketService service = context.getService(BucketService.NAME);
-        VectorGraphIndexGroup registryGroup = service.getVectorGraphRegistry().get(
-                metadata.namespace(), metadata.name(), vectorIndex.definition().id());
-        if (registryGroup != null) {
-            for (OnHeapVectorGraphIndex onHeap : registryGroup.getOnHeapIndexes()) {
-                assertNull(onHeap.getMetadata().findNodeRef(objectId));
-            }
-        }
     }
 
     @Test
@@ -1290,196 +1076,9 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldNotResurrectDeletedDocumentFromStaleAddRetry() {
-        // Behavior: An add fails and waits for a retry. The document is then updated and deleted, so no
-        // graph holds a node or a tombstone for it. The newer add of the update must drop the waiting
-        // retry, otherwise the retry would add a live node for a deleted document.
-        VectorGraphIndexGroup registryGroup = registryGroup();
-        BucketService service = context.getService(BucketService.NAME);
-        long vectorIndexId = vectorIndex.definition().id();
-        ObjectId objectId = new ObjectId();
-        float[] vector = new float[]{1.0f, 0.0f, 0.0f};
-        CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), vector,
-                vectorIndex.definition(), 1);
-        CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), vector,
-                vectorIndex.definition(), 3);
-
-        registryGroup.recordFailedOp(RetryEntry.add(metadata, versionstamp(1), oldCv));
-
-        VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndexId);
-        remover.remove(objectId, versionstamp(2));
-        remover.flush();
-        new VectorNodeWriter(service, metadata).write(newCv, versionstamp(3));
-
-        remover = new VectorNodeRemover(service, metadata, vectorIndexId);
-        remover.remove(objectId, versionstamp(4));
-        remover.flush();
-
-        assertEquals(0, registryGroup.retryFailedOps());
-        assertTrue(registryGroup.searchAll(vector, 2, 0.0f, 1.0f).isEmpty());
-    }
-
-    @Test
-    void shouldKeepFailedAddRetryThatIsNewerThanLiveAdd() {
-        // Behavior: A waiting add retry is newer than a live add of the same object. The live add must
-        // keep the retry, and the retry then replaces the older vector.
-        VectorGraphIndexGroup registryGroup = registryGroup();
-        BucketService service = context.getService(BucketService.NAME);
-        ObjectId objectId = new ObjectId();
-        float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
-        float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
-        CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), oldVector,
-                vectorIndex.definition(), 1);
-        CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), newVector,
-                vectorIndex.definition(), 3);
-
-        registryGroup.recordFailedOp(RetryEntry.add(metadata, versionstamp(3), newCv));
-        new VectorNodeWriter(service, metadata).write(oldCv, versionstamp(1));
-
-        assertEquals(1, registryGroup.retryFailedOps());
-
-        OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
-        assertEquals(versionstamp(3), onHeap.getMetadata().findNodeRef(objectId).versionstamp());
-        List<MergedNodeScore> results = registryGroup.searchAll(newVector, 2, 0.0f, 1.0f);
-        assertEquals(1, results.size());
-        assertEquals(newCv.metadata(), results.getFirst().location().entryMetadata());
-    }
-
-    @Test
-    void shouldKeepFailedAddAndDeleteOfSameObjectApart() {
-        // Behavior: A failed DELETE and a failed ADD of the same ObjectId are both recorded and both
-        // retried. The delete is older than the add, so the object ends bound to the added vector.
-        VectorGraphIndexGroup registryGroup = registryGroup();
-        long vectorIndexId = vectorIndex.definition().id();
-        ObjectId objectId = new ObjectId();
-        CollectedVector cv = new CollectedVector(objectId, 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f},
-                vectorIndex.definition(), 3);
-
-        registryGroup.recordFailedOp(RetryEntry.delete(metadata, versionstamp(2), vectorIndexId, objectId));
-        registryGroup.recordFailedOp(RetryEntry.add(metadata, versionstamp(3), cv));
-
-        assertEquals(2, registryGroup.retryFailedOps());
-        assertEquals(0, registryGroup.retryFailedOps());
-
-        OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
-        GraphNodeRef ref = onHeap.getMetadata().findNodeRef(objectId);
-        assertNotNull(ref);
-        assertEquals(versionstamp(3), ref.versionstamp());
-    }
-
-    @Test
-    void shouldNotLetStaleDeleteRetryRemoveNewerNode() {
-        // Behavior: An update writes an old vector, then a delete and a new add for the same object. The
-        // delete fails and is retried after the new add reached the same graph. The new add already
-        // tombstoned the old node, and the stale delete retry leaves the new node alive.
-        VectorGraphIndexGroup registryGroup = registryGroup();
-        BucketService service = context.getService(BucketService.NAME);
-        long vectorIndexId = vectorIndex.definition().id();
-        ObjectId objectId = new ObjectId();
-        float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
-        float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
-        CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), oldVector,
-                vectorIndex.definition(), 1);
-        CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), newVector,
-                vectorIndex.definition(), 3);
-
-        VectorNodeWriter writer = new VectorNodeWriter(service, metadata);
-        writer.write(oldCv, versionstamp(1));
-        OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
-        int oldOrdinal = onHeap.getMetadata().findNodeRef(objectId).ordinal();
-
-        // The delete of the update fails and waits for a retry. The add of the update succeeds.
-        registryGroup.recordFailedOp(RetryEntry.delete(metadata, versionstamp(2), vectorIndexId, objectId));
-        writer.write(newCv, versionstamp(3));
-        GraphNodeRef newRef = onHeap.getMetadata().findNodeRef(objectId);
-        assertNotEquals(oldOrdinal, newRef.ordinal());
-        assertNull(onHeap.getMetadata().findDocumentLocation(oldOrdinal));
-
-        assertEquals(1, registryGroup.retryFailedOps());
-
-        assertEquals(newRef, onHeap.getMetadata().findNodeRef(objectId));
-        List<MergedNodeScore> results = registryGroup.searchAll(oldVector, 2, 0.0f, 1.0f);
-        assertEquals(1, results.size());
-        assertEquals(newCv.metadata(), results.getFirst().location().entryMetadata());
-    }
-
-    @Test
-    void shouldRetryBothFailedDeleteAndAddOfUpdateAgainstLiveOldNode() {
-        // Behavior: An update writes an old vector, then its delete and its add both fail and are recorded.
-        // The retry runs both. In any retry order the old node is gone and the object is bound to the new
-        // vector, so search returns only the new vector.
-        VectorGraphIndexGroup registryGroup = registryGroup();
-        BucketService service = context.getService(BucketService.NAME);
-        long vectorIndexId = vectorIndex.definition().id();
-        ObjectId objectId = new ObjectId();
-        float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
-        float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
-        CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), oldVector,
-                vectorIndex.definition(), 1);
-        CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), newVector,
-                vectorIndex.definition(), 3);
-
-        new VectorNodeWriter(service, metadata).write(oldCv, versionstamp(1));
-        OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
-        int oldOrdinal = onHeap.getMetadata().findNodeRef(objectId).ordinal();
-
-        registryGroup.recordFailedOp(RetryEntry.delete(metadata, versionstamp(2), vectorIndexId, objectId));
-        registryGroup.recordFailedOp(RetryEntry.add(metadata, versionstamp(3), newCv));
-
-        assertEquals(2, registryGroup.retryFailedOps());
-
-        GraphNodeRef ref = onHeap.getMetadata().findNodeRef(objectId);
-        assertNotNull(ref);
-        assertEquals(versionstamp(3), ref.versionstamp());
-        assertNull(onHeap.getMetadata().findDocumentLocation(oldOrdinal));
-        List<MergedNodeScore> results = registryGroup.searchAll(oldVector, 2, 0.0f, 1.0f);
-        assertEquals(1, results.size());
-        assertEquals(newCv.metadata(), results.getFirst().location().entryMetadata());
-    }
-
-    @Test
-    void shouldDeleteOldNodeOnDiskWhenDeleteRetryRunsAfterNewerAdd() {
-        // Behavior: The old node of an object lives in an on-disk graph. The delete of an update fails, the
-        // add of the update enters a new on-heap graph. The delete retry finds the old node on disk and
-        // marks it deleted, and leaves the newer on-heap node alive.
-        VectorGraphIndexGroup registryGroup = registryGroup();
-        BucketService service = context.getService(BucketService.NAME);
-        long vectorIndexId = vectorIndex.definition().id();
-        ObjectId objectId = new ObjectId();
-        float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
-        float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
-        CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), oldVector,
-                vectorIndex.definition(), 1);
-        CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), newVector,
-                vectorIndex.definition(), 3);
-
-        VectorNodeWriter writer = new VectorNodeWriter(service, metadata);
-        writer.write(oldCv, versionstamp(1));
-        OnHeapVectorGraphIndex oldOnHeap = registryGroup.getOnHeapIndexes().getLast();
-        registryGroup.flushSingle(service.getBucketDataDir(), oldOnHeap);
-        OnDiskVectorGraphIndex onDisk = registryGroup.getOnDiskIndexes().getLast();
-        GraphNodeRef oldRef = onDisk.getMetadata().findNodeRef(objectId);
-        assertNotNull(oldRef);
-
-        registryGroup.recordFailedOp(RetryEntry.delete(metadata, versionstamp(2), vectorIndexId, objectId));
-        writer.write(newCv, versionstamp(3));
-        OnHeapVectorGraphIndex newOnHeap = registryGroup.getOnHeapIndexes().getLast();
-        GraphNodeRef newRef = newOnHeap.getMetadata().findNodeRef(objectId);
-        assertNotNull(newRef);
-
-        assertEquals(1, registryGroup.retryFailedOps());
-
-        assertTrue(onDisk.isNodeDeleted(oldRef.ordinal()));
-        assertEquals(newRef, newOnHeap.getMetadata().findNodeRef(objectId));
-        List<MergedNodeScore> results = registryGroup.searchAll(oldVector, 2, 0.0f, 1.0f);
-        assertEquals(1, results.size());
-        assertEquals(newCv.metadata(), results.getFirst().location().entryMetadata());
-    }
-
-    @Test
     void shouldConvergeWhenLiveAddRacesWithStaleAdd() throws Exception {
-        // Behavior: A stale add (retry of an older versionstamp) and a live newer add of the same object run
-        // at the same time. In any order the object ends bound to the newer vector and the older vector is
+        // Behavior: A stale add (older versionstamp, late post-commit hook) and a live newer add of the same
+        // object run at the same time. In any order the object ends bound to the newer vector and the older vector is
         // not searchable.
         VectorGraphIndexGroup registryGroup = registryGroup();
         BucketService service = context.getService(BucketService.NAME);
@@ -1621,9 +1220,8 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldNotMarkOnDiskNodeWithSameVersionstampAsDelete(@TempDir Path tempDir) throws IOException {
         // Behavior: An UPDATE deletes the old node and adds the new node. Both carry the versionstamp of the
-        // UPDATE. If the delete fails and the new node is flushed to disk before the retry, the retry finds the
-        // new node under the same ObjectId. The retry must not mark it deleted, because the new node is not
-        // older than the delete.
+        // UPDATE. A delete with the same versionstamp as the on-disk node reports the node as found but must
+        // not mark it deleted, because the node is not older than the delete.
         OnHeapVectorGraphIndex heapIndex = newIndex();
         ObjectId objectId = new ObjectId();
         heapIndex.addGraphNode(objectId, versionstamp(5), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
