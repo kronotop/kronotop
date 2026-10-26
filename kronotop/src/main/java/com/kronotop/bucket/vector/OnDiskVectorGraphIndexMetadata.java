@@ -68,7 +68,7 @@ public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata,
         MemorySegment.copy(mappedMemory, ValueLayout.JAVA_BYTE, 20, versionstampBytes, 0, VERSIONSTAMP_SIZE);
         this.latestVersionstamp = Versionstamp.fromBytes(versionstampBytes);
     }
-    
+
     public Versionstamp getLatestVersionstamp() {
         return latestVersionstamp;
     }

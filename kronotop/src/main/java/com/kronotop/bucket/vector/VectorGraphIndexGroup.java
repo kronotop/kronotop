@@ -322,9 +322,6 @@ public class VectorGraphIndexGroup {
         return found;
     }
 
-    private record MarkedNode(OnDiskVectorGraphIndex index, int ordinal) {
-    }
-
     /**
      * Returns the live list of on-disk indexes in this group.
      */
@@ -488,5 +485,8 @@ public class VectorGraphIndexGroup {
         if (firstException != null) {
             throw new UncheckedIOException(firstException);
         }
+    }
+
+    private record MarkedNode(OnDiskVectorGraphIndex index, int ordinal) {
     }
 }

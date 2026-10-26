@@ -43,12 +43,6 @@ public class BucketMetadataCache {
     private final ConcurrentSkipListMap<String, BucketMetadataRegistry> cache;
     private final ConcurrentHashMap<Prefix, PrefixBinding> bindings = new ConcurrentHashMap<>();
 
-    /**
-     * Namespace and bucket name bound to a volume prefix.
-     */
-    public record PrefixBinding(String namespace, String bucket) {
-    }
-
     public BucketMetadataCache(Context context) {
         this.context = context;
         this.cache = new ConcurrentSkipListMap<>();
@@ -173,6 +167,12 @@ public class BucketMetadataCache {
      */
     public Runnable createEvictionWorker(LongSupplier timeSupplier, long ttl) {
         return new EvictionWorker(timeSupplier, ttl);
+    }
+
+    /**
+     * Namespace and bucket name bound to a volume prefix.
+     */
+    public record PrefixBinding(String namespace, String bucket) {
     }
 
     /**
