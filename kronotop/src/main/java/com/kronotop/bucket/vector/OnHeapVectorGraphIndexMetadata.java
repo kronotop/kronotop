@@ -145,16 +145,4 @@ public class OnHeapVectorGraphIndexMetadata implements VectorGraphIndexMetadata 
         }
         return ref;
     }
-
-    /**
-     * Advances the latest versionstamp if the given one is newer. Thread-safe via CAS loop.
-     */
-    public void advanceVersionstamp(Versionstamp versionstamp) {
-        // TODO: Will be removed during #71
-    }
-
-    public Versionstamp getLatestVersionstamp() {
-        // TODO: Will be removed during #71
-        return null;
-    }
 }
