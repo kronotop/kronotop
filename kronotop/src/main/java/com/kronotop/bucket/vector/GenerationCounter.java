@@ -22,7 +22,7 @@ package com.kronotop.bucket.vector;
  * The same id is returned for a fixed number of calls. When the call count
  * passes the capacity, the id moves to the next value. Thread-safe.
  */
-public class VectorGraphIndexGenerationId {
+public class GenerationCounter {
     private final int capacity;
     private long generationId;
     private int counter;
@@ -31,7 +31,7 @@ public class VectorGraphIndexGenerationId {
      * @param initial  first generation id to return
      * @param capacity number of calls served before the id moves to the next value
      */
-    public VectorGraphIndexGenerationId(long initial, int capacity) {
+    public GenerationCounter(long initial, int capacity) {
         this.generationId = initial;
         this.capacity = capacity;
     }
@@ -40,7 +40,7 @@ public class VectorGraphIndexGenerationId {
      * Returns the current generation id and counts the call.
      * The id grows by one once the call count passes the capacity.
      */
-    public synchronized long getGenerationId() {
+    public synchronized long next() {
         if (++counter > capacity) {
             counter = 0;
             generationId++;

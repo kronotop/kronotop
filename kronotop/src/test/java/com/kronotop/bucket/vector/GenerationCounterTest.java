@@ -21,44 +21,44 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class VectorGraphIndexGenerationIdTest {
+class GenerationCounterTest {
 
     private static final int CAPACITY = 100;
 
     @Test
     void shouldReturnInitialGenerationIdOnFirstCall() {
         // Behavior: the first call returns the initial generation id unchanged.
-        VectorGraphIndexGenerationId genId = new VectorGraphIndexGenerationId(7, CAPACITY);
-        assertEquals(7, genId.getGenerationId());
+        GenerationCounter genId = new GenerationCounter(7, CAPACITY);
+        assertEquals(7, genId.next());
     }
 
     @Test
     void shouldKeepGenerationIdStableForCapacityCalls() {
         // Behavior: the first 100 calls all return the initial generation id.
-        VectorGraphIndexGenerationId genId = new VectorGraphIndexGenerationId(0, CAPACITY);
+        GenerationCounter genId = new GenerationCounter(0, CAPACITY);
         for (int i = 0; i < CAPACITY; i++) {
-            assertEquals(0, genId.getGenerationId(), "call " + (i + 1));
+            assertEquals(0, genId.next(), "call " + (i + 1));
         }
     }
 
     @Test
     void shouldIncrementGenerationIdAfterCapacityCalls() {
         // Behavior: the call after 100 calls returns initial + 1.
-        VectorGraphIndexGenerationId genId = new VectorGraphIndexGenerationId(0, CAPACITY);
+        GenerationCounter genId = new GenerationCounter(0, CAPACITY);
         for (int i = 0; i < CAPACITY; i++) {
-            genId.getGenerationId();
+            genId.next();
         }
-        assertEquals(1, genId.getGenerationId());
+        assertEquals(1, genId.next());
     }
 
     @Test
     void shouldIncrementGenerationIdByOneOnEachOverflow() {
         // Behavior: every time the counter passes the capacity, the generation id grows by exactly one.
-        VectorGraphIndexGenerationId genId = new VectorGraphIndexGenerationId(0, CAPACITY);
-        long previous = genId.getGenerationId();
+        GenerationCounter genId = new GenerationCounter(0, CAPACITY);
+        long previous = genId.next();
         long maxSeen = previous;
         for (int i = 0; i < CAPACITY * 5; i++) {
-            long current = genId.getGenerationId();
+            long current = genId.next();
             assertTrue(current == previous || current == previous + 1, "jump at call " + (i + 2));
             previous = current;
             maxSeen = Math.max(maxSeen, current);
@@ -69,9 +69,9 @@ class VectorGraphIndexGenerationIdTest {
     @Test
     void shouldIncrementOnEveryCallWhenCapacityIsZero() {
         // Behavior: with capacity 0 each call moves to the next generation id.
-        VectorGraphIndexGenerationId genId = new VectorGraphIndexGenerationId(0, 0);
-        assertEquals(1, genId.getGenerationId());
-        assertEquals(2, genId.getGenerationId());
-        assertEquals(3, genId.getGenerationId());
+        GenerationCounter genId = new GenerationCounter(0, 0);
+        assertEquals(1, genId.next());
+        assertEquals(2, genId.next());
+        assertEquals(3, genId.next());
     }
 }
