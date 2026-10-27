@@ -371,33 +371,12 @@ public class VectorGraphIndexGroup {
         }
     }
 
-    private void truncateMutationLog(Versionstamp firstVersionstamp, Versionstamp latestVersionstamp) {
-        if (firstVersionstamp == null || latestVersionstamp == null) {
-            return;
-        }
-        DirectorySubspace indexSubspace = vectorIndex.subspace();
-        byte[] begin = indexSubspace.pack(
-                Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue(), firstVersionstamp)
-        );
-        byte[] end = ByteArrayUtil.strinc(
-                indexSubspace.pack(
-                        Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue(), latestVersionstamp)
-                )
-        );
-        try (Transaction tr = context.getTransactionManager().create()) {
-            tr.clear(begin, end);
-            tr.commit().join();
-        }
-    }
-
     /**
      * Flushes a single on-heap index to disk and promotes it to an on-disk index.
      */
     public void flushSingle(Path bucketDataDir, OnHeapVectorGraphIndex index) {
         if (index.isFlushed() || index.size() == 0) return;
 
-        Versionstamp firstVersionstamp = index.getFirstVersionstamp();
-        Versionstamp latestVersionstamp = index.getLatestVersionstamp();
         Path indexDir = resolveVectorDir(bucketDataDir, ownerShardId(metadata))
                 .resolve(metadata.uuid().toString())
                 .resolve(Long.toString(vectorIndex.definition().id()));
@@ -426,17 +405,6 @@ public class VectorGraphIndexGroup {
         } catch (IOException e) {
             LOGGER.error("Failed to close flushed vector graph index", e);
         }
-
-        if (firstVersionstamp == null || latestVersionstamp == null) {
-            LOGGER.warn("Skipping mutation log truncation for on-heap VectorGraphIndex {}: " +
-                    "no versionstamp range recorded, advanceVersionstamp was never called", index.getId());
-            return;
-        }
-        // TODO: Known gap: [first, latest] is a rough range, not the exact set of versionstamps this graph holds.
-        //  A write always goes to the last on-heap graph. A late post-commit hook can put an older
-        //  versionstamp into the new graph, inside this range. The clear below then drops its mutation
-        //  log entry while its node is still only on heap. After a crash, recovery skips it.
-        truncateMutationLog(firstVersionstamp, latestVersionstamp);
     }
 
     /**
