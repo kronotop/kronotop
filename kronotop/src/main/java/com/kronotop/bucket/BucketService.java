@@ -208,6 +208,20 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         return vectorGraphRegistry;
     }
 
+    /**
+     * Returns the current generation id of the vector index group for the given index.
+     * The id identifies the on-heap graph generation that will receive this write.
+     *
+     * @throws VectorIndexNotReadyException if the group is not registered yet
+     */
+    public byte[] takeVectorIndexGenerationId(BucketMetadata metadata, long indexId) {
+        VectorGraphIndexGroup group = vectorGraphRegistry.get(metadata.namespace(), metadata.name(), indexId);
+        if (group == null) {
+            throw new VectorIndexNotReadyException(metadata.namespace(), metadata.name(), indexId);
+        }
+        return group.takeGenerationId();
+    }
+
     public ExecutorService getVectorGraphExecutor() {
         return vectorGraphExecutor;
     }

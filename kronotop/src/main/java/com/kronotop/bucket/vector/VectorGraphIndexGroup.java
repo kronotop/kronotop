@@ -89,6 +89,15 @@ public class VectorGraphIndexGroup {
     }
 
     /**
+     * Counts one use of the current generation and returns its id as bytes.
+     * The array is shared across callers of the same generation; do not modify it.
+     * Lock-free.
+     */
+    public byte[] takeGenerationId() {
+        return generationCounter.take();
+    }
+
+    /**
      * Resolves the root directory for vector index files of the given shard.
      */
     public static Path resolveVectorDir(Path bucketDataDir, int shardId) {

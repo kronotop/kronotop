@@ -515,6 +515,8 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                 byte[] objectIdBytes = objectId.toByteArray();
                 UpdateResultContainer container = updatedEntry.getValue();
 
+                byte[] generationId = ctx.env().bucketService().takeVectorIndexGenerationId(ctx.metadata(), vectorIndex.definition().id());
+
                 // Drop old entry
                 VectorIndexMaintainer.dropEntry(tr, objectIdBytes, vectorIndex, ctx.metadata());
                 int deleteUserVersion = ctx.getAndIncrementUserVersion();
@@ -747,6 +749,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                     tr, vectorIndex, ctx.metadata(), objectIdBytes,
                     encodedIndexEntry, vector
             );
+            byte[] generationId = ctx.env().bucketService().takeVectorIndexGenerationId(ctx.metadata(), vectorIndex.definition().id());
             VectorIndexMaintainer.appendMutation(
                     tr, vectorIndex.subspace(), MutationLogKind.INSERT,
                     objectIdBytes, encodedIndexEntry, vector, userVersion

@@ -224,6 +224,9 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                 if (vector == null) {
                     continue;
                 }
+
+                byte[] generationId = service.takeVectorIndexGenerationId(metadata, vectorIndex.definition().id());
+
                 VectorIndexMaintainer.setEntry(
                         tr,
                         vectorIndex,

@@ -131,6 +131,8 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
                 for (ObjectId objectId : deletedIds) {
                     VectorIndexMaintainer.dropEntry(tr, objectId.toByteArray(), vectorIndex, ctx.metadata());
                     int userVersion = ctx.getAndIncrementUserVersion();
+                    byte[] generationId = ctx.env().bucketService().takeVectorIndexGenerationId(
+                            ctx.metadata(), vectorIndex.definition().id());
                     VectorIndexMaintainer.appendDeleteMutation(
                             tr,
                             vectorIndex.subspace(),
