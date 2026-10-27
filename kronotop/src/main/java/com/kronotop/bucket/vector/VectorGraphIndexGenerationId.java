@@ -23,9 +23,9 @@ package com.kronotop.bucket.vector;
  * passes the capacity, the id moves to the next value. Thread-safe.
  */
 public class VectorGraphIndexGenerationId {
+    private final int capacity;
     private long generationId;
     private int counter;
-    private final int capacity;
 
     /**
      * @param initial  first generation id to return

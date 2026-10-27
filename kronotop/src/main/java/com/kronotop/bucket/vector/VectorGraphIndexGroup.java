@@ -18,13 +18,10 @@ package com.kronotop.bucket.vector;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.ByteArrayUtil;
-import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.collect.Iterables;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.VectorIndex;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;

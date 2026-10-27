@@ -281,7 +281,7 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     public void advanceVersionstamp(Versionstamp versionstamp) {
         // TODO: Remove this during #71
     }
-    
+
     public VectorGraphIndexMetadata getMetadata() {
         return metadata;
     }

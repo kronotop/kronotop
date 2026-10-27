@@ -21,8 +21,6 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import org.bson.types.ObjectId;
 
-import java.util.List;
-
 /**
  * Removes vector nodes from the graph indexes of a single vector index. One instance handles one batch of
  * deletes. Call {@link #remove} for each deleted vector, then {@link #flush} once at the end of the batch.

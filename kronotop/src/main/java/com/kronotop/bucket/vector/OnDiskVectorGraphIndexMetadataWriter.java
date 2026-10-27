@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.vector;
 
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.pipeline.DocumentLocation;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;

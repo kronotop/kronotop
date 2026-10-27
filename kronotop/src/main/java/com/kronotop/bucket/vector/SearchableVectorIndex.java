@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.vector;
 
-import com.apple.foundationdb.tuple.Versionstamp;
 import io.github.jbellis.jvector.graph.SearchResult;
 import io.github.jbellis.jvector.util.Bits;
 

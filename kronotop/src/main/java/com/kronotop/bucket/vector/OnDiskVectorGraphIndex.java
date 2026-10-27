@@ -18,7 +18,6 @@ package com.kronotop.bucket.vector;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.index.VectorIndexMaintainer;
