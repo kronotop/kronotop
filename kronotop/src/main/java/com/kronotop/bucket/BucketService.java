@@ -44,7 +44,6 @@ import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.metrics.InfoReport;
 import com.kronotop.server.ServerKind;
 import com.kronotop.server.SessionAttributes;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -176,10 +175,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         int[] indexes = new int[1];
         long[] bytes = new long[1];
         vectorGraphRegistry.forEachGroup(group -> {
-            for (OnHeapVectorGraphIndex index : group.getOnHeapIndexes()) {
+            group.forEachOnHeap(index -> {
                 indexes[0]++;
                 bytes[0] += index.ramBytesUsed();
-            }
+            });
         });
         collector.put(InfoReport.VECTOR_SECTION, "vector_indexes", indexes[0]);
         collector.put(InfoReport.VECTOR_SECTION, "vector_bytes_used", bytes[0]);

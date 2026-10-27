@@ -19,7 +19,6 @@ package com.kronotop.bucket.vector;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.google.common.collect.Iterables;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.VectorIndex;
@@ -35,7 +34,9 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
@@ -52,9 +53,8 @@ import java.util.stream.Stream;
  */
 public class VectorGraphIndexGroup {
     private static final Logger LOGGER = LoggerFactory.getLogger(VectorGraphIndexGroup.class);
-    private final List<OnHeapVectorGraphIndex> onHeapIndexes = new CopyOnWriteArrayList<>();
-    private final TreeMap<ObjectId, List<OnHeapVectorGraphIndex>> onHeapIndexes2 = new TreeMap<>();
     private volatile OnHeapVectorGraphIndex activeOnHeap;
+    private final ConcurrentSkipListMap<ObjectId, List<OnHeapVectorGraphIndex>> onHeapIndexes = new ConcurrentSkipListMap<>();
     private final List<OnDiskVectorGraphIndex> onDiskIndexes = new CopyOnWriteArrayList<>();
     private final ConcurrentHashMap<ObjectId, Versionstamp> deleteTombstones = new ConcurrentHashMap<>();
 
@@ -86,10 +86,6 @@ public class VectorGraphIndexGroup {
     ) {
         this(context, metadata, vectorIndex);
         this.bootstrapFuture = bootstrapFuture;
-    }
-
-    public ObjectId getCurrentGenerationId() {
-        return generationCounter.current();
     }
 
     /**
@@ -233,24 +229,16 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Adds an on-heap index to this group.
-     */
-    public void addOnHeap(OnHeapVectorGraphIndex index) {
-        onHeapIndexes.add(index);
-    }
-
-    /**
      * Adds an on-disk index to this group.
      */
     public void addOnDisk(OnDiskVectorGraphIndex index) {
         onDiskIndexes.add(index);
     }
 
-
     private OnHeapVectorGraphIndex createOnHeap(int dimensions, VectorSimilarityFunction similarityFunction,
                                                 int pqTrainingThreshold, int pqSubspaceDivisor) {
         ObjectId genId = generationCounter.next();
-        List<OnHeapVectorGraphIndex> list = onHeapIndexes2.computeIfAbsent(genId, (ignored) -> new CopyOnWriteArrayList<>());
+        List<OnHeapVectorGraphIndex> list = onHeapIndexes.computeIfAbsent(genId, (ignored) -> new CopyOnWriteArrayList<>());
 
         OnHeapVectorGraphIndex fresh = new OnHeapVectorGraphIndex(dimensions, similarityFunction,
                 pqTrainingThreshold, pqSubspaceDivisor);
@@ -298,10 +286,42 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Returns the live list of on-heap indexes in this group.
+     * Visits the on-heap indexes in this group, ordered by generation id, without copying.
      */
-    public List<OnHeapVectorGraphIndex> getOnHeapIndexes() {
-        return onHeapIndexes;
+    public void forEachOnHeap(Consumer<OnHeapVectorGraphIndex> action) {
+        for (List<OnHeapVectorGraphIndex> list : onHeapIndexes.values()) {
+            for (OnHeapVectorGraphIndex index : list) {
+                action.accept(index);
+            }
+        }
+    }
+
+    /**
+     * Returns a snapshot of the on-heap indexes in this group, ordered by generation id.
+     * Intended for tests; production code uses {@link #forEachOnHeap(Consumer)}.
+     */
+    List<OnHeapVectorGraphIndex> getOnHeapIndexes() {
+        List<OnHeapVectorGraphIndex> snapshot = new ArrayList<>();
+        for (List<OnHeapVectorGraphIndex> list : onHeapIndexes.values()) {
+            snapshot.addAll(list);
+        }
+        return snapshot;
+    }
+
+    private synchronized void removeOnHeap(OnHeapVectorGraphIndex index) {
+        if (activeOnHeap == index) {
+            activeOnHeap = null;
+        }
+        Iterator<Map.Entry<ObjectId, List<OnHeapVectorGraphIndex>>> it = onHeapIndexes.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<ObjectId, List<OnHeapVectorGraphIndex>> entry = it.next();
+            if (entry.getValue().remove(index)) {
+                if (entry.getValue().isEmpty()) {
+                    it.remove();
+                }
+                return;
+            }
+        }
     }
 
     /**
@@ -355,31 +375,36 @@ public class VectorGraphIndexGroup {
         return onHeapIndexes.isEmpty() && onDiskIndexes.isEmpty();
     }
 
-    private Iterable<SearchableVectorIndex> allIndexes() {
-        return Iterables.concat(onHeapIndexes, onDiskIndexes);
-    }
-
     /**
      * Creates a resumable search session across all active indexes for the given query vector.
      */
     public VectorSearchSession createSearchSession(float[] queryVector) {
         List<SearchHandle> handles = new ArrayList<>();
-        for (SearchableVectorIndex index : allIndexes()) {
-            if (!index.isSearchable()) continue;
-            try {
-                handles.add(index.openSearchHandle(queryVector));
-            } catch (IllegalStateException e) {
-                // On-heap index flushed between isSearchable() and openSearchHandle()
+        for (List<OnHeapVectorGraphIndex> list : onHeapIndexes.values()) {
+            for (OnHeapVectorGraphIndex index : list) {
+                openSearchHandle(index, queryVector, handles);
             }
         }
+        for (OnDiskVectorGraphIndex index : onDiskIndexes) {
+            openSearchHandle(index, queryVector, handles);
+        }
         return new VectorSearchSession(handles);
+    }
+
+    private void openSearchHandle(SearchableVectorIndex index, float[] queryVector, List<SearchHandle> handles) {
+        if (!index.isSearchable()) return;
+        try {
+            handles.add(index.openSearchHandle(queryVector));
+        } catch (IllegalStateException e) {
+            // On-heap index flushed between isSearchable() and openSearchHandle()
+        }
     }
 
     /**
      * Searches all on-heap and on-disk indexes and merges results into a single top-K list using a min-heap.
      */
     public List<MergedNodeScore> searchAll(float[] queryVector, int topK, float threshold, float overquery) {
-        if (onHeapIndexes.isEmpty() && onDiskIndexes.isEmpty()) {
+        if (isEmpty()) {
             return List.of();
         }
 
@@ -418,7 +443,7 @@ public class VectorGraphIndexGroup {
             }
         }
 
-        onHeapIndexes.remove(index);
+        removeOnHeap(index);
         try {
             index.close();
         } catch (IOException e) {
@@ -432,10 +457,10 @@ public class VectorGraphIndexGroup {
      * Flush is not a thread-safe method.
      */
     public void flush(Path bucketDataDir) {
-        for (OnHeapVectorGraphIndex index : onHeapIndexes) {
-            if (index.isFlushed() || index.size() == 0) continue;
+        forEachOnHeap(index -> {
+            if (index.isFlushed() || index.size() == 0) return;
             flushSingle(bucketDataDir, index);
-        }
+        });
     }
 
     /**
@@ -455,23 +480,33 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Closes all indexes in both lists.
+     * Closes all on-heap and on-disk indexes.
      */
     public void closeAll() {
         IOException firstException = null;
 
-        for (SearchableVectorIndex index : allIndexes()) {
-            try {
-                index.close();
-            } catch (IOException e) {
-                if (firstException == null) firstException = e;
-                else firstException.addSuppressed(e);
+        for (List<OnHeapVectorGraphIndex> list : onHeapIndexes.values()) {
+            for (OnHeapVectorGraphIndex index : list) {
+                firstException = close(index, firstException);
             }
+        }
+        for (OnDiskVectorGraphIndex index : onDiskIndexes) {
+            firstException = close(index, firstException);
         }
 
         if (firstException != null) {
             throw new UncheckedIOException(firstException);
         }
+    }
+
+    private IOException close(SearchableVectorIndex index, IOException firstException) {
+        try {
+            index.close();
+        } catch (IOException e) {
+            if (firstException == null) return e;
+            firstException.addSuppressed(e);
+        }
+        return firstException;
     }
 
     private record MarkedNode(OnDiskVectorGraphIndex index, int ordinal) {

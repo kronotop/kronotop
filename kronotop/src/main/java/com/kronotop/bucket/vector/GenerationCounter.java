@@ -18,21 +18,24 @@ package com.kronotop.bucket.vector;
 
 import org.bson.types.ObjectId;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * Hands out generation ids for vector graph index nodes.
  * <p>
- * The same id is returned for a fixed number of calls. When the call count
- * passes the minimum capacity, a new ObjectId becomes the current id. Thread-safe.
+ * {@link #take()} counts one use of the current generation and returns its byte form.
+ * {@link #next()} returns the current generation id and starts a new one once the
+ * use count passes the minimum capacity. Thread-safe.
  */
 public class GenerationCounter {
     private final int minCapacity;
     private volatile ObjectId generationId;
     private volatile byte[] generationIdAsBytes;
-    private int counter;
+    private final AtomicInteger counter = new AtomicInteger();
 
     /**
      * @param initial     first generation id to return
-     * @param minCapacity number of calls served before a new id is created
+     * @param minCapacity number of {@link #take()} calls served before a new id is created
      */
     public GenerationCounter(ObjectId initial, int minCapacity) {
         this.generationId = initial;
@@ -41,12 +44,12 @@ public class GenerationCounter {
     }
 
     /**
-     * Returns the current generation id and counts the call.
-     * A new ObjectId replaces the current id once the call count passes the minimum capacity.
+     * Returns the current generation id. Does not count the call.
+     * A new ObjectId replaces the current id once the {@link #take()} count passes the minimum capacity.
      */
     public synchronized ObjectId next() {
-        if (++counter > minCapacity) {
-            counter = 0;
+        if (counter.get() > minCapacity) {
+            counter.set(0);
             generationId = new ObjectId();
             generationIdAsBytes = generationId.toByteArray();
         }
@@ -54,18 +57,12 @@ public class GenerationCounter {
     }
 
     /**
-     * Returns the current generation id without counting the call.
-     * Readers run in parallel; they wait while {@link #next()} runs.
-     */
-    public ObjectId current() {
-        return generationId;
-    }
-
-    /**
-     * Returns the byte form of the current generation id without counting the call.
+     * Counts one use of the current generation and returns its byte form.
      * The array is cached per generation; callers must not modify it.
+     * Lock-free; runs in parallel with other callers.
      */
-    public byte[] currentAsBytes() {
+    public byte[] take() {
+        counter.incrementAndGet();
         return generationIdAsBytes;
     }
 }
