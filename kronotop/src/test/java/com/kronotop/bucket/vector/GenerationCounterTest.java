@@ -16,10 +16,12 @@
 
 package com.kronotop.bucket.vector;
 
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class GenerationCounterTest {
 
@@ -28,50 +30,77 @@ class GenerationCounterTest {
     @Test
     void shouldReturnInitialGenerationIdOnFirstCall() {
         // Behavior: the first call returns the initial generation id unchanged.
-        GenerationCounter genId = new GenerationCounter(7, CAPACITY);
-        assertEquals(7, genId.next());
+        ObjectId initial = new ObjectId();
+        GenerationCounter genId = new GenerationCounter(initial, CAPACITY);
+        assertEquals(initial, genId.next());
     }
 
     @Test
     void shouldKeepGenerationIdStableForCapacityCalls() {
         // Behavior: the first 100 calls all return the initial generation id.
-        GenerationCounter genId = new GenerationCounter(0, CAPACITY);
+        ObjectId initial = new ObjectId();
+        GenerationCounter genId = new GenerationCounter(initial, CAPACITY);
         for (int i = 0; i < CAPACITY; i++) {
-            assertEquals(0, genId.next(), "call " + (i + 1));
+            assertEquals(initial, genId.next(), "call " + (i + 1));
         }
     }
 
     @Test
-    void shouldIncrementGenerationIdAfterCapacityCalls() {
-        // Behavior: the call after 100 calls returns initial + 1.
-        GenerationCounter genId = new GenerationCounter(0, CAPACITY);
+    void shouldRotateGenerationIdAfterCapacityCalls() {
+        // Behavior: the call after 100 calls returns a new generation id that differs from the initial one.
+        ObjectId initial = new ObjectId();
+        GenerationCounter genId = new GenerationCounter(initial, CAPACITY);
         for (int i = 0; i < CAPACITY; i++) {
             genId.next();
         }
-        assertEquals(1, genId.next());
+        assertNotEquals(initial, genId.next());
     }
 
     @Test
-    void shouldIncrementGenerationIdByOneOnEachOverflow() {
-        // Behavior: every time the counter passes the capacity, the generation id grows by exactly one.
-        GenerationCounter genId = new GenerationCounter(0, CAPACITY);
-        long previous = genId.next();
-        long maxSeen = previous;
+    void shouldRotateGenerationIdOnceOnEachOverflow() {
+        // Behavior: the generation id changes exactly once per overflow and never returns to a previous value.
+        GenerationCounter genId = new GenerationCounter(new ObjectId(), CAPACITY);
+        ObjectId previous = genId.next();
+        int rotations = 0;
         for (int i = 0; i < CAPACITY * 5; i++) {
-            long current = genId.next();
-            assertTrue(current == previous || current == previous + 1, "jump at call " + (i + 2));
+            ObjectId current = genId.next();
+            if (!current.equals(previous)) {
+                rotations++;
+                assertEquals(1, current.compareTo(previous), "rotation at call " + (i + 2) + " must produce a newer id");
+            }
             previous = current;
-            maxSeen = Math.max(maxSeen, current);
         }
-        assertTrue(maxSeen >= 4);
+        assertEquals(4, rotations);
     }
-    
+
     @Test
-    void shouldIncrementOnEveryCallWhenCapacityIsZero() {
-        // Behavior: with capacity 0 each call moves to the next generation id.
-        GenerationCounter genId = new GenerationCounter(0, 0);
-        assertEquals(1, genId.next());
-        assertEquals(2, genId.next());
-        assertEquals(3, genId.next());
+    void shouldReturnCurrentGenerationIdWithoutCountingTheCall() {
+        // Behavior: current() and currentAsBytes() return the id that next() would return, and never advance the counter.
+        ObjectId initial = new ObjectId();
+        GenerationCounter genId = new GenerationCounter(initial, CAPACITY);
+        for (int i = 0; i < CAPACITY * 2; i++) {
+            assertEquals(initial, genId.current(), "current call " + (i + 1));
+            assertArrayEquals(initial.toByteArray(), genId.currentAsBytes(), "currentAsBytes call " + (i + 1));
+        }
+        for (int i = 0; i < CAPACITY; i++) {
+            assertEquals(initial, genId.next(), "next call " + (i + 1));
+        }
+        ObjectId rotated = genId.next();
+        assertNotEquals(initial, rotated);
+        assertEquals(rotated, genId.current());
+        assertArrayEquals(rotated.toByteArray(), genId.currentAsBytes());
+    }
+
+    @Test
+    void shouldRotateOnEveryCallWhenCapacityIsZero() {
+        // Behavior: with capacity 0 each call returns a new generation id.
+        ObjectId initial = new ObjectId();
+        GenerationCounter genId = new GenerationCounter(initial, 0);
+        ObjectId first = genId.next();
+        ObjectId second = genId.next();
+        ObjectId third = genId.next();
+        assertNotEquals(initial, first);
+        assertNotEquals(first, second);
+        assertNotEquals(second, third);
     }
 }

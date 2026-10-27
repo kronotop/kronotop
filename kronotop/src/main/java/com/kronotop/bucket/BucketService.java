@@ -44,6 +44,7 @@ import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.metrics.InfoReport;
 import com.kronotop.server.ServerKind;
 import com.kronotop.server.SessionAttributes;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

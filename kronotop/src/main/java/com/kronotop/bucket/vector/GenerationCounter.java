@@ -16,35 +16,56 @@
 
 package com.kronotop.bucket.vector;
 
+import org.bson.types.ObjectId;
+
 /**
  * Hands out generation ids for vector graph index nodes.
  * <p>
  * The same id is returned for a fixed number of calls. When the call count
- * passes the capacity, the id moves to the next value. Thread-safe.
+ * passes the minimum capacity, a new ObjectId becomes the current id. Thread-safe.
  */
 public class GenerationCounter {
-    private final int capacity;
-    private long generationId;
+    private final int minCapacity;
+    private volatile ObjectId generationId;
+    private volatile byte[] generationIdAsBytes;
     private int counter;
 
     /**
-     * @param initial  first generation id to return
-     * @param capacity number of calls served before the id moves to the next value
+     * @param initial     first generation id to return
+     * @param minCapacity number of calls served before a new id is created
      */
-    public GenerationCounter(long initial, int capacity) {
+    public GenerationCounter(ObjectId initial, int minCapacity) {
         this.generationId = initial;
-        this.capacity = capacity;
+        this.generationIdAsBytes = initial.toByteArray();
+        this.minCapacity = minCapacity;
     }
 
     /**
      * Returns the current generation id and counts the call.
-     * The id grows by one once the call count passes the capacity.
+     * A new ObjectId replaces the current id once the call count passes the minimum capacity.
      */
-    public synchronized long next() {
-        if (++counter > capacity) {
+    public synchronized ObjectId next() {
+        if (++counter > minCapacity) {
             counter = 0;
-            generationId++;
+            generationId = new ObjectId();
+            generationIdAsBytes = generationId.toByteArray();
         }
         return generationId;
+    }
+
+    /**
+     * Returns the current generation id without counting the call.
+     * Readers run in parallel; they wait while {@link #next()} runs.
+     */
+    public ObjectId current() {
+        return generationId;
+    }
+
+    /**
+     * Returns the byte form of the current generation id without counting the call.
+     * The array is cached per generation; callers must not modify it.
+     */
+    public byte[] currentAsBytes() {
+        return generationIdAsBytes;
     }
 }
