@@ -664,10 +664,27 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         // Set single field indexes
         setSecondaryIndexesForUpsert(tr, ctx, objectIdBytes, encodedIndexEntry, upsertDoc);
 
-        // Schedule on-heap graph node addition for upserted vectors
+        // Set vector indexes and schedule on-heap graph node addition
+        setVectorIndexesForUpsert(tr, ctx, shard.id(), objectId, encodedIndexEntry, appendedEntries[0], upsertDoc);
+
+        // Store the upsert result for ObjectId resolution after commit
+        ctx.setUpsertResult(new UpsertResult(objectId));
+        ctx.addReturnedCount(1);
+    }
+
+    private void setVectorIndexesForUpsert(
+            Transaction tr,
+            QueryContext ctx,
+            int shardId,
+            ObjectId objectId,
+            byte[] encodedIndexEntry,
+            AppendedEntry appendedEntry,
+            BsonDocument document
+    ) {
+        byte[] objectIdBytes = objectId.toByteArray();
         List<CollectedVector> collectedVectors = new ArrayList<>();
         for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
-            float[] vector = VectorIndexMaintainer.extractVector(vectorIndex.definition(), upsertDoc);
+            float[] vector = VectorIndexMaintainer.extractVector(vectorIndex.definition(), document);
             if (vector == null) {
                 continue;
             }
@@ -678,16 +695,16 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             byte[] generationId = ctx.env().bucketService().takeVectorIndexGenerationId(ctx.metadata(), vectorIndex.definition().id());
             VectorIndexMaintainer.appendMutation(
                     tr, vectorIndex.subspace(), generationId, MutationLogKind.INSERT,
-                    shard.id(), objectIdBytes, encodedIndexEntry, vector, appendedEntries[0].userVersion()
+                    shardId, objectIdBytes, encodedIndexEntry, vector, appendedEntry.userVersion()
             );
             collectedVectors.add(new CollectedVector(
                     objectId,
                     generationId,
-                    shard.id(),
-                    appendedEntries[0].metadata(),
+                    shardId,
+                    appendedEntry.metadata(),
                     vector,
                     vectorIndex.definition(),
-                    appendedEntries[0].userVersion()
+                    appendedEntry.userVersion()
             ));
         }
         if (!collectedVectors.isEmpty()) {
@@ -697,10 +714,6 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                     ctx.getSession()
             );
         }
-
-        // Store the upsert result for ObjectId resolution after commit
-        ctx.setUpsertResult(new UpsertResult(objectId));
-        ctx.addReturnedCount(1);
     }
 
     private void setSecondaryIndexesForUpsert(
