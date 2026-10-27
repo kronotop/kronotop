@@ -88,15 +88,6 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Counts one use of the current generation and returns its id as bytes.
-     * The array is shared across callers of the same generation; do not modify it.
-     * Lock-free.
-     */
-    public byte[] takeGenerationId() {
-        return generationCounter.take();
-    }
-
-    /**
      * Resolves the root directory for vector index files of the given shard.
      */
     public static Path resolveVectorDir(Path bucketDataDir, int shardId) {
@@ -188,6 +179,26 @@ public class VectorGraphIndexGroup {
         return opened;
     }
 
+    private static OnHeapVectorGraphIndex lastOf(List<OnHeapVectorGraphIndex> list) {
+        if (list == null) {
+            return null;
+        }
+        try {
+            return list.getLast();
+        } catch (NoSuchElementException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Counts one use of the current generation and returns its id as bytes.
+     * The array is shared across callers of the same generation; do not modify it.
+     * Lock-free.
+     */
+    public byte[] takeGenerationId() {
+        return generationCounter.take();
+    }
+
     /**
      * Blocks the calling thread until bootstrap completes. No-op for fast-path groups.
      *
@@ -251,17 +262,6 @@ public class VectorGraphIndexGroup {
                 pqTrainingThreshold, pqSubspaceDivisor);
         list.add(fresh);
         return fresh;
-    }
-
-    private static OnHeapVectorGraphIndex lastOf(List<OnHeapVectorGraphIndex> list) {
-        if (list == null) {
-            return null;
-        }
-        try {
-            return list.getLast();
-        } catch (NoSuchElementException e) {
-            return null;
-        }
     }
 
     /**

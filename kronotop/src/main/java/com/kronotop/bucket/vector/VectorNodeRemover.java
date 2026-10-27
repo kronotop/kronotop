@@ -21,12 +21,7 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import org.bson.types.ObjectId;
 
-/**
- * Removes vector nodes from the graph indexes of a single vector index. One instance handles one batch of
- * deletes. Call {@link #remove} for each deleted vector, then {@link #flush} once at the end of the batch.
- */
 public class VectorNodeRemover extends BaseVectorNode {
-    private final long vectorIndexId;
     private final VectorGraphIndexGroup group;
     private Versionstamp maxVs = null;
 
@@ -39,7 +34,6 @@ public class VectorNodeRemover extends BaseVectorNode {
      */
     public VectorNodeRemover(BucketService service, BucketMetadata metadata, long vectorIndexId) {
         super(service, metadata);
-        this.vectorIndexId = vectorIndexId;
         this.group = awaitReadyGroup(vectorIndexId);
     }
 

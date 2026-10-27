@@ -27,8 +27,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class GenerationCounter {
     private final int minCapacity;
-    private volatile byte[] generationIdAsBytes;
     private final AtomicInteger counter = new AtomicInteger();
+    private volatile byte[] generationIdAsBytes;
 
     /**
      * @param initial     generation id in use at start
