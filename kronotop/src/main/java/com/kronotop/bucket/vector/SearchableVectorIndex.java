@@ -65,8 +65,6 @@ public interface SearchableVectorIndex extends Closeable {
      */
     VectorGraphIndexMetadata getMetadata();
 
-    Versionstamp getLatestVersionstamp();
-
     /**
      * Returns the number of nodes in the graph at layer 0.
      */

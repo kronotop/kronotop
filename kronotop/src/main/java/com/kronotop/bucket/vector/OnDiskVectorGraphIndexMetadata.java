@@ -64,11 +64,6 @@ public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata,
         this.objectIdSectionOffset = mappedMemory.get(ValueLayout.JAVA_INT, 16);
     }
 
-    public Versionstamp getLatestVersionstamp() {
-        // TODO: Will be removed during #71
-        return null;
-    }
-
     public DocumentLocation findDocumentLocation(int ordinal) {
         if (ordinal < 0 || ordinal > maxOrdinal) {
             return null;
