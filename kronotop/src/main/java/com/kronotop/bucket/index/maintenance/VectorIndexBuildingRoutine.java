@@ -134,8 +134,10 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
             VectorIndexMaintainer.insertEntry(tr, vectorIndex, metadata,
                     objectIdBytes, shardId, pair.metadata(), vector);
 
-            // Add to the on-heap graph via VectorGraphIndexGroup.
+            // Add to the on-heap graph of the current generation via VectorGraphIndexGroup.
+            byte[] generationId = group.takeGenerationId();
             OnHeapVectorGraphIndex graph = group.getOrCreateOnHeap(
+                    generationId,
                     vectorDefinition.dimensions(), similarityFunction,
                     service.getPqTrainingThreshold(), service.getPqSubspaceDivisor());
 
@@ -145,6 +147,7 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
             // Flush to disk when the threshold exceeded, then continue with a fresh graph
             if (graph.ramBytesUsed() > service.getVectorFlushThresholdBytes()) {
                 OnHeapVectorGraphIndex previous = group.rotateOnHeap(
+                        generationId,
                         graph,
                         vectorDefinition.dimensions(), similarityFunction,
                         service.getPqTrainingThreshold(), service.getPqSubspaceDivisor());

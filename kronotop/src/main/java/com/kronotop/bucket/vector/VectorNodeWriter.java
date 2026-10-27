@@ -35,14 +35,6 @@ public final class VectorNodeWriter extends BaseVectorNode {
         return deleteVs != null && deleteVs.compareTo(addVs) > 0;
     }
 
-    /**
-     * Adds the vector as a node to the active on-heap graph. If the same object has a newer delete or a
-     * newer node in any graph, the node is not added or is marked as deleted. When the graph grows past
-     * the flush threshold, a new on-heap graph replaces it and the old one is flushed to disk in the background.
-     *
-     * @param cv    the vector and document metadata to add
-     * @param addVs the versionstamp of the add operation
-     */
     public void write(CollectedVector cv, Versionstamp addVs) {
         VectorGraphIndexGroup group = awaitReadyGroup(cv.definition().id());
 
@@ -52,6 +44,7 @@ public final class VectorNodeWriter extends BaseVectorNode {
         }
 
         OnHeapVectorGraphIndex graph = group.getOrCreateOnHeap(
+                cv.generationId(),
                 cv.definition().dimensions(),
                 OnHeapVectorGraphIndex.toSimilarityFunction(cv.definition().distance()),
                 service.getPqTrainingThreshold(),
@@ -68,6 +61,7 @@ public final class VectorNodeWriter extends BaseVectorNode {
 
         if (graph.ramBytesUsed() > service.getVectorFlushThresholdBytes()) {
             OnHeapVectorGraphIndex previous = group.rotateOnHeap(
+                    cv.generationId(),
                     graph,
                     cv.definition().dimensions(),
                     OnHeapVectorGraphIndex.toSimilarityFunction(cv.definition().distance()),

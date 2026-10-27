@@ -46,20 +46,27 @@ public final class VectorIndexCrashRecovery {
     }
 
     /**
-     * Replays mutation log entries into the on-heap index. Deletes are also applied to the on-disk indexes
-     * of the group.
+     * Replays mutation log entries into the on-heap index of the generation stored in each log key.
+     * Deletes are also applied to the on-disk indexes of the group.
      */
     static void replayMutationLog(
             VectorGraphIndexGroup group,
-            OnHeapVectorGraphIndex onHeap,
             List<KeyValue> entries,
             DirectorySubspace indexSubspace,
-            ExecutorService executor
+            int dimensions,
+            VectorSimilarityFunction similarityFunction,
+            ExecutorService executor,
+            int pqTrainingThreshold,
+            int pqSubspaceDivisor
     ) {
         for (KeyValue kv : entries) {
             MutationLogValue logValue = MutationLogValue.decode(kv.getValue());
             ObjectId objectId = new ObjectId(logValue.objectIdBytes());
-            Versionstamp versionstamp = indexSubspace.unpack(kv.getKey()).getVersionstamp(2);
+            Tuple key = indexSubspace.unpack(kv.getKey());
+            byte[] generationId = key.getBytes(1);
+            Versionstamp versionstamp = key.getVersionstamp(2);
+            OnHeapVectorGraphIndex onHeap = group.getOrCreateOnHeap(
+                    generationId, dimensions, similarityFunction, pqTrainingThreshold, pqSubspaceDivisor);
 
             switch (logValue.kind()) {
                 case INSERT, UPDATE -> {
@@ -127,14 +134,8 @@ public final class VectorIndexCrashRecovery {
                 page = tr.getRange(begin, end, PAGE_SIZE).asList().join();
             }
 
-            // Create a fresh on-heap index and replay entries
-            OnHeapVectorGraphIndex onHeap = group.getOrCreateOnHeap(
-                    dimensions,
-                    similarityFunction,
-                    pqTrainingThreshold,
-                    pqSubspaceDivisor
-            );
-            replayMutationLog(group, onHeap, page, indexSubspace, executor);
+            replayMutationLog(group, page, indexSubspace, dimensions, similarityFunction,
+                    executor, pqTrainingThreshold, pqSubspaceDivisor);
 
             if (page.size() < PAGE_SIZE) {
                 break;

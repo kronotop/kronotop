@@ -21,48 +21,38 @@ import org.bson.types.ObjectId;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Hands out generation ids for vector graph index nodes.
- * <p>
- * {@link #take()} counts one use of the current generation and returns its byte form.
- * {@link #next()} returns the current generation id and starts a new one once the
- * use count passes the minimum capacity. Thread-safe.
+ * Returns the generation id for vector mutations. All mutations with the same id go to the same
+ * on-heap graph. A generation serves a bounded number of mutations, then a new id replaces it.
+ * Thread-safe.
  */
 public class GenerationCounter {
     private final int minCapacity;
-    private volatile ObjectId generationId;
     private volatile byte[] generationIdAsBytes;
     private final AtomicInteger counter = new AtomicInteger();
 
     /**
-     * @param initial     first generation id to return
-     * @param minCapacity number of {@link #take()} calls served before a new id is created
+     * @param initial     generation id in use at start
+     * @param minCapacity mutations served by one generation before a new id is created
      */
     public GenerationCounter(ObjectId initial, int minCapacity) {
-        this.generationId = initial;
         this.generationIdAsBytes = initial.toByteArray();
         this.minCapacity = minCapacity;
     }
 
     /**
-     * Returns the current generation id. Does not count the call.
-     * A new ObjectId replaces the current id once the {@link #take()} count passes the minimum capacity.
-     */
-    public synchronized ObjectId next() {
-        if (counter.get() > minCapacity) {
-            counter.set(0);
-            generationId = new ObjectId();
-            generationIdAsBytes = generationId.toByteArray();
-        }
-        return generationId;
-    }
-
-    /**
-     * Counts one use of the current generation and returns its byte form.
-     * The array is cached per generation; callers must not modify it.
-     * Lock-free; runs in parallel with other callers.
+     * Counts one mutation and returns its generation id as bytes.
+     * The array is shared by all mutations of the same generation; callers must not modify it.
+     * Lock-free except on the call that starts a new generation.
      */
     public byte[] take() {
-        counter.incrementAndGet();
+        if (counter.incrementAndGet() > minCapacity) {
+            synchronized (this) {
+                if (counter.get() > minCapacity) {
+                    counter.set(0);
+                    generationIdAsBytes = new ObjectId().toByteArray();
+                }
+            }
+        }
         return generationIdAsBytes;
     }
 }

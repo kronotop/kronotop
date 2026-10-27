@@ -57,6 +57,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     private static final int PQ_DIMENSIONS = 12;
     private static final int PQ_THRESHOLD = 50;
     private static final int PQ_DIVISOR = 3;
+    private static final byte[] GEN = new ObjectId().toByteArray();
     private VectorGraphIndexGroup group;
     private ExecutorService executor;
     private BucketMetadata metadata;
@@ -128,16 +129,16 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     private OnHeapVectorGraphIndex openOnHeap() {
-        return group.getOrCreateOnHeap(3, VectorSimilarityFunction.COSINE, 0, 6);
+        return group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
     }
 
     private OnHeapVectorGraphIndex rotateOnHeap(OnHeapVectorGraphIndex previous) {
-        group.rotateOnHeap(previous, 3, VectorSimilarityFunction.COSINE, 0, 6);
+        group.rotateOnHeap(GEN, previous, 3, VectorSimilarityFunction.COSINE, 0, 6);
         return openOnHeap();
     }
 
     private OnHeapVectorGraphIndex openPqOnHeap() {
-        return group.getOrCreateOnHeap(PQ_DIMENSIONS, VectorSimilarityFunction.COSINE, PQ_THRESHOLD, PQ_DIVISOR);
+        return group.getOrCreateOnHeap(GEN, PQ_DIMENSIONS, VectorSimilarityFunction.COSINE, PQ_THRESHOLD, PQ_DIVISOR);
     }
 
     private float[] randomPqVector(Random rng) {
@@ -444,7 +445,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldCreateOnHeapIndexWhenNoneExists() {
         // Behavior: getOrCreateOnHeap creates a new on-heap index when the group has none.
-        OnHeapVectorGraphIndex graph = group.getOrCreateOnHeap(3, VectorSimilarityFunction.COSINE, 0, 6);
+        OnHeapVectorGraphIndex graph = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
         assertNotNull(graph);
         assertEquals(1, group.getOnHeapIndexes().size());
         assertSame(graph, group.getOnHeapIndexes().getLast());
@@ -453,23 +454,23 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldReturnExistingOnHeapIndex() {
         // Behavior: getOrCreateOnHeap returns the existing on-heap index without creating a new one.
-        OnHeapVectorGraphIndex first = group.getOrCreateOnHeap(3, VectorSimilarityFunction.COSINE, 0, 6);
-        OnHeapVectorGraphIndex second = group.getOrCreateOnHeap(3, VectorSimilarityFunction.COSINE, 0, 6);
+        OnHeapVectorGraphIndex first = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
+        OnHeapVectorGraphIndex second = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
         assertSame(first, second);
         assertEquals(1, group.getOnHeapIndexes().size());
     }
 
     @Test
     void shouldRotateOnHeapIndex() {
-        // Behavior: rotateOnHeap creates a new active index and returns the previous one when expected matches.
-        OnHeapVectorGraphIndex original = group.getOrCreateOnHeap(3, VectorSimilarityFunction.COSINE, 0, 6);
-        OnHeapVectorGraphIndex previous = group.rotateOnHeap(original, 3, VectorSimilarityFunction.COSINE, 0, 6);
+        // Behavior: rotateOnHeap adds a new index to the generation and returns the previous one when expected matches.
+        OnHeapVectorGraphIndex original = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
+        OnHeapVectorGraphIndex previous = group.rotateOnHeap(GEN, original, 3, VectorSimilarityFunction.COSINE, 0, 6);
 
         assertSame(original, previous);
         assertEquals(2, group.getOnHeapIndexes().size());
 
-        // The active index (last) should be the new one, not the original.
-        OnHeapVectorGraphIndex active = group.getOrCreateOnHeap(3, VectorSimilarityFunction.COSINE, 0, 6);
+        // The newest index of the generation should be the new one, not the original.
+        OnHeapVectorGraphIndex active = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
         assertNotSame(original, active);
         assertSame(active, group.getOnHeapIndexes().getLast());
     }
@@ -477,7 +478,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldForEachOnHeapVisitAllIndexesInGenerationOrder() {
         // Behavior: forEachOnHeap visits every on-heap index in the same generation order as getOnHeapIndexes.
-        OnHeapVectorGraphIndex first = group.getOrCreateOnHeap(3, VectorSimilarityFunction.COSINE, 0, 6);
+        OnHeapVectorGraphIndex first = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
         OnHeapVectorGraphIndex second = rotateOnHeap(first);
         rotateOnHeap(second);
 
@@ -490,11 +491,11 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldNotRotateWhenExpectedDoesNotMatch() {
-        // Behavior: rotateOnHeap returns null without creating a new index when expected does not match the active index.
-        OnHeapVectorGraphIndex active = group.getOrCreateOnHeap(3, VectorSimilarityFunction.COSINE, 0, 6);
+        // Behavior: rotateOnHeap returns null without creating a new index when expected is not the newest index of the generation.
+        OnHeapVectorGraphIndex active = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
 
         try (OnHeapVectorGraphIndex stale = new OnHeapVectorGraphIndex(3, VectorSimilarityFunction.COSINE)) {
-            OnHeapVectorGraphIndex result = group.rotateOnHeap(stale, 3, VectorSimilarityFunction.COSINE, 0, 6);
+            OnHeapVectorGraphIndex result = group.rotateOnHeap(GEN, stale, 3, VectorSimilarityFunction.COSINE, 0, 6);
 
             assertNull(result);
             assertEquals(1, group.getOnHeapIndexes().size());
@@ -504,10 +505,67 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    void shouldCreateSeparateOnHeapIndexPerGeneration() {
+        // Behavior: getOrCreateOnHeap keys on-heap indexes by generation id. Two generation ids give two
+        // different indexes and the same generation id gives the same index again.
+        byte[] otherGen = new ObjectId().toByteArray();
+        OnHeapVectorGraphIndex first = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
+        OnHeapVectorGraphIndex second = group.getOrCreateOnHeap(otherGen, 3, VectorSimilarityFunction.COSINE, 0, 6);
+
+        assertNotSame(first, second);
+        assertEquals(2, group.getOnHeapIndexes().size());
+        assertSame(first, group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6));
+        assertSame(second, group.getOrCreateOnHeap(otherGen, 3, VectorSimilarityFunction.COSINE, 0, 6));
+    }
+
+    @Test
+    void shouldReturnOldGenerationIndexForLateWrite() {
+        // Behavior: a write that carries an older generation id lands in the index of that generation,
+        // not in the newest one, even after a newer generation was created.
+        byte[] newerGen = new ObjectId().toByteArray();
+        OnHeapVectorGraphIndex old = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
+        OnHeapVectorGraphIndex newer = group.getOrCreateOnHeap(newerGen, 3, VectorSimilarityFunction.COSINE, 0, 6);
+
+        OnHeapVectorGraphIndex late = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
+        assertSame(old, late);
+        assertNotSame(newer, late);
+        assertEquals(List.of(old, newer), group.getOnHeapIndexes());
+    }
+
+    @Test
+    void shouldRotateOnlyNewestIndexOfGeneration() {
+        // Behavior: rotateOnHeap compares expected against the newest index of the given generation,
+        // so a rotation on one generation does not touch another generation.
+        byte[] otherGen = new ObjectId().toByteArray();
+        OnHeapVectorGraphIndex a = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
+        OnHeapVectorGraphIndex b = group.getOrCreateOnHeap(otherGen, 3, VectorSimilarityFunction.COSINE, 0, 6);
+
+        assertNull(group.rotateOnHeap(otherGen, a, 3, VectorSimilarityFunction.COSINE, 0, 6));
+        assertSame(a, group.rotateOnHeap(GEN, a, 3, VectorSimilarityFunction.COSINE, 0, 6));
+
+        assertEquals(3, group.getOnHeapIndexes().size());
+        assertSame(b, group.getOrCreateOnHeap(otherGen, 3, VectorSimilarityFunction.COSINE, 0, 6));
+        assertNotSame(a, group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6));
+    }
+
+    @Test
+    void shouldVisitOnHeapIndexesOrderedByGenerationId() {
+        // Behavior: forEachOnHeap visits generations in generation id order, regardless of creation order.
+        byte[] older = new ObjectId(new java.util.Date(1_000L)).toByteArray();
+        byte[] newer = new ObjectId(new java.util.Date(2_000L)).toByteArray();
+        OnHeapVectorGraphIndex newerIndex = group.getOrCreateOnHeap(newer, 3, VectorSimilarityFunction.COSINE, 0, 6);
+        OnHeapVectorGraphIndex olderIndex = group.getOrCreateOnHeap(older, 3, VectorSimilarityFunction.COSINE, 0, 6);
+
+        List<OnHeapVectorGraphIndex> visited = new ArrayList<>();
+        group.forEachOnHeap(visited::add);
+        assertEquals(List.of(olderIndex, newerIndex), visited);
+    }
+
+    @Test
     void shouldNotCreateMultipleIndexesWhenConcurrentThreadsRotate() throws Exception {
         // Behavior: When multiple threads concurrently call rotateOnHeap with the same expected graph,
         // only one rotation succeeds and the rest return null.
-        OnHeapVectorGraphIndex original = group.getOrCreateOnHeap(3, VectorSimilarityFunction.COSINE, 0, 6);
+        OnHeapVectorGraphIndex original = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
 
         int threadCount = 50;
         CountDownLatch startLatch = new CountDownLatch(1);
@@ -518,8 +576,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
             executor.submit(() -> {
                 try {
                     startLatch.await();
-                    OnHeapVectorGraphIndex previous = group.rotateOnHeap(
-                            original, 3, VectorSimilarityFunction.COSINE, 0, 6);
+                    OnHeapVectorGraphIndex previous = group.rotateOnHeap(GEN, original, 3, VectorSimilarityFunction.COSINE, 0, 6);
                     if (previous != null) {
                         successCount.incrementAndGet();
                     }
@@ -551,7 +608,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
             executor.submit(() -> {
                 try {
                     startLatch.await();
-                    seen.add(group.getOrCreateOnHeap(3, VectorSimilarityFunction.COSINE, 0, 6));
+                    seen.add(group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6));
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 } finally {
@@ -564,7 +621,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         doneLatch.await();
 
         assertEquals(1, seen.size());
-        assertSame(seen.iterator().next(), group.getOrCreateOnHeap(3, VectorSimilarityFunction.COSINE, 0, 6));
+        assertSame(seen.iterator().next(), group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6));
     }
 
     @Test
@@ -836,7 +893,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         OnDiskVectorGraphIndex diskIndex = flushToOnDisk(tempDir, pqHeap, "pq-disk");
         group.addOnDisk(diskIndex);
 
-        OnHeapVectorGraphIndex heapIndex = group.getOrCreateOnHeap(PQ_DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 6);
+        OnHeapVectorGraphIndex heapIndex = group.getOrCreateOnHeap(GEN, PQ_DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 6);
         heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(100), randomPqVector(rng), executor).join();
         heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(101), randomPqVector(rng), executor).join();
 
@@ -1268,7 +1325,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     void shouldLoadDeletedOrdinalsOnBootstrap() throws IOException {
         // Behavior: openOnDiskIndexes reads (DELETED_ORDINALS, baseName, ordinal) from FDB into the bitset.
         BucketService service = context.getService(BucketService.NAME);
-        OnHeapVectorGraphIndex heapIndex = group.getOrCreateOnHeap(DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
+        OnHeapVectorGraphIndex heapIndex = group.getOrCreateOnHeap(GEN, DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
         ObjectId objectId = new ObjectId();
         heapIndex.addGraphNode(objectId, versionstamp(1), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
         heapIndex.addGraphNode(new ObjectId(), versionstamp(1), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
@@ -1305,10 +1362,10 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         BucketService service = context.getService(BucketService.NAME);
         ObjectId objectIdA = new ObjectId();
         ObjectId objectIdB = new ObjectId();
-        OnHeapVectorGraphIndex heapA = group.getOrCreateOnHeap(DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
+        OnHeapVectorGraphIndex heapA = group.getOrCreateOnHeap(GEN, DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
         heapA.addGraphNode(objectIdA, versionstamp(1), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
         group.flush(service.getBucketDataDir());
-        OnHeapVectorGraphIndex heapB = group.getOrCreateOnHeap(DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
+        OnHeapVectorGraphIndex heapB = group.getOrCreateOnHeap(GEN, DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
         heapB.addGraphNode(objectIdB, versionstamp(1), 0, newEntryMetadata(2), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
         group.flush(service.getBucketDataDir());
 
@@ -1350,7 +1407,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         // Behavior: The deleted ordinal load is paged. A set larger than one page is read completely.
         BucketService service = context.getService(BucketService.NAME);
         int total = VectorIndexMaintainer.DELETED_ORDINALS_PAGE_SIZE + 1;
-        OnHeapVectorGraphIndex heapIndex = group.getOrCreateOnHeap(DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
+        OnHeapVectorGraphIndex heapIndex = group.getOrCreateOnHeap(GEN, DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
         Random rng = new Random(7);
         List<CompletableFuture<?>> adds = new ArrayList<>(total);
         for (int i = 0; i < total; i++) {
