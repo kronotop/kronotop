@@ -1061,9 +1061,9 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         ObjectId objectId = new ObjectId();
         float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
         float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
-        CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), newVector,
+        CollectedVector newCv = new CollectedVector(objectId, new ObjectId().toByteArray(), 0, newEntryMetadata(2), newVector,
                 vectorIndex.definition(), 3);
-        CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), oldVector,
+        CollectedVector oldCv = new CollectedVector(objectId, new ObjectId().toByteArray(), 0, newEntryMetadata(1), oldVector,
                 vectorIndex.definition(), 1);
 
         VectorNodeWriter writer = new VectorNodeWriter(service, metadata);
@@ -1089,7 +1089,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         BucketService service = context.getService(BucketService.NAME);
         long vectorIndexId = vectorIndex.definition().id();
         ObjectId objectId = new ObjectId();
-        CollectedVector cv = new CollectedVector(objectId, 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f},
+        CollectedVector cv = new CollectedVector(objectId, new ObjectId().toByteArray(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f},
                 vectorIndex.definition(), 3);
         new VectorNodeWriter(service, metadata).write(cv, versionstamp(3));
         OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
@@ -1119,9 +1119,9 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
         for (int i = 0; i < 50; i++) {
             ObjectId objectId = new ObjectId();
-            CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), oldVector,
+            CollectedVector oldCv = new CollectedVector(objectId, new ObjectId().toByteArray(), 0, newEntryMetadata(1), oldVector,
                     vectorIndex.definition(), 1);
-            CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), newVector,
+            CollectedVector newCv = new CollectedVector(objectId, new ObjectId().toByteArray(), 0, newEntryMetadata(2), newVector,
                     vectorIndex.definition(), 3);
 
             Thread stale = Thread.ofVirtual().start(() -> new VectorNodeWriter(service, metadata).write(oldCv, versionstamp(1)));
@@ -1163,7 +1163,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         float[] vector = new float[]{1.0f, 0.0f, 0.0f};
         for (int i = 0; i < 50; i++) {
             ObjectId objectId = new ObjectId();
-            CollectedVector cv = new CollectedVector(objectId, 0, newEntryMetadata(1), vector,
+            CollectedVector cv = new CollectedVector(objectId, new ObjectId().toByteArray(), 0, newEntryMetadata(1), vector,
                     vectorIndex.definition(), 1);
 
             Thread add = Thread.ofVirtual().start(() -> new VectorNodeWriter(service, metadata).write(cv, versionstamp(1)));

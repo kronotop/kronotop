@@ -249,6 +249,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
 
                 collectedVectors.add(new CollectedVector(
                         serializedDocument.objectId(),
+                        generationId,
                         shardId,
                         appendedEntry.metadata(),
                         vector,

@@ -144,7 +144,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
                             objectId.toByteArray(),
                             userVersion
                     );
-                    deletedVectors.add(new DeletedVector(objectId, userVersion));
+                    deletedVectors.add(new DeletedVector(objectId, generationId, userVersion));
                 }
                 // Schedule on-heap graph node deletion after commit
                 TransactionUtil.addPostCommitHook(new VectorNodeDeleteHook(

@@ -18,5 +18,5 @@ package com.kronotop.bucket.vector;
 
 import org.bson.types.ObjectId;
 
-public record DeletedVector(ObjectId objectId, int userVersion) {
+public record DeletedVector(ObjectId objectId, byte[] generationId, int userVersion) {
 }
