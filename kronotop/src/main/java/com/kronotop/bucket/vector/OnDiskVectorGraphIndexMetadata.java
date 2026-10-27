@@ -41,7 +41,6 @@ public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata,
     private final int count;
     private final int maxOrdinal;
     private final int objectIdSectionOffset;
-    private final Versionstamp latestVersionstamp;
 
     public OnDiskVectorGraphIndexMetadata(Path path) throws IOException {
         this.arena = Arena.ofShared();
@@ -63,14 +62,11 @@ public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata,
         this.count = mappedMemory.get(ValueLayout.JAVA_INT, 8);
         this.maxOrdinal = mappedMemory.get(ValueLayout.JAVA_INT, 12);
         this.objectIdSectionOffset = mappedMemory.get(ValueLayout.JAVA_INT, 16);
-
-        byte[] versionstampBytes = new byte[VERSIONSTAMP_SIZE];
-        MemorySegment.copy(mappedMemory, ValueLayout.JAVA_BYTE, 20, versionstampBytes, 0, VERSIONSTAMP_SIZE);
-        this.latestVersionstamp = Versionstamp.fromBytes(versionstampBytes);
     }
 
     public Versionstamp getLatestVersionstamp() {
-        return latestVersionstamp;
+        // TODO: Will be removed during #71
+        return null;
     }
 
     public DocumentLocation findDocumentLocation(int ordinal) {

@@ -66,8 +66,6 @@ public final class VectorNodeWriter extends BaseVectorNode {
             return;
         }
 
-        graph.advanceVersionstamp(addVs);
-
         if (graph.ramBytesUsed() > service.getVectorFlushThresholdBytes()) {
             OnHeapVectorGraphIndex previous = group.rotateOnHeap(
                     graph,

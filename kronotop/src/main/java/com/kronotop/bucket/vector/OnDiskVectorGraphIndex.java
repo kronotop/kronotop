@@ -131,7 +131,8 @@ public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
     }
 
     public Versionstamp getLatestVersionstamp() {
-        return metadata.getLatestVersionstamp();
+        // TODO: Will be removed during #71
+        return null;
     }
 
     public VectorGraphIndexMetadata getMetadata() {

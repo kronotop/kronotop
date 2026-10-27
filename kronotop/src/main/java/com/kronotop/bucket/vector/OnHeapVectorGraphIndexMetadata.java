@@ -21,8 +21,10 @@ import com.kronotop.bucket.pipeline.DocumentLocation;
 import com.kronotop.volume.EntryMetadata;
 import org.bson.types.ObjectId;
 
-import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.Consumer;
 
@@ -31,8 +33,6 @@ public class OnHeapVectorGraphIndexMetadata implements VectorGraphIndexMetadata 
     private final HashSet<Integer> pendingDeletes = new HashSet<>();
     private final Map<ObjectId, GraphNodeRef> objectIds = new HashMap<>();
     private final Map<Integer, DocumentLocation> ordinals = new HashMap<>();
-    private final AtomicReference<Versionstamp> firstVersionstamp = new AtomicReference<>();
-    private final AtomicReference<Versionstamp> latestVersionstamp = new AtomicReference<>();
 
     /**
      * Binds the object to the node with the given ordinal and add versionstamp. The node with the older
@@ -150,23 +150,11 @@ public class OnHeapVectorGraphIndexMetadata implements VectorGraphIndexMetadata 
      * Advances the latest versionstamp if the given one is newer. Thread-safe via CAS loop.
      */
     public void advanceVersionstamp(Versionstamp versionstamp) {
-        firstVersionstamp.compareAndSet(null, versionstamp);
-        while (true) {
-            Versionstamp current = latestVersionstamp.get();
-            if (current != null && Arrays.compareUnsigned(current.getBytes(), versionstamp.getBytes()) >= 0) {
-                return;
-            }
-            if (latestVersionstamp.compareAndSet(current, versionstamp)) {
-                return;
-            }
-        }
-    }
-
-    public Versionstamp getFirstVersionstamp() {
-        return firstVersionstamp.get();
+        // TODO: Will be removed during #71
     }
 
     public Versionstamp getLatestVersionstamp() {
-        return latestVersionstamp.get();
+        // TODO: Will be removed during #71
+        return null;
     }
 }

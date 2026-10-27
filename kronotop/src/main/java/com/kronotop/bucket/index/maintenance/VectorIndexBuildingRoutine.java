@@ -141,7 +141,6 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
 
             EntryMetadata entryMetadata = EntryMetadata.decode(pair.metadata());
             graph.addGraphNode(objectId, pair.key(), shardId, entryMetadata, vector, service.getVectorGraphExecutor()).join();
-            graph.advanceVersionstamp(pair.key());
 
             // Flush to disk when the threshold exceeded, then continue with a fresh graph
             if (graph.ramBytesUsed() > service.getVectorFlushThresholdBytes()) {

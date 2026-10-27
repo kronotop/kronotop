@@ -1063,14 +1063,12 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
         VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndexId);
         remover.remove(objectId, versionstamp(2));
-        remover.flush();
 
         assertEquals(ref, onHeap.getMetadata().findNodeRef(objectId));
         assertNull(registryGroup.removeDeleteTombstone(objectId));
 
         remover = new VectorNodeRemover(service, metadata, vectorIndexId);
         remover.remove(objectId, versionstamp(4));
-        remover.flush();
 
         assertNull(onHeap.getMetadata().findNodeRef(objectId));
     }
@@ -1116,7 +1114,6 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
             VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndex.definition().id());
             remover.remove(objectId, versionstamp(4));
-            remover.flush();
         }
     }
 
@@ -1138,7 +1135,6 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
             Thread delete = Thread.ofVirtual().start(() -> {
                 VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndexId);
                 remover.remove(objectId, versionstamp(2));
-                remover.flush();
             });
             add.join();
             delete.join();

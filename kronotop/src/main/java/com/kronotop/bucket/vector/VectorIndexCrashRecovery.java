@@ -80,8 +80,6 @@ public final class VectorIndexCrashRecovery {
                     group.markNodeDeletedOnDisk(objectId, versionstamp);
                 }
             }
-
-            onHeap.advanceVersionstamp(versionstamp);
         }
     }
 
@@ -101,12 +99,15 @@ public final class VectorIndexCrashRecovery {
     ) {
         // Find max versionstamp across all on-disk indexes
         Versionstamp maxVersionstamp = null;
+        /*
+        // TODO: recover method will be refactored during #71
         for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
             Versionstamp vs = onDisk.getLatestVersionstamp();
             if (vs != null && (maxVersionstamp == null || vs.compareTo(maxVersionstamp) > 0)) {
                 maxVersionstamp = vs;
             }
         }
+        */
 
         // Build range scan boundaries
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue()));

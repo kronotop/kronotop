@@ -279,15 +279,12 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     }
 
     public void advanceVersionstamp(Versionstamp versionstamp) {
-        metadata.advanceVersionstamp(versionstamp);
-    }
-
-    public Versionstamp getFirstVersionstamp() {
-        return metadata.getFirstVersionstamp();
+        // TODO: Remove this during #71
     }
 
     public Versionstamp getLatestVersionstamp() {
-        return metadata.getLatestVersionstamp();
+        // TODO: Remove this during #71
+        return null;
     }
 
     public VectorGraphIndexMetadata getMetadata() {

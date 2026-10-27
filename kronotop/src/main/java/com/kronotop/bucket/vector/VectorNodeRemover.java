@@ -90,13 +90,4 @@ public class VectorNodeRemover extends BaseVectorNode {
             group.putDeleteTombstone(objectId, deleteVs);
         }
     }
-
-    public void flush() {
-        if (maxVs != null) {
-            List<OnHeapVectorGraphIndex> onHeaps = group.getOnHeapIndexes();
-            if (!onHeaps.isEmpty()) {
-                onHeaps.getLast().advanceVersionstamp(maxVs);
-            }
-        }
-    }
 }

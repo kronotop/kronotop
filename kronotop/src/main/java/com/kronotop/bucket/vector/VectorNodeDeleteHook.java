@@ -60,6 +60,5 @@ public final class VectorNodeDeleteHook extends BaseVectorNode implements Commit
                         + "delete will be recovered from mutation log on next restart", dv.objectId(), e);
             }
         }
-        remover.flush();
     }
 }
