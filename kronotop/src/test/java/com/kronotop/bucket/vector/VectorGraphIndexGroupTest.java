@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -517,6 +518,35 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
         assertEquals(1, successCount.get());
         assertEquals(2, group.getOnHeapIndexes().size());
+    }
+
+    @Test
+    void shouldNotCreateMultipleIndexesWhenConcurrentThreadsGetOrCreate() throws Exception {
+        // Behavior: When multiple threads concurrently call getOrCreateOnHeap on an empty group,
+        // only one on-heap index is created and every thread receives the same instance.
+        int threadCount = 50;
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(threadCount);
+        Set<OnHeapVectorGraphIndex> seen = ConcurrentHashMap.newKeySet();
+
+        for (int i = 0; i < threadCount; i++) {
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    seen.add(group.getOrCreateOnHeap(3, VectorSimilarityFunction.COSINE, 0, 6));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        startLatch.countDown();
+        doneLatch.await();
+
+        assertEquals(1, seen.size());
+        assertSame(seen.iterator().next(), group.getOrCreateOnHeap(3, VectorSimilarityFunction.COSINE, 0, 6));
     }
 
     @Test

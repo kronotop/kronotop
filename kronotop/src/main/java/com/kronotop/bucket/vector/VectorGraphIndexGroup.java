@@ -54,6 +54,7 @@ public class VectorGraphIndexGroup {
     private static final Logger LOGGER = LoggerFactory.getLogger(VectorGraphIndexGroup.class);
     private final List<OnHeapVectorGraphIndex> onHeapIndexes = new CopyOnWriteArrayList<>();
     private final TreeMap<ObjectId, List<OnHeapVectorGraphIndex>> onHeapIndexes2 = new TreeMap<>();
+    private volatile OnHeapVectorGraphIndex activeOnHeap;
     private final List<OnDiskVectorGraphIndex> onDiskIndexes = new CopyOnWriteArrayList<>();
     private final ConcurrentHashMap<ObjectId, Versionstamp> deleteTombstones = new ConcurrentHashMap<>();
 
@@ -246,17 +247,6 @@ public class VectorGraphIndexGroup {
     }
 
 
-    private OnHeapVectorGraphIndex getActiveIndex() {
-        if (onHeapIndexes2.isEmpty()) {
-            return null;
-        }
-        Map.Entry<ObjectId, List<OnHeapVectorGraphIndex>> lastEntry = onHeapIndexes2.lastEntry();
-        if (lastEntry == null) {
-            return null;
-        }
-        return !lastEntry.getValue().isEmpty() ? lastEntry.getValue().getLast() : null;
-    }
-
     private OnHeapVectorGraphIndex createOnHeap(int dimensions, VectorSimilarityFunction similarityFunction,
                                                 int pqTrainingThreshold, int pqSubspaceDivisor) {
         ObjectId genId = generationCounter.next();
@@ -265,21 +255,28 @@ public class VectorGraphIndexGroup {
         OnHeapVectorGraphIndex fresh = new OnHeapVectorGraphIndex(dimensions, similarityFunction,
                 pqTrainingThreshold, pqSubspaceDivisor);
         list.add(fresh);
+        activeOnHeap = fresh;
         return fresh;
     }
 
     /**
-     * Returns the active (last) on-heap index, creating one if none exists.
-     * Synchronized per-group instance to prevent duplicate creation from concurrent threads.
+     * Returns the active on-heap index, creating one if none exists.
+     * The read path is lock-free; creation takes the group monitor to prevent duplicates.
      */
-    public synchronized OnHeapVectorGraphIndex getOrCreateOnHeap(
+    public OnHeapVectorGraphIndex getOrCreateOnHeap(
             int dimensions, VectorSimilarityFunction similarityFunction,
             int pqTrainingThreshold, int pqSubspaceDivisor) {
-        OnHeapVectorGraphIndex activeIndex = getActiveIndex();
-        if (activeIndex != null) {
-            return activeIndex;
+        OnHeapVectorGraphIndex active = activeOnHeap;
+        if (active != null) {
+            return active;
         }
-        return createOnHeap(dimensions, similarityFunction, pqTrainingThreshold, pqSubspaceDivisor);
+        synchronized (this) {
+            active = activeOnHeap;
+            if (active != null) {
+                return active;
+            }
+            return createOnHeap(dimensions, similarityFunction, pqTrainingThreshold, pqSubspaceDivisor);
+        }
     }
 
     /**
@@ -291,7 +288,7 @@ public class VectorGraphIndexGroup {
             OnHeapVectorGraphIndex expected,
             int dimensions, VectorSimilarityFunction similarityFunction,
             int pqTrainingThreshold, int pqSubspaceDivisor) {
-        if (getActiveIndex() == expected) {
+        if (activeOnHeap == expected) {
             // Active index should be full and needs rotation.
             createOnHeap(dimensions, similarityFunction, pqTrainingThreshold, pqSubspaceDivisor);
             return expected;
