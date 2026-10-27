@@ -70,6 +70,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
 
             List<ObjectId> deletedIds = new ArrayList<>();
             List<Versionstamp> versionstamps = new ArrayList<>();
+            List<Integer> shardIds = new ArrayList<>();
             for (Map.Entry<Integer, List<DocumentRef>> item : byShardId.entrySet()) {
                 int shardId = item.getKey();
 
@@ -84,6 +85,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
                     entries[i] = new VersionstampedEntry(versionstamp, docRef.entryMetadata());
                     deletedIds.add(docRef.objectId());
                     versionstamps.add(versionstamp);
+                    shardIds.add(shardId);
                 }
 
                 if (shard != null) {
@@ -128,7 +130,8 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
             // Drop vector index entries for all deleted documents
             for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
                 List<DeletedVector> deletedVectors = new ArrayList<>();
-                for (ObjectId objectId : deletedIds) {
+                for (int i = 0; i < deletedIds.size(); i++) {
+                    ObjectId objectId = deletedIds.get(i);
                     VectorIndexMaintainer.dropEntry(tr, objectId.toByteArray(), vectorIndex, ctx.metadata());
                     int userVersion = ctx.getAndIncrementUserVersion();
                     byte[] generationId = ctx.env().bucketService().takeVectorIndexGenerationId(
@@ -136,6 +139,8 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
                     VectorIndexMaintainer.appendDeleteMutation(
                             tr,
                             vectorIndex.subspace(),
+                            generationId,
+                            shardIds.get(i),
                             objectId.toByteArray(),
                             userVersion
                     );

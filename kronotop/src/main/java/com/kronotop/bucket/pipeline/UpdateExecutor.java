@@ -521,7 +521,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                 VectorIndexMaintainer.dropEntry(tr, objectIdBytes, vectorIndex, ctx.metadata());
                 int deleteUserVersion = ctx.getAndIncrementUserVersion();
                 VectorIndexMaintainer.appendDeleteMutation(
-                        tr, vectorIndex.subspace(), objectIdBytes, deleteUserVersion
+                        tr, vectorIndex.subspace(), generationId, container.getShardId(), objectIdBytes, deleteUserVersion
                 );
                 deletedVectors.add(new DeletedVector(objectId, deleteUserVersion));
 
@@ -538,8 +538,8 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                     // Write mutation log entry for crash recovery
                     int userVersion = ctx.getAndIncrementUserVersion();
                     VectorIndexMaintainer.appendMutation(
-                            tr, vectorIndex.subspace(), MutationLogKind.UPDATE,
-                            objectIdBytes,
+                            tr, vectorIndex.subspace(), generationId, MutationLogKind.UPDATE,
+                            container.getShardId(), objectIdBytes,
                             new IndexEntry(container.getShardId(), container.getEntryMetadata()).encode(),
                             vector,
                             userVersion
@@ -661,7 +661,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         PrimaryIndexMaintainer.setEntry(tr, primaryIndex, ctx.metadata(), objectIdBytes, encodedIndexEntry, appendedEntries[0].userVersion());
 
         // Set single field indexes
-        setSecondaryIndexesForUpsert(tr, ctx, objectIdBytes, encodedIndexEntry, appendedEntries[0].userVersion(), upsertDoc);
+        setSecondaryIndexesForUpsert(tr, ctx, shard.id(), objectIdBytes, encodedIndexEntry, appendedEntries[0].userVersion(), upsertDoc);
 
         // Schedule on-heap graph node addition for upserted vectors
         List<CollectedVector> collectedVectors = new ArrayList<>();
@@ -695,6 +695,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
     private void setSecondaryIndexesForUpsert(
             Transaction tr,
             QueryContext ctx,
+            int shardId,
             byte[] objectIdBytes,
             byte[] encodedIndexEntry,
             int userVersion,
@@ -751,8 +752,8 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             );
             byte[] generationId = ctx.env().bucketService().takeVectorIndexGenerationId(ctx.metadata(), vectorIndex.definition().id());
             VectorIndexMaintainer.appendMutation(
-                    tr, vectorIndex.subspace(), MutationLogKind.INSERT,
-                    objectIdBytes, encodedIndexEntry, vector, userVersion
+                    tr, vectorIndex.subspace(), generationId, MutationLogKind.INSERT,
+                    shardId, objectIdBytes, encodedIndexEntry, vector, userVersion
             );
         }
     }

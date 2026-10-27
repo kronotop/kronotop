@@ -59,7 +59,7 @@ public final class VectorIndexCrashRecovery {
         for (KeyValue kv : entries) {
             MutationLogValue logValue = MutationLogValue.decode(kv.getValue());
             ObjectId objectId = new ObjectId(logValue.objectIdBytes());
-            Versionstamp versionstamp = indexSubspace.unpack(kv.getKey()).getVersionstamp(1);
+            Versionstamp versionstamp = indexSubspace.unpack(kv.getKey()).getVersionstamp(2);
 
             switch (logValue.kind()) {
                 case INSERT, UPDATE -> {

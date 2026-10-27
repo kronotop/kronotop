@@ -56,6 +56,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
     private static final String SELECTOR = "embedding";
     private static final int DIMENSIONS = 3;
     private static final int SHARD_ID = 1;
+    private static final byte[] GENERATION_ID = new ObjectId().toByteArray();
     private static final float[] TEST_VECTOR_1 = {0.1f, 0.2f, 0.3f};
     private static final float[] TEST_VECTOR_2 = {0.4f, 0.5f, 0.6f};
     private static final float[] TEST_VECTOR_3 = {0.7f, 0.8f, 0.9f};
@@ -106,8 +107,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid1.toByteArray(),
                     encoded,
                     TEST_VECTOR_1,
@@ -115,8 +116,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
             );
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid2.toByteArray(),
                     encoded,
                     TEST_VECTOR_2,
@@ -152,8 +153,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid1.toByteArray(),
                     encoded,
                     TEST_VECTOR_1,
@@ -178,7 +179,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
             var end = com.apple.foundationdb.KeySelector.firstGreaterOrEqual(
                     com.apple.foundationdb.tuple.ByteArrayUtil.strinc(prefix));
             var entries = tr.getRange(begin, end).asList().join();
-            flushVersionstamp = vectorIndex.subspace().unpack(entries.getFirst().getKey()).getVersionstamp(1);
+            flushVersionstamp = vectorIndex.subspace().unpack(entries.getFirst().getKey()).getVersionstamp(2);
             onHeap.advanceVersionstamp(flushVersionstamp);
         }
         BucketService service = context.getService(BucketService.NAME);
@@ -203,8 +204,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid2.toByteArray(),
                     encoded,
                     TEST_VECTOR_2,
@@ -238,8 +239,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid.toByteArray(),
                     encoded,
                     TEST_VECTOR_1,
@@ -249,7 +250,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.appendDeleteMutation(tr, vectorIndex.subspace(), oid.toByteArray(), 0);
+            VectorIndexMaintainer.appendDeleteMutation(tr, vectorIndex.subspace(), GENERATION_ID, SHARD_ID, oid.toByteArray(), 0);
             tr.commit().join();
         }
 
@@ -298,8 +299,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid.toByteArray(),
                     encoded,
                     TEST_VECTOR_1,
@@ -312,14 +313,14 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.appendDeleteMutation(
                     tr,
-                    vectorIndex.subspace(),
+                    vectorIndex.subspace(), GENERATION_ID, SHARD_ID,
                     oid.toByteArray(),
                     0
             );
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.UPDATE,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.UPDATE, SHARD_ID,
                     oid.toByteArray(),
                     encoded,
                     TEST_VECTOR_3,
@@ -357,8 +358,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid1.toByteArray(),
                     encoded,
                     TEST_VECTOR_1,
@@ -366,8 +367,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
             );
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid2.toByteArray(),
                     encoded,
                     TEST_VECTOR_2,
@@ -375,8 +376,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
             );
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid3.toByteArray(),
                     encoded,
                     TEST_VECTOR_3,
@@ -410,7 +411,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 5; i++) {
                 float[] vector = {0.1f + i * 0.15f, 0.2f + i * 0.1f, 0.3f + i * 0.05f};
-                VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+                VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
                         new ObjectId().toByteArray(), encoded, vector, i);
             }
             tr.commit().join();
@@ -442,9 +443,9 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         byte[] encoded = encodedIndexEntry();
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
                     oid1.toByteArray(), encoded, TEST_VECTOR_1, 0);
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
                     oid2.toByteArray(), encoded, TEST_VECTOR_2, 1);
             tr.commit().join();
         }
@@ -477,8 +478,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid1.toByteArray(),
                     encoded,
                     TEST_VECTOR_1,
@@ -486,8 +487,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
             );
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid2.toByteArray(),
                     encoded,
                     TEST_VECTOR_2,
@@ -495,8 +496,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
             );
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid3.toByteArray(),
                     encoded,
                     TEST_VECTOR_3,
@@ -523,7 +524,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
             var end = com.apple.foundationdb.KeySelector.firstGreaterOrEqual(
                     com.apple.foundationdb.tuple.ByteArrayUtil.strinc(prefix));
             var entries = tr.getRange(begin, end).asList().join();
-            flushVersionstamp = vectorIndex.subspace().unpack(entries.getLast().getKey()).getVersionstamp(1);
+            flushVersionstamp = vectorIndex.subspace().unpack(entries.getLast().getKey()).getVersionstamp(2);
             onHeap.advanceVersionstamp(flushVersionstamp);
         }
         BucketService service = context.getService(BucketService.NAME);
@@ -546,7 +547,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Write a DELETE mutation log entry for oid2 (after the flush versionstamp)
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.appendDeleteMutation(tr, vectorIndex.subspace(), oid2.toByteArray(), 0);
+            VectorIndexMaintainer.appendDeleteMutation(tr, vectorIndex.subspace(), GENERATION_ID, SHARD_ID, oid2.toByteArray(), 0);
             tr.commit().join();
         }
 
@@ -586,8 +587,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid1.toByteArray(),
                     encoded,
                     TEST_VECTOR_1,
@@ -595,8 +596,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
             );
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid2.toByteArray(),
                     encoded,
                     TEST_VECTOR_2,
@@ -642,8 +643,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.appendMutation(
                     tr,
-                    vectorIndex.subspace(),
-                    MutationLogKind.INSERT,
+                    vectorIndex.subspace(), GENERATION_ID,
+                    MutationLogKind.INSERT, SHARD_ID,
                     oid.toByteArray(),
                     encoded,
                     TEST_VECTOR_3,
@@ -691,11 +692,11 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         byte[] encoded = encodedIndexEntry();
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
                     oid1.toByteArray(), encoded, TEST_VECTOR_1, 0);
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
                     oid2.toByteArray(), encoded, TEST_VECTOR_2, 1);
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
                     oid3.toByteArray(), encoded, TEST_VECTOR_3, 2);
             tr.commit().join();
         }
@@ -704,9 +705,9 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Read versionstamps from FDB
         List<KeyValue> entries = getMutationLogEntries(vectorIndex);
-        Versionstamp vs1 = vectorIndex.subspace().unpack(entries.get(0).getKey()).getVersionstamp(1);
-        Versionstamp vs2 = vectorIndex.subspace().unpack(entries.get(1).getKey()).getVersionstamp(1);
-        Versionstamp vs3 = vectorIndex.subspace().unpack(entries.get(2).getKey()).getVersionstamp(1);
+        Versionstamp vs1 = vectorIndex.subspace().unpack(entries.get(0).getKey()).getVersionstamp(2);
+        Versionstamp vs2 = vectorIndex.subspace().unpack(entries.get(1).getKey()).getVersionstamp(2);
+        Versionstamp vs3 = vectorIndex.subspace().unpack(entries.get(2).getKey()).getVersionstamp(2);
 
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
         onHeap.addGraphNode(oid1, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
@@ -740,19 +741,19 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Write first batch
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
                     oid1.toByteArray(), encoded, TEST_VECTOR_1, 0);
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
                     oid2.toByteArray(), encoded, TEST_VECTOR_2, 1);
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
                     oid3.toByteArray(), encoded, TEST_VECTOR_3, 2);
             tr.commit().join();
         }
 
         // Build on-heap with only oid1 and oid2
         List<KeyValue> allEntries = getMutationLogEntries(vectorIndex);
-        Versionstamp vs1 = vectorIndex.subspace().unpack(allEntries.get(0).getKey()).getVersionstamp(1);
-        Versionstamp vs2 = vectorIndex.subspace().unpack(allEntries.get(1).getKey()).getVersionstamp(1);
+        Versionstamp vs1 = vectorIndex.subspace().unpack(allEntries.get(0).getKey()).getVersionstamp(2);
+        Versionstamp vs2 = vectorIndex.subspace().unpack(allEntries.get(1).getKey()).getVersionstamp(2);
 
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
         onHeap.addGraphNode(oid1, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
@@ -786,20 +787,20 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Write two entries in separate transactions to get distinct versionstamps
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
                     oid1.toByteArray(), encoded, TEST_VECTOR_1, 0);
             tr.commit().join();
         }
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
                     oid2.toByteArray(), encoded, TEST_VECTOR_2, 0);
             tr.commit().join();
         }
 
         List<KeyValue> allEntries = getMutationLogEntries(vectorIndex);
-        Versionstamp vs1 = vectorIndex.subspace().unpack(allEntries.get(0).getKey()).getVersionstamp(1);
-        Versionstamp vs2 = vectorIndex.subspace().unpack(allEntries.get(1).getKey()).getVersionstamp(1);
+        Versionstamp vs1 = vectorIndex.subspace().unpack(allEntries.get(0).getKey()).getVersionstamp(2);
+        Versionstamp vs2 = vectorIndex.subspace().unpack(allEntries.get(1).getKey()).getVersionstamp(2);
 
         // Build two on-heap indexes, one per entry
         OnHeapVectorGraphIndex heap1 = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
@@ -834,17 +835,17 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Write INSERT entries for two documents
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
                     oid1.toByteArray(), encoded, TEST_VECTOR_1, 0);
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
                     oid2.toByteArray(), encoded, TEST_VECTOR_2, 1);
             tr.commit().join();
         }
 
         // Build on-heap with both entries and flush to disk
         List<KeyValue> insertEntries = getMutationLogEntries(vectorIndex);
-        Versionstamp vs1 = vectorIndex.subspace().unpack(insertEntries.get(0).getKey()).getVersionstamp(1);
-        Versionstamp vs2 = vectorIndex.subspace().unpack(insertEntries.get(1).getKey()).getVersionstamp(1);
+        Versionstamp vs1 = vectorIndex.subspace().unpack(insertEntries.get(0).getKey()).getVersionstamp(2);
+        Versionstamp vs2 = vectorIndex.subspace().unpack(insertEntries.get(1).getKey()).getVersionstamp(2);
 
         OnHeapVectorGraphIndex firstHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
         firstHeap.addGraphNode(oid1, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
@@ -861,7 +862,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Write a DELETE mutation log entry (simulating DeleteExecutor)
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.appendDeleteMutation(tr, vectorIndex.subspace(), oid1.toByteArray(), 0);
+            VectorIndexMaintainer.appendDeleteMutation(tr, vectorIndex.subspace(), GENERATION_ID, SHARD_ID, oid1.toByteArray(), 0);
             tr.commit().join();
         }
 
@@ -869,7 +870,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Simulate VectorNodeDeleteHook: advance the active on-heap's versionstamp with the DELETE's versionstamp
         List<KeyValue> deleteEntries = getMutationLogEntries(vectorIndex);
-        Versionstamp deleteVs = vectorIndex.subspace().unpack(deleteEntries.getFirst().getKey()).getVersionstamp(1);
+        Versionstamp deleteVs = vectorIndex.subspace().unpack(deleteEntries.getFirst().getKey()).getVersionstamp(2);
 
         OnHeapVectorGraphIndex activeHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
         activeHeap.advanceVersionstamp(deleteVs);
@@ -902,7 +903,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
             for (int userVersion = 0; userVersion < total; userVersion++) {
                 ObjectId oid = new ObjectId();
                 oids.add(oid);
-                VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+                VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
                         oid.toByteArray(), encoded, TEST_VECTOR_1, userVersion);
             }
             var versionstampFuture = tr.getVersionstamp();

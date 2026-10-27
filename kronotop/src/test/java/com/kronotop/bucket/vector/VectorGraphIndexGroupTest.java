@@ -898,7 +898,9 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
             VectorIndexMaintainer.appendMutation(
                     tr,
                     vectorIndex.subspace(),
+                    new ObjectId().toByteArray(),
                     MutationLogKind.INSERT,
+                    1,
                     oid.toByteArray(),
                     encodedEntry,
                     new float[]{0.1f, 0.2f, 0.3f},
