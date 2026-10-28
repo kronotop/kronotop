@@ -681,8 +681,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldTruncateMutationLogAfterFlushSingle(@TempDir Path tempDir) {
-        // Behavior: flushSingle clears all mutation log entries up to the flushed index's latest versionstamp.
+    void shouldTruncateMutationLogAfterFlush(@TempDir Path tempDir) {
+        // Behavior: flush clears all mutation log entries up to the flushed index's latest versionstamp.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
@@ -721,7 +721,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         group.addOnHeap(onHeap);
 
         assertFalse(getMutationLogEntries(vectorIndex).isEmpty());
-        group.flushSingle(tempDir, onHeap);
+        group.flush(tempDir, onHeap);
         assertEquals(0, getMutationLogEntries(vectorIndex).size());
 
         group.closeAll();
@@ -729,7 +729,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldTruncateMutationLogUpToFlushedVersionstampOnly(@TempDir Path tempDir) {
-        // Behavior: flushSingle only clears mutation log entries up to the flushed index's versionstamp,
+        // Behavior: flush only clears mutation log entries up to the flushed index's versionstamp,
         // preserving entries written after it.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -763,7 +763,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         group.addOnHeap(onHeap);
-        group.flushSingle(tempDir, onHeap);
+        group.flush(tempDir, onHeap);
 
         // oid3's mutation log entry should survive
         List<KeyValue> remaining = getMutationLogEntries(vectorIndex);
@@ -855,7 +855,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         group.addOnHeap(firstHeap);
-        group.flushSingle(tempDir, firstHeap);
+        group.flush(tempDir, firstHeap);
 
         // INSERT entries are now truncated
         assertEquals(0, getMutationLogEntries(vectorIndex).size());
@@ -880,7 +880,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         activeHeap.addGraphNode(oid3, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_3, executor).join();
 
         group.addOnHeap(activeHeap);
-        group.flushSingle(tempDir, activeHeap);
+        group.flush(tempDir, activeHeap);
 
         // The DELETE mutation log entry should now be truncated
         assertEquals(0, getMutationLogEntries(vectorIndex).size());

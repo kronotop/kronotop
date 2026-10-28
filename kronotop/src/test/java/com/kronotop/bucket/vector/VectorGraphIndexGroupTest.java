@@ -46,7 +46,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -462,11 +461,10 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldRotateOnHeapIndex() {
-        // Behavior: rotateOnHeap adds a new index to the generation and returns the previous one when expected matches.
+        // Behavior: rotateOnHeap adds a new index to the generation when expected is its newest index.
         OnHeapVectorGraphIndex original = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
-        OnHeapVectorGraphIndex previous = group.rotateOnHeap(GEN, original, 3, VectorSimilarityFunction.COSINE, 0, 6);
+        group.rotateOnHeap(GEN, original, 3, VectorSimilarityFunction.COSINE, 0, 6);
 
-        assertSame(original, previous);
         assertEquals(2, group.getOnHeapIndexes().size());
 
         // The newest index of the generation should be the new one, not the original.
@@ -491,13 +489,12 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldNotRotateWhenExpectedDoesNotMatch() {
-        // Behavior: rotateOnHeap returns null without creating a new index when expected is not the newest index of the generation.
+        // Behavior: rotateOnHeap does not create a new index when expected is not the newest index of the generation.
         OnHeapVectorGraphIndex active = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
 
         try (OnHeapVectorGraphIndex stale = new OnHeapVectorGraphIndex(3, VectorSimilarityFunction.COSINE)) {
-            OnHeapVectorGraphIndex result = group.rotateOnHeap(GEN, stale, 3, VectorSimilarityFunction.COSINE, 0, 6);
+            group.rotateOnHeap(GEN, stale, 3, VectorSimilarityFunction.COSINE, 0, 6);
 
-            assertNull(result);
             assertEquals(1, group.getOnHeapIndexes().size());
             assertSame(active, group.getOnHeapIndexes().getLast());
         } catch (IOException ignored) {
@@ -540,8 +537,8 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex a = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
         OnHeapVectorGraphIndex b = group.getOrCreateOnHeap(otherGen, 3, VectorSimilarityFunction.COSINE, 0, 6);
 
-        assertNull(group.rotateOnHeap(otherGen, a, 3, VectorSimilarityFunction.COSINE, 0, 6));
-        assertSame(a, group.rotateOnHeap(GEN, a, 3, VectorSimilarityFunction.COSINE, 0, 6));
+        group.rotateOnHeap(otherGen, a, 3, VectorSimilarityFunction.COSINE, 0, 6);
+        group.rotateOnHeap(GEN, a, 3, VectorSimilarityFunction.COSINE, 0, 6);
 
         assertEquals(3, group.getOnHeapIndexes().size());
         assertSame(b, group.getOrCreateOnHeap(otherGen, 3, VectorSimilarityFunction.COSINE, 0, 6));
@@ -564,22 +561,18 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldNotCreateMultipleIndexesWhenConcurrentThreadsRotate() throws Exception {
         // Behavior: When multiple threads concurrently call rotateOnHeap with the same expected graph,
-        // only one rotation succeeds and the rest return null.
+        // only one new index is created.
         OnHeapVectorGraphIndex original = group.getOrCreateOnHeap(GEN, 3, VectorSimilarityFunction.COSINE, 0, 6);
 
         int threadCount = 50;
         CountDownLatch startLatch = new CountDownLatch(1);
         CountDownLatch doneLatch = new CountDownLatch(threadCount);
-        AtomicInteger successCount = new AtomicInteger(0);
 
         for (int i = 0; i < threadCount; i++) {
             executor.submit(() -> {
                 try {
                     startLatch.await();
-                    OnHeapVectorGraphIndex previous = group.rotateOnHeap(GEN, original, 3, VectorSimilarityFunction.COSINE, 0, 6);
-                    if (previous != null) {
-                        successCount.incrementAndGet();
-                    }
+                    group.rotateOnHeap(GEN, original, 3, VectorSimilarityFunction.COSINE, 0, 6);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 } finally {
@@ -591,8 +584,25 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         startLatch.countDown();
         doneLatch.await();
 
-        assertEquals(1, successCount.get());
         assertEquals(2, group.getOnHeapIndexes().size());
+    }
+
+    @Test
+    void shouldEnqueueOlderGenerationsForFlushOnRotate() {
+        // Behavior: rotating the newest index of a generation enqueues every older generation of the group
+        // for flush, but not the rotated generation itself.
+        BucketService service = context.getService(BucketService.NAME);
+        byte[] older = new ObjectId(new java.util.Date(1_000L)).toByteArray();
+        byte[] newer = new ObjectId(new java.util.Date(2_000L)).toByteArray();
+        group.getOrCreateOnHeap(older, 3, VectorSimilarityFunction.COSINE, 0, 6);
+        OnHeapVectorGraphIndex newerIndex = group.getOrCreateOnHeap(newer, 3, VectorSimilarityFunction.COSINE, 0, 6);
+        service.getVectorFlushQueue().clear();
+
+        group.rotateOnHeap(newer, newerIndex, 3, VectorSimilarityFunction.COSINE, 0, 6);
+
+        List<VectorFlushTask> tasks = new ArrayList<>(service.getVectorFlushQueue());
+        assertEquals(1, tasks.size());
+        assertEquals(new ObjectId(older), tasks.getFirst().key().generationId());
     }
 
     @Test
@@ -708,8 +718,8 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldFlushSingleOnHeapIndexToDisk(@TempDir Path tempDir) {
-        // Behavior: flushSingle writes only the specified on-heap index to disk,
+    void shouldFlushOnHeapIndexToDisk(@TempDir Path tempDir) {
+        // Behavior: flush writes only the specified on-heap index to disk,
         // leaving other on-heap indexes untouched.
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
 
@@ -720,7 +730,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex active = rotateOnHeap(target);
         active.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.5f, 0.5f, 0.0f}, executor).join();
 
-        group.flushOnHeapVectorGraphIndex(tempDir, target);
+        group.flush(tempDir, target);
 
         // Target should be flushed, removed from on-heap, and promoted to on-disk.
         assertTrue(target.isFlushed());
@@ -734,29 +744,29 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldFlushSingleSkipAlreadyFlushedIndex(@TempDir Path tempDir) {
-        // Behavior: flushSingle is a no-op when the given index is already flushed.
+    void shouldFlushSkipAlreadyFlushedIndex(@TempDir Path tempDir) {
+        // Behavior: flush is a no-op when the given index is already flushed.
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
 
         OnHeapVectorGraphIndex index = openOnHeap();
         index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
 
-        group.flushOnHeapVectorGraphIndex(tempDir, index);
+        group.flush(tempDir, index);
         int onDiskCount = group.getOnDiskIndexes().size();
 
         // Calling again should be a no-op.
-        group.flushOnHeapVectorGraphIndex(tempDir, index);
+        group.flush(tempDir, index);
         assertEquals(onDiskCount, group.getOnDiskIndexes().size());
     }
 
     @Test
-    void shouldFlushSingleSkipEmptyIndex(@TempDir Path tempDir) {
-        // Behavior: flushSingle is a no-op when the given index has no vectors.
+    void shouldFlushSkipEmptyIndex(@TempDir Path tempDir) {
+        // Behavior: flush is a no-op when the given index has no vectors.
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
 
         OnHeapVectorGraphIndex emptyIndex = openOnHeap();
 
-        group.flushOnHeapVectorGraphIndex(tempDir, emptyIndex);
+        group.flush(tempDir, emptyIndex);
 
         assertFalse(emptyIndex.isFlushed());
         assertEquals(1, group.getOnHeapIndexes().size());
@@ -773,7 +783,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex onHeap = openOnHeap();
         onHeap.addGraphNode(objectId, versionstamp(1), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
 
-        group.flushOnHeapVectorGraphIndex(tempDir, onHeap);
+        group.flush(tempDir, onHeap);
         assertTrue(onHeap.isFlushed());
 
         // The delete holds the reference it read before the flush.

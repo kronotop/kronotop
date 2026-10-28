@@ -460,7 +460,7 @@ public class VectorGraphIndexGroup {
         }
     }
 
-    public void flushOnHeapVectorGraphIndex(Path bucketDataDir, OnHeapVectorGraphIndex index) {
+    public void flush(Path bucketDataDir, OnHeapVectorGraphIndex index) {
         if (index.isFlushed() || index.size() == 0) return;
 
         Path indexDir = resolveVectorDir(bucketDataDir, ownerShardId(metadata))
@@ -501,7 +501,7 @@ public class VectorGraphIndexGroup {
     public void flush(Path bucketDataDir) {
         forEachOnHeap(index -> {
             if (index.isFlushed() || index.size() == 0) return;
-            flushOnHeapVectorGraphIndex(bucketDataDir, index);
+            flush(bucketDataDir, index);
         });
     }
 
