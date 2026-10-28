@@ -19,6 +19,7 @@ package com.kronotop.bucket.index;
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.MutationType;
+import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
@@ -234,6 +235,14 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
         byte[] key = mutationLogKey(indexSubspace, generationId, userVersion);
         byte[] value = MutationLogValue.encode(MutationLogKind.DELETE, shardId, objectId);
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value);
+    }
+
+    /**
+     * Removes every mutation log entry of the given generation.
+     */
+    public static void truncateMutationLog(Transaction tr, DirectorySubspace indexSubspace, byte[] generationId) {
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue(), generationId));
+        tr.clear(Range.startsWith(prefix));
     }
 
     private static byte[] mutationLogKey(DirectorySubspace indexSubspace, byte[] generationId, int userVersion) {

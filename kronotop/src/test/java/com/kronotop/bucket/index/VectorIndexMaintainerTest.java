@@ -467,6 +467,36 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
     }
 
     @Test
+    void shouldTruncateMutationLogOnlyForGivenGeneration() {
+        // Behavior: truncateMutationLog removes every log entry of the given generation
+        // and leaves entries of other generations untouched.
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
+
+        AppendedEntry entry = getAppendedEntries()[0];
+        byte[] objectIdBytes = new ObjectId().toByteArray();
+        byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
+        byte[] otherGeneration = new ObjectId().toByteArray();
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID, objectIdBytes, encodedIndexEntry, TEST_VECTOR, 0);
+            VectorIndexMaintainer.appendDeleteMutation(tr, vectorIndex.subspace(), GENERATION_ID, SHARD_ID, objectIdBytes, 1);
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), otherGeneration, MutationLogKind.INSERT, SHARD_ID, objectIdBytes, encodedIndexEntry, TEST_VECTOR, 2);
+            tr.commit().join();
+        }
+        assertEquals(3, getMutationLogEntries(vectorIndex.subspace()).size());
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VectorIndexMaintainer.truncateMutationLog(tr, vectorIndex.subspace(), GENERATION_ID);
+            tr.commit().join();
+        }
+
+        List<KeyValue> remaining = getMutationLogEntries(vectorIndex.subspace());
+        assertEquals(1, remaining.size());
+        assertArrayEquals(otherGeneration, vectorIndex.subspace().unpack(remaining.getFirst().getKey()).getBytes(1));
+    }
+
+    @Test
     void shouldRejectVectorWithNaNComponent() {
         // Behavior: extractVector rejects a document whose vector component is NaN.
         String name = VectorIndexNameGenerator.generate(SELECTOR, DIMENSIONS, DistanceFunction.COSINE);

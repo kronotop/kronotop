@@ -248,6 +248,13 @@ public class VectorGraphIndexGroup {
     }
 
     /**
+     * Returns the vector index this group serves.
+     */
+    public VectorIndex getVectorIndex() {
+        return vectorIndex;
+    }
+
+    /**
      * Adds an on-disk index to this group.
      */
     public void addOnDisk(OnDiskVectorGraphIndex index) {

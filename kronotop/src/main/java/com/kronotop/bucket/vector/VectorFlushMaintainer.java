@@ -16,14 +16,20 @@
 
 package com.kronotop.bucket.vector;
 
+import com.apple.foundationdb.Transaction;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.index.VectorIndexMaintainer;
 import com.kronotop.internal.ExecutorServiceUtil;
+import com.kronotop.transaction.TransactionUtil;
+import io.github.resilience4j.retry.Retry;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -89,6 +95,16 @@ public class VectorFlushMaintainer {
             return service.getVectorGraphRegistry().get(key.namespace(), key.bucket(), key.indexId());
         }
 
+        private void truncateGenerationId(VectorGraphIndexGroup group, ObjectId generationId) {
+            Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
+            retry.executeRunnable(() -> {
+                try (Transaction tr = context.getTransactionManager().create()) {
+                    VectorIndexMaintainer.truncateMutationLog(tr, group.getVectorIndex().subspace(), generationId.toByteArray());
+                    tr.commit().join();
+                }
+            });
+        }
+
         @Override
         public void run() {
             while (!Thread.currentThread().isInterrupted()) {
@@ -114,6 +130,8 @@ public class VectorFlushMaintainer {
                         long newDue = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
                         VectorFlushTask newTask = new VectorFlushTask(task.key(), newDue);
                         service.getVectorFlushQueue().add(newTask);
+                    } else {
+                        truncateGenerationId(group, task.key().generationId());
                     }
                 } catch (InterruptedException exp) {
                     Thread.currentThread().interrupt();
