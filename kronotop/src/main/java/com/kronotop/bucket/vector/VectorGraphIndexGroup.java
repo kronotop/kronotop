@@ -513,6 +513,7 @@ public class VectorGraphIndexGroup {
             indexPath = index.flush(indexDir);
         } catch (IOException | RuntimeException e) {
             LOGGER.error("Failed to flush vector graph index to {}", indexDir, e);
+            service.getMetrics().incrementVectorFlushFailures();
             return;
         }
 
@@ -523,6 +524,7 @@ public class VectorGraphIndexGroup {
                 onDiskIndexes.add(new OnDiskVectorGraphIndex(vectorIndex.subspace(), indexPath, index.getSimilarityFunction()));
             } catch (IOException e) {
                 LOGGER.error("Failed to open flushed vector graph index from {}", indexPath, e);
+                service.getMetrics().incrementVectorFlushFailures();
             }
         }
 

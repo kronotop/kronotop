@@ -513,11 +513,15 @@ class InfoHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReportVectorFields() {
-        // Behavior: the Vector section reports the open on-heap graph indexes and their heap usage
+        // Behavior: the Vector section reports the open on-heap graph indexes, their heap usage,
+        // the on-disk indexes, the flush queue size and the flush failure count
         String info = runInfo(getChannel(), "vector");
 
         assertTrue(intField(info, "vector_indexes") >= 0);
         assertTrue(longField(info, "vector_bytes_used") >= 0);
+        assertTrue(intField(info, "vector_on_disk_indexes") >= 0);
+        assertTrue(intField(info, "vector_flush_queue_size") >= 0);
+        assertTrue(longField(info, "vector_flush_failures") >= 0);
     }
 
     @Test

@@ -144,6 +144,7 @@ public class VectorFlushMaintainer {
                     throw new KronotopException(exp);
                 } catch (Exception exp) {
                     LOGGER.error("Vector flush task failed", exp);
+                    service.getMetrics().incrementVectorFlushFailures();
                     if (task != null) {
                         reschedule(task);
                     }

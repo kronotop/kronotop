@@ -181,14 +181,19 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
         int[] indexes = new int[1];
         long[] bytes = new long[1];
+        int[] onDisk = new int[1];
         vectorGraphRegistry.forEachGroup(group -> {
             group.forEachOnHeap(index -> {
                 indexes[0]++;
                 bytes[0] += index.ramBytesUsed();
             });
+            onDisk[0] += group.getOnDiskIndexes().size();
         });
         collector.put(InfoReport.VECTOR_SECTION, "vector_indexes", indexes[0]);
         collector.put(InfoReport.VECTOR_SECTION, "vector_bytes_used", bytes[0]);
+        collector.put(InfoReport.VECTOR_SECTION, "vector_on_disk_indexes", onDisk[0]);
+        collector.put(InfoReport.VECTOR_SECTION, "vector_flush_queue_size", vectorFlushQueue.size());
+        collector.put(InfoReport.VECTOR_SECTION, "vector_flush_failures", metrics.getVectorFlushFailures());
     }
 
     public Route findRoute(int shardId) {

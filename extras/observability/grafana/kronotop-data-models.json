@@ -550,6 +550,129 @@
       "id": 14
     },
     {
+      "type": "timeseries",
+      "title": "On-disk indexes",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_vector_on_disk_indexes{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 18,
+        "y": 27
+      },
+      "id": 21
+    },
+    {
+      "type": "timeseries",
+      "title": "Flush queue",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_vector_flush_queue_size{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 35
+      },
+      "id": 22
+    },
+    {
+      "type": "timeseries",
+      "title": "Flush failures/s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_vector_flush_failures_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 35
+      },
+      "id": 23
+    },
+    {
       "type": "row",
       "title": "ZMap",
       "collapsed": false,
@@ -557,7 +680,7 @@
         "w": 24,
         "h": 1,
         "x": 0,
-        "y": 35
+        "y": 43
       },
       "id": 15
     },
@@ -634,7 +757,7 @@
         "w": 12,
         "h": 8,
         "x": 0,
-        "y": 36
+        "y": 44
       },
       "id": 16
     },
@@ -693,7 +816,7 @@
         "w": 6,
         "h": 8,
         "x": 12,
-        "y": 36
+        "y": 44
       },
       "id": 17
     },
@@ -734,7 +857,7 @@
         "w": 6,
         "h": 8,
         "x": 18,
-        "y": 36
+        "y": 44
       },
       "id": 18
     },
@@ -746,7 +869,7 @@
         "w": 24,
         "h": 1,
         "x": 0,
-        "y": 44
+        "y": 52
       },
       "id": 19
     },
@@ -787,7 +910,7 @@
         "w": 6,
         "h": 8,
         "x": 0,
-        "y": 45
+        "y": 53
       },
       "id": 20
     }
