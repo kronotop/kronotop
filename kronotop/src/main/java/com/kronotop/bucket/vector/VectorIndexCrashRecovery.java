@@ -32,12 +32,14 @@ import com.kronotop.volume.EntryMetadata;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 /**
- * Recovers an on-heap vector graph index by replaying mutation log entries that occurred
- * after the last flushed on-disk snapshot.
+ * Recovers on-heap vector graph indexes by replaying the mutation log. Each entry goes to the
+ * on-heap index of the generation stored in its key. Nodes that are already on disk are skipped.
  */
 public final class VectorIndexCrashRecovery {
     static final int PAGE_SIZE = 1000;
@@ -47,9 +49,11 @@ public final class VectorIndexCrashRecovery {
 
     /**
      * Replays mutation log entries into the on-heap index of the generation stored in each log key.
-     * Deletes are also applied to the on-disk indexes of the group.
+     * Deletes are applied to every on-heap and on-disk index of the group.
+     *
+     * @return the generation ids seen in the entries
      */
-    static void replayMutationLog(
+    static Set<ObjectId> replayMutationLog(
             VectorGraphIndexGroup group,
             List<KeyValue> entries,
             DirectorySubspace indexSubspace,
@@ -59,17 +63,23 @@ public final class VectorIndexCrashRecovery {
             int pqTrainingThreshold,
             int pqSubspaceDivisor
     ) {
+        Set<ObjectId> generations = new LinkedHashSet<>();
         for (KeyValue kv : entries) {
             MutationLogValue logValue = MutationLogValue.decode(kv.getValue());
             ObjectId objectId = new ObjectId(logValue.objectIdBytes());
             Tuple key = indexSubspace.unpack(kv.getKey());
             byte[] generationId = key.getBytes(1);
             Versionstamp versionstamp = key.getVersionstamp(2);
-            OnHeapVectorGraphIndex onHeap = group.getOrCreateOnHeap(
-                    generationId, dimensions, similarityFunction, pqTrainingThreshold, pqSubspaceDivisor);
+            generations.add(new ObjectId(generationId));
 
             switch (logValue.kind()) {
                 case INSERT, UPDATE -> {
+                    if (group.hasNodeOnDisk(objectId, versionstamp)) {
+                        // Flushed before the crash, the log was not truncated yet.
+                        continue;
+                    }
+                    OnHeapVectorGraphIndex onHeap = group.getOrCreateOnHeap(
+                            generationId, dimensions, similarityFunction, pqTrainingThreshold, pqSubspaceDivisor);
                     VectorIndexValue payload = logValue.vectorPayload();
                     IndexEntry indexEntry = payload.indexEntry();
                     EntryMetadata metadata = EntryMetadata.decode(indexEntry.entryMetadata());
@@ -82,17 +92,15 @@ public final class VectorIndexCrashRecovery {
                             executor
                     ).join();
                 }
-                case DELETE -> {
-                    onHeap.markNodeDeleted(objectId, versionstamp);
-                    group.markNodeDeletedOnDisk(objectId, versionstamp);
-                }
+                case DELETE -> group.markNodeDeleted(objectId, versionstamp);
             }
         }
+        return generations;
     }
 
     /**
-     * Scans the mutation log for entries newer than the latest on-disk versionstamp and
-     * replays them into a fresh on-heap index with PQ configuration.
+     * Replays the whole mutation log of the index in pages and queues a flush task for every
+     * generation seen in the log, so the flush maintainer writes it to disk and truncates its log.
      */
     public static void recover(
             Context context,
@@ -104,43 +112,28 @@ public final class VectorIndexCrashRecovery {
             int pqTrainingThreshold,
             int pqSubspaceDivisor
     ) {
-        // Find max versionstamp across all on-disk indexes
-        Versionstamp maxVersionstamp = null;
-        /*
-        // TODO: recover method will be refactored during #71
-        for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
-            Versionstamp vs = onDisk.getLatestVersionstamp();
-            if (vs != null && (maxVersionstamp == null || vs.compareTo(maxVersionstamp) > 0)) {
-                maxVersionstamp = vs;
-            }
-        }
-        */
-
-        // Build range scan boundaries
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue()));
-        KeySelector begin;
-        if (maxVersionstamp != null) {
-            byte[] startKey = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue(), maxVersionstamp));
-            begin = KeySelector.firstGreaterThan(startKey);
-        } else {
-            begin = KeySelector.firstGreaterOrEqual(prefix);
-        }
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        // Read mutation log entries
+        Set<ObjectId> generations = new LinkedHashSet<>();
         while (true) {
             List<KeyValue> page;
             try (Transaction tr = context.getTransactionManager().create()) {
                 page = tr.getRange(begin, end, PAGE_SIZE).asList().join();
             }
 
-            replayMutationLog(group, page, indexSubspace, dimensions, similarityFunction,
-                    executor, pqTrainingThreshold, pqSubspaceDivisor);
+            generations.addAll(replayMutationLog(group, page, indexSubspace, dimensions, similarityFunction,
+                    executor, pqTrainingThreshold, pqSubspaceDivisor));
 
             if (page.size() < PAGE_SIZE) {
                 break;
             }
             begin = KeySelector.firstGreaterThan(page.getLast().getKey());
+        }
+
+        for (ObjectId generationId : generations) {
+            group.enqueueGenerationForFlush(generationId, false);
         }
     }
 }

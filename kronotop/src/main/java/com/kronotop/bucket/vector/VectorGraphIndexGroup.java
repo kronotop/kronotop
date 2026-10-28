@@ -267,7 +267,10 @@ public class VectorGraphIndexGroup {
         }
     }
 
-    private void enqueueGenerationForFlush(ObjectId genId, boolean drainMode) {
+    /**
+     * Adds a flush task for the given generation. In drain mode the task is due at once.
+     */
+    public void enqueueGenerationForFlush(ObjectId genId, boolean drainMode) {
         VectorFlushKey key = new VectorFlushKey(metadata.namespace(), metadata.name(), vectorIndex.definition().id(), genId);
         long due = 0;
         if (!drainMode) {
@@ -419,6 +422,44 @@ public class VectorGraphIndexGroup {
     }
 
     /**
+     * Marks the node of the given object as deleted in every on-heap and on-disk graph that holds it, unless the
+     * node carries a newer versionstamp than the delete. If no graph holds the node yet, a delete tombstone is
+     * stored, so a later add for the same object is skipped.
+     */
+    public void markNodeDeleted(ObjectId objectId, Versionstamp deleteVs) {
+        boolean[] foundOnHeap = {false};
+        forEachOnHeap(onHeap -> {
+            if (onHeap.getMetadata().findNodeRef(objectId) != null) {
+                foundOnHeap[0] = true;
+                // The versionstamp compare runs under the metadata lock, so a concurrent newer add
+                // cannot lose its mapping to this delete.
+                onHeap.markNodeDeleted(objectId, deleteVs);
+            }
+        });
+        boolean foundOnDisk = markNodeDeletedOnDisk(objectId, deleteVs);
+        boolean found = foundOnHeap[0] || foundOnDisk;
+
+        // On-heap markNodeDeleted removes the ObjectId mapping. A second delete of the same object then
+        // finds nothing and stores a tombstone for a node that is already gone.
+        // This is harmless: a later add for the same ObjectId is either newer (tombstone is consumed,
+        // node is added) or older (skipping it is correct). If no add comes, the tombstone stays in
+        // the map. This is accepted.
+        if (!found) {
+            putDeleteTombstone(objectId, deleteVs);
+        }
+    }
+
+    public boolean hasNodeOnDisk(ObjectId objectId, Versionstamp versionstamp) {
+        for (OnDiskVectorGraphIndex onDisk : onDiskIndexes) {
+            GraphNodeRef ref = onDisk.getMetadata().findNodeRef(objectId);
+            if (ref != null && ref.versionstamp().compareTo(versionstamp) >= 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Returns the live list of on-disk indexes in this group.
      */
     public List<OnDiskVectorGraphIndex> getOnDiskIndexes() {
@@ -476,20 +517,11 @@ public class VectorGraphIndexGroup {
         }
     }
 
-    void cleanup(Path vectorDir) {
-        if (Files.isDirectory(vectorDir)) {
-            try (Stream<Path> walk = Files.walk(vectorDir)) {
-                walk.sorted(Comparator.reverseOrder()).forEach(p -> {
-                    try {
-                        Files.deleteIfExists(p);
-                    } catch (IOException ignored) {
-                    }
-                });
-            } catch (IOException ignored) {
-            }
-        }
-    }
-
+    /**
+     * Writes the on-heap index to disk, opens it as an on-disk index and removes the on-heap one
+     * from the group. An empty index is skipped. On a write error the on-heap index stays in place,
+     * so the flush maintainer can try again.
+     */
     public void flush(Path bucketDataDir, OnHeapVectorGraphIndex index) {
         if (index.size() == 0) return;
 

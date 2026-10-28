@@ -995,9 +995,9 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         ObjectId objectId = new ObjectId();
         float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
         float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
-        CollectedVector newCv = new CollectedVector(objectId, new ObjectId().toByteArray(), 0, newEntryMetadata(2), newVector,
+        CollectedVector newCv = new CollectedVector(objectId, GEN, 0, newEntryMetadata(2), newVector,
                 vectorIndex.definition(), 3);
-        CollectedVector oldCv = new CollectedVector(objectId, new ObjectId().toByteArray(), 0, newEntryMetadata(1), oldVector,
+        CollectedVector oldCv = new CollectedVector(objectId, GEN, 0, newEntryMetadata(1), oldVector,
                 vectorIndex.definition(), 1);
 
         VectorNodeWriter writer = new VectorNodeWriter(service, metadata);

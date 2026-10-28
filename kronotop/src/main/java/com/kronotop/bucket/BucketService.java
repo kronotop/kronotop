@@ -289,11 +289,9 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     /**
-     * Loads a vector graph index group from the disk and replays mutation log entries for crash recovery.
-     * If no disk data and no mutation log entries exist, returns an immediately ready group (fast-path).
-     * Otherwise, returns a not-yet-ready group and runs bootstrap in the background (slow-path).
-     * Called exactly once per index because ConcurrentHashMap.computeIfAbsent guarantees a single
-     * supplier invocation for a given key.
+     * Creates the graph index group of a vector index. If the index has no on-disk files and no
+     * mutation log entries, the group is ready at once. Otherwise, the on-disk indexes are opened and
+     * the mutation log is replayed in the background; the group becomes ready when that work ends.
      */
     public VectorGraphIndexGroup bootstrapVectorGroup(BucketMetadata metadata, VectorIndex vectorIndex) {
         if (!hasOnDiskIndexes(metadata, vectorIndex) && !hasMutationLogEntries(vectorIndex)) {

@@ -27,6 +27,7 @@ import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.*;
+import com.kronotop.internal.DirectoryUtil;
 import com.kronotop.volume.EntryMetadata;
 import com.kronotop.volume.VolumeTestUtil;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
@@ -91,7 +92,7 @@ class VectorFlushMaintainerTest extends BaseStandaloneInstanceTest {
                 context.getDataDir().resolve("bucket"),
                 VectorGraphIndexGroup.ownerShardId(metadata)
         );
-        group.cleanup(vectorDir);
+        DirectoryUtil.deleteRecursively(vectorDir);
     }
 
     private EntryMetadata newEntryMetadata(long segment) {

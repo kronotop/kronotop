@@ -61,25 +61,6 @@ public class VectorNodeRemover extends BaseVectorNode {
             maxVs = deleteVs;
         }
 
-        boolean[] foundOnHeap = {false};
-        group.forEachOnHeap(onHeap -> {
-            if (onHeap.getMetadata().findNodeRef(objectId) != null) {
-                foundOnHeap[0] = true;
-                // The versionstamp compare runs under the metadata lock, so a concurrent newer add
-                // cannot lose its mapping to this delete.
-                onHeap.markNodeDeleted(objectId, deleteVs);
-            }
-        });
-        boolean foundOnDisk = group.markNodeDeletedOnDisk(objectId, deleteVs);
-        boolean found = foundOnHeap[0] || foundOnDisk;
-
-        // On-heap markNodeDeleted removes the ObjectId mapping. A second delete of the same object then
-        // finds nothing and stores a tombstone for a node that is already gone.
-        // This is harmless: a later add for the same ObjectId is either newer (tombstone is consumed,
-        // node is added) or older (skipping it is correct). If no add comes, the tombstone stays in
-        // the map. This is accepted.
-        if (!found) {
-            group.putDeleteTombstone(objectId, deleteVs);
-        }
+        group.markNodeDeleted(objectId, deleteVs);
     }
 }

@@ -339,6 +339,15 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
 
             String name = id.toHexString();
             Path indexPath = path.resolve(name + ".index");
+            Path metadataPath = path.resolve(name + ".vmeta");
+            Path pqPath = path.resolve(name + ".pqv");
+            Path completePath = path.resolve(name + ".complete");
+
+            // A retried flush writes the same file names. Remove what a failed attempt left behind.
+            Files.deleteIfExists(completePath);
+            Files.deleteIfExists(indexPath);
+            Files.deleteIfExists(metadataPath);
+            Files.deleteIfExists(pqPath);
 
             // removeDeletedNodes leaves holes in the ordinal space. The on-disk graph is written with
             // sequential ordinals, so vmeta and pqv must use the same renumbering.
@@ -347,19 +356,16 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
             RandomAccessVectorValues rvv = new MapVectorValues(vectors, ravv.dimension());
             OnDiskGraphIndex.write(builder.getGraph(), rvv, ordinalMap, indexPath);
 
-            Path metadataPath = path.resolve(name + ".vmeta");
             OnDiskVectorGraphIndexMetadataWriter.write(metadataPath, metadata, ordinalMap);
 
             if (pqVectors != null) {
                 MutablePQVectors remapped = new MutablePQVectors(pq);
                 vectors.forEach((ord, vec) -> remapped.encodeAndSet(ordinalMap.get(ord), vec));
-                Path pqPath = path.resolve(name + ".pqv");
                 try (var pqOut = new BufferedRandomAccessWriter(pqPath)) {
                     remapped.write(pqOut, OnDiskGraphIndex.CURRENT_VERSION);
                 }
             }
 
-            Path completePath = path.resolve(name + ".complete");
             Files.createFile(completePath);
 
             return indexPath;
