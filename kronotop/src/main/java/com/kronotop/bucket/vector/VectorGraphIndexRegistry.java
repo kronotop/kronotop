@@ -127,7 +127,7 @@ public class VectorGraphIndexRegistry {
         for (ConcurrentHashMap<String, ConcurrentHashMap<Long, VectorGraphIndexGroup>> buckets : subMap.values()) {
             for (ConcurrentHashMap<Long, VectorGraphIndexGroup> indexes : buckets.values()) {
                 for (VectorGraphIndexGroup group : indexes.values()) {
-                    bucketIds.add(group.getBucketId());
+                    bucketIds.add(group.getBucketMetadata().uuid());
                     group.closeAll();
                 }
             }

@@ -37,6 +37,21 @@ public final class VectorNodeWriter extends BaseVectorNode {
         return deleteVs != null && deleteVs.compareTo(addVs) > 0;
     }
 
+    /**
+     * Returns true when an on-heap graph of any generation already holds this object with the same or a
+     * newer versionstamp.
+     */
+    private boolean newerNodeExistsOnHeap(VectorGraphIndexGroup group, ObjectId objectId, Versionstamp addVs) {
+        boolean[] found = {false};
+        group.forEachOnHeap(onHeap -> {
+            GraphNodeRef ref = onHeap.getMetadata().findNodeRef(objectId);
+            if (ref != null && ref.versionstamp().compareTo(addVs) >= 0) {
+                found[0] = true;
+            }
+        });
+        return found[0];
+    }
+
     public void write(CollectedVector cv, Versionstamp addVs) {
         VectorGraphIndexGroup group = awaitReadyGroup(cv.definition().id());
         Lock lock = group.lockFor(cv.objectId());
@@ -44,6 +59,12 @@ public final class VectorNodeWriter extends BaseVectorNode {
         try {
             // Pre-check: skip the expensive graph add if a newer DELETE tombstone already exists.
             if (consumeNewerDeleteTombstone(group, cv.objectId(), addVs)) {
+                return;
+            }
+
+            // Pre-check: a late add must not revive an object that a newer add already placed in the
+            // on-heap graph of another generation.
+            if (newerNodeExistsOnHeap(group, cv.objectId(), addVs)) {
                 return;
             }
 
@@ -55,6 +76,13 @@ public final class VectorNodeWriter extends BaseVectorNode {
                     service.getPqSubspaceDivisor()
             );
             graph.addGraphNode(cv.objectId(), addVs, cv.shardId(), cv.metadata(), cv.vector(), service.getVectorGraphExecutor()).join();
+
+            // An older add of the same object may sit in the on-heap graph of another generation.
+            group.forEachOnHeap(onHeap -> {
+                if (onHeap != graph) {
+                    onHeap.markNodeDeleted(cv.objectId(), addVs);
+                }
+            });
 
             if (graph.ramBytesUsed() > service.getVectorFlushThresholdBytes()) {
                 group.rotateOnHeap(

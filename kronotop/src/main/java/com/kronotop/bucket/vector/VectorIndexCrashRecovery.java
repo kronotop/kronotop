@@ -119,11 +119,7 @@ public final class VectorIndexCrashRecovery {
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
         BucketService service = context.getService(BucketService.NAME);
-        VectorNodeRemover remover = new VectorNodeRemover(
-                service,
-                group.getBucketMetadata(),
-                group.getVectorIndex().definition().id()
-        );
+        VectorNodeRemover remover = new VectorNodeRemover(service, group.getBucketMetadata(), group);
 
         Set<ObjectId> generations = new LinkedHashSet<>();
         while (true) {

@@ -987,17 +987,17 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldTombstoneStaleAddWhenNewerNodeExists() {
-        // Behavior: An add with an older versionstamp than the node already in the graph enters the graph
-        // and is tombstoned at once. The graph counts the dead node until flush, the object stays bound to
-        // the newer vector, and search returns only the newer vector.
+        // Behavior: An add with an older versionstamp than the node already on heap is skipped, even when
+        // its generation differs. The object stays bound to the newer vector, and search returns only the
+        // newer vector.
         VectorGraphIndexGroup registryGroup = registryGroup();
         BucketService service = context.getService(BucketService.NAME);
         ObjectId objectId = new ObjectId();
         float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
         float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
-        CollectedVector newCv = new CollectedVector(objectId, GEN, 0, newEntryMetadata(2), newVector,
+        CollectedVector newCv = new CollectedVector(objectId, new ObjectId().toByteArray(), 0, newEntryMetadata(2), newVector,
                 vectorIndex.definition(), 3);
-        CollectedVector oldCv = new CollectedVector(objectId, GEN, 0, newEntryMetadata(1), oldVector,
+        CollectedVector oldCv = new CollectedVector(objectId, new ObjectId().toByteArray(), 0, newEntryMetadata(1), oldVector,
                 vectorIndex.definition(), 1);
 
         VectorNodeWriter writer = new VectorNodeWriter(service, metadata);
@@ -1009,7 +1009,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         writer.write(oldCv, versionstamp(1));
 
         assertEquals(newRef, onHeap.getMetadata().findNodeRef(objectId));
-        assertEquals(2, onHeap.size());
+        assertEquals(1, onHeap.size());
         List<MergedNodeScore> results = registryGroup.searchAll(oldVector, 2, 0.0f, 1.0f);
         assertEquals(1, results.size());
         assertEquals(newCv.metadata(), results.getFirst().location().entryMetadata());

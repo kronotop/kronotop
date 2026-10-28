@@ -39,6 +39,18 @@ public class VectorNodeRemover extends BaseVectorNode {
     }
 
     /**
+     * Creates a remover bound to the given group. Used during recovery, where the group is not ready yet.
+     *
+     * @param service  the bucket service
+     * @param metadata the bucket metadata
+     * @param group    the graph index group to remove from
+     */
+    public VectorNodeRemover(BucketService service, BucketMetadata metadata, VectorGraphIndexGroup group) {
+        super(service, metadata);
+        this.group = group;
+    }
+
+    /**
      * Marks the node of the given vector as deleted in every on-heap and on-disk graph that holds it. If no graph
      * holds the node yet, a delete tombstone is stored, so a later add for the same object is skipped.
      *
