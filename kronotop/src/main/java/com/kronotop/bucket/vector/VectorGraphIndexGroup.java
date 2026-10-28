@@ -240,11 +240,8 @@ public class VectorGraphIndexGroup {
         return future.isDone() && !future.isCompletedExceptionally();
     }
 
-    /**
-     * Returns the UUID of the bucket this group belongs to.
-     */
-    public UUID getBucketId() {
-        return metadata.uuid();
+    public BucketMetadata getBucketMetadata() {
+        return metadata;
     }
 
     /**
@@ -419,34 +416,6 @@ public class VectorGraphIndexGroup {
             node.index().markNodeDeletedInMemory(node.ordinal());
         }
         return found;
-    }
-
-    /**
-     * Marks the node of the given object as deleted in every on-heap and on-disk graph that holds it, unless the
-     * node carries a newer versionstamp than the delete. If no graph holds the node yet, a delete tombstone is
-     * stored, so a later add for the same object is skipped.
-     */
-    public void markNodeDeleted(ObjectId objectId, Versionstamp deleteVs) {
-        boolean[] foundOnHeap = {false};
-        forEachOnHeap(onHeap -> {
-            if (onHeap.getMetadata().findNodeRef(objectId) != null) {
-                foundOnHeap[0] = true;
-                // The versionstamp compare runs under the metadata lock, so a concurrent newer add
-                // cannot lose its mapping to this delete.
-                onHeap.markNodeDeleted(objectId, deleteVs);
-            }
-        });
-        boolean foundOnDisk = markNodeDeletedOnDisk(objectId, deleteVs);
-        boolean found = foundOnHeap[0] || foundOnDisk;
-
-        // On-heap markNodeDeleted removes the ObjectId mapping. A second delete of the same object then
-        // finds nothing and stores a tombstone for a node that is already gone.
-        // This is harmless: a later add for the same ObjectId is either newer (tombstone is consumed,
-        // node is added) or older (skipping it is correct). If no add comes, the tombstone stays in
-        // the map. This is accepted.
-        if (!found) {
-            putDeleteTombstone(objectId, deleteVs);
-        }
     }
 
     public boolean hasNodeOnDisk(ObjectId objectId, Versionstamp versionstamp) {

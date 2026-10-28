@@ -23,7 +23,6 @@ import org.bson.types.ObjectId;
 
 public class VectorNodeRemover extends BaseVectorNode {
     private final VectorGraphIndexGroup group;
-    private Versionstamp maxVs = null;
 
     /**
      * Creates a remover for the given vector index and waits until its graph index group is ready.
@@ -57,10 +56,25 @@ public class VectorNodeRemover extends BaseVectorNode {
      * @param deleteVs the versionstamp of the delete operation
      */
     public void remove(ObjectId objectId, Versionstamp deleteVs) {
-        if (maxVs == null || deleteVs.compareTo(maxVs) > 0) {
-            maxVs = deleteVs;
-        }
+        boolean[] foundOnHeap = {false};
+        group.forEachOnHeap(onHeap -> {
+            if (onHeap.getMetadata().findNodeRef(objectId) != null) {
+                foundOnHeap[0] = true;
+                // The versionstamp compare runs under the metadata lock, so a concurrent newer add
+                // cannot lose its mapping to this delete.
+                onHeap.markNodeDeleted(objectId, deleteVs);
+            }
+        });
+        boolean foundOnDisk = group.markNodeDeletedOnDisk(objectId, deleteVs);
+        boolean found = foundOnHeap[0] || foundOnDisk;
 
-        group.markNodeDeleted(objectId, deleteVs);
+        // On-heap markNodeDeleted removes the ObjectId mapping. A second delete of the same object then
+        // finds nothing and stores a tombstone for a node that is already gone.
+        // This is harmless: a later add for the same ObjectId is either newer (tombstone is consumed,
+        // node is added) or older (skipping it is correct). If no add comes, the tombstone stays in
+        // the map. This is accepted.
+        if (!found) {
+            group.putDeleteTombstone(objectId, deleteVs);
+        }
     }
 }

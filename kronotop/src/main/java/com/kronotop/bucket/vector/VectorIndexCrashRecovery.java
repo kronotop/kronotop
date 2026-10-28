@@ -24,6 +24,7 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.IndexEntry;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.MutationLogValue;
@@ -54,6 +55,7 @@ public final class VectorIndexCrashRecovery {
      * @return the generation ids seen in the entries
      */
     static Set<ObjectId> replayMutationLog(
+            VectorNodeRemover remover,
             VectorGraphIndexGroup group,
             List<KeyValue> entries,
             DirectorySubspace indexSubspace,
@@ -92,7 +94,7 @@ public final class VectorIndexCrashRecovery {
                             executor
                     ).join();
                 }
-                case DELETE -> group.markNodeDeleted(objectId, versionstamp);
+                case DELETE -> remover.remove(objectId, versionstamp);
             }
         }
         return generations;
@@ -116,6 +118,13 @@ public final class VectorIndexCrashRecovery {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
+        BucketService service = context.getService(BucketService.NAME);
+        VectorNodeRemover remover = new VectorNodeRemover(
+                service,
+                group.getBucketMetadata(),
+                group.getVectorIndex().definition().id()
+        );
+
         Set<ObjectId> generations = new LinkedHashSet<>();
         while (true) {
             List<KeyValue> page;
@@ -123,9 +132,17 @@ public final class VectorIndexCrashRecovery {
                 page = tr.getRange(begin, end, PAGE_SIZE).asList().join();
             }
 
-            generations.addAll(replayMutationLog(group, page, indexSubspace, dimensions, similarityFunction,
-                    executor, pqTrainingThreshold, pqSubspaceDivisor));
-
+            generations.addAll(replayMutationLog(
+                    remover,
+                    group,
+                    page,
+                    indexSubspace,
+                    dimensions,
+                    similarityFunction,
+                    executor,
+                    pqTrainingThreshold,
+                    pqSubspaceDivisor
+            ));
             if (page.size() < PAGE_SIZE) {
                 break;
             }
