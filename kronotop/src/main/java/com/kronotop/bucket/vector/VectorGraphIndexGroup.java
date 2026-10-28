@@ -21,6 +21,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.VectorIndex;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
@@ -32,10 +33,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -58,6 +56,7 @@ public class VectorGraphIndexGroup {
     private final ConcurrentHashMap<ObjectId, Versionstamp> deleteTombstones = new ConcurrentHashMap<>();
 
     private final Context context;
+    private final BucketService service;
     private final BucketMetadata metadata;
     private final VectorIndex vectorIndex;
     private final GenerationCounter generationCounter = new GenerationCounter(new ObjectId(), 100_00);
@@ -68,6 +67,7 @@ public class VectorGraphIndexGroup {
      */
     public VectorGraphIndexGroup(Context context, BucketMetadata metadata, VectorIndex vectorIndex) {
         this.context = context;
+        this.service = context.getService(BucketService.NAME);
         this.metadata = metadata;
         this.vectorIndex = vectorIndex;
     }
@@ -254,6 +254,28 @@ public class VectorGraphIndexGroup {
         onDiskIndexes.add(index);
     }
 
+    public void enqueueAllForFlush() {
+        for (ObjectId generationId : onHeapIndexes.keySet()) {
+            enqueueGenerationForFlush(generationId, true);
+        }
+    }
+
+    private void enqueueGenerationForFlush(ObjectId genId, boolean drainMode) {
+        VectorFlushKey key = new VectorFlushKey(metadata.namespace(), metadata.name(), vectorIndex.definition().id(), genId);
+        long due = 0;
+        if (!drainMode) {
+            due = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        }
+        VectorFlushTask task = new VectorFlushTask(key, due);
+        service.getVectorFlushQueue().add(task);
+    }
+
+    private void enqueuePreviousGenerationsForFlush(ObjectId genId) {
+        for (ObjectId prevGenId : onHeapIndexes.headMap(genId).keySet()) {
+            enqueueGenerationForFlush(prevGenId, false);
+        }
+    }
+
     private OnHeapVectorGraphIndex createOnHeap(ObjectId genId, int dimensions, VectorSimilarityFunction similarityFunction,
                                                 int pqTrainingThreshold, int pqSubspaceDivisor) {
         List<OnHeapVectorGraphIndex> list = onHeapIndexes.computeIfAbsent(genId, (ignored) -> new CopyOnWriteArrayList<>());
@@ -261,6 +283,7 @@ public class VectorGraphIndexGroup {
         OnHeapVectorGraphIndex fresh = new OnHeapVectorGraphIndex(dimensions, similarityFunction,
                 pqTrainingThreshold, pqSubspaceDivisor);
         list.add(fresh);
+        enqueuePreviousGenerationsForFlush(genId);
         return fresh;
     }
 
@@ -390,6 +413,14 @@ public class VectorGraphIndexGroup {
      */
     public boolean isEmpty() {
         return onHeapIndexes.isEmpty() && onDiskIndexes.isEmpty();
+    }
+
+    public boolean hasNoOnHeapIndexes(ObjectId generationId) {
+        List<OnHeapVectorGraphIndex> list = onHeapIndexes.get(generationId);
+        if (list == null) {
+            return true;
+        }
+        return list.isEmpty();
     }
 
     /**

@@ -83,6 +83,8 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private final PlanCache planCache = new PlanCache();
     private final BucketMetrics metrics = new BucketMetrics();
     private final Planner planner;
+    private final DelayQueue<VectorFlushTask> vectorFlushQueue = new DelayQueue<>();
+    private final VectorFlushMaintainer vectorFlushMaintainer;
     private final long vectorFlushThresholdBytes;
     private final int pqTrainingThreshold;
     private final int pqSubspaceDivisor;
@@ -124,6 +126,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         this.bucketEventsWatcher = new BucketEventsWatcher(context, planCache);
         this.planner = new Planner(planCache, metrics);
         this.queryExecutor = new QueryExecutor(this);
+        this.vectorFlushMaintainer = new VectorFlushMaintainer(context);
     }
 
     public PlanCache getPlanCache() {
@@ -132,6 +135,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
     public BucketMetrics getMetrics() {
         return metrics;
+    }
+
+    public DelayQueue<VectorFlushTask> getVectorFlushQueue() {
+        return vectorFlushQueue;
     }
 
     @Override
@@ -384,6 +391,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         executor.submit(bucketEventsWatcher);
         Runnable evictionWorker = context.getBucketMetadataCache().createEvictionWorker(context::now, 1000 * 5 * 60);
         scheduler.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
+        vectorFlushMaintainer.start();
     }
 
     @Override
@@ -411,16 +419,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                 LOGGER.warn("{} service cannot be stopped gracefully (scheduler)", NAME);
             }
 
-            // Flush before vectorGraphExecutor shuts down.
-            try {
-                LOGGER.info("Flushing vector graph indexes");
-                long start = System.nanoTime();
-                vectorGraphRegistry.flushAll(bucketDataDir);
-                LOGGER.info("Flushed vector graph indexes in {} ms", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
-            } catch (Exception e) {
-                LOGGER.error("Failed to flush vector graph indexes on shutdown", e);
-            }
-
             vectorGraphExecutor.shutdown();
             if (!vectorGraphExecutor.awaitTermination(
                     ExecutorServiceUtil.DEFAULT_TIMEOUT,
@@ -428,6 +426,12 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             )) {
                 LOGGER.warn("{} service cannot be stopped gracefully (vectorGraphPool)", NAME);
             }
+
+            // Try to flush all on-heap vector indexes. shutdown method will block until all indexes are flushed to
+            // the disk. See bucket.vector.flush_drain_timeout_seconds
+            vectorFlushMaintainer.setDrainMode();
+            vectorGraphRegistry.enqueueAllForFlush();
+            vectorFlushMaintainer.shutdown();
 
             vectorGraphRegistry.closeAll();
         } catch (InterruptedException exp) {
