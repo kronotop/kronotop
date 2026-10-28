@@ -40,11 +40,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Stream;
 
@@ -300,38 +296,6 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldFlushOnHeapIndexesToDisk(@TempDir Path tempDir) throws IOException {
-        // Behavior: flush writes .index and .vmeta files for each non-empty, unflushed on-heap index.
-        group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-
-        OnHeapVectorGraphIndex index = openOnHeap();
-        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-
-        group.flush(tempDir);
-
-        Path indexDir = VectorGraphIndexGroup.resolveVectorDir(tempDir, VectorGraphIndexGroup.ownerShardId(metadata))
-                .resolve(metadata.uuid().toString())
-                .resolve(Long.toString(vectorIndex.definition().id()));
-        assertTrue(Files.isDirectory(indexDir));
-
-        try (Stream<Path> files = Files.list(indexDir)) {
-            List<Path> allFiles = files.toList();
-            long indexCount = allFiles.stream().filter(p -> p.toString().endsWith(".index")).count();
-            long metaCount = allFiles.stream().filter(p -> p.toString().endsWith(".vmeta")).count();
-            long completeCount = allFiles.stream().filter(p -> p.toString().endsWith(".complete")).count();
-            assertEquals(1, indexCount);
-            assertEquals(1, metaCount);
-            assertEquals(1, completeCount);
-        }
-
-        assertTrue(index.isFlushed());
-
-        // On-disk indexes should be populated after a flush
-        assertEquals(1, group.getOnDiskIndexes().size());
-    }
-
-    @Test
     void shouldReturnEmptyListWhenDirectoryDoesNotExist() throws IOException {
         // Behavior: openOnDiskIndexes returns an empty list when the index directory does not exist.
         List<OnDiskVectorGraphIndex> result = VectorGraphIndexGroup.openOnDiskIndexes(
@@ -423,22 +387,6 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         List<MergedNodeScore> results = loaded.searchAll(new float[]{1.0f, 0.0f, 0.0f}, 3, 0.0f, 1.0f);
         assertEquals(3, results.size());
         loaded.closeAll();
-    }
-
-    @Test
-    void shouldSkipFlushedAndEmptyIndexes(@TempDir Path tempDir) {
-        // Behavior: flush skips already-flushed and empty indexes without creating files.
-        group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-
-        // Add an empty index
-        openOnHeap();
-
-        group.flush(tempDir);
-
-        Path indexDir = VectorGraphIndexGroup.resolveVectorDir(tempDir, VectorGraphIndexGroup.ownerShardId(metadata))
-                .resolve(metadata.uuid().toString())
-                .resolve(Long.toString(vectorIndex.definition().id()));
-        assertFalse(Files.exists(indexDir));
     }
 
     @Test
@@ -671,7 +619,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         List<MergedNodeScore> beforeFlush = group.searchAll(new float[]{1.0f, 0.0f, 0.0f}, 3, 0.0f, 1.0f);
         assertEquals(3, beforeFlush.size());
 
-        group.flush(tempDir);
+        group.flush(tempDir, index);
 
         // On-heap indexes should be removed, on-disk should be populated
         assertTrue(group.getOnHeapIndexes().isEmpty());
@@ -685,8 +633,8 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldSearchAcrossFlushedOnDiskAndNewOnHeapIndexes(@TempDir Path tempDir) {
-        // Behavior: After flushing on-heap indexes to disk and adding new on-heap indexes,
-        // searchAll returns merged results from both flushed on-disk and new on-heap indexes.
+        // Behavior: After flushing an on-heap index to disk and adding a new on-heap index,
+        // searchAll returns merged results from both the flushed on-disk and the new on-heap index.
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
 
         // Step 1: Create an on-heap index with vectors and flush it to disk.
@@ -694,7 +642,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         firstIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
         firstIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
 
-        group.flush(tempDir);
+        group.flush(tempDir, firstIndex);
 
         // Flushed index should be on disk, on-heap list should be empty.
         assertTrue(group.getOnHeapIndexes().isEmpty());
@@ -831,24 +779,6 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldRemoveFlushedIndexesAfterGroupFlush(@TempDir Path tempDir) {
-        // Behavior: after a group flush, flushed on-heap indexes are removed from the list.
-        group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-
-        OnHeapVectorGraphIndex index = openOnHeap();
-        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-
-        // Add an empty index that won't be flushed
-        OnHeapVectorGraphIndex emptyIndex = rotateOnHeap(index);
-
-        group.flush(tempDir);
-
-        // The flushed index should be removed; the empty one remains
-        assertEquals(1, group.getOnHeapIndexes().size());
-        assertSame(emptyIndex, group.getOnHeapIndexes().getFirst());
-    }
-
-    @Test
     void shouldFlushPQTrainedIndexAndLoadFromDisk() throws IOException {
         // Behavior: A PQ-trained on-heap index flushed via group produces .pqv files and the loaded on-disk index supports search.
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
@@ -863,7 +793,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         assertTrue(index.isPqTrained());
 
         Path bucketDir = context.getDataDir().resolve("bucket");
-        group.flush(bucketDir);
+        group.flush(bucketDir, index);
 
         Path indexDir = VectorGraphIndexGroup.resolveVectorDir(bucketDir, VectorGraphIndexGroup.ownerShardId(metadata))
                 .resolve(metadata.uuid().toString())
@@ -1339,7 +1269,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         ObjectId objectId = new ObjectId();
         heapIndex.addGraphNode(objectId, versionstamp(1), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
         heapIndex.addGraphNode(new ObjectId(), versionstamp(1), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-        group.flush(service.getBucketDataDir());
+        group.flush(service.getBucketDataDir(), heapIndex);
 
         OnDiskVectorGraphIndex flushed = group.getOnDiskIndexes().getFirst();
         int ordinal = flushed.getMetadata().findNodeRef(objectId).ordinal();
@@ -1374,10 +1304,10 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         ObjectId objectIdB = new ObjectId();
         OnHeapVectorGraphIndex heapA = group.getOrCreateOnHeap(GEN, DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
         heapA.addGraphNode(objectIdA, versionstamp(1), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        group.flush(service.getBucketDataDir());
+        group.flush(service.getBucketDataDir(), heapA);
         OnHeapVectorGraphIndex heapB = group.getOrCreateOnHeap(GEN, DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
         heapB.addGraphNode(objectIdB, versionstamp(1), 0, newEntryMetadata(2), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
-        group.flush(service.getBucketDataDir());
+        group.flush(service.getBucketDataDir(), heapB);
 
         List<OnDiskVectorGraphIndex> flushed = new ArrayList<>(group.getOnDiskIndexes());
         assertEquals(2, flushed.size());
@@ -1425,7 +1355,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
             adds.add(heapIndex.addGraphNode(new ObjectId(), versionstamp(1), 0, newEntryMetadata(i + 1), vector, executor));
         }
         adds.forEach(CompletableFuture::join);
-        group.flush(service.getBucketDataDir());
+        group.flush(service.getBucketDataDir(), heapIndex);
 
         OnDiskVectorGraphIndex flushed = group.getOnDiskIndexes().getFirst();
         assertEquals(total, flushed.size());

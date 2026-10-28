@@ -183,7 +183,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
             onHeap.advanceVersionstamp(flushVersionstamp);
         }
         BucketService service = context.getService(BucketService.NAME);
-        group.flush(service.getBucketDataDir());
+        group.flush(service.getBucketDataDir(), onHeap);
 
         // Load on-disk indexes
         List<OnDiskVectorGraphIndex> onDiskIndexes = VectorGraphIndexGroup.openOnDiskIndexes(
@@ -528,7 +528,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
             onHeap.advanceVersionstamp(flushVersionstamp);
         }
         BucketService service = context.getService(BucketService.NAME);
-        group.flush(service.getBucketDataDir());
+        group.flush(service.getBucketDataDir(), onHeap);
 
         // Load on-disk indexes
         List<OnDiskVectorGraphIndex> onDiskIndexes = VectorGraphIndexGroup.openOnDiskIndexes(
@@ -771,53 +771,6 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         MutationLogValue decoded = MutationLogValue.decode(remaining.getFirst().getValue());
         assertArrayEquals(oid3.toByteArray(), decoded.objectIdBytes());
-
-        group.closeAll();
-    }
-
-    @Test
-    void shouldTruncateMutationLogAfterBatchFlush(@TempDir Path tempDir) {
-        // Behavior: flush (batch) clears mutation log entries up to the max versionstamp across all flushed indexes.
-        VectorIndex vectorIndex = createVectorIndex();
-        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
-
-        ObjectId oid1 = new ObjectId();
-        ObjectId oid2 = new ObjectId();
-        byte[] encoded = encodedIndexEntry();
-
-        // Write two entries in separate transactions to get distinct versionstamps
-        try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
-                    oid1.toByteArray(), encoded, TEST_VECTOR_1, 0);
-            tr.commit().join();
-        }
-
-        try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID,
-                    oid2.toByteArray(), encoded, TEST_VECTOR_2, 0);
-            tr.commit().join();
-        }
-
-        List<KeyValue> allEntries = getMutationLogEntries(vectorIndex);
-        Versionstamp vs1 = vectorIndex.subspace().unpack(allEntries.get(0).getKey()).getVersionstamp(2);
-        Versionstamp vs2 = vectorIndex.subspace().unpack(allEntries.get(1).getKey()).getVersionstamp(2);
-
-        // Build two on-heap indexes, one per entry
-        OnHeapVectorGraphIndex heap1 = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
-        heap1.addGraphNode(oid1, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
-        heap1.advanceVersionstamp(vs1);
-
-        OnHeapVectorGraphIndex heap2 = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
-        heap2.addGraphNode(oid2, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_2, executor).join();
-        heap2.advanceVersionstamp(vs2);
-
-        VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        group.addOnHeap(heap1);
-        group.addOnHeap(heap2);
-
-        assertFalse(getMutationLogEntries(vectorIndex).isEmpty());
-        group.flush(tempDir);
-        assertEquals(0, getMutationLogEntries(vectorIndex).size());
 
         group.closeAll();
     }

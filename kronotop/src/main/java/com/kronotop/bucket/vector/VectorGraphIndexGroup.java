@@ -59,7 +59,7 @@ public class VectorGraphIndexGroup {
     private final BucketService service;
     private final BucketMetadata metadata;
     private final VectorIndex vectorIndex;
-    private final GenerationCounter generationCounter = new GenerationCounter(new ObjectId(), 100_00);
+    private final GenerationCounter generationCounter = new GenerationCounter(new ObjectId(), 100_000);
     private volatile CompletableFuture<Void> bootstrapFuture;
 
     /**
@@ -491,18 +491,6 @@ public class VectorGraphIndexGroup {
         } catch (IOException e) {
             LOGGER.error("Failed to close flushed vector graph index", e);
         }
-    }
-
-    /**
-     * Flushes all unflushed, non-empty on-heap indexes to disk under the given data directory.
-     * <p>
-     * Flush is not a thread-safe method.
-     */
-    public void flush(Path bucketDataDir) {
-        forEachOnHeap(index -> {
-            if (index.isFlushed() || index.size() == 0) return;
-            flush(bucketDataDir, index);
-        });
     }
 
     /**

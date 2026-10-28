@@ -163,13 +163,6 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
         return drained.total();
     }
 
-    private void flushRemaining() {
-        if (group == null) {
-            return;
-        }
-        group.flush(service.getBucketDataDir());
-    }
-
     @Override
     public void start() {
         initGroup();
@@ -178,10 +171,6 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
         }
 
         super.start();
-
-        if (!stopped) {
-            flushRemaining();
-        }
     }
 
     private record VectorEntry(BufferedEntry entry, float[] vector) {
