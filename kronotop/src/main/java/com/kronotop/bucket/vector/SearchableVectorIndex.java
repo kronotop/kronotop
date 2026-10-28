@@ -71,7 +71,7 @@ public interface SearchableVectorIndex extends Closeable {
 
     /**
      * Returns whether this index is available for searching.
-     * On-heap indexes are not searchable once flushed or when empty;
+     * On-heap indexes are not searchable when empty;
      * on-disk indexes are not searchable when empty.
      */
     boolean isSearchable();

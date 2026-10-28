@@ -72,7 +72,6 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     private final int pqTrainingThreshold;
     private final int pqSubspaceDivisor;
     private final DelegatingBuildScoreProvider delegatingBsp;
-    private volatile boolean flushed;
     private volatile MutablePQVectors pqVectors;
     private volatile ProductQuantization pq;
     private volatile boolean pqTrained;
@@ -131,8 +130,6 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
      * versionstamp of the add. If the ObjectId already has a node, only the one with the newer
      * versionstamp stays alive; the other node is tombstoned in the graph. On failure the vector
      * is dropped and the future completes exceptionally.
-     *
-     * @throws IllegalStateException inside the future if the index was already flushed
      */
     public CompletableFuture<Void> addGraphNode(
             ObjectId objectId,
@@ -146,9 +143,6 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
         return CompletableFuture.runAsync(() -> {
             rwLock.readLock().lock();
             try {
-                if (flushed) {
-                    throw new IllegalStateException("Cannot add nodes to a FLUSHED index");
-                }
                 int ordinal = nextOrdinal.getAndIncrement();
                 ordinalHolder[0] = ordinal;
                 VectorFloat<?> vectorFloat = vts.createFloatVector(vector);
@@ -225,14 +219,10 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
      * <p>The SearchHandle intentionally escapes the read lock. This is safe because JVector's
      * {@code ConcurrentGraphIndexView} (obtained via {@code getView()}) holds a consistency point:
      * open Views prevent {@code removeDeletedNodes()} from physically removing marked-deleted nodes.
-     * The lock here only guards the {@code flushed} flag check.
      */
     public SearchHandle openSearchHandle(float[] queryVector) {
         rwLock.readLock().lock();
         try {
-            if (flushed) {
-                throw new IllegalStateException("Cannot search a FLUSHED index");
-            }
             VectorFloat<?> query = vts.createFloatVector(queryVector);
             GraphSearcher searcher = new GraphSearcher(builder.getGraph());
             SearchScoreProvider ssp = DefaultSearchScoreProvider.exact(query, similarityFunction, ravv);
@@ -249,9 +239,6 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     public SearchResult search(float[] queryVector, int topK, int rerankK, float threshold, Bits acceptOrds) {
         rwLock.readLock().lock();
         try {
-            if (flushed) {
-                throw new IllegalStateException("Cannot search a FLUSHED index");
-            }
             VectorFloat<?> query = vts.createFloatVector(queryVector);
             SearchScoreProvider scoreProvider = DefaultSearchScoreProvider.exact(query, similarityFunction, ravv);
             try (GraphSearcher searcher = new GraphSearcher(builder.getGraph())) {
@@ -267,16 +254,10 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     /**
      * Marks the node of the object as deleted if the delete is newer than the node. Returns true when a
      * node was deleted.
-     *
-     * @throws IllegalStateException if the index was already flushed. The graph is on disk, a delete on
-     *                               the in-memory copy would be lost.
      */
     public boolean markNodeDeleted(ObjectId objectId, Versionstamp deleteVs) {
         rwLock.readLock().lock();
         try {
-            if (flushed) {
-                throw new IllegalStateException("Cannot delete nodes from a FLUSHED index");
-            }
             int ordinal = metadata.removeMapping(objectId, deleteVs);
             if (ordinal < 0) {
                 return false;
@@ -307,13 +288,9 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
         return builder.getGraph().ramBytesUsed() + vectorBytesUsed.get();
     }
 
-    public boolean isFlushed() {
-        return flushed;
-    }
-
     @Override
     public boolean isSearchable() {
-        return !flushed && size() > 0;
+        return size() > 0;
     }
 
     @Override
@@ -342,8 +319,7 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     }
 
     /**
-     * Removes deleted nodes, writes the graph and metadata to disk, and permanently marks this index as FLUSHED.
-     * After flush, no further adds or searches are allowed.
+     * Removes deleted nodes, writes the graph and metadata to disk.
      */
     public Path flush(Path path) throws IOException {
         rwLock.writeLock().lock();
@@ -358,7 +334,6 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
             });
 
             if (builder.getGraph().size(0) == 0) {
-                flushed = true;
                 return null;
             }
 
@@ -387,7 +362,6 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
             Path completePath = path.resolve(name + ".complete");
             Files.createFile(completePath);
 
-            flushed = true;
             return indexPath;
         } finally {
             rwLock.writeLock().unlock();

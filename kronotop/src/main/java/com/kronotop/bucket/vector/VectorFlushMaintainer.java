@@ -40,6 +40,7 @@ public class VectorFlushMaintainer {
     private final Context context;
     private final ExecutorService executor;
     private final long drainTimeoutSeconds;
+    private final long idleMillis;
     private BucketService service;
     private volatile boolean drainMode;
     private volatile boolean started;
@@ -47,6 +48,7 @@ public class VectorFlushMaintainer {
     public VectorFlushMaintainer(Context context) {
         this.context = context;
         this.drainTimeoutSeconds = context.getConfig().getLong("bucket.vector.flush_drain_timeout_seconds");
+        this.idleMillis = context.getConfig().getLong("bucket.vector.flush_idle_millis");
         this.executor = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder().setNameFormat("kr.vector-flush-maintainer-%d").build()
         );
@@ -106,7 +108,7 @@ public class VectorFlushMaintainer {
         }
 
         private void reschedule(VectorFlushTask task) {
-            long newDue = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            long newDue = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(idleMillis);
             service.getVectorFlushQueue().add(new VectorFlushTask(task.key(), newDue));
         }
 
@@ -126,8 +128,8 @@ public class VectorFlushMaintainer {
                     if (group == null) {
                         continue;
                     }
-                    group.forEachOnHeap((onHeap) -> {
-                        if (drainMode || System.currentTimeMillis() - onHeap.getLastMutation() >= 10_000) {
+                    group.forEachOnHeap(task.key().generationId(), (onHeap) -> {
+                        if (drainMode || System.currentTimeMillis() - onHeap.getLastMutation() >= idleMillis) {
                             group.flush(service.getBucketDataDir(), onHeap);
                         }
                     });

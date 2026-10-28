@@ -344,6 +344,19 @@ public class VectorGraphIndexGroup {
     }
 
     /**
+     * Visits the on-heap indexes of the given generation. Does nothing if the generation has none.
+     */
+    public void forEachOnHeap(ObjectId generationId, Consumer<OnHeapVectorGraphIndex> action) {
+        List<OnHeapVectorGraphIndex> generation = onHeapIndexes.get(generationId);
+        if (generation == null) {
+            return;
+        }
+        for (OnHeapVectorGraphIndex index : generation) {
+            action.accept(index);
+        }
+    }
+
+    /**
      * Returns a snapshot of the on-heap indexes in this group, ordered by generation id.
      * Intended for tests; production code uses {@link #forEachOnHeap(Consumer)}.
      */
@@ -445,11 +458,7 @@ public class VectorGraphIndexGroup {
 
     private void openSearchHandle(SearchableVectorIndex index, float[] queryVector, List<SearchHandle> handles) {
         if (!index.isSearchable()) return;
-        try {
-            handles.add(index.openSearchHandle(queryVector));
-        } catch (IllegalStateException e) {
-            // On-heap index flushed between isSearchable() and openSearchHandle()
-        }
+        handles.add(index.openSearchHandle(queryVector));
     }
 
     /**
@@ -467,8 +476,22 @@ public class VectorGraphIndexGroup {
         }
     }
 
+    void cleanup(Path vectorDir) {
+        if (Files.isDirectory(vectorDir)) {
+            try (Stream<Path> walk = Files.walk(vectorDir)) {
+                walk.sorted(Comparator.reverseOrder()).forEach(p -> {
+                    try {
+                        Files.deleteIfExists(p);
+                    } catch (IOException ignored) {
+                    }
+                });
+            } catch (IOException ignored) {
+            }
+        }
+    }
+
     public void flush(Path bucketDataDir, OnHeapVectorGraphIndex index) {
-        if (index.isFlushed() || index.size() == 0) return;
+        if (index.size() == 0) return;
 
         Path indexDir = resolveVectorDir(bucketDataDir, ownerShardId(metadata))
                 .resolve(metadata.uuid().toString())

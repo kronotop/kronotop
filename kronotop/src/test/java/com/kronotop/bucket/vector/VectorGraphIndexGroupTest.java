@@ -583,29 +583,6 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldSearchAllSkipFlushedIndexes(@TempDir Path tempDir) throws IOException {
-        // Behavior: searchAll skips flushed on-heap indexes and returns results only from active ones.
-        group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-
-        OnHeapVectorGraphIndex flushedIndex = openOnHeap();
-        flushedIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        flushedIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-
-        // Flush to mark it as flushed
-        Path indexDir = tempDir.resolve("flush-dir");
-        Files.createDirectories(indexDir);
-        flushedIndex.flush(indexDir);
-
-        // Add a live index
-        OnHeapVectorGraphIndex activeIndex = rotateOnHeap(flushedIndex);
-        activeIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
-
-        List<MergedNodeScore> results = group.searchAll(new float[]{1.0f, 0.0f, 0.0f}, 5, 0.0f, 1.0f);
-        // Only the active index's single node should appear
-        assertEquals(1, results.size());
-    }
-
-    @Test
     void shouldSearchAllReturnResultsAfterFlushWithoutRestart(@TempDir Path tempDir) {
         // Behavior: searchAll returns results from flushed indexes via on-disk path without requiring a restart.
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
@@ -680,8 +657,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
         group.flush(tempDir, target);
 
-        // Target should be flushed, removed from on-heap, and promoted to on-disk.
-        assertTrue(target.isFlushed());
+        // Target should be removed from on-heap and promoted to on-disk.
         assertEquals(1, group.getOnHeapIndexes().size());
         assertSame(active, group.getOnHeapIndexes().getFirst());
         assertEquals(1, group.getOnDiskIndexes().size());
@@ -689,22 +665,6 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         // Search should return results from both on-disk (target) and on-heap (active).
         List<MergedNodeScore> results = group.searchAll(new float[]{1.0f, 0.0f, 0.0f}, 3, 0.0f, 1.0f);
         assertEquals(3, results.size());
-    }
-
-    @Test
-    void shouldFlushSkipAlreadyFlushedIndex(@TempDir Path tempDir) {
-        // Behavior: flush is a no-op when the given index is already flushed.
-        group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-
-        OnHeapVectorGraphIndex index = openOnHeap();
-        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-
-        group.flush(tempDir, index);
-        int onDiskCount = group.getOnDiskIndexes().size();
-
-        // Calling again should be a no-op.
-        group.flush(tempDir, index);
-        assertEquals(onDiskCount, group.getOnDiskIndexes().size());
     }
 
     @Test
@@ -716,31 +676,8 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
         group.flush(tempDir, emptyIndex);
 
-        assertFalse(emptyIndex.isFlushed());
         assertEquals(1, group.getOnHeapIndexes().size());
         assertTrue(group.getOnDiskIndexes().isEmpty());
-    }
-
-    @Test
-    void shouldRejectDeleteOnFlushedOnHeapIndex(@TempDir Path tempDir) {
-        // Behavior: A delete on a flushed on-heap graph throws. The graph is already on disk, so a
-        // delete applied to the in-memory copy is lost.
-        group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        ObjectId objectId = new ObjectId();
-
-        OnHeapVectorGraphIndex onHeap = openOnHeap();
-        onHeap.addGraphNode(objectId, versionstamp(1), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-
-        group.flush(tempDir, onHeap);
-        assertTrue(onHeap.isFlushed());
-
-        // The delete holds the reference it read before the flush.
-        assertThrows(IllegalStateException.class, () -> onHeap.markNodeDeleted(objectId, versionstamp(2)));
-
-        OnDiskVectorGraphIndex onDisk = group.getOnDiskIndexes().getFirst();
-        GraphNodeRef ref = onDisk.getMetadata().findNodeRef(objectId);
-        assertNotNull(ref);
-        assertNotNull(onDisk.getMetadata().findDocumentLocation(ref.ordinal()));
     }
 
     @Test
