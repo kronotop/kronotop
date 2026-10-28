@@ -65,8 +65,8 @@ public class VectorNodeRemover extends BaseVectorNode {
             group.forEachOnHeap(onHeap -> {
                 if (onHeap.getMetadata().findNodeRef(objectId) != null) {
                     foundOnHeap[0] = true;
-                    // The versionstamp compare runs under the metadata lock, so a concurrent newer add
-                    // cannot lose its mapping to this delete.
+                    // Hooks may run out of commit order, so the versionstamp compare inside
+                    // markNodeDeleted keeps a newer add alive.
                     onHeap.markNodeDeleted(objectId, deleteVs);
                 }
             });
