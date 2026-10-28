@@ -21,6 +21,8 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import org.bson.types.ObjectId;
 
+import java.util.concurrent.locks.Lock;
+
 /**
  * Adds vector nodes to the on-heap vector graph index of a bucket.
  */
@@ -37,37 +39,42 @@ public final class VectorNodeWriter extends BaseVectorNode {
 
     public void write(CollectedVector cv, Versionstamp addVs) {
         VectorGraphIndexGroup group = awaitReadyGroup(cv.definition().id());
+        Lock lock = group.lockFor(cv.objectId());
+        lock.lock();
+        try {
+            // Pre-check: skip the expensive graph add if a newer DELETE tombstone already exists.
+            if (consumeNewerDeleteTombstone(group, cv.objectId(), addVs)) {
+                return;
+            }
 
-        // Pre-check: skip the expensive graph add if a newer DELETE tombstone already exists.
-        if (consumeNewerDeleteTombstone(group, cv.objectId(), addVs)) {
-            return;
-        }
-
-        OnHeapVectorGraphIndex graph = group.getOrCreateOnHeap(
-                cv.generationId(),
-                cv.definition().dimensions(),
-                OnHeapVectorGraphIndex.toSimilarityFunction(cv.definition().distance()),
-                service.getPqTrainingThreshold(),
-                service.getPqSubspaceDivisor()
-        );
-        graph.addGraphNode(cv.objectId(), addVs, cv.shardId(), cv.metadata(), cv.vector(), service.getVectorGraphExecutor()).join();
-
-        // Post-check: catch tombstones set by a concurrent DELETE during addGraphNode.
-        Versionstamp deleteVs = group.removeDeleteTombstone(cv.objectId());
-        if (deleteVs != null && deleteVs.compareTo(addVs) > 0) {
-            graph.markNodeDeleted(cv.objectId(), deleteVs);
-            return;
-        }
-
-        if (graph.ramBytesUsed() > service.getVectorFlushThresholdBytes()) {
-            group.rotateOnHeap(
+            OnHeapVectorGraphIndex graph = group.getOrCreateOnHeap(
                     cv.generationId(),
-                    graph,
                     cv.definition().dimensions(),
                     OnHeapVectorGraphIndex.toSimilarityFunction(cv.definition().distance()),
                     service.getPqTrainingThreshold(),
                     service.getPqSubspaceDivisor()
             );
+            graph.addGraphNode(cv.objectId(), addVs, cv.shardId(), cv.metadata(), cv.vector(), service.getVectorGraphExecutor()).join();
+
+            // Post-check: catch tombstones set by a concurrent DELETE during addGraphNode.
+            Versionstamp deleteVs = group.removeDeleteTombstone(cv.objectId());
+            if (deleteVs != null && deleteVs.compareTo(addVs) > 0) {
+                graph.markNodeDeleted(cv.objectId(), deleteVs);
+                return;
+            }
+
+            if (graph.ramBytesUsed() > service.getVectorFlushThresholdBytes()) {
+                group.rotateOnHeap(
+                        cv.generationId(),
+                        graph,
+                        cv.definition().dimensions(),
+                        OnHeapVectorGraphIndex.toSimilarityFunction(cv.definition().distance()),
+                        service.getPqTrainingThreshold(),
+                        service.getPqSubspaceDivisor()
+                );
+            }
+        } finally {
+            lock.unlock();
         }
     }
 }

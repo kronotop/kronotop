@@ -23,6 +23,7 @@ import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.VectorIndex;
+import com.google.common.util.concurrent.Striped;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
@@ -34,6 +35,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.Lock;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -54,6 +56,7 @@ public class VectorGraphIndexGroup {
     private final ConcurrentSkipListMap<ObjectId, List<OnHeapVectorGraphIndex>> onHeapIndexes = new ConcurrentSkipListMap<>();
     private final List<OnDiskVectorGraphIndex> onDiskIndexes = new CopyOnWriteArrayList<>();
     private final ConcurrentHashMap<ObjectId, Versionstamp> deleteTombstones = new ConcurrentHashMap<>();
+    private final Striped<Lock> objectIdLocks = Striped.lock(2048);
 
     private final Context context;
     private final BucketService service;
@@ -242,6 +245,13 @@ public class VectorGraphIndexGroup {
 
     public BucketMetadata getBucketMetadata() {
         return metadata;
+    }
+
+    /**
+     * Returns the striped lock that guards add and delete of the given object.
+     */
+    public Lock lockFor(ObjectId objectId) {
+        return objectIdLocks.get(objectId);
     }
 
     /**
