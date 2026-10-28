@@ -66,6 +66,7 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     private final OnHeapVectorGraphIndexMetadata metadata = new OnHeapVectorGraphIndexMetadata();
     private final RandomAccessVectorValues ravv;
     private final GraphIndexBuilder builder;
+    private final AtomicLong lastMutation = new AtomicLong();
 
     private final VectorSimilarityFunction similarityFunction;
     private final int pqTrainingThreshold;
@@ -117,6 +118,14 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
         };
     }
 
+    private void updateLastMutation() {
+        lastMutation.accumulateAndGet(System.currentTimeMillis(), Math::max);
+    }
+
+    public long getLastMutation() {
+        return lastMutation.get();
+    }
+
     /**
      * Adds a vector to the graph on the given executor and binds it to the ObjectId with the
      * versionstamp of the add. If the ObjectId already has a node, only the one with the newer
@@ -164,6 +173,7 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
                     trainPQ();
                 }
             } finally {
+                updateLastMutation();
                 rwLock.readLock().unlock();
             }
         }, executor).exceptionally((ex) -> {
@@ -274,12 +284,9 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
             builder.markNodeDeleted(ordinal);
             return true;
         } finally {
+            updateLastMutation();
             rwLock.readLock().unlock();
         }
-    }
-
-    public void advanceVersionstamp(Versionstamp versionstamp) {
-        // TODO: Remove this during #71
     }
 
     public VectorGraphIndexMetadata getMetadata() {
