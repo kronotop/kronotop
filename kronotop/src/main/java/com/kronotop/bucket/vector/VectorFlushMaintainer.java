@@ -105,11 +105,17 @@ public class VectorFlushMaintainer {
             });
         }
 
+        private void reschedule(VectorFlushTask task) {
+            long newDue = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            service.getVectorFlushQueue().add(new VectorFlushTask(task.key(), newDue));
+        }
+
         @Override
         public void run() {
             while (!Thread.currentThread().isInterrupted()) {
+                VectorFlushTask task = null;
                 try {
-                    VectorFlushTask task = service.getVectorFlushQueue().poll(1, TimeUnit.SECONDS);
+                    task = service.getVectorFlushQueue().poll(1, TimeUnit.SECONDS);
                     if (task == null && drainMode) {
                         break;
                     }
@@ -127,9 +133,7 @@ public class VectorFlushMaintainer {
                     });
                     if (!group.hasNoOnHeapIndexes(task.key().generationId())) {
                         // Still have some data, reschedule it.
-                        long newDue = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-                        VectorFlushTask newTask = new VectorFlushTask(task.key(), newDue);
-                        service.getVectorFlushQueue().add(newTask);
+                        reschedule(task);
                     } else {
                         truncateGenerationId(group, task.key().generationId());
                     }
@@ -138,6 +142,9 @@ public class VectorFlushMaintainer {
                     throw new KronotopException(exp);
                 } catch (Exception exp) {
                     LOGGER.error("Vector flush task failed", exp);
+                    if (task != null) {
+                        reschedule(task);
+                    }
                 }
             }
         }
