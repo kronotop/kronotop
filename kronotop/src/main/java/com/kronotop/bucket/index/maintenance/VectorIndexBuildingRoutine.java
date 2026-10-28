@@ -146,14 +146,12 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
 
             // Flush to disk when the threshold exceeded, then continue with a fresh graph
             if (graph.ramBytesUsed() > service.getVectorFlushThresholdBytes()) {
-                OnHeapVectorGraphIndex previous = group.rotateOnHeap(
+                group.rotateOnHeap(
                         generationId,
                         graph,
                         vectorDefinition.dimensions(), similarityFunction,
-                        service.getPqTrainingThreshold(), service.getPqSubspaceDivisor());
-                if (previous != null && !previous.isFlushed() && previous.size() > 0) {
-                    group.flushSingle(service.getBucketDataDir(), previous);
-                }
+                        service.getPqTrainingThreshold(), service.getPqSubspaceDivisor()
+                );
             }
         }
 

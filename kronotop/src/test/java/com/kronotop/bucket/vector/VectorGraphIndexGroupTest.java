@@ -720,7 +720,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex active = rotateOnHeap(target);
         active.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.5f, 0.5f, 0.0f}, executor).join();
 
-        group.flushSingle(tempDir, target);
+        group.flushOnHeapVectorGraphIndex(tempDir, target);
 
         // Target should be flushed, removed from on-heap, and promoted to on-disk.
         assertTrue(target.isFlushed());
@@ -741,11 +741,11 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex index = openOnHeap();
         index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
 
-        group.flushSingle(tempDir, index);
+        group.flushOnHeapVectorGraphIndex(tempDir, index);
         int onDiskCount = group.getOnDiskIndexes().size();
 
         // Calling again should be a no-op.
-        group.flushSingle(tempDir, index);
+        group.flushOnHeapVectorGraphIndex(tempDir, index);
         assertEquals(onDiskCount, group.getOnDiskIndexes().size());
     }
 
@@ -756,7 +756,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
         OnHeapVectorGraphIndex emptyIndex = openOnHeap();
 
-        group.flushSingle(tempDir, emptyIndex);
+        group.flushOnHeapVectorGraphIndex(tempDir, emptyIndex);
 
         assertFalse(emptyIndex.isFlushed());
         assertEquals(1, group.getOnHeapIndexes().size());
@@ -773,7 +773,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex onHeap = openOnHeap();
         onHeap.addGraphNode(objectId, versionstamp(1), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
 
-        group.flushSingle(tempDir, onHeap);
+        group.flushOnHeapVectorGraphIndex(tempDir, onHeap);
         assertTrue(onHeap.isFlushed());
 
         // The delete holds the reference it read before the flush.

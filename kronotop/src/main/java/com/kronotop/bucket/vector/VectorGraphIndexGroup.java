@@ -311,9 +311,9 @@ public class VectorGraphIndexGroup {
 
     /**
      * Adds a fresh on-heap index to the given generation if {@code expected} is still its newest index.
-     * Returns {@code expected} (the full index to be flushed), or {@code null} if another thread already rotated.
+     * Does nothing if another thread already rotated.
      */
-    public synchronized OnHeapVectorGraphIndex rotateOnHeap(
+    public synchronized void rotateOnHeap(
             byte[] generationId,
             OnHeapVectorGraphIndex expected,
             int dimensions, VectorSimilarityFunction similarityFunction,
@@ -322,10 +322,7 @@ public class VectorGraphIndexGroup {
         if (lastOf(onHeapIndexes.get(genId)) == expected) {
             // Newest index of the generation is full and needs rotation.
             createOnHeap(genId, dimensions, similarityFunction, pqTrainingThreshold, pqSubspaceDivisor);
-            return expected;
         }
-        // Nothing to do.
-        return null;
     }
 
     /**
@@ -463,10 +460,7 @@ public class VectorGraphIndexGroup {
         }
     }
 
-    /**
-     * Flushes a single on-heap index to disk and promotes it to an on-disk index.
-     */
-    public void flushSingle(Path bucketDataDir, OnHeapVectorGraphIndex index) {
+    public void flushOnHeapVectorGraphIndex(Path bucketDataDir, OnHeapVectorGraphIndex index) {
         if (index.isFlushed() || index.size() == 0) return;
 
         Path indexDir = resolveVectorDir(bucketDataDir, ownerShardId(metadata))
@@ -507,7 +501,7 @@ public class VectorGraphIndexGroup {
     public void flush(Path bucketDataDir) {
         forEachOnHeap(index -> {
             if (index.isFlushed() || index.size() == 0) return;
-            flushSingle(bucketDataDir, index);
+            flushOnHeapVectorGraphIndex(bucketDataDir, index);
         });
     }
 

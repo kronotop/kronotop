@@ -60,7 +60,7 @@ public final class VectorNodeWriter extends BaseVectorNode {
         }
 
         if (graph.ramBytesUsed() > service.getVectorFlushThresholdBytes()) {
-            OnHeapVectorGraphIndex previous = group.rotateOnHeap(
+            group.rotateOnHeap(
                     cv.generationId(),
                     graph,
                     cv.definition().dimensions(),
@@ -68,9 +68,6 @@ public final class VectorNodeWriter extends BaseVectorNode {
                     service.getPqTrainingThreshold(),
                     service.getPqSubspaceDivisor()
             );
-            if (previous != null && !previous.isFlushed() && previous.size() > 0) {
-                service.getVectorGraphExecutor().submit(() -> group.flushSingle(service.getBucketDataDir(), previous));
-            }
         }
     }
 }

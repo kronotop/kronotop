@@ -106,7 +106,7 @@ public class VectorFlushMaintainer {
                     }
                     group.forEachOnHeap((onHeap) -> {
                         if (drainMode || System.currentTimeMillis() - onHeap.getLastMutation() >= 10_000) {
-                            group.flushSingle(service.getBucketDataDir(), onHeap);
+                            group.flushOnHeapVectorGraphIndex(service.getBucketDataDir(), onHeap);
                         }
                     });
                     if (!group.hasNoOnHeapIndexes(task.key().generationId())) {
