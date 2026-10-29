@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.vector;
 
-import com.apple.foundationdb.tuple.Versionstamp;
 import io.github.jbellis.jvector.graph.SearchResult;
 import io.github.jbellis.jvector.util.Bits;
 
@@ -65,8 +64,6 @@ public interface SearchableVectorIndex extends Closeable {
      */
     VectorGraphIndexMetadata getMetadata();
 
-    Versionstamp getLatestVersionstamp();
-
     /**
      * Returns the number of nodes in the graph at layer 0.
      */
@@ -74,7 +71,7 @@ public interface SearchableVectorIndex extends Closeable {
 
     /**
      * Returns whether this index is available for searching.
-     * On-heap indexes are not searchable once flushed or when empty;
+     * On-heap indexes are not searchable when empty;
      * on-disk indexes are not searchable when empty.
      */
     boolean isSearchable();

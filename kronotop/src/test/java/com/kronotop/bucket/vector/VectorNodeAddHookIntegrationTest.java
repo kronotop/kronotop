@@ -78,7 +78,7 @@ class VectorNodeAddHookIntegrationTest extends BaseVectorHookIntegrationTest {
         // to the on-heap graph.
         createBucketWithVectorIndex();
 
-        // Upsert a document with a vector — filter matches nothing, so a new doc is inserted
+        // Upsert a document with a vector. The filter matches nothing, so a new doc is inserted.
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 

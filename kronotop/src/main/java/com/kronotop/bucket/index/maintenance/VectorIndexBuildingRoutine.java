@@ -39,11 +39,15 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Builds vector graph indexes on existing bucket data in the background.
+ * Builds a vector index on the existing documents of one bucket shard in the background.
  *
- * <p>Delegates graph construction to {@link VectorGraphIndexGroup}, flushing to disk
- * incrementally when the on-heap graph exceeds the configured RAM threshold. This keeps
- * memory usage bounded regardless of dataset size.
+ * <p>Each batch writes the index entries to FoundationDB and adds the vectors to the on-heap
+ * graph of the current generation in the {@link VectorGraphIndexGroup}. When the on-heap graph
+ * grows past the flush threshold, the routine rotates to a fresh graph. Full graphs are flushed
+ * to disk separately, so memory stays bounded for any dataset size.
+ *
+ * <p>Documents without the vector field or with a wrong dimension count are skipped. Documents
+ * already indexed by online writers are skipped too, so no entry or graph node is created twice.
  *
  * @see AbstractBuildingRoutine
  * @see VectorIndexMaintainer
@@ -134,24 +138,24 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
             VectorIndexMaintainer.insertEntry(tr, vectorIndex, metadata,
                     objectIdBytes, shardId, pair.metadata(), vector);
 
-            // Add to the on-heap graph via VectorGraphIndexGroup.
+            // Add to the on-heap graph of the current generation via VectorGraphIndexGroup.
+            byte[] generationId = group.takeGenerationId();
             OnHeapVectorGraphIndex graph = group.getOrCreateOnHeap(
+                    generationId,
                     vectorDefinition.dimensions(), similarityFunction,
                     service.getPqTrainingThreshold(), service.getPqSubspaceDivisor());
 
             EntryMetadata entryMetadata = EntryMetadata.decode(pair.metadata());
             graph.addGraphNode(objectId, pair.key(), shardId, entryMetadata, vector, service.getVectorGraphExecutor()).join();
-            graph.advanceVersionstamp(pair.key());
 
             // Flush to disk when the threshold exceeded, then continue with a fresh graph
             if (graph.ramBytesUsed() > service.getVectorFlushThresholdBytes()) {
-                OnHeapVectorGraphIndex previous = group.rotateOnHeap(
+                group.rotateOnHeap(
+                        generationId,
                         graph,
                         vectorDefinition.dimensions(), similarityFunction,
-                        service.getPqTrainingThreshold(), service.getPqSubspaceDivisor());
-                if (previous != null && !previous.isFlushed() && previous.size() > 0) {
-                    group.flushSingle(service.getBucketDataDir(), previous);
-                }
+                        service.getPqTrainingThreshold(), service.getPqSubspaceDivisor()
+                );
             }
         }
 
@@ -163,13 +167,6 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
         return drained.total();
     }
 
-    private void flushRemaining() {
-        if (group == null) {
-            return;
-        }
-        group.flush(service.getBucketDataDir());
-    }
-
     @Override
     public void start() {
         initGroup();
@@ -178,10 +175,6 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
         }
 
         super.start();
-
-        if (!stopped) {
-            flushRemaining();
-        }
     }
 
     private record VectorEntry(BufferedEntry entry, float[] vector) {

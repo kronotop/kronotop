@@ -187,22 +187,4 @@ class OnDiskVectorGraphIndexMetadataTest {
         }
     }
 
-    @Test
-    void shouldPersistAndReadLatestVersionstamp() throws IOException {
-        // Behavior: latestVersionstamp set on heap metadata is persisted to disk and read back correctly.
-        OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
-        ObjectId oid = new ObjectId();
-        heapMeta.put(oid, 0, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1L, 0L, 10L, 100L));
-
-        Versionstamp expected = TestUtil.generateVersionstamp(42);
-        heapMeta.advanceVersionstamp(expected);
-
-        Path path = writeAndOpen(heapMeta);
-        try (OnDiskVectorGraphIndexMetadata diskMeta = new OnDiskVectorGraphIndexMetadata(path)) {
-            Versionstamp actual = diskMeta.getLatestVersionstamp();
-            assertNotNull(actual);
-            assertArrayEquals(expected.getBytes(), actual.getBytes());
-        }
-    }
-
 }

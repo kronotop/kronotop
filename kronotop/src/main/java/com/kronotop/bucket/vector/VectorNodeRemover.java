@@ -21,16 +21,10 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import org.bson.types.ObjectId;
 
-import java.util.List;
+import java.util.concurrent.locks.Lock;
 
-/**
- * Removes vector nodes from the graph indexes of a single vector index. One instance handles one batch of
- * deletes. Call {@link #remove} for each deleted vector, then {@link #flush} once at the end of the batch.
- */
 public class VectorNodeRemover extends BaseVectorNode {
-    private final long vectorIndexId;
     private final VectorGraphIndexGroup group;
-    private Versionstamp maxVs = null;
 
     /**
      * Creates a remover for the given vector index and waits until its graph index group is ready.
@@ -41,8 +35,19 @@ public class VectorNodeRemover extends BaseVectorNode {
      */
     public VectorNodeRemover(BucketService service, BucketMetadata metadata, long vectorIndexId) {
         super(service, metadata);
-        this.vectorIndexId = vectorIndexId;
         this.group = awaitReadyGroup(vectorIndexId);
+    }
+
+    /**
+     * Creates a remover bound to the given group. Used during recovery, where the group is not ready yet.
+     *
+     * @param service  the bucket service
+     * @param metadata the bucket metadata
+     * @param group    the graph index group to remove from
+     */
+    public VectorNodeRemover(BucketService service, BucketMetadata metadata, VectorGraphIndexGroup group) {
+        super(service, metadata);
+        this.group = group;
     }
 
     /**
@@ -65,38 +70,31 @@ public class VectorNodeRemover extends BaseVectorNode {
      * @param deleteVs the versionstamp of the delete operation
      */
     public void remove(ObjectId objectId, Versionstamp deleteVs) {
-        if (maxVs == null || deleteVs.compareTo(maxVs) > 0) {
-            maxVs = deleteVs;
-        }
+        Lock lock = group.lockFor(objectId);
+        lock.lock();
+        try {
+            boolean[] foundOnHeap = {false};
+            group.forEachOnHeap(onHeap -> {
+                if (onHeap.getMetadata().findNodeRef(objectId) != null) {
+                    foundOnHeap[0] = true;
+                    // Hooks may run out of commit order, so the versionstamp compare inside
+                    // markNodeDeleted keeps a newer add alive.
+                    onHeap.markNodeDeleted(objectId, deleteVs);
+                }
+            });
+            boolean foundOnDisk = group.markNodeDeletedOnDisk(objectId, deleteVs);
+            boolean found = foundOnHeap[0] || foundOnDisk;
 
-        boolean found = false;
-        for (OnHeapVectorGraphIndex onHeap : group.getOnHeapIndexes()) {
-            if (onHeap.getMetadata().findNodeRef(objectId) != null) {
-                found = true;
-                // The versionstamp compare runs under the metadata lock, so a concurrent newer add
-                // cannot lose its mapping to this delete.
-                onHeap.markNodeDeleted(objectId, deleteVs);
+            // On-heap markNodeDeleted removes the ObjectId mapping. A second delete of the same object then
+            // finds nothing and stores a tombstone for a node that is already gone.
+            // This is harmless: a later add for the same ObjectId is either newer (tombstone is consumed,
+            // node is added) or older (skipping it is correct). If no add comes, the tombstone stays in
+            // the map. This is accepted.
+            if (!found) {
+                group.putDeleteTombstone(objectId, deleteVs);
             }
-        }
-        boolean foundOnDisk = group.markNodeDeletedOnDisk(objectId, deleteVs);
-        found = found || foundOnDisk;
-
-        // On-heap markNodeDeleted removes the ObjectId mapping. A second delete of the same object then
-        // finds nothing and stores a tombstone for a node that is already gone.
-        // This is harmless: a later add for the same ObjectId is either newer (tombstone is consumed,
-        // node is added) or older (skipping it is correct). If no add comes, the tombstone stays in
-        // the map. This is accepted.
-        if (!found) {
-            group.putDeleteTombstone(objectId, deleteVs);
-        }
-    }
-
-    public void flush() {
-        if (maxVs != null) {
-            List<OnHeapVectorGraphIndex> onHeaps = group.getOnHeapIndexes();
-            if (!onHeaps.isEmpty()) {
-                onHeaps.getLast().advanceVersionstamp(maxVs);
-            }
+        } finally {
+            lock.unlock();
         }
     }
 }

@@ -515,13 +515,15 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                 byte[] objectIdBytes = objectId.toByteArray();
                 UpdateResultContainer container = updatedEntry.getValue();
 
+                byte[] generationId = ctx.env().bucketService().takeVectorIndexGenerationId(ctx.metadata(), vectorIndex.definition().id());
+
                 // Drop old entry
                 VectorIndexMaintainer.dropEntry(tr, objectIdBytes, vectorIndex, ctx.metadata());
                 int deleteUserVersion = ctx.getAndIncrementUserVersion();
                 VectorIndexMaintainer.appendDeleteMutation(
-                        tr, vectorIndex.subspace(), objectIdBytes, deleteUserVersion
+                        tr, vectorIndex.subspace(), generationId, container.getShardId(), objectIdBytes, deleteUserVersion
                 );
-                deletedVectors.add(new DeletedVector(objectId, deleteUserVersion));
+                deletedVectors.add(new DeletedVector(objectId, generationId, deleteUserVersion));
 
                 // Extract the new vector from the updated document and re-set
                 BsonValue newValue = SelectorMatcher.match(vectorIndex.definition().selector(), container.getDocumentUpdateResult().document());
@@ -536,8 +538,8 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                     // Write mutation log entry for crash recovery
                     int userVersion = ctx.getAndIncrementUserVersion();
                     VectorIndexMaintainer.appendMutation(
-                            tr, vectorIndex.subspace(), MutationLogKind.UPDATE,
-                            objectIdBytes,
+                            tr, vectorIndex.subspace(), generationId, MutationLogKind.UPDATE,
+                            container.getShardId(), objectIdBytes,
                             new IndexEntry(container.getShardId(), container.getEntryMetadata()).encode(),
                             vector,
                             userVersion
@@ -546,6 +548,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                     // Collect for on-heap graph addition
                     collectedVectors.add(new CollectedVector(
                             objectId,
+                            generationId,
                             container.getShardId(),
                             EntryMetadata.decode(container.getEntryMetadata()),
                             vector,
@@ -554,14 +557,17 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                     ));
                 }
             }
-            // Schedule on-heap graph node deletion after commit
-            TransactionUtil.addPostCommitHook(new VectorNodeDeleteHook(
-                    ctx.env().bucketService(),
-                    ctx.metadata(),
-                    vectorIndex.definition().id(),
-                    deletedVectors,
-                    tr.getVersionstamp()
-            ), ctx.getSession());
+            // Schedule on-heap graph node deletion after commit. Skip when nothing was removed:
+            // a read-only transaction has no versionstamp and the hook would fail.
+            if (!deletedVectors.isEmpty()) {
+                TransactionUtil.addPostCommitHook(new VectorNodeDeleteHook(
+                        ctx.env().bucketService(),
+                        ctx.metadata(),
+                        vectorIndex.definition().id(),
+                        deletedVectors,
+                        tr.getVersionstamp()
+                ), ctx.getSession());
+            }
         }
 
         // Schedule on-heap graph node addition for all updated vectors
@@ -659,22 +665,49 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         PrimaryIndexMaintainer.setEntry(tr, primaryIndex, ctx.metadata(), objectIdBytes, encodedIndexEntry, appendedEntries[0].userVersion());
 
         // Set single field indexes
-        setSecondaryIndexesForUpsert(tr, ctx, objectIdBytes, encodedIndexEntry, appendedEntries[0].userVersion(), upsertDoc);
+        setSecondaryIndexesForUpsert(tr, ctx, objectIdBytes, encodedIndexEntry, upsertDoc);
 
-        // Schedule on-heap graph node addition for upserted vectors
+        // Set vector indexes and schedule on-heap graph node addition
+        setVectorIndexesForUpsert(tr, ctx, shard.id(), objectId, encodedIndexEntry, appendedEntries[0], upsertDoc);
+
+        // Store the upsert result for ObjectId resolution after commit
+        ctx.setUpsertResult(new UpsertResult(objectId));
+        ctx.addReturnedCount(1);
+    }
+
+    private void setVectorIndexesForUpsert(
+            Transaction tr,
+            QueryContext ctx,
+            int shardId,
+            ObjectId objectId,
+            byte[] encodedIndexEntry,
+            AppendedEntry appendedEntry,
+            BsonDocument document
+    ) {
+        byte[] objectIdBytes = objectId.toByteArray();
         List<CollectedVector> collectedVectors = new ArrayList<>();
         for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
-            float[] vector = VectorIndexMaintainer.extractVector(vectorIndex.definition(), upsertDoc);
+            float[] vector = VectorIndexMaintainer.extractVector(vectorIndex.definition(), document);
             if (vector == null) {
                 continue;
             }
+            VectorIndexMaintainer.setEntry(
+                    tr, vectorIndex, ctx.metadata(), objectIdBytes,
+                    encodedIndexEntry, vector
+            );
+            byte[] generationId = ctx.env().bucketService().takeVectorIndexGenerationId(ctx.metadata(), vectorIndex.definition().id());
+            VectorIndexMaintainer.appendMutation(
+                    tr, vectorIndex.subspace(), generationId, MutationLogKind.INSERT,
+                    shardId, objectIdBytes, encodedIndexEntry, vector, appendedEntry.userVersion()
+            );
             collectedVectors.add(new CollectedVector(
                     objectId,
-                    shard.id(),
-                    appendedEntries[0].metadata(),
+                    generationId,
+                    shardId,
+                    appendedEntry.metadata(),
                     vector,
                     vectorIndex.definition(),
-                    appendedEntries[0].userVersion()
+                    appendedEntry.userVersion()
             ));
         }
         if (!collectedVectors.isEmpty()) {
@@ -684,10 +717,6 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                     ctx.getSession()
             );
         }
-
-        // Store the upsert result for ObjectId resolution after commit
-        ctx.setUpsertResult(new UpsertResult(objectId));
-        ctx.addReturnedCount(1);
     }
 
     private void setSecondaryIndexesForUpsert(
@@ -695,7 +724,6 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             QueryContext ctx,
             byte[] objectIdBytes,
             byte[] encodedIndexEntry,
-            int userVersion,
             BsonDocument document
     ) {
         for (SingleFieldIndex index : ctx.metadata().singleFieldIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
@@ -735,22 +763,6 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                         ctx.env().collatorCache()
                 );
             }
-        }
-
-        // Set vector index entries for upsert
-        for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
-            float[] vector = VectorIndexMaintainer.extractVector(vectorIndex.definition(), document);
-            if (vector == null) {
-                continue;
-            }
-            VectorIndexMaintainer.setEntry(
-                    tr, vectorIndex, ctx.metadata(), objectIdBytes,
-                    encodedIndexEntry, vector
-            );
-            VectorIndexMaintainer.appendMutation(
-                    tr, vectorIndex.subspace(), MutationLogKind.INSERT,
-                    objectIdBytes, encodedIndexEntry, vector, userVersion
-            );
         }
     }
 

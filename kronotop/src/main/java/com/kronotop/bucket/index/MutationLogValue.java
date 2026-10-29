@@ -22,23 +22,25 @@ import java.nio.ByteBuffer;
  * Value stored in a mutation log entry. Combines a kind, document ObjectId, and an optional
  * VectorIndexValue payload (present for INSERT/UPDATE, absent for DELETE).
  *
- * <p>Wire format: {@code [1B kind][12B objectId][VectorIndexValue bytes (optional)]}
+ * <p>Wire format: {@code [1B kind][4B shardId][12B objectId][VectorIndexValue bytes (optional)]}
  *
  * @param kind          the mutation type (INSERT, UPDATE, DELETE)
+ * @param shardId       the shard that owns the document
  * @param objectIdBytes the 12-byte document ObjectId
  * @param vectorPayload the optional VectorIndexValue (null for DELETE)
  */
-public record MutationLogValue(MutationLogKind kind, byte[] objectIdBytes, VectorIndexValue vectorPayload) {
+public record MutationLogValue(MutationLogKind kind, int shardId, byte[] objectIdBytes, VectorIndexValue vectorPayload) {
 
     private static final int OBJECT_ID_LENGTH = 12;
 
     /**
      * Encodes a mutation log value for INSERT or UPDATE operations.
      */
-    public static byte[] encode(MutationLogKind kind, byte[] objectIdBytes, byte[] encodedIndexEntry, float[] vector) {
+    public static byte[] encode(MutationLogKind kind, int shardId, byte[] objectIdBytes, byte[] encodedIndexEntry, float[] vector) {
         byte[] vectorPayload = VectorIndexValue.encode(encodedIndexEntry, vector);
-        ByteBuffer buf = ByteBuffer.allocate(1 + OBJECT_ID_LENGTH + vectorPayload.length);
+        ByteBuffer buf = ByteBuffer.allocate(1 + Integer.BYTES + OBJECT_ID_LENGTH + vectorPayload.length);
         buf.put(kind.getValue());
+        buf.putInt(shardId);
         buf.put(objectIdBytes);
         buf.put(vectorPayload);
         return buf.array();
@@ -47,9 +49,10 @@ public record MutationLogValue(MutationLogKind kind, byte[] objectIdBytes, Vecto
     /**
      * Encodes a mutation log value for DELETE operations (no vector payload).
      */
-    public static byte[] encode(MutationLogKind kind, byte[] objectIdBytes) {
-        ByteBuffer buf = ByteBuffer.allocate(1 + OBJECT_ID_LENGTH);
+    public static byte[] encode(MutationLogKind kind, int shardId, byte[] objectIdBytes) {
+        ByteBuffer buf = ByteBuffer.allocate(1 + Integer.BYTES + OBJECT_ID_LENGTH);
         buf.put(kind.getValue());
+        buf.putInt(shardId);
         buf.put(objectIdBytes);
         return buf.array();
     }
@@ -60,6 +63,7 @@ public record MutationLogValue(MutationLogKind kind, byte[] objectIdBytes, Vecto
     public static MutationLogValue decode(byte[] value) {
         ByteBuffer buf = ByteBuffer.wrap(value);
         MutationLogKind kind = MutationLogKind.fromValue(buf.get());
+        int shardId = buf.getInt();
         byte[] objectIdBytes = new byte[OBJECT_ID_LENGTH];
         buf.get(objectIdBytes);
 
@@ -70,6 +74,6 @@ public record MutationLogValue(MutationLogKind kind, byte[] objectIdBytes, Vecto
             vectorPayload = VectorIndexValue.decode(remaining);
         }
 
-        return new MutationLogValue(kind, objectIdBytes, vectorPayload);
+        return new MutationLogValue(kind, shardId, objectIdBytes, vectorPayload);
     }
 }

@@ -19,7 +19,6 @@ package com.kronotop.bucket.vector;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.VectorIndex;
 
-import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.NavigableMap;
 import java.util.Set;
@@ -128,7 +127,7 @@ public class VectorGraphIndexRegistry {
         for (ConcurrentHashMap<String, ConcurrentHashMap<Long, VectorGraphIndexGroup>> buckets : subMap.values()) {
             for (ConcurrentHashMap<Long, VectorGraphIndexGroup> indexes : buckets.values()) {
                 for (VectorGraphIndexGroup group : indexes.values()) {
-                    bucketIds.add(group.getBucketId());
+                    bucketIds.add(group.getBucketMetadata().uuid());
                     group.closeAll();
                 }
             }
@@ -150,17 +149,8 @@ public class VectorGraphIndexRegistry {
         }
     }
 
-    /**
-     * Flushes all unflushed on-heap indexes in every group to disk.
-     */
-    public void flushAll(Path dataDir) {
-        for (ConcurrentHashMap<String, ConcurrentHashMap<Long, VectorGraphIndexGroup>> buckets : registry.values()) {
-            for (ConcurrentHashMap<Long, VectorGraphIndexGroup> indexes : buckets.values()) {
-                for (VectorGraphIndexGroup group : indexes.values()) {
-                    group.flush(dataDir);
-                }
-            }
-        }
+    public void enqueueAllForFlush() {
+        forEachGroup((VectorGraphIndexGroup::enqueueAllForFlush));
     }
 
     /**

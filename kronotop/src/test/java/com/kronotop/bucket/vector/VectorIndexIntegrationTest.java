@@ -502,8 +502,7 @@ class VectorIndexIntegrationTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldSearchVectorsAndReturnResults() {
-        // Behavior: BUCKET.VECTOR returns an array of {score, document} maps for matching vectors,
-        // ordered by similarity score.
+        // Behavior: BUCKET.VECTOR returns an array of {score, document} maps for matching vectors.
         createBucketWithVectorIndex();
 
         float[][] vectors = {

@@ -96,7 +96,7 @@ class OnHeapVectorGraphIndexPQTest {
 
     @Test
     void shouldContinueAddingAfterPQTraining() {
-        // Behavior: Vectors added after PQ training are encoded and searchable.
+        // Behavior: Vectors added after PQ training keep the index trained and the size grows.
         Random rng = new Random(42);
         int total = PQ_THRESHOLD + 20;
         for (int i = 0; i < total; i++) {

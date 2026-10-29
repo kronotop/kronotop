@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
+import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,8 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     void setUp() {
         createBucket(TEST_BUCKET);
         taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        taskId = TaskStorage.create(context, taskSubspace, new byte[]{0});
+        IndexBuildingTask task = createIndexBuildingTask(1);
+        taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
     }
 
     @Test

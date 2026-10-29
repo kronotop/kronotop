@@ -32,7 +32,6 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -115,49 +114,19 @@ class OnHeapVectorGraphIndexTest {
 
     @Test
     void shouldFlushGraphToDisk(@TempDir Path tempDir) throws IOException {
-        // Behavior: flush writes the in-memory graph to disk and transitions the index to FLUSHED state.
+        // Behavior: flush writes the in-memory graph to disk.
         graph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
         graph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
         graph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
-        graph.flush(tempDir);
-
-        assertTrue(graph.isFlushed());
-    }
-
-    @Test
-    void shouldRejectAddAfterFlush(@TempDir Path tempDir) throws IOException {
-        // Behavior: Adding a node to a FLUSHED index throws IllegalStateException wrapped in CompletionException.
-        graph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-
-        graph.flush(tempDir);
-
-        CompletionException ex = assertThrows(CompletionException.class, () ->
-                graph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), new float[]{0.0f, 1.0f, 0.0f}, executor).join()
-        );
-        // The exceptionally handler wraps the original exception in another CompletionException
-        Throwable cause = ex.getCause();
-        while (cause instanceof CompletionException) {
-            cause = cause.getCause();
-        }
-        assertInstanceOf(IllegalStateException.class, cause);
-    }
-
-    @Test
-    void shouldRejectSearchAfterFlush(@TempDir Path tempDir) throws IOException {
-        // Behavior: Searching a FLUSHED index throws IllegalStateException.
-        graph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-
-        graph.flush(tempDir);
-
-        assertThrows(IllegalStateException.class, () -> graph.search(new float[]{1.0f, 0.0f, 0.0f}, 1));
+        assertNotNull(graph.flush(tempDir));
     }
 
     @Test
     void shouldFindReAddedNodeAfterDeletingSoleNode() {
         // Behavior: Deleting the only node in the graph and re-adding the same ObjectId with a new
-        // vector (the delete-then-add sequence produced by an update) must leave the new node
-        // reachable: metadata maps the ObjectId to the new ordinal and search returns the new node.
+        // vector must leave the new node reachable: metadata maps the ObjectId to the new ordinal
+        // and search returns the new node.
         ObjectId objectId = new ObjectId();
         graph.addGraphNode(objectId, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
 
@@ -216,7 +185,7 @@ class OnHeapVectorGraphIndexTest {
 
     @Test
     void shouldFlushWithDeletedNodes(@TempDir Path tempDir) throws IOException {
-        // Behavior: flush removes deleted nodes before writing to disk and transitions the index to FLUSHED state.
+        // Behavior: flush removes deleted nodes before writing to disk.
         graph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
         ObjectId oid1 = new ObjectId();
         graph.addGraphNode(oid1, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
@@ -224,9 +193,7 @@ class OnHeapVectorGraphIndexTest {
 
         graph.markNodeDeleted(oid1, TestUtil.generateVersionstamp(1));
 
-        graph.flush(tempDir);
-
-        assertTrue(graph.isFlushed());
+        assertNotNull(graph.flush(tempDir));
     }
 
     @Test

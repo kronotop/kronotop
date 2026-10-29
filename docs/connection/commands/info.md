@@ -194,10 +194,13 @@ the cluster port.
 
 ### Vector
 
-| Field                    | Description                                                                                  |
-|--------------------------|----------------------------------------------------------------------------------------------|
-| `vector_indexes`         | Vector graph indexes held in memory.                                                         |
-| `vector_bytes_used`      | Total heap usage of those indexes, in bytes.                                                 |
+| Field                     | Description                                                                               |
+|---------------------------|-------------------------------------------------------------------------------------------|
+| `vector_indexes`          | Vector graph indexes held in memory.                                                      |
+| `vector_bytes_used`       | Total heap usage of those indexes, in bytes.                                              |
+| `vector_on_disk_indexes`  | Vector graph indexes flushed to disk and open for search.                                 |
+| `vector_flush_queue_size` | Flush tasks waiting for the flush maintainer.                                             |
+| `vector_flush_failures`   | Flush attempts that failed since start. The on-heap index stays in memory and is retried. |
 
 ### ZMap
 

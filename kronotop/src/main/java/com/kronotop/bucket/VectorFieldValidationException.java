@@ -39,4 +39,19 @@ public class VectorFieldValidationException extends KronotopException {
     public static VectorFieldValidationException elementsNotDouble(String field) {
         return new VectorFieldValidationException("Vector field '" + field + "' must contain only double elements");
     }
+
+    public static VectorFieldValidationException componentNotFinite(String field, int index) {
+        return new VectorFieldValidationException(
+                "Vector field '" + field + "' component at index " + index + " overflows float range");
+    }
+
+    public static VectorFieldValidationException zeroVector(String field) {
+        return new VectorFieldValidationException(
+                "Vector field '" + field + "' must not be a zero vector for cosine distance");
+    }
+
+    public static VectorFieldValidationException notUnitLength(String field, double norm) {
+        return new VectorFieldValidationException(
+                "Vector field '" + field + "' must be unit length for dot_product distance but norm is " + norm);
+    }
 }

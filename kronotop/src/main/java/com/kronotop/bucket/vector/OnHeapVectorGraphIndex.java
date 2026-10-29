@@ -42,7 +42,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -50,8 +49,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * In-memory vector graph index backed by JVector's GraphIndexBuilder for approximate nearest neighbor search.
- * Each instance corresponds to a single vector index within a bucket.
+ * In-memory vector graph index for approximate nearest neighbor search, built with JVector.
+ * A vector index has many instances over time. {@link VectorGraphIndexGroup} holds them and
+ * flushes full ones to disk.
  */
 public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
 
@@ -66,12 +66,12 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     private final OnHeapVectorGraphIndexMetadata metadata = new OnHeapVectorGraphIndexMetadata();
     private final RandomAccessVectorValues ravv;
     private final GraphIndexBuilder builder;
+    private final AtomicLong lastMutation = new AtomicLong();
 
     private final VectorSimilarityFunction similarityFunction;
     private final int pqTrainingThreshold;
     private final int pqSubspaceDivisor;
     private final DelegatingBuildScoreProvider delegatingBsp;
-    private volatile boolean flushed;
     private volatile MutablePQVectors pqVectors;
     private volatile ProductQuantization pq;
     private volatile boolean pqTrained;
@@ -117,14 +117,14 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
         };
     }
 
-    /**
-     * Adds a vector to the graph on the given executor and binds it to the ObjectId with the
-     * versionstamp of the add. If the ObjectId already has a node, only the one with the newer
-     * versionstamp stays alive; the other node is tombstoned in the graph. On failure the vector
-     * is dropped and the future completes exceptionally.
-     *
-     * @throws IllegalStateException inside the future if the index was already flushed
-     */
+    private void updateLastMutation() {
+        lastMutation.accumulateAndGet(System.currentTimeMillis(), Math::max);
+    }
+
+    public long getLastMutation() {
+        return lastMutation.get();
+    }
+
     public CompletableFuture<Void> addGraphNode(
             ObjectId objectId,
             Versionstamp versionstamp,
@@ -133,15 +133,11 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
             float[] vector,
             ExecutorService executor
     ) {
-        final int[] ordinalHolder = {-1};
         return CompletableFuture.runAsync(() -> {
             rwLock.readLock().lock();
+            int ordinal = -1;
             try {
-                if (flushed) {
-                    throw new IllegalStateException("Cannot add nodes to a FLUSHED index");
-                }
-                int ordinal = nextOrdinal.getAndIncrement();
-                ordinalHolder[0] = ordinal;
+                ordinal = nextOrdinal.getAndIncrement();
                 VectorFloat<?> vectorFloat = vts.createFloatVector(vector);
 
                 vectors.put(ordinal, vectorFloat);
@@ -163,18 +159,28 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
                 if (!pqTrained && pqTrainingThreshold > 0 && nextOrdinal.get() >= pqTrainingThreshold) {
                     trainPQ();
                 }
+            } catch (RuntimeException | Error e) {
+                discardFailedNode(ordinal);
+                throw e;
             } finally {
+                updateLastMutation();
                 rwLock.readLock().unlock();
             }
-        }, executor).exceptionally((ex) -> {
-            if (ordinalHolder[0] >= 0) {
-                VectorFloat<?> removed = vectors.remove(ordinalHolder[0]);
-                if (removed != null) {
-                    vectorBytesUsed.addAndGet(-removed.ramBytesUsed());
-                }
-            }
-            throw new CompletionException(ex);
-        });
+        }, executor);
+    }
+
+    private void discardFailedNode(int ordinal) {
+        if (ordinal < 0) {
+            return;
+        }
+        VectorFloat<?> removed = vectors.remove(ordinal);
+        if (removed != null) {
+            vectorBytesUsed.addAndGet(-removed.ramBytesUsed());
+        }
+        OnHeapGraphIndex graph = (OnHeapGraphIndex) builder.getGraph();
+        if (graph.containsNode(ordinal)) {
+            builder.markNodeDeleted(ordinal);
+        }
     }
 
     /**
@@ -209,20 +215,15 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     }
 
     /**
-     * Creates a GraphSearcher and SearchScoreProvider for resumable searching.
-     * The caller is responsible for closing the returned SearchHandle.
+     * Opens a search handle for the query vector. The caller must close it.
      *
-     * <p>The SearchHandle intentionally escapes the read lock. This is safe because JVector's
-     * {@code ConcurrentGraphIndexView} (obtained via {@code getView()}) holds a consistency point:
-     * open Views prevent {@code removeDeletedNodes()} from physically removing marked-deleted nodes.
-     * The lock here only guards the {@code flushed} flag check.
+     * <p>The handle outlives the read lock on purpose. JVector's {@code ConcurrentGraphIndexView}
+     * holds a consistency point, so an open view keeps {@code removeDeletedNodes()} from removing
+     * marked-deleted nodes.
      */
     public SearchHandle openSearchHandle(float[] queryVector) {
         rwLock.readLock().lock();
         try {
-            if (flushed) {
-                throw new IllegalStateException("Cannot search a FLUSHED index");
-            }
             VectorFloat<?> query = vts.createFloatVector(queryVector);
             GraphSearcher searcher = new GraphSearcher(builder.getGraph());
             SearchScoreProvider ssp = DefaultSearchScoreProvider.exact(query, similarityFunction, ravv);
@@ -239,9 +240,6 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     public SearchResult search(float[] queryVector, int topK, int rerankK, float threshold, Bits acceptOrds) {
         rwLock.readLock().lock();
         try {
-            if (flushed) {
-                throw new IllegalStateException("Cannot search a FLUSHED index");
-            }
             VectorFloat<?> query = vts.createFloatVector(queryVector);
             SearchScoreProvider scoreProvider = DefaultSearchScoreProvider.exact(query, similarityFunction, ravv);
             try (GraphSearcher searcher = new GraphSearcher(builder.getGraph())) {
@@ -257,16 +255,10 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     /**
      * Marks the node of the object as deleted if the delete is newer than the node. Returns true when a
      * node was deleted.
-     *
-     * @throws IllegalStateException if the index was already flushed. The graph is on disk, a delete on
-     *                               the in-memory copy would be lost.
      */
     public boolean markNodeDeleted(ObjectId objectId, Versionstamp deleteVs) {
         rwLock.readLock().lock();
         try {
-            if (flushed) {
-                throw new IllegalStateException("Cannot delete nodes from a FLUSHED index");
-            }
             int ordinal = metadata.removeMapping(objectId, deleteVs);
             if (ordinal < 0) {
                 return false;
@@ -274,20 +266,9 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
             builder.markNodeDeleted(ordinal);
             return true;
         } finally {
+            updateLastMutation();
             rwLock.readLock().unlock();
         }
-    }
-
-    public void advanceVersionstamp(Versionstamp versionstamp) {
-        metadata.advanceVersionstamp(versionstamp);
-    }
-
-    public Versionstamp getFirstVersionstamp() {
-        return metadata.getFirstVersionstamp();
-    }
-
-    public Versionstamp getLatestVersionstamp() {
-        return metadata.getLatestVersionstamp();
     }
 
     public VectorGraphIndexMetadata getMetadata() {
@@ -308,13 +289,9 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
         return builder.getGraph().ramBytesUsed() + vectorBytesUsed.get();
     }
 
-    public boolean isFlushed() {
-        return flushed;
-    }
-
     @Override
     public boolean isSearchable() {
-        return !flushed && size() > 0;
+        return size() > 0;
     }
 
     @Override
@@ -343,8 +320,8 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     }
 
     /**
-     * Removes deleted nodes, writes the graph and metadata to disk, and permanently marks this index as FLUSHED.
-     * After flush, no further adds or searches are allowed.
+     * Removes deleted nodes, then writes the graph, the metadata and the PQ vectors to disk and
+     * creates the {@code .complete} marker. Returns null if the graph is empty.
      */
     public Path flush(Path path) throws IOException {
         rwLock.writeLock().lock();
@@ -359,12 +336,20 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
             });
 
             if (builder.getGraph().size(0) == 0) {
-                flushed = true;
                 return null;
             }
 
             String name = id.toHexString();
             Path indexPath = path.resolve(name + ".index");
+            Path metadataPath = path.resolve(name + ".vmeta");
+            Path pqPath = path.resolve(name + ".pqv");
+            Path completePath = path.resolve(name + ".complete");
+
+            // A retried flush writes the same file names. Remove what a failed attempt left behind.
+            Files.deleteIfExists(completePath);
+            Files.deleteIfExists(indexPath);
+            Files.deleteIfExists(metadataPath);
+            Files.deleteIfExists(pqPath);
 
             // removeDeletedNodes leaves holes in the ordinal space. The on-disk graph is written with
             // sequential ordinals, so vmeta and pqv must use the same renumbering.
@@ -373,22 +358,18 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
             RandomAccessVectorValues rvv = new MapVectorValues(vectors, ravv.dimension());
             OnDiskGraphIndex.write(builder.getGraph(), rvv, ordinalMap, indexPath);
 
-            Path metadataPath = path.resolve(name + ".vmeta");
             OnDiskVectorGraphIndexMetadataWriter.write(metadataPath, metadata, ordinalMap);
 
             if (pqVectors != null) {
                 MutablePQVectors remapped = new MutablePQVectors(pq);
                 vectors.forEach((ord, vec) -> remapped.encodeAndSet(ordinalMap.get(ord), vec));
-                Path pqPath = path.resolve(name + ".pqv");
                 try (var pqOut = new BufferedRandomAccessWriter(pqPath)) {
                     remapped.write(pqOut, OnDiskGraphIndex.CURRENT_VERSION);
                 }
             }
 
-            Path completePath = path.resolve(name + ".complete");
             Files.createFile(completePath);
 
-            flushed = true;
             return indexPath;
         } finally {
             rwLock.writeLock().unlock();

@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.vector;
 
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.pipeline.DocumentLocation;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
@@ -40,13 +39,13 @@ import java.util.Map;
  * All integers use native byte order. The reader maps the file read-only.
  *
  * <pre>{@code
- * HEADER (32 bytes)
+ * HEADER (24 bytes)
  *   0   4  magic
  *   4   4  version
  *   8   4  count
  *  12   4  maxOrdinal
  *  16   4  objectIdSectionOffset
- *  20  12  latestVersionstamp
+ *  20   4  padding
  *
  * ORDINAL SECTION ((maxOrdinal + 1) x 56 bytes)
  *   0   8  segmentId
@@ -66,7 +65,7 @@ import java.util.Map;
 public class OnDiskVectorGraphIndexMetadataWriter {
     static final int MAGIC = 0x4B564D44;
     static final int VERSION = 1;
-    static final int HEADER_SIZE = 32;
+    static final int HEADER_SIZE = 24;
     static final int ORDINAL_SLOT_SIZE = 56;
     static final int OBJECTID_ENTRY_SIZE = 28;
     private static final Logger logger = LoggerFactory.getLogger(OnDiskVectorGraphIndexMetadataWriter.class);
@@ -80,6 +79,13 @@ public class OnDiskVectorGraphIndexMetadataWriter {
         }
     }
 
+    /**
+     * Writes the metadata to the given path. {@code ordinalMap} translates on-heap ordinals to the
+     * sequential on-disk ordinals. The data goes to a temporary file first and is moved into place
+     * with an atomic rename, so a crash never leaves a partial file at {@code path}.
+     *
+     * @throws IllegalStateException if an on-disk ordinal has no document location
+     */
     public static void write(Path path, OnHeapVectorGraphIndexMetadata metadata, Map<Integer, Integer> ordinalMap) throws IOException {
         Map<ObjectId, GraphNodeRef> objectIds = metadata.getObjectIds();
         Map<Integer, DocumentLocation> ordinals = metadata.getOrdinals();
@@ -111,12 +117,7 @@ public class OnDiskVectorGraphIndexMetadataWriter {
             header.putInt(count);
             header.putInt(maxOrdinal);
             header.putInt(objectIdSectionOffset);
-            Versionstamp latestVersionstamp = metadata.getLatestVersionstamp();
-            if (latestVersionstamp != null) {
-                header.put(latestVersionstamp.getBytes());
-            } else {
-                header.put(new byte[12]);
-            }
+            header.put(new byte[4]); // padding
             header.flip();
             writeFully(channel, header);
 

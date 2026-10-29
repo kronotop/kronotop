@@ -25,6 +25,7 @@ import org.bson.types.ObjectId;
  */
 public record CollectedVector(
         ObjectId objectId,
+        byte[] generationId,
         int shardId,
         EntryMetadata metadata,
         float[] vector,

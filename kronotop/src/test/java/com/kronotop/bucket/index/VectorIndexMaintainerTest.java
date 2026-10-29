@@ -46,6 +46,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
     private static final String SELECTOR = "embedding";
     private static final int DIMENSIONS = 3;
     private static final float[] TEST_VECTOR = {0.1f, 0.2f, 0.3f};
+    private static final byte[] GENERATION_ID = new ObjectId().toByteArray();
 
     private BucketMetadata createVectorIndexAndLoadBucketMetadata() {
         createBucket(TEST_BUCKET);
@@ -363,7 +364,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.INSERT, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
             tr.commit().join();
         }
 
@@ -372,6 +373,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         MutationLogValue decoded = MutationLogValue.decode(logEntries.get(0).getValue());
         assertEquals(MutationLogKind.INSERT, decoded.kind());
+        assertEquals(SHARD_ID, decoded.shardId());
         assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
         assertNotNull(decoded.vectorPayload());
         assertArrayEquals(TEST_VECTOR, decoded.vectorPayload().vector());
@@ -393,7 +395,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), MutationLogKind.UPDATE, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.UPDATE, SHARD_ID, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
             tr.commit().join();
         }
 
@@ -402,6 +404,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         MutationLogValue decoded = MutationLogValue.decode(logEntries.get(0).getValue());
         assertEquals(MutationLogKind.UPDATE, decoded.kind());
+        assertEquals(SHARD_ID, decoded.shardId());
         assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
         assertNotNull(decoded.vectorPayload());
         assertArrayEquals(TEST_VECTOR, decoded.vectorPayload().vector());
@@ -422,7 +425,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] objectIdBytes = objectId.toByteArray();
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.appendDeleteMutation(tr, vectorIndex.subspace(), objectIdBytes, entry.userVersion());
+            VectorIndexMaintainer.appendDeleteMutation(tr, vectorIndex.subspace(), GENERATION_ID, SHARD_ID, objectIdBytes, entry.userVersion());
             tr.commit().join();
         }
 
@@ -431,8 +434,66 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         MutationLogValue decoded = MutationLogValue.decode(logEntries.get(0).getValue());
         assertEquals(MutationLogKind.DELETE, decoded.kind());
+        assertEquals(SHARD_ID, decoded.shardId());
         assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
         assertNull(decoded.vectorPayload());
+    }
+
+    @Test
+    void shouldWriteGenerationIdIntoMutationLogKey() {
+        // Behavior: appendMutation and appendDeleteMutation write the generation id into the log key
+        // right after the MUTATION_LOG magic, followed by the versionstamp.
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
+
+        AppendedEntry entry = getAppendedEntries()[0];
+        byte[] objectIdBytes = new ObjectId().toByteArray();
+        byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID, objectIdBytes, encodedIndexEntry, TEST_VECTOR, 0);
+            VectorIndexMaintainer.appendDeleteMutation(tr, vectorIndex.subspace(), GENERATION_ID, SHARD_ID, objectIdBytes, 1);
+            tr.commit().join();
+        }
+
+        List<KeyValue> logEntries = getMutationLogEntries(vectorIndex.subspace());
+        assertEquals(2, logEntries.size());
+        for (KeyValue kv : logEntries) {
+            Tuple unpacked = vectorIndex.subspace().unpack(kv.getKey());
+            assertEquals((long) IndexSubspaceMagic.MUTATION_LOG.getValue(), unpacked.get(0));
+            assertArrayEquals(GENERATION_ID, unpacked.getBytes(1));
+            assertNotNull(unpacked.getVersionstamp(2));
+        }
+    }
+
+    @Test
+    void shouldTruncateMutationLogOnlyForGivenGeneration() {
+        // Behavior: truncateMutationLog removes every log entry of the given generation
+        // and leaves entries of other generations untouched.
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
+
+        AppendedEntry entry = getAppendedEntries()[0];
+        byte[] objectIdBytes = new ObjectId().toByteArray();
+        byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
+        byte[] otherGeneration = new ObjectId().toByteArray();
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), GENERATION_ID, MutationLogKind.INSERT, SHARD_ID, objectIdBytes, encodedIndexEntry, TEST_VECTOR, 0);
+            VectorIndexMaintainer.appendDeleteMutation(tr, vectorIndex.subspace(), GENERATION_ID, SHARD_ID, objectIdBytes, 1);
+            VectorIndexMaintainer.appendMutation(tr, vectorIndex.subspace(), otherGeneration, MutationLogKind.INSERT, SHARD_ID, objectIdBytes, encodedIndexEntry, TEST_VECTOR, 2);
+            tr.commit().join();
+        }
+        assertEquals(3, getMutationLogEntries(vectorIndex.subspace()).size());
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VectorIndexMaintainer.truncateMutationLog(tr, vectorIndex.subspace(), GENERATION_ID);
+            tr.commit().join();
+        }
+
+        List<KeyValue> remaining = getMutationLogEntries(vectorIndex.subspace());
+        assertEquals(1, remaining.size());
+        assertArrayEquals(otherGeneration, vectorIndex.subspace().unpack(remaining.getFirst().getKey()).getBytes(1));
     }
 
     @Test

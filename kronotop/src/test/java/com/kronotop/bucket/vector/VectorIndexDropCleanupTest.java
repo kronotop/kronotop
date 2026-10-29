@@ -19,15 +19,11 @@ package com.kronotop.bucket.vector;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.index.NoSuchIndexException;
 import com.kronotop.bucket.index.VectorIndex;
 import com.kronotop.commands.BucketCommandBuilder;
-import com.kronotop.commands.BucketCreateArgs;
-import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
@@ -35,6 +31,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -42,28 +39,15 @@ import java.time.Duration;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
-class VectorIndexDropCleanupTest extends BaseBucketHandlerTest {
-
-    private void createBucketWithVectorIndex() {
-        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
-        ByteBuf buf = Unpooled.buffer();
-        cmd.create(TEST_BUCKET, BucketCreateArgs.Builder.indexes(
-                "{\"$vector\": {\"field\": \"embedding\", \"dimensions\": 3, \"distance\": \"cosine\"}}"
-        )).encode(buf);
-        Object response = runCommand(channel, buf);
-        assertInstanceOf(SimpleStringRedisMessage.class, response);
-        assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
-    }
-
-    private BucketService getBucketService() {
-        return context.getService(BucketService.NAME);
-    }
+class VectorIndexDropCleanupTest extends BaseVectorHookIntegrationTest {
 
     @Test
-    void shouldDropVectorIndex() {
-        // Behavior: BUCKET.INDEX DROP on a vector index marks it as DROPPED, and the index
-        // eventually disappears from FDB. The in-memory registry entry is also removed.
+    void shouldDropVectorIndex() throws IOException {
+        // Behavior: After BUCKET.INDEX DROP on a vector index, the index disappears from FDB
+        // and the in-memory registry group of the index is removed.
         createBucketWithVectorIndex();
+        insertDocumentWithVector(new float[]{1.0f, 0.0f, 0.0f}, "test");
+        awaitVectorGraph(TEST_BUCKET, "embedding", 1).close();
 
         BucketMetadata metadata;
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -92,11 +76,10 @@ class VectorIndexDropCleanupTest extends BaseBucketHandlerTest {
             }
         });
 
-        // Verify the in-memory registry entry is removed
-        VectorGraphIndexGroup group = getBucketService().getVectorGraphRegistry().get(
-                TEST_NAMESPACE, TEST_BUCKET, indexId
+        VectorGraphIndexRegistry registry = getBucketService().getVectorGraphRegistry();
+        await().atMost(Duration.ofSeconds(15)).until(() ->
+                registry.get(TEST_NAMESPACE, TEST_BUCKET, indexId) == null
         );
-        assertNull(group);
     }
 
     @Test

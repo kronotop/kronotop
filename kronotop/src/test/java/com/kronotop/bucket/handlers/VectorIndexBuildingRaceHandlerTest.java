@@ -40,39 +40,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Reproduces the vector-index variant of the index-building race. Adding a vector index with
- * {@code BUCKET.INDEX} to an already populated, already cached bucket creates the index in
- * {@code WAITING} status and schedules a boundary task that later flips it to {@code BUILDING}
- * then {@code READY}. Documents inserted during that {@code WAITING} window can be permanently
- * absent from the vector index.
- *
- * <h2>Root cause</h2>
- * The insert maintenance path selects vector indexes with {@code READWRITE}
- * ({@code BucketInsertHandler.setVectorIndexes}, gates at lines 385 and 448), which excludes
- * {@code WAITING}. For a {@code WAITING} vector index an insert therefore writes no vector
- * ENTRIES key, no mutation-log record, and registers no post-commit graph add. The background
- * build only scans the frozen range {@code [lower, upper)} captured at boundary time, so writes
- * that land after that snapshot fall outside the build too. The on-heap graph is rebuilt from the
- * vector ENTRIES keyspace at startup and vector search reads that graph, so a document with no
- * ENTRIES key is permanently invisible to vector search. This is the same class of permanent loss
- * as the single-field and compound race.
- *
- * <h2>Fix</h2>
- * The vector write path selects vector indexes with {@code WRITABLE}, which includes {@code WAITING},
- * so a write that lands during the window writes its vector ENTRIES key and mutation-log record
- * synchronously. This test guards that behavior against regression.
- *
- * <h2>Determinism</h2>
- * Rather than racing a background boundary task, the test pins the index at {@code WAITING} by
- * creating it directly without scheduling the boundary task, then drops the metadata cache so the
- * insert handler observes the {@code WAITING} index. No build ever runs, so the synchronous write
- * path is the only thing that can write the ENTRIES keys, with no timing dependency.
- *
- * <h2>Expectation</h2>
- * Every stored document must have exactly one vector ENTRIES key. Before the fix the count was zero
- * while the documents were fully stored; with the {@code WRITABLE} write path it must equal N.
- */
 class VectorIndexBuildingRaceHandlerTest extends BaseBucketHandlerTest {
 
     private void insertDocument(String label, float[] vector) {
@@ -121,7 +88,7 @@ class VectorIndexBuildingRaceHandlerTest extends BaseBucketHandlerTest {
         context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, TEST_BUCKET);
 
         // Insert N documents while the vector index is WAITING, each with a distinct embedding.
-        for (int i = 0; i < N; i++) {
+        for (int i = 1; i <= N; i++) {
             insertDocument("doc-" + i, new float[]{0.1f * i, 0.2f * i, 0.3f * i});
         }
 
@@ -156,14 +123,14 @@ class VectorIndexBuildingRaceHandlerTest extends BaseBucketHandlerTest {
         createBucket(TEST_BUCKET);
         DirectorySubspace vectorIndexSubspace = pinWaitingVectorIndex();
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 1; i <= N; i++) {
             insertDocument("doc-" + i, new float[]{0.1f * i, 0.2f * i, 0.3f * i});
         }
 
         // Delete K documents while the vector index is WAITING, one label per call.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         switchProtocol(cmd, RESPVersion.RESP3);
-        for (int i = 0; i < K; i++) {
+        for (int i = 1; i <= K; i++) {
             ByteBuf buf = Unpooled.buffer();
             cmd.delete(TEST_BUCKET, "{\"label\": \"doc-" + i + "\"}").encode(buf);
             assertEquals(1, extractObjectIds(runCommand(channel, buf)).size(),
@@ -188,7 +155,7 @@ class VectorIndexBuildingRaceHandlerTest extends BaseBucketHandlerTest {
         createBucket(TEST_BUCKET);
         DirectorySubspace vectorIndexSubspace = pinWaitingVectorIndex();
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 1; i <= N; i++) {
             insertDocument("doc-" + i, new float[]{0.1f * i, 0.2f * i, 0.3f * i});
         }
 

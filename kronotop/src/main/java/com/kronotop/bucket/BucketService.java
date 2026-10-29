@@ -83,6 +83,8 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private final PlanCache planCache = new PlanCache();
     private final BucketMetrics metrics = new BucketMetrics();
     private final Planner planner;
+    private final DelayQueue<VectorFlushTask> vectorFlushQueue = new DelayQueue<>();
+    private final VectorFlushMaintainer vectorFlushMaintainer;
     private final long vectorFlushThresholdBytes;
     private final int pqTrainingThreshold;
     private final int pqSubspaceDivisor;
@@ -124,6 +126,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         this.bucketEventsWatcher = new BucketEventsWatcher(context, planCache);
         this.planner = new Planner(planCache, metrics);
         this.queryExecutor = new QueryExecutor(this);
+        this.vectorFlushMaintainer = new VectorFlushMaintainer(context);
     }
 
     public PlanCache getPlanCache() {
@@ -132,6 +135,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
     public BucketMetrics getMetrics() {
         return metrics;
+    }
+
+    public DelayQueue<VectorFlushTask> getVectorFlushQueue() {
+        return vectorFlushQueue;
     }
 
     @Override
@@ -174,14 +181,19 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
         int[] indexes = new int[1];
         long[] bytes = new long[1];
+        int[] onDisk = new int[1];
         vectorGraphRegistry.forEachGroup(group -> {
-            for (OnHeapVectorGraphIndex index : group.getOnHeapIndexes()) {
+            group.forEachOnHeap(index -> {
                 indexes[0]++;
                 bytes[0] += index.ramBytesUsed();
-            }
+            });
+            onDisk[0] += group.getOnDiskIndexes().size();
         });
         collector.put(InfoReport.VECTOR_SECTION, "vector_indexes", indexes[0]);
         collector.put(InfoReport.VECTOR_SECTION, "vector_bytes_used", bytes[0]);
+        collector.put(InfoReport.VECTOR_SECTION, "vector_on_disk_indexes", onDisk[0]);
+        collector.put(InfoReport.VECTOR_SECTION, "vector_flush_queue_size", vectorFlushQueue.size());
+        collector.put(InfoReport.VECTOR_SECTION, "vector_flush_failures", metrics.getVectorFlushFailures());
     }
 
     public Route findRoute(int shardId) {
@@ -206,6 +218,20 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
     public VectorGraphIndexRegistry getVectorGraphRegistry() {
         return vectorGraphRegistry;
+    }
+
+    /**
+     * Returns the current generation id of the vector index group for the given index.
+     * The id identifies the on-heap graph generation that will receive this write.
+     *
+     * @throws VectorIndexNotReadyException if the group is not registered yet
+     */
+    public byte[] takeVectorIndexGenerationId(BucketMetadata metadata, long indexId) {
+        VectorGraphIndexGroup group = vectorGraphRegistry.get(metadata.namespace(), metadata.name(), indexId);
+        if (group == null) {
+            throw new VectorIndexNotReadyException(metadata.namespace(), metadata.name(), indexId);
+        }
+        return group.takeGenerationId();
     }
 
     public ExecutorService getVectorGraphExecutor() {
@@ -268,11 +294,9 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     /**
-     * Loads a vector graph index group from the disk and replays mutation log entries for crash recovery.
-     * If no disk data and no mutation log entries exist, returns an immediately ready group (fast-path).
-     * Otherwise, returns a not-yet-ready group and runs bootstrap in the background (slow-path).
-     * Called exactly once per index because ConcurrentHashMap.computeIfAbsent guarantees a single
-     * supplier invocation for a given key.
+     * Creates the graph index group of a vector index. If the index has no on-disk files and no
+     * mutation log entries, the group is ready at once. Otherwise, the on-disk indexes are opened and
+     * the mutation log is replayed in the background; the group becomes ready when that work ends.
      */
     public VectorGraphIndexGroup bootstrapVectorGroup(BucketMetadata metadata, VectorIndex vectorIndex) {
         if (!hasOnDiskIndexes(metadata, vectorIndex) && !hasMutationLogEntries(vectorIndex)) {
@@ -361,6 +385,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         }
     }
 
+    private void retryPendingOnDiskDeletesForAllGroups() {
+        vectorGraphRegistry.forEachGroup(VectorGraphIndexGroup::retryPendingOnDiskDeletes);
+    }
+
     @Override
     public void start() {
         for (int shardId : context.getShardRegistry().getShardIds(ShardKind.BUCKET)) {
@@ -370,11 +398,21 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         executor.submit(bucketEventsWatcher);
         Runnable evictionWorker = context.getBucketMetadataCache().createEvictionWorker(context::now, 1000 * 5 * 60);
         scheduler.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
+        scheduler.scheduleWithFixedDelay(
+                this::retryPendingOnDiskDeletesForAllGroups,
+                15, 15, TimeUnit.SECONDS
+        );
+        vectorFlushMaintainer.start();
     }
 
     @Override
     public void shutdown() {
+        // The shutdown order matters. Every executor that can touch the vector graph indexes
+        // (scheduler with the pending on-disk delete retry, vectorGraphExecutor) must stop before
+        // the flush maintainer enters drain mode. The flush maintainer must be the last one to stop,
+        // so the final flush sees no concurrent mutations.
         try {
+            retryPendingOnDiskDeletesForAllGroups();
             bucketEventsWatcher.shutdown();
 
             for (BucketShard shard : getServiceContext().shards().values()) {
@@ -397,16 +435,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                 LOGGER.warn("{} service cannot be stopped gracefully (scheduler)", NAME);
             }
 
-            // Flush before vectorGraphExecutor shuts down.
-            try {
-                LOGGER.info("Flushing vector graph indexes");
-                long start = System.nanoTime();
-                vectorGraphRegistry.flushAll(bucketDataDir);
-                LOGGER.info("Flushed vector graph indexes in {} ms", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
-            } catch (Exception e) {
-                LOGGER.error("Failed to flush vector graph indexes on shutdown", e);
-            }
-
             vectorGraphExecutor.shutdown();
             if (!vectorGraphExecutor.awaitTermination(
                     ExecutorServiceUtil.DEFAULT_TIMEOUT,
@@ -414,6 +442,12 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             )) {
                 LOGGER.warn("{} service cannot be stopped gracefully (vectorGraphPool)", NAME);
             }
+
+            // Try to flush all on-heap vector indexes. shutdown method will block until all indexes are flushed to
+            // the disk. See bucket.vector.flush_drain_timeout_seconds
+            vectorFlushMaintainer.setDrainMode();
+            vectorGraphRegistry.enqueueAllForFlush();
+            vectorFlushMaintainer.shutdown();
 
             vectorGraphRegistry.closeAll();
         } catch (InterruptedException exp) {

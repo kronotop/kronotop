@@ -53,12 +53,12 @@ public final class HybridLogicalClock {
      * @return 64-bit HLC Timestamp (44-bit physical | 20-bit logical)
      */
     public synchronized long next(long physicalNow) {
-        // CASE 1: Clock moved forward normally
+        // Clock moved forward normally
         if (physicalNow > lastPhysical) {
             lastPhysical = physicalNow;
             lastLogical = 0;
         }
-        // CASE 2: Same millisecond OR clock moved backwards (NTP Drift)
+        // Same millisecond OR clock moved backwards (NTP Drift)
         else {
             // Even if the clock moves backwards, we don't decrease lastPhysical (Ratchet Effect).
             // However, if the drift is too large, we throw an exception.

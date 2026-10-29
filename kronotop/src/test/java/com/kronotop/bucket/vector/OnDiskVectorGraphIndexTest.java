@@ -99,7 +99,7 @@ class OnDiskVectorGraphIndexTest {
 
     @Test
     void shouldLookupMetadataForSearchResults(@TempDir Path tempDir) throws IOException {
-        // Behavior: Search result nodes have valid metadata accessible via getMetadata().findEntryMetadata().
+        // Behavior: Search result nodes have valid metadata accessible via getMetadata().findDocumentLocation().
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             OnHeapVectorGraphIndex heapIndex = new OnHeapVectorGraphIndex(3, VSF);
             heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();

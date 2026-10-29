@@ -33,6 +33,12 @@ import java.util.Arrays;
 
 import static com.kronotop.bucket.vector.OnDiskVectorGraphIndexMetadataWriter.*;
 
+/**
+ * Read-only view of a {@code .vmeta} file. The file is memory mapped and stays mapped until
+ * {@link #close()}. An ordinal lookup reads one fixed-size slot. An ObjectId lookup is a binary
+ * search over the sorted ObjectId section. The file layout is documented in
+ * {@link OnDiskVectorGraphIndexMetadataWriter}.
+ */
 public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata, Closeable {
     private static final int OBJECTID_SIZE = 12;
     private static final int VERSIONSTAMP_SIZE = 12;
@@ -41,7 +47,6 @@ public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata,
     private final int count;
     private final int maxOrdinal;
     private final int objectIdSectionOffset;
-    private final Versionstamp latestVersionstamp;
 
     public OnDiskVectorGraphIndexMetadata(Path path) throws IOException {
         this.arena = Arena.ofShared();
@@ -63,14 +68,6 @@ public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata,
         this.count = mappedMemory.get(ValueLayout.JAVA_INT, 8);
         this.maxOrdinal = mappedMemory.get(ValueLayout.JAVA_INT, 12);
         this.objectIdSectionOffset = mappedMemory.get(ValueLayout.JAVA_INT, 16);
-
-        byte[] versionstampBytes = new byte[VERSIONSTAMP_SIZE];
-        MemorySegment.copy(mappedMemory, ValueLayout.JAVA_BYTE, 20, versionstampBytes, 0, VERSIONSTAMP_SIZE);
-        this.latestVersionstamp = Versionstamp.fromBytes(versionstampBytes);
-    }
-
-    public Versionstamp getLatestVersionstamp() {
-        return latestVersionstamp;
     }
 
     public DocumentLocation findDocumentLocation(int ordinal) {

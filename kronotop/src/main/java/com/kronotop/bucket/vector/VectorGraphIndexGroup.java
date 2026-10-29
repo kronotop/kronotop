@@ -18,13 +18,11 @@ package com.kronotop.bucket.vector;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.ByteArrayUtil;
-import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.Striped;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexSubspaceMagic;
+import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.VectorIndex;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
@@ -35,12 +33,10 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.locks.Lock;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
@@ -57,28 +53,33 @@ import java.util.stream.Stream;
  */
 public class VectorGraphIndexGroup {
     private static final Logger LOGGER = LoggerFactory.getLogger(VectorGraphIndexGroup.class);
-    private final List<OnHeapVectorGraphIndex> onHeapIndexes = new CopyOnWriteArrayList<>();
+    private final ConcurrentSkipListMap<ObjectId, List<OnHeapVectorGraphIndex>> onHeapIndexes = new ConcurrentSkipListMap<>();
     private final List<OnDiskVectorGraphIndex> onDiskIndexes = new CopyOnWriteArrayList<>();
     private final ConcurrentHashMap<ObjectId, Versionstamp> deleteTombstones = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<ObjectId, Versionstamp> pendingOnDiskDeletes = new ConcurrentHashMap<>();
+    private final Striped<Lock> objectIdLocks = Striped.lock(2048);
 
     private final Context context;
+    private final BucketService service;
     private final BucketMetadata metadata;
     private final VectorIndex vectorIndex;
+    private final GenerationCounter generationCounter = new GenerationCounter(new ObjectId(), 100_000);
     private volatile CompletableFuture<Void> bootstrapFuture;
 
     /**
-     * Creates an immediately ready group (fast-path) with no pending bootstrap work.
+     * Creates a group that is ready at once. Used when there is no data to recover.
      */
     public VectorGraphIndexGroup(Context context, BucketMetadata metadata, VectorIndex vectorIndex) {
         this.context = context;
+        this.service = context.getService(BucketService.NAME);
         this.metadata = metadata;
         this.vectorIndex = vectorIndex;
     }
 
     /**
-     * Creates a group that requires background bootstrap before it becomes ready (slow-path).
+     * Creates a group that becomes ready after a background bootstrap.
      *
-     * @param bootstrapFuture the future that will be completed when bootstrap finishes or fails
+     * @param bootstrapFuture completes when bootstrap finishes or fails
      */
     public VectorGraphIndexGroup(
             Context context,
@@ -109,11 +110,11 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Opens previously flushed on-disk indexes from the given directory. Only loads file sets
-     * that have a {@code .complete} sentinel, indicating the flush finished successfully.
-     * Orphaned files without a sentinel are deleted.
+     * Opens the flushed on-disk indexes in the given directory. A file set is loaded only if its
+     * {@code .complete} marker exists, which means the flush finished. Files without a marker
+     * are deleted.
      *
-     * @return opened indexes, or an empty list if the directory doesn't exist or contains no valid index sets
+     * @return the opened indexes, or an empty list if the directory does not exist or holds no complete file set
      */
     public static List<OnDiskVectorGraphIndex> openOnDiskIndexes(
             Context context,
@@ -182,6 +183,26 @@ public class VectorGraphIndexGroup {
         return opened;
     }
 
+    private static OnHeapVectorGraphIndex lastOf(List<OnHeapVectorGraphIndex> list) {
+        if (list == null) {
+            return null;
+        }
+        try {
+            return list.getLast();
+        } catch (NoSuchElementException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Counts one use of the current generation and returns its id as bytes.
+     * The array is shared across callers of the same generation; do not modify it.
+     * Lock-free.
+     */
+    public byte[] takeGenerationId() {
+        return generationCounter.take();
+    }
+
     /**
      * Blocks the calling thread until bootstrap completes. No-op for fast-path groups.
      *
@@ -195,7 +216,7 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Signals that background bootstrap completed successfully, transitioning the group to the ready state.
+     * Marks bootstrap as finished. The group becomes ready.
      */
     public void markReady() {
         CompletableFuture<Void> future = bootstrapFuture;
@@ -205,7 +226,7 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Signals that background bootstrap failed. The group remains permanently not-ready.
+     * Marks bootstrap as failed. The group never becomes ready.
      */
     public void markFailed(Throwable cause) {
         CompletableFuture<Void> future = bootstrapFuture;
@@ -215,7 +236,7 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Returns {@code true} if the group is fully initialized and available for reads and writes.
+     * Returns {@code true} if bootstrap finished without error, or if the group needed no bootstrap.
      */
     public boolean isReady() {
         CompletableFuture<Void> future = bootstrapFuture;
@@ -223,18 +244,22 @@ public class VectorGraphIndexGroup {
         return future.isDone() && !future.isCompletedExceptionally();
     }
 
-    /**
-     * Returns the UUID of the bucket this group belongs to.
-     */
-    public UUID getBucketId() {
-        return metadata.uuid();
+    public BucketMetadata getBucketMetadata() {
+        return metadata;
     }
 
     /**
-     * Adds an on-heap index to this group.
+     * Returns the striped lock that guards add and delete of the given object.
      */
-    public void addOnHeap(OnHeapVectorGraphIndex index) {
-        onHeapIndexes.add(index);
+    public Lock lockFor(ObjectId objectId) {
+        return objectIdLocks.get(objectId);
+    }
+
+    /**
+     * Returns the vector index this group serves.
+     */
+    public VectorIndex getVectorIndex() {
+        return vectorIndex;
     }
 
     /**
@@ -244,45 +269,127 @@ public class VectorGraphIndexGroup {
         onDiskIndexes.add(index);
     }
 
-    /**
-     * Returns the active (last) on-heap index, creating one if none exists.
-     * Synchronized per-group instance to prevent duplicate creation from concurrent threads.
-     */
-    public synchronized OnHeapVectorGraphIndex getOrCreateOnHeap(
-            int dimensions, VectorSimilarityFunction similarityFunction,
-            int pqTrainingThreshold, int pqSubspaceDivisor) {
-        if (!onHeapIndexes.isEmpty()) {
-            return onHeapIndexes.getLast();
+    public void enqueueAllForFlush() {
+        for (ObjectId generationId : onHeapIndexes.keySet()) {
+            enqueueGenerationForFlush(generationId, true);
         }
-        OnHeapVectorGraphIndex graph = new OnHeapVectorGraphIndex(dimensions, similarityFunction,
-                pqTrainingThreshold, pqSubspaceDivisor);
-        onHeapIndexes.add(graph);
-        return graph;
     }
 
     /**
-     * Atomically replaces the active on-heap index if it is still {@code expected}.
-     * Returns {@code expected} (the previous active index to be flushed), or {@code null}
-     * if another thread already rotated.
+     * Adds a flush task for the given generation. In drain mode the task is due at once.
      */
-    public synchronized OnHeapVectorGraphIndex rotateOnHeap(
+    public void enqueueGenerationForFlush(ObjectId genId, boolean drainMode) {
+        VectorFlushKey key = new VectorFlushKey(metadata.namespace(), metadata.name(), vectorIndex.definition().id(), genId);
+        long due = 0;
+        if (!drainMode) {
+            due = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        }
+        VectorFlushTask task = new VectorFlushTask(key, due);
+        service.getVectorFlushQueue().add(task);
+    }
+
+    private void enqueuePreviousGenerationsForFlush(ObjectId genId) {
+        for (ObjectId prevGenId : onHeapIndexes.headMap(genId).keySet()) {
+            enqueueGenerationForFlush(prevGenId, false);
+        }
+    }
+
+    private OnHeapVectorGraphIndex createOnHeap(ObjectId genId, int dimensions, VectorSimilarityFunction similarityFunction,
+                                                int pqTrainingThreshold, int pqSubspaceDivisor) {
+        List<OnHeapVectorGraphIndex> list = onHeapIndexes.computeIfAbsent(genId, (ignored) -> new CopyOnWriteArrayList<>());
+
+        OnHeapVectorGraphIndex fresh = new OnHeapVectorGraphIndex(dimensions, similarityFunction,
+                pqTrainingThreshold, pqSubspaceDivisor);
+        list.add(fresh);
+        enqueuePreviousGenerationsForFlush(genId);
+        return fresh;
+    }
+
+    /**
+     * Returns the newest on-heap index of the given generation, creating one if the generation has none.
+     * The read path is lock-free; creation takes the group monitor to prevent duplicates.
+     */
+    public OnHeapVectorGraphIndex getOrCreateOnHeap(
+            byte[] generationId,
+            int dimensions, VectorSimilarityFunction similarityFunction,
+            int pqTrainingThreshold, int pqSubspaceDivisor) {
+        ObjectId genId = new ObjectId(generationId);
+        OnHeapVectorGraphIndex current = lastOf(onHeapIndexes.get(genId));
+        if (current != null) {
+            return current;
+        }
+        synchronized (this) {
+            current = lastOf(onHeapIndexes.get(genId));
+            if (current != null) {
+                return current;
+            }
+            return createOnHeap(genId, dimensions, similarityFunction, pqTrainingThreshold, pqSubspaceDivisor);
+        }
+    }
+
+    /**
+     * Adds a fresh on-heap index to the given generation if {@code expected} is still its newest index.
+     * Does nothing if another thread already rotated.
+     */
+    public synchronized void rotateOnHeap(
+            byte[] generationId,
             OnHeapVectorGraphIndex expected,
             int dimensions, VectorSimilarityFunction similarityFunction,
             int pqTrainingThreshold, int pqSubspaceDivisor) {
-        if (onHeapIndexes.isEmpty() || onHeapIndexes.getLast() != expected) {
-            return null;
+        ObjectId genId = new ObjectId(generationId);
+        if (lastOf(onHeapIndexes.get(genId)) == expected) {
+            // Newest index of the generation is full and needs rotation.
+            createOnHeap(genId, dimensions, similarityFunction, pqTrainingThreshold, pqSubspaceDivisor);
         }
-        OnHeapVectorGraphIndex fresh = new OnHeapVectorGraphIndex(dimensions, similarityFunction,
-                pqTrainingThreshold, pqSubspaceDivisor);
-        onHeapIndexes.add(fresh);
-        return expected;
     }
 
     /**
-     * Returns the live list of on-heap indexes in this group.
+     * Visits the on-heap indexes in this group, ordered by generation id, without copying.
      */
-    public List<OnHeapVectorGraphIndex> getOnHeapIndexes() {
-        return onHeapIndexes;
+    public void forEachOnHeap(Consumer<OnHeapVectorGraphIndex> action) {
+        for (List<OnHeapVectorGraphIndex> list : onHeapIndexes.values()) {
+            for (OnHeapVectorGraphIndex index : list) {
+                action.accept(index);
+            }
+        }
+    }
+
+    /**
+     * Visits the on-heap indexes of the given generation. Does nothing if the generation has none.
+     */
+    public void forEachOnHeap(ObjectId generationId, Consumer<OnHeapVectorGraphIndex> action) {
+        List<OnHeapVectorGraphIndex> generation = onHeapIndexes.get(generationId);
+        if (generation == null) {
+            return;
+        }
+        for (OnHeapVectorGraphIndex index : generation) {
+            action.accept(index);
+        }
+    }
+
+    /**
+     * Returns a snapshot of the on-heap indexes in this group, ordered by generation id.
+     * Intended for tests; production code uses {@link #forEachOnHeap(Consumer)}.
+     */
+    List<OnHeapVectorGraphIndex> getOnHeapIndexes() {
+        List<OnHeapVectorGraphIndex> snapshot = new ArrayList<>();
+        for (List<OnHeapVectorGraphIndex> list : onHeapIndexes.values()) {
+            snapshot.addAll(list);
+        }
+        return snapshot;
+    }
+
+    private synchronized void removeOnHeap(OnHeapVectorGraphIndex index) {
+        Iterator<Map.Entry<ObjectId, List<OnHeapVectorGraphIndex>>> it = onHeapIndexes.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<ObjectId, List<OnHeapVectorGraphIndex>> entry = it.next();
+            if (entry.getValue().remove(index)) {
+                if (entry.getValue().isEmpty()) {
+                    it.remove();
+                }
+                return;
+            }
+        }
     }
 
     /**
@@ -315,11 +422,42 @@ public class VectorGraphIndexGroup {
             if (!marked.isEmpty()) {
                 tr.commit().join();
             }
+        } catch (Exception e) {
+            putPendingOnDiskDelete(objectId, deleteVs);
+            return found;
         }
         for (MarkedNode node : marked) {
             node.index().markNodeDeletedInMemory(node.ordinal());
         }
+        pendingOnDiskDeletes.remove(objectId, deleteVs);
         return found;
+    }
+
+    public void retryPendingOnDiskDeletes() {
+        for (Map.Entry<ObjectId, Versionstamp> entry : pendingOnDiskDeletes.entrySet()) {
+            Lock lock = lockFor(entry.getKey());
+            lock.lock();
+            try {
+                markNodeDeletedOnDisk(entry.getKey(), entry.getValue());
+            } finally {
+                lock.unlock();
+            }
+        }
+    }
+
+    void putPendingOnDiskDelete(ObjectId objectId, Versionstamp versionstamp) {
+        pendingOnDiskDeletes.merge(objectId, versionstamp, (existing, incoming) ->
+                incoming.compareTo(existing) >= 0 ? incoming : existing);
+    }
+
+    public boolean hasNodeOnDisk(ObjectId objectId, Versionstamp versionstamp) {
+        for (OnDiskVectorGraphIndex onDisk : onDiskIndexes) {
+            GraphNodeRef ref = onDisk.getMetadata().findNodeRef(objectId);
+            if (ref != null && ref.versionstamp().compareTo(versionstamp) >= 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -330,37 +468,46 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Returns {@code true} if the group contains no indexes of either type.
+     * Returns {@code true} if the group has no on-heap and no on-disk indexes.
      */
     public boolean isEmpty() {
         return onHeapIndexes.isEmpty() && onDiskIndexes.isEmpty();
     }
 
-    private Iterable<SearchableVectorIndex> allIndexes() {
-        return Iterables.concat(onHeapIndexes, onDiskIndexes);
+    public boolean hasNoOnHeapIndexes(ObjectId generationId) {
+        List<OnHeapVectorGraphIndex> list = onHeapIndexes.get(generationId);
+        if (list == null) {
+            return true;
+        }
+        return list.isEmpty();
     }
 
     /**
-     * Creates a resumable search session across all active indexes for the given query vector.
+     * Opens a search session over every searchable index of the group for the given query vector.
      */
     public VectorSearchSession createSearchSession(float[] queryVector) {
         List<SearchHandle> handles = new ArrayList<>();
-        for (SearchableVectorIndex index : allIndexes()) {
-            if (!index.isSearchable()) continue;
-            try {
-                handles.add(index.openSearchHandle(queryVector));
-            } catch (IllegalStateException e) {
-                // On-heap index flushed between isSearchable() and openSearchHandle()
+        for (List<OnHeapVectorGraphIndex> list : onHeapIndexes.values()) {
+            for (OnHeapVectorGraphIndex index : list) {
+                openSearchHandle(index, queryVector, handles);
             }
+        }
+        for (OnDiskVectorGraphIndex index : onDiskIndexes) {
+            openSearchHandle(index, queryVector, handles);
         }
         return new VectorSearchSession(handles);
     }
 
+    private void openSearchHandle(SearchableVectorIndex index, float[] queryVector, List<SearchHandle> handles) {
+        if (!index.isSearchable()) return;
+        handles.add(index.openSearchHandle(queryVector));
+    }
+
     /**
-     * Searches all on-heap and on-disk indexes and merges results into a single top-K list using a min-heap.
+     * Searches every on-heap and on-disk index and returns the merged top-K result.
      */
     public List<MergedNodeScore> searchAll(float[] queryVector, int topK, float threshold, float overquery) {
-        if (onHeapIndexes.isEmpty() && onDiskIndexes.isEmpty()) {
+        if (isEmpty()) {
             return List.of();
         }
 
@@ -371,33 +518,14 @@ public class VectorGraphIndexGroup {
         }
     }
 
-    private void truncateMutationLog(Versionstamp firstVersionstamp, Versionstamp latestVersionstamp) {
-        if (firstVersionstamp == null || latestVersionstamp == null) {
-            return;
-        }
-        DirectorySubspace indexSubspace = vectorIndex.subspace();
-        byte[] begin = indexSubspace.pack(
-                Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue(), firstVersionstamp)
-        );
-        byte[] end = ByteArrayUtil.strinc(
-                indexSubspace.pack(
-                        Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue(), latestVersionstamp)
-                )
-        );
-        try (Transaction tr = context.getTransactionManager().create()) {
-            tr.clear(begin, end);
-            tr.commit().join();
-        }
-    }
-
     /**
-     * Flushes a single on-heap index to disk and promotes it to an on-disk index.
+     * Writes the on-heap index to disk, opens it as an on-disk index and removes the on-heap one
+     * from the group. An empty index is skipped. On a write error the on-heap index stays in place,
+     * so the flush maintainer can try again.
      */
-    public void flushSingle(Path bucketDataDir, OnHeapVectorGraphIndex index) {
-        if (index.isFlushed() || index.size() == 0) return;
+    public void flush(Path bucketDataDir, OnHeapVectorGraphIndex index) {
+        if (index.size() == 0) return;
 
-        Versionstamp firstVersionstamp = index.getFirstVersionstamp();
-        Versionstamp latestVersionstamp = index.getLatestVersionstamp();
         Path indexDir = resolveVectorDir(bucketDataDir, ownerShardId(metadata))
                 .resolve(metadata.uuid().toString())
                 .resolve(Long.toString(vectorIndex.definition().id()));
@@ -407,6 +535,7 @@ public class VectorGraphIndexGroup {
             indexPath = index.flush(indexDir);
         } catch (IOException | RuntimeException e) {
             LOGGER.error("Failed to flush vector graph index to {}", indexDir, e);
+            service.getMetrics().incrementVectorFlushFailures();
             return;
         }
 
@@ -414,40 +543,24 @@ public class VectorGraphIndexGroup {
         // in between finds the node in no list, stores a tombstone, and the delete is lost.
         if (indexPath != null) {
             try {
-                onDiskIndexes.add(new OnDiskVectorGraphIndex(vectorIndex.subspace(), indexPath, index.getSimilarityFunction()));
+                OnDiskVectorGraphIndex onDisk = new OnDiskVectorGraphIndex(
+                        vectorIndex.subspace(),
+                        indexPath,
+                        index.getSimilarityFunction()
+                );
+                onDiskIndexes.add(onDisk);
             } catch (IOException e) {
                 LOGGER.error("Failed to open flushed vector graph index from {}", indexPath, e);
+                service.getMetrics().incrementVectorFlushFailures();
+                return;
             }
         }
 
-        onHeapIndexes.remove(index);
+        removeOnHeap(index);
         try {
             index.close();
         } catch (IOException e) {
             LOGGER.error("Failed to close flushed vector graph index", e);
-        }
-
-        if (firstVersionstamp == null || latestVersionstamp == null) {
-            LOGGER.warn("Skipping mutation log truncation for on-heap VectorGraphIndex {}: " +
-                    "no versionstamp range recorded, advanceVersionstamp was never called", index.getId());
-            return;
-        }
-        // TODO: Known gap: [first, latest] is a rough range, not the exact set of versionstamps this graph holds.
-        //  A write always goes to the last on-heap graph. A late post-commit hook can put an older
-        //  versionstamp into the new graph, inside this range. The clear below then drops its mutation
-        //  log entry while its node is still only on heap. After a crash, recovery skips it.
-        truncateMutationLog(firstVersionstamp, latestVersionstamp);
-    }
-
-    /**
-     * Flushes all unflushed, non-empty on-heap indexes to disk under the given data directory.
-     * <p>
-     * Flush is not a thread-safe method.
-     */
-    public void flush(Path bucketDataDir) {
-        for (OnHeapVectorGraphIndex index : onHeapIndexes) {
-            if (index.isFlushed() || index.size() == 0) continue;
-            flushSingle(bucketDataDir, index);
         }
     }
 
@@ -468,23 +581,33 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Closes all indexes in both lists.
+     * Closes all on-heap and on-disk indexes.
      */
     public void closeAll() {
         IOException firstException = null;
 
-        for (SearchableVectorIndex index : allIndexes()) {
-            try {
-                index.close();
-            } catch (IOException e) {
-                if (firstException == null) firstException = e;
-                else firstException.addSuppressed(e);
+        for (List<OnHeapVectorGraphIndex> list : onHeapIndexes.values()) {
+            for (OnHeapVectorGraphIndex index : list) {
+                firstException = close(index, firstException);
             }
+        }
+        for (OnDiskVectorGraphIndex index : onDiskIndexes) {
+            firstException = close(index, firstException);
         }
 
         if (firstException != null) {
             throw new UncheckedIOException(firstException);
         }
+    }
+
+    private IOException close(SearchableVectorIndex index, IOException firstException) {
+        try {
+            index.close();
+        } catch (IOException e) {
+            if (firstException == null) return e;
+            firstException.addSuppressed(e);
+        }
+        return firstException;
     }
 
     private record MarkedNode(OnDiskVectorGraphIndex index, int ordinal) {

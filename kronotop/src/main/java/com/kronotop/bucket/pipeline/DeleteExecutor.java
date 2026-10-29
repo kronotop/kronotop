@@ -70,6 +70,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
 
             List<ObjectId> deletedIds = new ArrayList<>();
             List<Versionstamp> versionstamps = new ArrayList<>();
+            List<Integer> shardIds = new ArrayList<>();
             for (Map.Entry<Integer, List<DocumentRef>> item : byShardId.entrySet()) {
                 int shardId = item.getKey();
 
@@ -84,6 +85,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
                     entries[i] = new VersionstampedEntry(versionstamp, docRef.entryMetadata());
                     deletedIds.add(docRef.objectId());
                     versionstamps.add(versionstamp);
+                    shardIds.add(shardId);
                 }
 
                 if (shard != null) {
@@ -128,25 +130,33 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
             // Drop vector index entries for all deleted documents
             for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
                 List<DeletedVector> deletedVectors = new ArrayList<>();
-                for (ObjectId objectId : deletedIds) {
+                for (int i = 0; i < deletedIds.size(); i++) {
+                    ObjectId objectId = deletedIds.get(i);
                     VectorIndexMaintainer.dropEntry(tr, objectId.toByteArray(), vectorIndex, ctx.metadata());
                     int userVersion = ctx.getAndIncrementUserVersion();
+                    byte[] generationId = ctx.env().bucketService().takeVectorIndexGenerationId(
+                            ctx.metadata(), vectorIndex.definition().id());
                     VectorIndexMaintainer.appendDeleteMutation(
                             tr,
                             vectorIndex.subspace(),
+                            generationId,
+                            shardIds.get(i),
                             objectId.toByteArray(),
                             userVersion
                     );
-                    deletedVectors.add(new DeletedVector(objectId, userVersion));
+                    deletedVectors.add(new DeletedVector(objectId, generationId, userVersion));
                 }
-                // Schedule on-heap graph node deletion after commit
-                TransactionUtil.addPostCommitHook(new VectorNodeDeleteHook(
-                        ctx.env().bucketService(),
-                        ctx.metadata(),
-                        vectorIndex.definition().id(),
-                        deletedVectors,
-                        tr.getVersionstamp()
-                ), ctx.getSession());
+                // Schedule on-heap graph node deletion after commit. Skip when nothing was deleted:
+                // a read-only transaction has no versionstamp and the hook would fail.
+                if (!deletedVectors.isEmpty()) {
+                    TransactionUtil.addPostCommitHook(new VectorNodeDeleteHook(
+                            ctx.env().bucketService(),
+                            ctx.metadata(),
+                            vectorIndex.definition().id(),
+                            deletedVectors,
+                            tr.getVersionstamp()
+                    ), ctx.getSession());
+                }
             }
 
             for (int i = 0; i < deletedIds.size(); i++) {

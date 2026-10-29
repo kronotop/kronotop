@@ -45,6 +45,12 @@ import static com.kronotop.bucket.BucketMetadataUtil.POSITIVE_DELTA_ONE;
 public class VectorIndexUtil {
 
     /**
+     * Allowed deviation from norm 1.0 for DOT_PRODUCT vectors. Measured float32 rounding in normalized
+     * embeddings stays below 2e-6 up to 4096 dimensions.
+     */
+    private static final double UNIT_LENGTH_TOLERANCE = 1e-5;
+
+    /**
      * Creates a vector index directory and persists its definition.
      *
      * @param tr                     transaction for database operations
@@ -189,10 +195,6 @@ public class VectorIndexUtil {
         TaskStorage.triggerWatchers(tx.tr(), taskSubspace);
     }
 
-    /**
-     * Validates that a value conforms to a vector index definition: must be a BsonArray of BsonDouble
-     * with the correct number of dimensions. Null or missing values are allowed (vector field is optional).
-     */
     public static void validateVectorField(VectorIndexDefinition definition, BsonValue value) {
         if (value == null || value.isNull()) {
             return;
@@ -204,9 +206,29 @@ public class VectorIndexUtil {
         if (array.size() != definition.dimensions()) {
             throw VectorFieldValidationException.wrongDimensions(definition.selector(), definition.dimensions(), array.size());
         }
-        for (BsonValue element : array) {
+        double squaredNorm = 0.0;
+        for (int i = 0; i < array.size(); i++) {
+            BsonValue element = array.get(i);
             if (element.getBsonType() != BsonType.DOUBLE) {
                 throw VectorFieldValidationException.elementsNotDouble(definition.selector());
+            }
+            float f = (float) element.asDouble().getValue();
+            if (Float.isNaN(f) || Float.isInfinite(f)) {
+                throw VectorFieldValidationException.componentNotFinite(definition.selector(), i);
+            }
+            squaredNorm += (double) f * f;
+        }
+        switch (definition.distance()) {
+            case COSINE -> {
+                if (squaredNorm == 0.0) {
+                    throw VectorFieldValidationException.zeroVector(definition.selector());
+                }
+            }
+            case DOT_PRODUCT -> {
+                double norm = Math.sqrt(squaredNorm);
+                if (Math.abs(norm - 1.0) > UNIT_LENGTH_TOLERANCE) {
+                    throw VectorFieldValidationException.notUnitLength(definition.selector(), norm);
+                }
             }
         }
     }

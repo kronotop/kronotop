@@ -21,6 +21,8 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import org.bson.types.ObjectId;
 
+import java.util.concurrent.locks.Lock;
+
 /**
  * Adds vector nodes to the on-heap vector graph index of a bucket.
  */
@@ -36,49 +38,64 @@ public final class VectorNodeWriter extends BaseVectorNode {
     }
 
     /**
-     * Adds the vector as a node to the active on-heap graph. If the same object has a newer delete or a
-     * newer node in any graph, the node is not added or is marked as deleted. When the graph grows past
-     * the flush threshold, a new on-heap graph replaces it and the old one is flushed to disk in the background.
-     *
-     * @param cv    the vector and document metadata to add
-     * @param addVs the versionstamp of the add operation
+     * Returns true when an on-heap graph of any generation already holds this object with the same or a
+     * newer versionstamp.
      */
+    private boolean newerNodeExistsOnHeap(VectorGraphIndexGroup group, ObjectId objectId, Versionstamp addVs) {
+        boolean[] found = {false};
+        group.forEachOnHeap(onHeap -> {
+            GraphNodeRef ref = onHeap.getMetadata().findNodeRef(objectId);
+            if (ref != null && ref.versionstamp().compareTo(addVs) >= 0) {
+                found[0] = true;
+            }
+        });
+        return found[0];
+    }
+
     public void write(CollectedVector cv, Versionstamp addVs) {
         VectorGraphIndexGroup group = awaitReadyGroup(cv.definition().id());
+        Lock lock = group.lockFor(cv.objectId());
+        lock.lock();
+        try {
+            // Pre-check: skip the expensive graph add if a newer DELETE tombstone already exists.
+            if (consumeNewerDeleteTombstone(group, cv.objectId(), addVs)) {
+                return;
+            }
 
-        // Pre-check: skip the expensive graph add if a newer DELETE tombstone already exists.
-        if (consumeNewerDeleteTombstone(group, cv.objectId(), addVs)) {
-            return;
-        }
+            // Pre-check: a late add must not revive an object that a newer add already placed in the
+            // on-heap graph of another generation.
+            if (newerNodeExistsOnHeap(group, cv.objectId(), addVs)) {
+                return;
+            }
 
-        OnHeapVectorGraphIndex graph = group.getOrCreateOnHeap(
-                cv.definition().dimensions(),
-                OnHeapVectorGraphIndex.toSimilarityFunction(cv.definition().distance()),
-                service.getPqTrainingThreshold(),
-                service.getPqSubspaceDivisor()
-        );
-        graph.addGraphNode(cv.objectId(), addVs, cv.shardId(), cv.metadata(), cv.vector(), service.getVectorGraphExecutor()).join();
-
-        // Post-check: catch tombstones set by a concurrent DELETE during addGraphNode.
-        Versionstamp deleteVs = group.removeDeleteTombstone(cv.objectId());
-        if (deleteVs != null && deleteVs.compareTo(addVs) > 0) {
-            graph.markNodeDeleted(cv.objectId(), deleteVs);
-            return;
-        }
-
-        graph.advanceVersionstamp(addVs);
-
-        if (graph.ramBytesUsed() > service.getVectorFlushThresholdBytes()) {
-            OnHeapVectorGraphIndex previous = group.rotateOnHeap(
-                    graph,
+            OnHeapVectorGraphIndex graph = group.getOrCreateOnHeap(
+                    cv.generationId(),
                     cv.definition().dimensions(),
                     OnHeapVectorGraphIndex.toSimilarityFunction(cv.definition().distance()),
                     service.getPqTrainingThreshold(),
                     service.getPqSubspaceDivisor()
             );
-            if (previous != null && !previous.isFlushed() && previous.size() > 0) {
-                service.getVectorGraphExecutor().submit(() -> group.flushSingle(service.getBucketDataDir(), previous));
+            graph.addGraphNode(cv.objectId(), addVs, cv.shardId(), cv.metadata(), cv.vector(), service.getVectorGraphExecutor()).join();
+
+            // An older add of the same object may sit in the on-heap graph of another generation.
+            group.forEachOnHeap(onHeap -> {
+                if (onHeap != graph) {
+                    onHeap.markNodeDeleted(cv.objectId(), addVs);
+                }
+            });
+
+            if (graph.ramBytesUsed() > service.getVectorFlushThresholdBytes()) {
+                group.rotateOnHeap(
+                        cv.generationId(),
+                        graph,
+                        cv.definition().dimensions(),
+                        OnHeapVectorGraphIndex.toSimilarityFunction(cv.definition().distance()),
+                        service.getPqTrainingThreshold(),
+                        service.getPqSubspaceDivisor()
+                );
             }
+        } finally {
+            lock.unlock();
         }
     }
 }

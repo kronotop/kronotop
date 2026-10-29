@@ -19,6 +19,7 @@ package com.kronotop.bucket.index;
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.MutationType;
+import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
@@ -201,43 +202,56 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
 
     /**
      * Appends an insert or update mutation to the mutation log for crash recovery.
-     * The log key is versionstamped to preserve mutation ordering.
+     * The log key is {@code (MUTATION_LOG, generationId, versionstamp)}; the versionstamp preserves mutation ordering.
      */
     public static void appendMutation(
             Transaction tr,
             DirectorySubspace indexSubspace,
+            byte[] generationId,
             MutationLogKind kind,
+            int shardId,
             byte[] objectId,
             byte[] encodedIndexEntry,
             float[] vector,
             int userVersion
     ) {
-        Tuple tuple = Tuple.from(
-                IndexSubspaceMagic.MUTATION_LOG.getValue(),
-                Versionstamp.incomplete(userVersion)
-        );
-        byte[] key = indexSubspace.packWithVersionstamp(tuple);
-        byte[] value = MutationLogValue.encode(kind, objectId, encodedIndexEntry, vector);
+        byte[] key = mutationLogKey(indexSubspace, generationId, userVersion);
+        byte[] value = MutationLogValue.encode(kind, shardId, objectId, encodedIndexEntry, vector);
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value);
     }
 
     /**
      * Appends a delete mutation to the mutation log for crash recovery.
-     * The log key is versionstamped to preserve mutation ordering.
+     * The log key is {@code (MUTATION_LOG, generationId, versionstamp)}; the versionstamp preserves mutation ordering.
      */
     public static void appendDeleteMutation(
             Transaction tr,
             DirectorySubspace indexSubspace,
+            byte[] generationId,
+            int shardId,
             byte[] objectId,
             int userVersion
     ) {
+        byte[] key = mutationLogKey(indexSubspace, generationId, userVersion);
+        byte[] value = MutationLogValue.encode(MutationLogKind.DELETE, shardId, objectId);
+        tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value);
+    }
+
+    /**
+     * Removes every mutation log entry of the given generation.
+     */
+    public static void truncateMutationLog(Transaction tr, DirectorySubspace indexSubspace, byte[] generationId) {
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue(), generationId));
+        tr.clear(Range.startsWith(prefix));
+    }
+
+    private static byte[] mutationLogKey(DirectorySubspace indexSubspace, byte[] generationId, int userVersion) {
         Tuple tuple = Tuple.from(
                 IndexSubspaceMagic.MUTATION_LOG.getValue(),
+                generationId,
                 Versionstamp.incomplete(userVersion)
         );
-        byte[] key = indexSubspace.packWithVersionstamp(tuple);
-        byte[] value = MutationLogValue.encode(MutationLogKind.DELETE, objectId);
-        tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value);
+        return indexSubspace.packWithVersionstamp(tuple);
     }
 
     /**

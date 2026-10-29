@@ -18,7 +18,6 @@ package com.kronotop.bucket.vector;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.index.VectorIndexMaintainer;
@@ -43,8 +42,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Disk-backed vector graph index that loads a flushed jvector graph and its metadata for search.
- * Thread-safe: each search call creates independent readers.
+ * Read-only vector graph index loaded from a flushed file set. Searches are thread safe because
+ * each one opens its own readers. Deleted ordinals are stored in FoundationDB and mirrored in memory.
  */
 public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
 
@@ -89,8 +88,8 @@ public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
     }
 
     /**
-     * Creates a GraphSearcher and SearchScoreProvider for resumable searching.
-     * Uses PQ two-pass scoring when available, falling back to exact scoring.
+     * Opens a search handle for the query vector. The caller must close it. If PQ vectors exist,
+     * candidates are scored with PQ and reranked with exact scores. Otherwise all scores are exact.
      */
     public SearchHandle openSearchHandle(float[] queryVector) {
         VectorFloat<?> query = vts.createFloatVector(queryVector);
@@ -108,9 +107,9 @@ public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
     }
 
     /**
-     * Searches the on-disk graph for the top-K nearest neighbors with a minimum similarity threshold,
-     * restricted to the given accepted ordinals. Collects rerankK candidates before reranking to topK.
-     * Uses PQ two-pass scoring when available, falling back to exact scoring.
+     * Returns the topK nearest neighbors above the similarity threshold among the accepted ordinals,
+     * skipping deleted ones. Visits rerankK candidates, then reranks them to topK. Scoring follows
+     * the same PQ or exact rule as {@link #openSearchHandle}.
      */
     public SearchResult search(float[] queryVector, int topK, int rerankK, float threshold, Bits acceptOrds) {
         VectorFloat<?> query = vts.createFloatVector(queryVector);
@@ -128,10 +127,6 @@ public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
         } catch (Exception e) {
             throw new KronotopException(e);
         }
-    }
-
-    public Versionstamp getLatestVersionstamp() {
-        return metadata.getLatestVersionstamp();
     }
 
     public VectorGraphIndexMetadata getMetadata() {

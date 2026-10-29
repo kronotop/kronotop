@@ -112,7 +112,8 @@ class InfoHandlerBucketTest extends BaseBucketHandlerTest {
     @Test
     void shouldCountVectorIndexes() {
         // Behavior: a bucket with a vector index and one inserted document opens an on-heap
-        // graph index, so vector_indexes is at least one
+        // graph index, so vector_indexes is at least one; the on-disk, flush queue and flush
+        // failure fields are present and non-negative
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         cmd.create(TEST_BUCKET, BucketCreateArgs.Builder.indexes(
@@ -140,5 +141,8 @@ class InfoHandlerBucketTest extends BaseBucketHandlerTest {
         String info = runInfo("vector");
         assertTrue(Integer.parseInt(Objects.requireNonNull(fieldValue(info, "vector_indexes"))) >= 1);
         assertTrue(Long.parseLong(Objects.requireNonNull(fieldValue(info, "vector_bytes_used"))) >= 0);
+        assertTrue(Integer.parseInt(Objects.requireNonNull(fieldValue(info, "vector_on_disk_indexes"))) >= 0);
+        assertTrue(Integer.parseInt(Objects.requireNonNull(fieldValue(info, "vector_flush_queue_size"))) >= 0);
+        assertTrue(Long.parseLong(Objects.requireNonNull(fieldValue(info, "vector_flush_failures"))) >= 0);
     }
 }

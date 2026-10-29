@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -186,68 +185,5 @@ class OnHeapVectorGraphIndexMetadataTest {
         byte[] trVersion = new byte[10];
         trVersion[0] = (byte) highByte;
         return Versionstamp.complete(trVersion, userVersion);
-    }
-
-    @Test
-    void shouldTrackLatestVersionstamp() {
-        // Behavior: advanceVersionstamp updates the latest versionstamp when called with increasing values.
-        assertNull(metadata.getLatestVersionstamp());
-
-        Versionstamp v1 = makeVersionstamp(1, 0);
-        Versionstamp v2 = makeVersionstamp(2, 0);
-        Versionstamp v3 = makeVersionstamp(3, 0);
-
-        metadata.advanceVersionstamp(v1);
-        assertEquals(v1, metadata.getLatestVersionstamp());
-
-        metadata.advanceVersionstamp(v2);
-        assertEquals(v2, metadata.getLatestVersionstamp());
-
-        metadata.advanceVersionstamp(v3);
-        assertEquals(v3, metadata.getLatestVersionstamp());
-    }
-
-    @Test
-    void shouldNotRegressVersionstamp() {
-        // Behavior: advanceVersionstamp ignores a versionstamp that is older than the current one.
-        Versionstamp newer = makeVersionstamp(5, 0);
-        Versionstamp older = makeVersionstamp(2, 0);
-
-        metadata.advanceVersionstamp(newer);
-        metadata.advanceVersionstamp(older);
-
-        assertEquals(newer, metadata.getLatestVersionstamp());
-    }
-
-    @Test
-    void shouldHandleConcurrentAdvances() throws InterruptedException {
-        // Behavior: Under concurrent updates, the final versionstamp is always the maximum across all threads.
-        int threadCount = 16;
-        Versionstamp[] stamps = new Versionstamp[threadCount];
-        for (int i = 0; i < threadCount; i++) {
-            stamps[i] = makeVersionstamp(i + 1, 0);
-        }
-        Versionstamp expected = stamps[threadCount - 1];
-
-        CountDownLatch startLatch = new CountDownLatch(1);
-        Thread[] threads = new Thread[threadCount];
-        for (int i = 0; i < threadCount; i++) {
-            int idx = i;
-            threads[i] = Thread.ofVirtual().start(() -> {
-                try {
-                    startLatch.await();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-                metadata.advanceVersionstamp(stamps[idx]);
-            });
-        }
-
-        startLatch.countDown();
-        for (Thread t : threads) {
-            t.join();
-        }
-
-        assertEquals(expected, metadata.getLatestVersionstamp());
     }
 }

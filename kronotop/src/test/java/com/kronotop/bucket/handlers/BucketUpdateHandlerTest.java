@@ -2615,6 +2615,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
             MutationLogValue decoded = MutationLogValue.decode(mutationLogEntries.getFirst().getValue());
             assertEquals(MutationLogKind.INSERT, decoded.kind());
+            assertEquals(decoded.vectorPayload().indexEntry().shardId(), decoded.shardId());
             assertEquals(3, decoded.vectorPayload().vector().length);
             assertEquals(0.1f, decoded.vectorPayload().vector()[0], 0.001f);
         }
