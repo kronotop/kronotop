@@ -66,7 +66,7 @@ public class VectorGraphIndexGroup {
     private volatile CompletableFuture<Void> bootstrapFuture;
 
     /**
-     * Creates an immediately ready group (fast-path) with no pending bootstrap work.
+     * Creates a group that is ready at once. Used when there is no data to recover.
      */
     public VectorGraphIndexGroup(Context context, BucketMetadata metadata, VectorIndex vectorIndex) {
         this.context = context;
@@ -76,9 +76,9 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Creates a group that requires background bootstrap before it becomes ready (slow-path).
+     * Creates a group that becomes ready after a background bootstrap.
      *
-     * @param bootstrapFuture the future that will be completed when bootstrap finishes or fails
+     * @param bootstrapFuture completes when bootstrap finishes or fails
      */
     public VectorGraphIndexGroup(
             Context context,
@@ -109,11 +109,11 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Opens previously flushed on-disk indexes from the given directory. Only loads file sets
-     * that have a {@code .complete} sentinel, indicating the flush finished successfully.
-     * Orphaned files without a sentinel are deleted.
+     * Opens the flushed on-disk indexes in the given directory. A file set is loaded only if its
+     * {@code .complete} marker exists, which means the flush finished. Files without a marker
+     * are deleted.
      *
-     * @return opened indexes, or an empty list if the directory doesn't exist or contains no valid index sets
+     * @return the opened indexes, or an empty list if the directory does not exist or holds no complete file set
      */
     public static List<OnDiskVectorGraphIndex> openOnDiskIndexes(
             Context context,
@@ -215,7 +215,7 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Signals that background bootstrap completed successfully, transitioning the group to the ready state.
+     * Marks bootstrap as finished. The group becomes ready.
      */
     public void markReady() {
         CompletableFuture<Void> future = bootstrapFuture;
@@ -225,7 +225,7 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Signals that background bootstrap failed. The group remains permanently not-ready.
+     * Marks bootstrap as failed. The group never becomes ready.
      */
     public void markFailed(Throwable cause) {
         CompletableFuture<Void> future = bootstrapFuture;
@@ -235,7 +235,7 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Returns {@code true} if the group is fully initialized and available for reads and writes.
+     * Returns {@code true} if bootstrap finished without error, or if the group needed no bootstrap.
      */
     public boolean isReady() {
         CompletableFuture<Void> future = bootstrapFuture;
@@ -446,7 +446,7 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Returns {@code true} if the group contains no indexes of either type.
+     * Returns {@code true} if the group has no on-heap and no on-disk indexes.
      */
     public boolean isEmpty() {
         return onHeapIndexes.isEmpty() && onDiskIndexes.isEmpty();
@@ -461,7 +461,7 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Creates a resumable search session across all active indexes for the given query vector.
+     * Opens a search session over every searchable index of the group for the given query vector.
      */
     public VectorSearchSession createSearchSession(float[] queryVector) {
         List<SearchHandle> handles = new ArrayList<>();
@@ -482,7 +482,7 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Searches all on-heap and on-disk indexes and merges results into a single top-K list using a min-heap.
+     * Searches every on-heap and on-disk index and returns the merged top-K result.
      */
     public List<MergedNodeScore> searchAll(float[] queryVector, int topK, float threshold, float overquery) {
         if (isEmpty()) {

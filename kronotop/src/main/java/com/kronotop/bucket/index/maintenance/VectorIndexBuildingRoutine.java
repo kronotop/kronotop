@@ -39,11 +39,15 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Builds vector graph indexes on existing bucket data in the background.
+ * Builds a vector index on the existing documents of one bucket shard in the background.
  *
- * <p>Delegates graph construction to {@link VectorGraphIndexGroup}, flushing to disk
- * incrementally when the on-heap graph exceeds the configured RAM threshold. This keeps
- * memory usage bounded regardless of dataset size.
+ * <p>Each batch writes the index entries to FoundationDB and adds the vectors to the on-heap
+ * graph of the current generation in the {@link VectorGraphIndexGroup}. When the on-heap graph
+ * grows past the flush threshold, the routine rotates to a fresh graph. Full graphs are flushed
+ * to disk separately, so memory stays bounded for any dataset size.
+ *
+ * <p>Documents without the vector field or with a wrong dimension count are skipped. Documents
+ * already indexed by online writers are skipped too, so no entry or graph node is created twice.
  *
  * @see AbstractBuildingRoutine
  * @see VectorIndexMaintainer

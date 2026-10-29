@@ -49,8 +49,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * In-memory vector graph index backed by JVector's GraphIndexBuilder for approximate nearest neighbor search.
- * Each instance corresponds to a single vector index within a bucket.
+ * In-memory vector graph index for approximate nearest neighbor search, built with JVector.
+ * A vector index has many instances over time. {@link VectorGraphIndexGroup} holds them and
+ * flushes full ones to disk.
  */
 public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
 
@@ -214,12 +215,11 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     }
 
     /**
-     * Creates a GraphSearcher and SearchScoreProvider for resumable searching.
-     * The caller is responsible for closing the returned SearchHandle.
+     * Opens a search handle for the query vector. The caller must close it.
      *
-     * <p>The SearchHandle intentionally escapes the read lock. This is safe because JVector's
-     * {@code ConcurrentGraphIndexView} (obtained via {@code getView()}) holds a consistency point:
-     * open Views prevent {@code removeDeletedNodes()} from physically removing marked-deleted nodes.
+     * <p>The handle outlives the read lock on purpose. JVector's {@code ConcurrentGraphIndexView}
+     * holds a consistency point, so an open view keeps {@code removeDeletedNodes()} from removing
+     * marked-deleted nodes.
      */
     public SearchHandle openSearchHandle(float[] queryVector) {
         rwLock.readLock().lock();
@@ -320,7 +320,8 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     }
 
     /**
-     * Removes deleted nodes, writes the graph and metadata to disk.
+     * Removes deleted nodes, then writes the graph, the metadata and the PQ vectors to disk and
+     * creates the {@code .complete} marker. Returns null if the graph is empty.
      */
     public Path flush(Path path) throws IOException {
         rwLock.writeLock().lock();

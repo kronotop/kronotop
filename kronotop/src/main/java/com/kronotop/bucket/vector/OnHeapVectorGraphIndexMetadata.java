@@ -28,6 +28,11 @@ import java.util.Map;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.Consumer;
 
+/**
+ * Node metadata of an on-heap vector graph index. Maps each object to its node and each node to
+ * its document location. Add and delete races are settled by versionstamp. Ordinals of losing
+ * nodes wait in a pending set until the next flush removes them from the graph.
+ */
 public class OnHeapVectorGraphIndexMetadata implements VectorGraphIndexMetadata {
     private final StampedLock lock = new StampedLock();
     private final HashSet<Integer> pendingDeletes = new HashSet<>();
@@ -35,9 +40,9 @@ public class OnHeapVectorGraphIndexMetadata implements VectorGraphIndexMetadata 
     private final Map<Integer, DocumentLocation> ordinals = new HashMap<>();
 
     /**
-     * Binds the object to the node with the given ordinal and add versionstamp. The node with the older
-     * versionstamp loses: its location is dropped and its ordinal is queued for deletion. Returns the
-     * ordinal of the stale node, or -1 when the object had no node before.
+     * Maps the object to the node with the given ordinal and versionstamp. If the object already has
+     * a node, the one with the older versionstamp loses: its location is dropped and its ordinal is
+     * queued for deletion. Returns the ordinal of the losing node, or -1 when the object had no node.
      */
     public int put(ObjectId objectId, int ordinal, Versionstamp versionstamp, int shardId, EntryMetadata metadata) {
         long stamp = lock.writeLock();
@@ -115,8 +120,8 @@ public class OnHeapVectorGraphIndexMetadata implements VectorGraphIndexMetadata 
     }
 
     /**
-     * Returns true when at least one live ordinal mapping exists. Deleted nodes are removed
-     * from the mappings at delete time, so this reflects graph liveness.
+     * Returns true if at least one node is still mapped. A delete removes the mapping at once,
+     * so the result tells whether the graph has live nodes.
      */
     public boolean hasLiveMappings() {
         long stamp = lock.tryOptimisticRead();

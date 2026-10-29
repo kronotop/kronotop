@@ -79,6 +79,13 @@ public class OnDiskVectorGraphIndexMetadataWriter {
         }
     }
 
+    /**
+     * Writes the metadata to the given path. {@code ordinalMap} translates on-heap ordinals to the
+     * sequential on-disk ordinals. The data goes to a temporary file first and is moved into place
+     * with an atomic rename, so a crash never leaves a partial file at {@code path}.
+     *
+     * @throws IllegalStateException if an on-disk ordinal has no document location
+     */
     public static void write(Path path, OnHeapVectorGraphIndexMetadata metadata, Map<Integer, Integer> ordinalMap) throws IOException {
         Map<ObjectId, GraphNodeRef> objectIds = metadata.getObjectIds();
         Map<Integer, DocumentLocation> ordinals = metadata.getOrdinals();

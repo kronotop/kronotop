@@ -33,6 +33,12 @@ import java.util.Arrays;
 
 import static com.kronotop.bucket.vector.OnDiskVectorGraphIndexMetadataWriter.*;
 
+/**
+ * Read-only view of a {@code .vmeta} file. The file is memory mapped and stays mapped until
+ * {@link #close()}. An ordinal lookup reads one fixed-size slot. An ObjectId lookup is a binary
+ * search over the sorted ObjectId section. The file layout is documented in
+ * {@link OnDiskVectorGraphIndexMetadataWriter}.
+ */
 public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata, Closeable {
     private static final int OBJECTID_SIZE = 12;
     private static final int VERSIONSTAMP_SIZE = 12;
