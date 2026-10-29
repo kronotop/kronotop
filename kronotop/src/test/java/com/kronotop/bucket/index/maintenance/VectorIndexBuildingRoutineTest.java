@@ -346,8 +346,9 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldProduceSearchableOnDiskGraph() {
-        // Behavior: After background building completes, the on-disk graph is registered
-        // in the VectorGraphIndexGroup and is searchable.
+        // Behavior: Background building fills an on-heap graph. Flushing that graph, as the flush
+        // maintainer does, moves it to disk: the on-heap list empties, an on-disk index is registered
+        // and the documents stay searchable.
         insertDocumentWithVector(0.1, 0.2, 0.3);
         insertDocumentWithVector(0.4, 0.5, 0.6);
         insertDocumentWithVector(0.7, 0.8, 0.9);
@@ -361,12 +362,18 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             return index != null && index.definition().status() == IndexStatus.READY;
         });
 
-        // Verify on-disk index is registered and searchable
         BucketService bucketService = context.getService(BucketService.NAME);
         VectorGraphIndexRegistry registry = bucketService.getVectorGraphRegistry();
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
         VectorGraphIndexGroup group = registry.get(metadata.namespace(), metadata.name(), definition.id());
         assertNotNull(group, "VectorGraphIndexGroup should be registered");
+
+        // Flush every on-heap graph to disk, the same call the flush maintainer makes.
+        group.forEachOnHeap(onHeap -> group.flush(bucketService.getBucketDataDir(), onHeap));
+
+        AtomicInteger onHeapLeft = new AtomicInteger();
+        group.forEachOnHeap(ignored -> onHeapLeft.incrementAndGet());
+        assertEquals(0, onHeapLeft.get(), "No on-heap graph should remain after flush");
         assertFalse(group.getOnDiskIndexes().isEmpty(), "On-disk indexes should exist");
 
         // Search for nearest neighbors
