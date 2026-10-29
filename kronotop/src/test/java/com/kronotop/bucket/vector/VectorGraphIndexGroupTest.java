@@ -255,6 +255,36 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    void shouldRetryPendingOnDiskDelete(@TempDir Path tempDir) throws IOException {
+        // Behavior: retryPendingOnDiskDeletes re-applies a failed on-disk delete and marks the ordinal deleted
+        // on disk and in memory.
+        ObjectId objectId = new ObjectId();
+        OnHeapVectorGraphIndex heapIndex = newIndex();
+        heapIndex.addGraphNode(objectId, versionstamp(1), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), versionstamp(2), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+
+        OnDiskVectorGraphIndex diskIndex = flushToOnDisk(tempDir, heapIndex, "graph-a");
+        group.addOnDisk(diskIndex);
+        int ordinal = diskIndex.getMetadata().findNodeRef(objectId).ordinal();
+        Path indexFile = Files.list(tempDir.resolve("graph-a"))
+                .filter(p -> p.toString().endsWith(".index"))
+                .findFirst()
+                .orElseThrow();
+
+        group.putPendingOnDiskDelete(objectId, versionstamp(5));
+        assertFalse(diskIndex.isNodeDeleted(ordinal));
+
+        group.retryPendingOnDiskDeletes();
+
+        assertTrue(diskIndex.isNodeDeleted(ordinal));
+        try (OnDiskVectorGraphIndex reloaded = new OnDiskVectorGraphIndex(
+                vectorIndex.subspace(), indexFile, VectorSimilarityFunction.COSINE)) {
+            reloaded.loadDeletedOrdinals(context);
+            assertTrue(reloaded.isNodeDeleted(ordinal));
+        }
+    }
+
+    @Test
     void shouldMergeOnHeapAndOnDiskResults(@TempDir Path tempDir) throws IOException {
         // Behavior: searchAll merges results from both on-heap and on-disk indexes into a single top-K list.
         OnHeapVectorGraphIndex heapForDisk = newIndex();

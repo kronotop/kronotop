@@ -394,11 +394,19 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         executor.submit(bucketEventsWatcher);
         Runnable evictionWorker = context.getBucketMetadataCache().createEvictionWorker(context::now, 1000 * 5 * 60);
         scheduler.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
+        scheduler.scheduleWithFixedDelay(
+                () -> vectorGraphRegistry.forEachGroup(VectorGraphIndexGroup::retryPendingOnDiskDeletes),
+                5, 5, TimeUnit.SECONDS
+        );
         vectorFlushMaintainer.start();
     }
 
     @Override
     public void shutdown() {
+        // The shutdown order matters. Every executor that can touch the vector graph indexes
+        // (scheduler with the pending on-disk delete retry, vectorGraphExecutor) must stop before
+        // the flush maintainer enters drain mode. The flush maintainer must be the last one to stop,
+        // so the final flush sees no concurrent mutations.
         try {
             bucketEventsWatcher.shutdown();
 

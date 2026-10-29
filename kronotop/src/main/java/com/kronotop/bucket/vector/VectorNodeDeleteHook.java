@@ -53,12 +53,7 @@ public final class VectorNodeDeleteHook extends BaseVectorNode implements Commit
         byte[] trVersion = trVersionFuture.join();
         VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndexId);
         for (DeletedVector dv : deletedVectors) {
-            try {
-                remover.remove(dv, trVersion);
-            } catch (Exception e) {
-                LOGGER.warn("Failed to delete vector node from graph indexes for objectId={}, "
-                        + "delete will be recovered from mutation log on next restart", dv.objectId(), e);
-            }
+            remover.remove(dv, trVersion);
         }
     }
 }

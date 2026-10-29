@@ -19,11 +19,11 @@ package com.kronotop.bucket.vector;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.google.common.util.concurrent.Striped;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.VectorIndex;
-import com.google.common.util.concurrent.Striped;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
@@ -56,6 +56,7 @@ public class VectorGraphIndexGroup {
     private final ConcurrentSkipListMap<ObjectId, List<OnHeapVectorGraphIndex>> onHeapIndexes = new ConcurrentSkipListMap<>();
     private final List<OnDiskVectorGraphIndex> onDiskIndexes = new CopyOnWriteArrayList<>();
     private final ConcurrentHashMap<ObjectId, Versionstamp> deleteTombstones = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<ObjectId, Versionstamp> pendingOnDiskDeletes = new ConcurrentHashMap<>();
     private final Striped<Lock> objectIdLocks = Striped.lock(2048);
 
     private final Context context;
@@ -421,11 +422,32 @@ public class VectorGraphIndexGroup {
             if (!marked.isEmpty()) {
                 tr.commit().join();
             }
+        } catch (Exception e) {
+            putPendingOnDiskDelete(objectId, deleteVs);
+            return found;
         }
         for (MarkedNode node : marked) {
             node.index().markNodeDeletedInMemory(node.ordinal());
         }
+        pendingOnDiskDeletes.remove(objectId, deleteVs);
         return found;
+    }
+
+    public void retryPendingOnDiskDeletes() {
+        for (Map.Entry<ObjectId, Versionstamp> entry : pendingOnDiskDeletes.entrySet()) {
+            Lock lock = lockFor(entry.getKey());
+            lock.lock();
+            try {
+                markNodeDeletedOnDisk(entry.getKey(), entry.getValue());
+            } finally {
+                lock.unlock();
+            }
+        }
+    }
+
+    void putPendingOnDiskDelete(ObjectId objectId, Versionstamp versionstamp) {
+        pendingOnDiskDeletes.merge(objectId, versionstamp, (existing, incoming) ->
+                incoming.compareTo(existing) >= 0 ? incoming : existing);
     }
 
     public boolean hasNodeOnDisk(ObjectId objectId, Versionstamp versionstamp) {
