@@ -385,6 +385,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         }
     }
 
+    private void retryPendingOnDiskDeletesForAllGroups() {
+        vectorGraphRegistry.forEachGroup(VectorGraphIndexGroup::retryPendingOnDiskDeletes);
+    }
+
     @Override
     public void start() {
         for (int shardId : context.getShardRegistry().getShardIds(ShardKind.BUCKET)) {
@@ -395,8 +399,8 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         Runnable evictionWorker = context.getBucketMetadataCache().createEvictionWorker(context::now, 1000 * 5 * 60);
         scheduler.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
         scheduler.scheduleWithFixedDelay(
-                () -> vectorGraphRegistry.forEachGroup(VectorGraphIndexGroup::retryPendingOnDiskDeletes),
-                5, 5, TimeUnit.SECONDS
+                this::retryPendingOnDiskDeletesForAllGroups,
+                15, 15, TimeUnit.SECONDS
         );
         vectorFlushMaintainer.start();
     }
@@ -408,6 +412,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         // the flush maintainer enters drain mode. The flush maintainer must be the last one to stop,
         // so the final flush sees no concurrent mutations.
         try {
+            retryPendingOnDiskDeletesForAllGroups();
             bucketEventsWatcher.shutdown();
 
             for (BucketShard shard : getServiceContext().shards().values()) {
