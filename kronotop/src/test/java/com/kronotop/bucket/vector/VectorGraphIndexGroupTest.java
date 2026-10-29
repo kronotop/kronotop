@@ -1016,7 +1016,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldTombstoneStaleAddWhenNewerNodeExists() {
+    void shouldSkipStaleAddWhenNewerNodeExists() {
         // Behavior: An add with an older versionstamp than the node already on heap is skipped, even when
         // its generation differs. The object stays bound to the newer vector, and search returns only the
         // newer vector.
@@ -1214,9 +1214,8 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldNotMarkOnDiskNodeWithSameVersionstampAsDelete(@TempDir Path tempDir) throws IOException {
-        // Behavior: An UPDATE deletes the old node and adds the new node. Both carry the versionstamp of the
-        // UPDATE. A delete with the same versionstamp as the on-disk node reports the node as found but must
-        // not mark it deleted, because the node is not older than the delete.
+        // Behavior: A delete whose versionstamp equals the versionstamp of the on-disk node reports the node
+        // as found but does not mark it deleted. Only a strictly newer delete hides a node.
         OnHeapVectorGraphIndex heapIndex = newIndex();
         ObjectId objectId = new ObjectId();
         heapIndex.addGraphNode(objectId, versionstamp(5), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();

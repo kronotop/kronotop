@@ -160,9 +160,9 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         );
 
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
-        // The node was inserted then deleted — its mapping should be removed from metadata
+        // The node was inserted then deleted, so its mapping should be removed from metadata
         assertNull(recovered.getMetadata().findNodeRef(oid));
-        // Search for a vector identical to TEST_VECTOR_1 — deleted node should not appear in results
+        // Search for a vector identical to TEST_VECTOR_1. The deleted node should not appear in results.
         var result = recovered.search(TEST_VECTOR_1, 1);
         assertEquals(0, result.getNodes().length);
         group.closeAll();
@@ -284,7 +284,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
 
-        // Empty group — no on-disk files
+        // Empty group, no on-disk files
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         VectorIndexCrashRecovery.recover(
                 context, vectorIndex.subspace(), group,

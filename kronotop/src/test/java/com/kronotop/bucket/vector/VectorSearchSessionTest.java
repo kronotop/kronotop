@@ -133,7 +133,7 @@ class VectorSearchSessionTest {
                 List<MergedNodeScore> first = session.search(2, 0.0f, 1.0f);
                 assertFalse(first.isEmpty());
 
-                // Second call should use resume() path — no exception thrown
+                // Second call should use the resume() path without an exception
                 List<MergedNodeScore> second = session.search(2, 0.0f, 1.0f);
                 assertNotNull(second);
             }
@@ -169,8 +169,8 @@ class VectorSearchSessionTest {
     }
 
     @Test
-    void shouldSkipNullMetadataEntries() throws IOException {
-        // Behavior: Nodes whose metadata has been removed (e.g., deleted) are skipped in results.
+    void shouldExcludeDeletedNodeFromResults() throws IOException {
+        // Behavior: A node removed with markNodeDeleted does not appear in the session results.
         try (OnHeapVectorGraphIndex index = new OnHeapVectorGraphIndex(3, VectorSimilarityFunction.COSINE)) {
 
             ObjectId oid1 = new ObjectId();
@@ -179,13 +179,11 @@ class VectorSearchSessionTest {
             index.addGraphNode(oid2, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
             index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
-            // Remove metadata for oid1 (ordinal 0), simulating a delete
             index.markNodeDeleted(oid1, TestUtil.generateVersionstamp(1));
 
             SearchHandle handle = index.openSearchHandle(new float[]{1.0f, 0.0f, 0.0f});
             try (VectorSearchSession session = new VectorSearchSession(List.of(handle))) {
                 List<MergedNodeScore> results = session.search(3, 0.0f, 1.0f);
-                // oid1's node should be absent since its metadata was removed
                 for (MergedNodeScore r : results) {
                     assertNotEquals(oid1, r.location().objectId());
                 }
