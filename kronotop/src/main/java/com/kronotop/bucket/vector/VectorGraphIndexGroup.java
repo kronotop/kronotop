@@ -543,10 +543,16 @@ public class VectorGraphIndexGroup {
         // in between finds the node in no list, stores a tombstone, and the delete is lost.
         if (indexPath != null) {
             try {
-                onDiskIndexes.add(new OnDiskVectorGraphIndex(vectorIndex.subspace(), indexPath, index.getSimilarityFunction()));
+                OnDiskVectorGraphIndex onDisk = new OnDiskVectorGraphIndex(
+                        vectorIndex.subspace(),
+                        indexPath,
+                        index.getSimilarityFunction()
+                );
+                onDiskIndexes.add(onDisk);
             } catch (IOException e) {
                 LOGGER.error("Failed to open flushed vector graph index from {}", indexPath, e);
                 service.getMetrics().incrementVectorFlushFailures();
+                return;
             }
         }
 
