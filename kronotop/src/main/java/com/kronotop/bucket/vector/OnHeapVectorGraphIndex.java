@@ -42,7 +42,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -125,12 +124,6 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
         return lastMutation.get();
     }
 
-    /**
-     * Adds a vector to the graph on the given executor and binds it to the ObjectId with the
-     * versionstamp of the add. If the ObjectId already has a node, only the one with the newer
-     * versionstamp stays alive; the other node is tombstoned in the graph. On failure the vector
-     * is dropped and the future completes exceptionally.
-     */
     public CompletableFuture<Void> addGraphNode(
             ObjectId objectId,
             Versionstamp versionstamp,
@@ -139,12 +132,11 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
             float[] vector,
             ExecutorService executor
     ) {
-        final int[] ordinalHolder = {-1};
         return CompletableFuture.runAsync(() -> {
             rwLock.readLock().lock();
+            int ordinal = -1;
             try {
-                int ordinal = nextOrdinal.getAndIncrement();
-                ordinalHolder[0] = ordinal;
+                ordinal = nextOrdinal.getAndIncrement();
                 VectorFloat<?> vectorFloat = vts.createFloatVector(vector);
 
                 vectors.put(ordinal, vectorFloat);
@@ -166,19 +158,28 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
                 if (!pqTrained && pqTrainingThreshold > 0 && nextOrdinal.get() >= pqTrainingThreshold) {
                     trainPQ();
                 }
+            } catch (RuntimeException | Error e) {
+                discardFailedNode(ordinal);
+                throw e;
             } finally {
                 updateLastMutation();
                 rwLock.readLock().unlock();
             }
-        }, executor).exceptionally((ex) -> {
-            if (ordinalHolder[0] >= 0) {
-                VectorFloat<?> removed = vectors.remove(ordinalHolder[0]);
-                if (removed != null) {
-                    vectorBytesUsed.addAndGet(-removed.ramBytesUsed());
-                }
-            }
-            throw new CompletionException(ex);
-        });
+        }, executor);
+    }
+
+    private void discardFailedNode(int ordinal) {
+        if (ordinal < 0) {
+            return;
+        }
+        VectorFloat<?> removed = vectors.remove(ordinal);
+        if (removed != null) {
+            vectorBytesUsed.addAndGet(-removed.ramBytesUsed());
+        }
+        OnHeapGraphIndex graph = (OnHeapGraphIndex) builder.getGraph();
+        if (graph.containsNode(ordinal)) {
+            builder.markNodeDeleted(ordinal);
+        }
     }
 
     /**
