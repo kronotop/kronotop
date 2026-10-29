@@ -146,14 +146,17 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
                     );
                     deletedVectors.add(new DeletedVector(objectId, generationId, userVersion));
                 }
-                // Schedule on-heap graph node deletion after commit
-                TransactionUtil.addPostCommitHook(new VectorNodeDeleteHook(
-                        ctx.env().bucketService(),
-                        ctx.metadata(),
-                        vectorIndex.definition().id(),
-                        deletedVectors,
-                        tr.getVersionstamp()
-                ), ctx.getSession());
+                // Schedule on-heap graph node deletion after commit. Skip when nothing was deleted:
+                // a read-only transaction has no versionstamp and the hook would fail.
+                if (!deletedVectors.isEmpty()) {
+                    TransactionUtil.addPostCommitHook(new VectorNodeDeleteHook(
+                            ctx.env().bucketService(),
+                            ctx.metadata(),
+                            vectorIndex.definition().id(),
+                            deletedVectors,
+                            tr.getVersionstamp()
+                    ), ctx.getSession());
+                }
             }
 
             for (int i = 0; i < deletedIds.size(); i++) {

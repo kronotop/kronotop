@@ -557,14 +557,17 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                     ));
                 }
             }
-            // Schedule on-heap graph node deletion after commit
-            TransactionUtil.addPostCommitHook(new VectorNodeDeleteHook(
-                    ctx.env().bucketService(),
-                    ctx.metadata(),
-                    vectorIndex.definition().id(),
-                    deletedVectors,
-                    tr.getVersionstamp()
-            ), ctx.getSession());
+            // Schedule on-heap graph node deletion after commit. Skip when nothing was removed:
+            // a read-only transaction has no versionstamp and the hook would fail.
+            if (!deletedVectors.isEmpty()) {
+                TransactionUtil.addPostCommitHook(new VectorNodeDeleteHook(
+                        ctx.env().bucketService(),
+                        ctx.metadata(),
+                        vectorIndex.definition().id(),
+                        deletedVectors,
+                        tr.getVersionstamp()
+                ), ctx.getSession());
+            }
         }
 
         // Schedule on-heap graph node addition for all updated vectors

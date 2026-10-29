@@ -7,8 +7,9 @@ description: "A vector index enables approximate nearest neighbor (ANN) search o
 
 A vector index enables approximate nearest neighbor (ANN) search on document fields that contain fixed-dimension numeric
 vectors.
-It is backed by [JVector](https://github.com/datastax/jvector), a high-performance graph-based vector search library.
-Use vector indexes when your documents contain embeddings and you need similarity search.
+
+It is backed by [JVector](https://github.com/datastax/jvector), a graph-based vector search library. Use vector indexes when your documents contain 
+embeddings and you need similarity search.
 
 ## Creation
 
@@ -36,7 +37,7 @@ BUCKET.INDEX CREATE products '{
 }'
 ```
 
-If `name` is omitted, a name is auto-generated from the selector, dimensions, and distance function.
+If `name` is omitted, Kronotop builds a name from the selector, dimensions, and distance function.
 
 | Parameter    | Required | Description                                                   |
 |--------------|----------|---------------------------------------------------------------|
@@ -53,27 +54,30 @@ The distance function determines how similarity is measured between two vectors.
 
 | Function      | Score range | Best for                                                                    |
 |---------------|-------------|-----------------------------------------------------------------------------|
-| `cosine`      | 0 to 1      | Normalized embeddings where only direction matters (e.g., text embeddings). |
+| `cosine`      | 0 to 1      | Embeddings where only direction matters (e.g., text embeddings).            |
 | `euclidean`   | 0 to 1      | Spatial data where absolute distance matters.                               |
-| `dot_product` | unbounded   | Magnitude-aware similarity where vector length carries meaning.             |
+| `dot_product` | 0 to 1      | Unit-length embeddings. Faster than cosine because it skips normalization.  |
 
 Cosine similarity ignores vector magnitude. Two vectors pointing in the same direction score 1.0 regardless of length.
-Dot product does not normalize, so vectors with larger magnitudes produce higher scores.
+Cosine rejects the zero vector because its direction is undefined.
+
+Dot product requires every vector to have unit length. Vectors with a different norm are rejected on insert and update.
+Every component must be a finite number that fits in a 32-bit float.
 
 ## How vector search works
 
-**Graph-based search.** The index builds an HNSW (Hierarchical Navigable Small World) graph where each vector is a node
-connected to its approximate nearest neighbors. Searching traverses this graph starting from an entry point, greedily
-following edges toward the query vector. This gives sub-linear search time.
+The index builds an HNSW (Hierarchical Navigable Small World) graph. Each vector is a node connected to its approximate
+nearest neighbors. A search starts from an entry point and follows edges toward the query vector. This gives sub-linear
+search time.
 
-**Product Quantization.** After enough vectors are indexed (configurable, default 1000), the system automatically trains
-a Product Quantization (PQ) model. PQ compresses each vector into a compact code, reducing memory usage significantly.
-During graph construction, PQ-scored comparisons replace exact comparisons. At search time, exact scores are used
-against the full vectors for final ranking, so recall is not degraded by the compression.
+After enough vectors are indexed (1000 by default, configurable), Kronotop trains a Product Quantization (PQ) model. PQ
+compresses each vector into a short code, which cuts memory use. During graph construction, PQ scores replace exact
+comparisons. At search time, the final ranking uses exact scores against the full vectors, so compression does not
+reduce recall.
 
-**Multi-tier storage.** Vectors start in an in-memory index. When the in-memory index exceeds a size threshold (
-configurable, default 256 MB), it is flushed to disk. Search spans both in-memory and on-disk indexes, merging results
-from all tiers by similarity score.
+Vectors start in an in-memory index. When it grows past a size threshold (256 MB by default, configurable), Kronotop
+flushes it to disk. A search covers both the in-memory and the on-disk indexes and merges results from all tiers by
+similarity score.
 
 ## Post-filtering
 
@@ -81,15 +85,15 @@ Vector search can be combined with structured query predicates using the `FILTER
 Filtering is applied after similarity ranking. The search first retrieves vector candidates ordered by similarity, then
 evaluates the filter expression against each candidate's document.
 
-If the initial batch of candidates does not yield enough results that pass the filter, the search automatically fetches
-additional candidates by resuming the graph traversal in fixed-size batches until:
+If the first batch of candidates does not produce enough matches, the search resumes the graph traversal in fixed-size
+batches until:
 
 - Enough results are found to satisfy `TOP`, or
 - The `MAX-SCAN-CANDIDATES` limit is reached, or
 - The vector graph is exhausted.
 
-`MAX-SCAN-CANDIDATES` provides a safety cap to control latency when the filter is highly selective and most candidates
-do not match.
+`MAX-SCAN-CANDIDATES` caps the number of candidates examined. This bounds latency when the filter is very selective and
+most candidates do not match.
 
 ## Search arguments
 
@@ -103,31 +107,30 @@ do not match.
 | `PROJECTION`          | none    | Projection specification to control which fields are returned.                                   |
 | `COLLATION`           | none    | Collation specification for string comparison in filters.                                        |
 
-**OVERQUERY** must be >= 1.0. When omitted, uses the server default configured via `bucket.vector.default_overquery` (
-1.0 by default). Increase above 1.0 to improve recall when Product Quantization is active. PQ-scored graph traversal may
-miss some true neighbors; overquerying compensates by collecting extra candidates and reranking with exact scores.
-Values between 1.5 and 3.0 are typical.
+`OVERQUERY` must be >= 1.0. If omitted, the server default from `bucket.vector.default_overquery` applies (1.0 by
+default). Raise it above 1.0 to improve recall when Product Quantization is active. PQ-scored graph traversal can miss
+some true neighbors. Overquerying collects extra candidates and reranks them with exact scores. Values between 1.5 and
+3.0 are typical.
 
-**THRESHOLD** is useful for discarding low-quality matches. With cosine distance, a threshold of 0.8 means only vectors
-with at least 80% directional similarity are returned.
+`THRESHOLD` discards weak matches. With cosine distance, a threshold of 0.8 returns only vectors with at least 80%
+directional similarity.
 
-**MAX-SCAN-CANDIDATES** is only relevant when `FILTER` is provided. Limits worst-case latency when most candidates fail
-the filter.
+`MAX-SCAN-CANDIDATES` only matters when `FILTER` is given. It limits worst-case latency when most candidates fail the
+filter.
 
 See [BUCKET.VECTOR](commands/bucket-vector.md) for the full command reference.
 
 ## Constraints
 
-- **No ACID transaction guarantees.** The graph index is not part of the transaction. Kronotop updates it after the
-  commit, then sends the reply. Matching documents are read directly from the storage engine outside a transaction.
-  A search from another connection can run between the commit and the graph update. That search can miss new vectors
-  or still return deleted ones.
-- **Single-shard buckets only.** Vector indexes cannot be created on buckets that span multiple shards.
-- **Dimensions must be >= 1.** The `dimensions` parameter must be a positive integer.
-- **Query vector must match index dimensions.** The vector passed to `BUCKET.VECTOR` must have exactly the same number
-  of elements as the index's declared dimensions.
-- **One vector index per field.** Each field selector can have at most one vector index.
-- **Unique names.** Index names must be unique across all indexes (single-field, compound, and vector) in the bucket.
+- The graph index gives no ACID transaction guarantees. It is not part of the transaction. Kronotop updates it after
+  the commit, then sends the reply. Matching documents are read directly from the storage engine outside a transaction.
+  A search from another connection can run between the commit and the graph update, so it can miss new vectors or
+  still return deleted ones.
+- Vector indexes work only on single-shard buckets. They cannot be created on buckets that span multiple shards.
+- `dimensions` must be a positive integer (>= 1).
+- The vector passed to `BUCKET.VECTOR` must have exactly as many elements as the index's declared dimensions.
+- Each field selector can have at most one vector index.
+- Index names must be unique across all indexes (single-field, compound, and vector) in the bucket.
 
 An update that modifies the vector field, or replaces a parent field that contains it, refreshes the vector index entry
 for that document.
@@ -151,7 +154,7 @@ BUCKET.INSERT products DOCS '{"label": "gamma", "embedding": [0.7, 0.8, 0.9]}'
 BUCKET.INSERT products DOCS '{"label": "delta", "embedding": [0.9, 0.1, 0.0]}'
 ```
 
-**Basic similarity search**, find the 2 most similar vectors to `[0.4, 0.5, 0.6]`:
+Find the 2 vectors most similar to `[0.4, 0.5, 0.6]`:
 
 ```kronotop
 BUCKET.VECTOR products embedding '[0.4, 0.5, 0.6]' TOP 2
@@ -159,19 +162,19 @@ BUCKET.VECTOR products embedding '[0.4, 0.5, 0.6]' TOP 2
 
 Returns `beta` (exact match, score 1.0) and `gamma` (the closest neighbor).
 
-**Filtered search**, only return documents where the label is "gamma":
+Return only documents where the label is "gamma":
 
 ```kronotop
 BUCKET.VECTOR products embedding '[0.4, 0.5, 0.6]' FILTER '{"label": {"$eq": "gamma"}}'
 ```
 
-**Threshold search**, only results with similarity >= 0.95:
+Return only results with similarity >= 0.95:
 
 ```kronotop
 BUCKET.VECTOR products embedding '[0.4, 0.5, 0.6]' THRESHOLD 0.95
 ```
 
-**Overquery for better recall:**
+Overquery for better recall:
 
 ```kronotop
 BUCKET.VECTOR products embedding '[0.4, 0.5, 0.6]' TOP 5 OVERQUERY 2.0
