@@ -173,10 +173,10 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         MarkStalePrefixesTask task = new MarkStalePrefixesTask(context);
         task.run();
 
-        // Consume events from the DISUSED_PREFIXES journal
+        // Consume events from the PREFIX_INVALIDATIONS journal
         ConsumerConfig config = new ConsumerConfig(
                 "test-consumer",
-                JournalName.DISUSED_PREFIXES.getValue(),
+                JournalName.PREFIX_INVALIDATIONS.getValue(),
                 ConsumerConfig.Offset.EARLIEST
         );
         Consumer consumer = new Consumer(context, config);

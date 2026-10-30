@@ -56,19 +56,17 @@ import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * VolumeService is a service class that handles the management of volumes within the Kronotop instance.
- * It extends CommandHandlerService and implements the KronotopService interface, providing methods to create, find,
- * close, and list volumes. The service ensures thread safety using a ReentrantReadWriteLock.
+ * Owns the volumes opened on this member and registers the internal volume handlers.
  */
 public class VolumeService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Volume";
-    private static final int DISUSED_PREFIXES_JOURNAL_BATCH_SIZE = 100;
+    private static final int PREFIX_INVALIDATIONS_JOURNAL_BATCH_SIZE = 100;
     private static final Logger LOGGER = LoggerFactory.getLogger(VolumeService.class);
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final HashMap<String, Volume> volumes = new HashMap<>();
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final ScheduledThreadPoolExecutor scheduler;
-    private final Consumer disusedPrefixesConsumer;
+    private final Consumer prefixInvalidationsConsumer;
     private final RoutingService routing;
     private final ConcurrentHashMap<String, DirectorySubspace> subspaceCache;
     private final ConcurrentHashMap<DirectorySubspace, Long> volumeIdCache;
@@ -90,9 +88,9 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         ThreadFactory factory = new ThreadFactoryBuilder().setNameFormat("kr.volume-%d").build();
         this.scheduler = new ScheduledThreadPoolExecutor(3, factory);
 
-        String consumerId = String.format("%s-member:%s", JournalName.DISUSED_PREFIXES.getValue(), context.getMember().getId());
-        ConsumerConfig config = new ConsumerConfig(consumerId, JournalName.DISUSED_PREFIXES.getValue(), ConsumerConfig.Offset.RESUME);
-        this.disusedPrefixesConsumer = new Consumer(context, config);
+        String consumerId = String.format("%s-member:%s", JournalName.PREFIX_INVALIDATIONS.getValue(), context.getMember().getId());
+        ConsumerConfig config = new ConsumerConfig(consumerId, JournalName.PREFIX_INVALIDATIONS.getValue(), ConsumerConfig.Offset.RESUME);
+        this.prefixInvalidationsConsumer = new Consumer(context, config);
 
         handlerMethod(ServerKind.INTERNAL, new SegmentRangeHandler(this));
         handlerMethod(ServerKind.INTERNAL, new SegmentTailPointerHandler(this));
@@ -125,32 +123,20 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Starts the VolumeService by executing a background task for monitoring and handling disused prefixes.
-     * This method schedules the {@code DisusePrefixesWatcher} task for execution using the internal scheduler.
-     * The watcher is responsible for observing specific journal triggers and
-     * performing actions based on the retrieved journal metadata.
-     * <p>
-     * If the service is shut down, no further actions are initiated by the watcher.
-     * The watcher reschedules itself upon completion unless the service has been shut down.
+     * Starts the prefix-invalidations consumer, its journal watcher, and the periodic fallback check.
+     * Returns after the watcher has drained the journal once.
      */
     @Override
     public void start() {
-        disusedPrefixesConsumer.start();
+        prefixInvalidationsConsumer.start();
 
-        DisusedPrefixesWatcher disusedPrefixesWatcher = new DisusedPrefixesWatcher();
-        scheduler.execute(disusedPrefixesWatcher);
-        disusedPrefixesWatcher.waitUntilStarted();
+        PrefixInvalidationsWatcher prefixInvalidationsWatcher = new PrefixInvalidationsWatcher();
+        scheduler.execute(prefixInvalidationsWatcher);
+        prefixInvalidationsWatcher.waitUntilStarted();
 
-        scheduler.scheduleAtFixedRate(new PeriodicDisusedPrefixesCheckerTask(), 5, 5, TimeUnit.MINUTES);
+        scheduler.scheduleAtFixedRate(new PeriodicPrefixInvalidationsCheckerTask(), 5, 5, TimeUnit.MINUTES);
     }
 
-    /**
-     * Checks the existence of a directory specified by the given path and creates it if it does not exist.
-     * If the path exists but is not a directory, or if an I/O error occurs during creation, an exception is thrown.
-     *
-     * @param dataDir the path of the directory to check and create if necessary
-     * @throws KronotopException if the path exists but is not a directory, or if an I/O error occurs
-     */
     private void checkAndCreateDataDir(String dataDir) {
         try {
             Files.createDirectories(Paths.get(dataDir));
@@ -164,13 +150,8 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Resumes a previously started {@link MarkStalePrefixesTask} on member startup if this member owns it.
-     * <p>
-     * The task persists a progress marker (last-prefix) and the owning member's ID in FoundationDB.
-     * On startup, this method checks whether persisted task metadata exists and whether the stored
-     * member ID matches the current member. If it matches, the task is re-created and re-executed,
-     * automatically resuming from the last progress marker. If no metadata directory exists or no
-     * member ID is stored, the method silently returns.
+     * Resumes {@link MarkStalePrefixesTask} on startup when the owner stored in its task metadata is this member.
+     * The task continues from the last prefix it persisted. Missing task metadata means there is nothing to resume.
      */
     private void resumeMarkStalePrefixesTaskIfAny() {
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -205,13 +186,10 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Creates a new volume based on the provided configuration.
-     * If a volume with the same name already exists and is not closed, it returns the existing volume.
-     * Otherwise, it creates a new volume, ensuring the necessary directories are created.
+     * Opens a volume for the given config and creates its data directory if needed.
+     * Returns the existing volume when one with the same name is already open.
      *
-     * @param config the configuration for the volume to be created
-     * @return the created volume
-     * @throws IOException if an I/O error occurs during the creation of the directory or volume
+     * @throws IOException if the data directory or the volume cannot be created
      */
     public Volume newVolume(VolumeConfig config) throws IOException {
         lock.writeLock().lock();
@@ -235,10 +213,6 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Finds and returns a volume by name if it exists and is open.
-     *
-     * @param name the name of the volume to be found
-     * @return the volume with the specified name
      * @throws ClosedVolumeException  if the volume is closed
      * @throws VolumeNotOpenException if the volume does not exist
      */
@@ -259,11 +233,9 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Closes the specified volume by name, removing it from the managed volumes.
-     * If the volume does not exist or is already closed, a VolumeNotOpenException is thrown.
+     * Closes the volume and removes it from the service.
      *
-     * @param name the name of the volume to be closed
-     * @throws VolumeNotOpenException if the volume with the specified name does not exist or is already closed
+     * @throws VolumeNotOpenException if the volume does not exist
      */
     public void closeVolume(String name) {
         lock.writeLock().lock();
@@ -281,12 +253,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Retrieves a list of all managed volumes.
-     * <p>
-     * This method returns an unmodifiable list of the volumes currently managed by the service.
-     * The list will reflect any changes made to the volumes at the time of retrieval.
-     *
-     * @return a list of all managed volumes
+     * Returns an unmodifiable snapshot of the volumes, including closed ones not yet removed.
      */
     public List<Volume> list() {
         lock.readLock().lock();
@@ -322,10 +289,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Returns the volumeId for the given subspace, loading and caching it if necessary.
-     *
-     * @param subspace the directory subspace of the volume
-     * @return the volumeId
+     * Reads the volume id from FoundationDB on first use and caches it per subspace.
      */
     public long getVolumeId(DirectorySubspace subspace) {
         return volumeIdCache.computeIfAbsent(subspace, ds -> {
@@ -336,10 +300,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Returns the mutation trigger key for the given subspace, computing and caching it if necessary.
-     *
-     * @param subspace the directory subspace of the volume
-     * @return the mutation trigger key
+     * Computes the mutation trigger key on first use and caches it per subspace.
      */
     public byte[] getMutationTriggerKey(DirectorySubspace subspace) {
         return mutationTriggerKeyCache.computeIfAbsent(subspace, VolumeUtil::computeMutationTriggerKey);
@@ -355,7 +316,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         return route.primary().equals(context.getMember());
     }
 
-    private void processDisusePrefix(Transaction tr, Event event) {
+    private void processPrefixInvalidation(Transaction tr, Event event) {
         byte[] data = JSONUtil.readValue(event.value(), byte[].class);
         Prefix prefix = Prefix.fromBytes(data);
         VolumeSession session = new VolumeSession(tr, prefix);
@@ -373,39 +334,30 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Processes events from the "disused-prefixes" journal and handles them accordingly.
-     * This method continuously polls the journal for up to 100 events at a time and processes
-     * each event by invoking {@code processDisusePrefix(Transaction tr, Event event)}.
-     * <p>
-     * The method operates within a transaction context provided by FoundationDB. Each event represents
-     * a disused prefix in the system, and this method ensures that the prefix is properly cleared
-     * from all volumes. The transaction commits successfully after processing each batch of events.
-     * <p>
-     * If no further events are available in the journal, the method terminates the polling loop.
-     * <p>
-     * Exceptions that occur during the prefix processing are caught and logged, but their occurrence
-     * does not interrupt the batch processing of remaining events within the transaction.
+     * Drains the prefix-invalidations journal. Each transaction consumes up to 100 events and clears
+     * their prefixes from the volumes this member owns. A failed event stops the drain; the periodic
+     * task retries it later. A commit conflict restarts the drain.
      */
-    private synchronized void fetchDisusedPrefixes() {
+    private synchronized void fetchPrefixInvalidations() {
         boolean done = false;
         while (!done) {
             try (Transaction tr = context.getTransactionManager().create()) {
-                for (int i = 0; i < DISUSED_PREFIXES_JOURNAL_BATCH_SIZE; i++) {
-                    Event event = disusedPrefixesConsumer.consume(tr);
+                for (int i = 0; i < PREFIX_INVALIDATIONS_JOURNAL_BATCH_SIZE; i++) {
+                    Event event = prefixInvalidationsConsumer.consume(tr);
                     if (event == null) {
                         done = true;
                         break;
                     }
                     try {
-                        processDisusePrefix(tr, event);
-                        disusedPrefixesConsumer.markConsumed(tr, event);
+                        processPrefixInvalidation(tr, event);
+                        prefixInvalidationsConsumer.markConsumed(tr, event);
                     } catch (Exception e) {
                         // Periodic task will try to process again, quit now.
                         done = true;
                         if (e instanceof IllegalConsumerStateException) {
                             throw e;
                         }
-                        LOGGER.error("Failed to process a disused prefix", e);
+                        LOGGER.error("Failed to process a prefix invalidation", e);
                         break;
                     }
                 }
@@ -417,7 +369,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                 if (e.getCause() instanceof FDBException ex) {
                     if (ex.getCode() == 1020) {
                         // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
-                        fetchDisusedPrefixes();
+                        fetchPrefixInvalidations();
                         return;
                     }
                 }
@@ -427,15 +379,13 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Shuts down the VolumeService, ensuring that all managed volumes are properly closed and cleared.
-     * This method acquires a write lock to ensure thread safety during the shutdown process.
-     * It iterates through all entries in the volumes map, closes each Volume, and then clears the map.
+     * Stops the journal consumer, the watcher, and the scheduler, then closes every volume.
      */
     @Override
     public void shutdown() {
         try {
             isShutdown = true;
-            disusedPrefixesConsumer.stop();
+            prefixInvalidationsConsumer.stop();
             keyWatcher.unwatchAll();
             scheduler.shutdownNow();
 
@@ -462,55 +412,25 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * A periodic task that checks and processes disused prefixes in the system.
-     * <p>
-     * This task is designed to be executed as part of a scheduled background process in the containing
-     * {@code VolumeService} class. It triggers the fetching and processing of disused prefixes by invoking
-     * the {@code fetchDisusedPrefixes} method on the parent class.
-     * <p>
-     * The main operation of this task involves handling entries in the "disused-prefixes" journal, which keeps
-     * track of prefixes that are no longer being used. Each disused prefix is processed and cleared from
-     * the system. The task runs within a transactional context to ensure integrity and consistency during its operation.
-     * <p>
-     * This class implements the {@code Runnable} interface, making it suitable for execution by a thread or
-     * a scheduled executor service.
+     * Fallback drain of the prefix-invalidations journal. Runs every 5 minutes and picks up events
+     * the watcher missed or failed to process.
      */
-    private class PeriodicDisusedPrefixesCheckerTask implements Runnable {
+    private class PeriodicPrefixInvalidationsCheckerTask implements Runnable {
 
         @Override
         public void run() {
             if (isShutdown) {
                 return;
             }
-            fetchDisusedPrefixes();
+            fetchPrefixInvalidations();
         }
     }
 
     /**
-     * Represents a task for monitoring and handling disused prefixes in the system.
-     * This class implements the {@link Runnable} interface and is designed to be executed
-     * by a scheduler. It continuously watches a key in the "disused-prefixes" journal and
-     * processes related events when triggered.
-     * <p>
-     * The {@code run()} method is the main entry point for the task execution, and it
-     * performs the following actions:
-     * <p>
-     * - If the service is in a shutdown state, the method gracefully exits without taking
-     * any further action.
-     * - Creates a FoundationDB transaction and sets up a key watcher on the journal associated
-     * with disused prefixes. The watcher is triggered when the associated key changes or
-     * is deleted.
-     * - Processes disused prefix events by invoking {@link VolumeService#fetchDisusedPrefixes}.
-     * - Handles exceptions during the watching or processing stages by logging errors,
-     * while ensuring that the task reschedules itself unless the service is shutdown.
-     * <p>
-     * In case of cancellation (e.g., a key watcher being explicitly cancelled), the method
-     * handles it gracefully and terminates further processing loop execution.
-     * <p>
-     * This task ensures that disused prefixes are timely handled, maintaining proper
-     * cleanup of resources and states in the system.
+     * Watches the trigger key of the prefix-invalidations journal and drains the journal on every change.
+     * Reschedules itself after each run until the service shuts down.
      */
-    private class DisusedPrefixesWatcher implements Runnable {
+    private class PrefixInvalidationsWatcher implements Runnable {
         private final CountDownLatch latch = new CountDownLatch(1);
 
         public void waitUntilStarted() {
@@ -529,19 +449,19 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
             }
             try (Transaction tr = context.getTransactionManager().create()) {
                 JournalService journal = context.getService(JournalService.NAME);
-                CompletableFuture<Void> watcher = keyWatcher.watch(tr, journal.getJournalMetadata(JournalName.DISUSED_PREFIXES.getValue()).trigger());
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, journal.getJournalMetadata(JournalName.PREFIX_INVALIDATIONS.getValue()).trigger());
                 tr.commit().join();
                 try {
-                    fetchDisusedPrefixes();
+                    fetchPrefixInvalidations();
                     latch.countDown();
                     watcher.join();
                 } catch (CancellationException e) {
-                    LOGGER.debug("{} watcher has been cancelled", JournalName.DISUSED_PREFIXES);
+                    LOGGER.debug("{} watcher has been cancelled", JournalName.PREFIX_INVALIDATIONS);
                     return;
                 }
-                fetchDisusedPrefixes();
+                fetchPrefixInvalidations();
             } catch (Exception e) {
-                LOGGER.error("Error while watching journal: {}", JournalName.DISUSED_PREFIXES, e);
+                LOGGER.error("Error while watching journal: {}", JournalName.PREFIX_INVALIDATIONS, e);
             } finally {
                 if (!isShutdown) {
                     scheduler.execute(this);

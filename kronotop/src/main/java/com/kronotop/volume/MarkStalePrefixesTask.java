@@ -173,7 +173,7 @@ public class MarkStalePrefixesTask extends BaseTask implements Task {
                         byte[] prefix = (byte[]) prefixesSubspace.unpack(keyValue.getKey()).get(0);
                         if (PrefixUtil.isStale(context, tr, Prefix.fromBytes(prefix))) {
                             tr.clear(keyValue.getKey());
-                            journal.getPublisher().publish(tr, JournalName.DISUSED_PREFIXES, prefix);
+                            journal.getPublisher().publish(tr, JournalName.PREFIX_INVALIDATIONS, prefix);
                         }
                         latestKey = keyValue.getKey();
                         total++;

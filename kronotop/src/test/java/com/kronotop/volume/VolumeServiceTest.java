@@ -99,7 +99,7 @@ public class VolumeServiceTest extends BaseVolumeTest {
     }
 
     @Test
-    public void shouldRemoveEntriesWhenPrefixMarkedAsDisused() throws IOException {
+    public void shouldRemoveEntriesWhenPrefixInvalidated() throws IOException {
         Volume volume = service.newVolume(volumeConfig);
 
         ByteBuffer entry = ByteBuffer.wrap("entry".getBytes());
@@ -110,7 +110,7 @@ public class VolumeServiceTest extends BaseVolumeTest {
                 tr.commit().join();
             }
             JournalService journal = context.getService(JournalService.NAME);
-            journal.getPublisher().publish(JournalName.DISUSED_PREFIXES, prefix.asBytes());
+            journal.getPublisher().publish(JournalName.PREFIX_INVALIDATIONS, prefix.asBytes());
             await().atMost(Duration.ofSeconds(5)).until(() -> {
                 try (Transaction tr = context.getTransactionManager().create()) {
                     VolumeSession session = new VolumeSession(tr, prefix);

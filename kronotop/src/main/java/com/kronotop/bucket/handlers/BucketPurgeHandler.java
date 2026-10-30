@@ -75,10 +75,10 @@ public class BucketPurgeHandler extends AbstractBucketHandler {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, namespace, message.getBucket());
 
-                // Unregister prefix and publish as disused before purge
+                // Unregister prefix and publish as invalidated before purge
                 byte[] prefixPointer = BucketMetadataUtil.prefixBindingKey(metadata.pointerSubspace());
                 PrefixUtil.unregister(context, tr, prefixPointer, metadata.prefix());
-                journal.getPublisher().publish(tr, JournalName.DISUSED_PREFIXES, metadata.prefix().asBytes());
+                journal.getPublisher().publish(tr, JournalName.PREFIX_INVALIDATIONS, metadata.prefix().asBytes());
 
                 IndexTaskUtil.clearBucketTasks(tx, metadata);
                 BucketMetadataUtil.purge(tx, namespace, message.getBucket());

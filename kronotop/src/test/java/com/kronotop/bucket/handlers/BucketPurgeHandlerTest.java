@@ -403,8 +403,8 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldPublishDisusedPrefixToJournalAfterPurge() {
-        // Behavior: After remove + purge, the bucket's prefix must be published to the DISUSED_PREFIXES
+    void shouldPublishPrefixInvalidationToJournalAfterPurge() {
+        // Behavior: After remove + purge, the bucket's prefix must be published to the PREFIX_INVALIDATIONS
         // journal so VolumeService can clean up volume data.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
 
@@ -436,10 +436,10 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
         }
 
-        // Consume from the DISUSED_PREFIXES journal and verify the prefix is present
+        // Consume from the PREFIX_INVALIDATIONS journal and verify the prefix is present
         ConsumerConfig config = new ConsumerConfig(
                 "test-consumer-purge",
-                JournalName.DISUSED_PREFIXES.getValue(),
+                JournalName.PREFIX_INVALIDATIONS.getValue(),
                 ConsumerConfig.Offset.EARLIEST
         );
         Consumer consumer = new Consumer(context, config);
@@ -459,7 +459,7 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
 
         boolean found = publishedPrefixes.stream()
                 .anyMatch(p -> Arrays.equals(p, prefix.asBytes()));
-        assertTrue(found, "Purged bucket's prefix should be published to DISUSED_PREFIXES journal");
+        assertTrue(found, "Purged bucket's prefix should be published to PREFIX_INVALIDATIONS journal");
     }
 
     @Test
