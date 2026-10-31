@@ -27,7 +27,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.hash.HashCode;
 import com.google.common.util.concurrent.Striped;
 import com.kronotop.Context;
-import com.kronotop.DataStructureKind;
+import com.kronotop.DataModelKind;
 import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.handlers.protocol.QueryArguments;
@@ -188,7 +188,7 @@ public class BucketMetadataUtil {
             String namespace,
             String bucket
     ) {
-        DirectorySubspace parent = NamespaceUtil.openDataStructureSubspace(context, tr, session, namespace, DataStructureKind.BUCKET);
+        DirectorySubspace parent = NamespaceUtil.openDataStructureSubspace(context, tr, session, namespace, DataModelKind.BUCKET);
         return parent.createOrOpen(tr, List.of(bucket)).join();
     }
 
@@ -198,7 +198,7 @@ public class BucketMetadataUtil {
             String namespace,
             String bucket
     ) {
-        DirectorySubspace parent = NamespaceUtil.open(tr, context, namespace, DataStructureKind.BUCKET);
+        DirectorySubspace parent = NamespaceUtil.open(tr, context, namespace, DataModelKind.BUCKET);
         return parent.open(tr, List.of(bucket)).join();
     }
 
@@ -867,7 +867,7 @@ public class BucketMetadataUtil {
                 tr,
                 tx.context(),
                 namespace,
-                DataStructureKind.BUCKET
+                DataModelKind.BUCKET
         );
         DirectorySubspace pointerSubspace = parentSubspace.open(tr, List.of(bucket)).join();
 

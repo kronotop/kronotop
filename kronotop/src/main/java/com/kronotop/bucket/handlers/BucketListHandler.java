@@ -18,7 +18,7 @@ package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.DataStructureKind;
+import com.kronotop.DataModelKind;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketListMessage;
 import com.kronotop.namespace.NamespaceUtil;
@@ -59,7 +59,7 @@ public class BucketListHandler extends AbstractBucketHandler implements Handler 
             List<RedisMessage> children = new ArrayList<>();
             try (Transaction tr = context.getTransactionManager().create(session)) {
                 DirectorySubspace subspace = NamespaceUtil.openDataStructureSubspace(
-                        context, tr, session, namespace, DataStructureKind.BUCKET
+                        context, tr, session, namespace, DataModelKind.BUCKET
                 );
                 List<String> names = subspace.list(tr).join();
                 for (String name : names) {

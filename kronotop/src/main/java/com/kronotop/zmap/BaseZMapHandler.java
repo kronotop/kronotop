@@ -21,7 +21,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.Context;
-import com.kronotop.DataStructureKind;
+import com.kronotop.DataModelKind;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Handler;
 import com.kronotop.server.Session;
@@ -54,7 +54,7 @@ public abstract class BaseZMapHandler implements Handler {
      */
     protected DirectorySubspace openZMapSubspace(Transaction tr, Session session, String namespace) {
         String name = NamespaceUtil.resolve(session, namespace);
-        return NamespaceUtil.openDataStructureSubspace(context, tr, session, name, DataStructureKind.ZMAP);
+        return NamespaceUtil.openDataStructureSubspace(context, tr, session, name, DataModelKind.ZMAP);
     }
 
     /**

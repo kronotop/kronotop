@@ -20,7 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.kronotop.BaseHandlerTest;
-import com.kronotop.DataStructureKind;
+import com.kronotop.DataModelKind;
 import com.kronotop.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.namespace.handlers.Namespace;
@@ -122,7 +122,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         NamespaceUtil.create(context, namespace);
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            DirectorySubspace subspace = NamespaceUtil.open(tr, context, namespace, DataStructureKind.BUCKET);
+            DirectorySubspace subspace = NamespaceUtil.open(tr, context, namespace, DataModelKind.BUCKET);
             assertThat(subspace).isNotNull();
         }
     }
@@ -130,7 +130,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
     @Test
     void shouldThrowExceptionWhenOpeningNonExistentNamespace() {
         try (Transaction tr = context.getTransactionManager().create()) {
-            assertThatThrownBy(() -> NamespaceUtil.open(tr, context, "non.existent.namespace", DataStructureKind.BUCKET))
+            assertThatThrownBy(() -> NamespaceUtil.open(tr, context, "non.existent.namespace", DataModelKind.BUCKET))
                     .isInstanceOf(NoSuchNamespaceException.class);
         }
     }
@@ -144,13 +144,13 @@ class NamespaceUtilTest extends BaseHandlerTest {
         session.attr(SessionAttributes.CURRENT_NAMESPACE).set(namespaceName);
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            DirectorySubspace subspace = NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.BUCKET);
+            DirectorySubspace subspace = NamespaceUtil.openDataStructureSubspace(context, tr, session, DataModelKind.BUCKET);
             assertThat(subspace).isNotNull();
 
             // Verify namespace is cached in session
             Map<String, Namespace> openNamespaces = session.attr(SessionAttributes.OPEN_NAMESPACES).get();
             assertThat(openNamespaces).containsKey(namespaceName);
-            assertThat(openNamespaces.get(namespaceName).get(DataStructureKind.BUCKET)).isPresent();
+            assertThat(openNamespaces.get(namespaceName).get(DataModelKind.BUCKET)).isPresent();
         }
     }
 
@@ -163,8 +163,8 @@ class NamespaceUtilTest extends BaseHandlerTest {
         session.attr(SessionAttributes.CURRENT_NAMESPACE).set(namespaceName);
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            DirectorySubspace first = NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.BUCKET);
-            DirectorySubspace second = NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.BUCKET);
+            DirectorySubspace first = NamespaceUtil.openDataStructureSubspace(context, tr, session, DataModelKind.BUCKET);
+            DirectorySubspace second = NamespaceUtil.openDataStructureSubspace(context, tr, session, DataModelKind.BUCKET);
             assertThat(first).isSameAs(second);
         }
     }
@@ -175,7 +175,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         session.attr(SessionAttributes.CURRENT_NAMESPACE).set(null);
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            assertThatThrownBy(() -> NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.BUCKET))
+            assertThatThrownBy(() -> NamespaceUtil.openDataStructureSubspace(context, tr, session, DataModelKind.BUCKET))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("namespace not specified");
         }

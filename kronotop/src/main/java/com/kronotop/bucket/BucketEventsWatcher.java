@@ -20,7 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
-import com.kronotop.DataStructureKind;
+import com.kronotop.DataModelKind;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.vector.VectorGraphIndexRegistry;
 import com.kronotop.cluster.BaseBroadcastEvent;
@@ -181,7 +181,7 @@ public class BucketEventsWatcher implements Runnable {
                 // Delete vector index disk files for the entire bucket
                 bucketService.deleteVectorIndexFiles(metadata.uuid(), null);
 
-                String tag = WorkerTag.generate(DataStructureKind.BUCKET, metadata.name());
+                String tag = WorkerTag.generate(DataModelKind.BUCKET, metadata.name());
                 List<Worker> workers = context.getWorkerRegistry().get(metadata.namespace(), tag);
                 planCache.invalidateBucket(evt.namespace(), evt.id());
 

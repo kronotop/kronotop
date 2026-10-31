@@ -17,7 +17,7 @@
 package com.kronotop.namespace.handlers;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.DataStructureKind;
+import com.kronotop.DataModelKind;
 
 import java.util.Optional;
 
@@ -28,14 +28,14 @@ public class Namespace {
     private DirectorySubspace zmap;
     private DirectorySubspace bucket;
 
-    public Optional<DirectorySubspace> get(DataStructureKind kind) {
+    public Optional<DirectorySubspace> get(DataModelKind kind) {
         return switch (kind) {
             case ZMAP -> Optional.ofNullable(zmap);
             case BUCKET -> Optional.ofNullable(bucket);
         };
     }
 
-    public void set(DataStructureKind kind, DirectorySubspace subspace) {
+    public void set(DataModelKind kind, DirectorySubspace subspace) {
         switch (kind) {
             case ZMAP -> zmap = subspace;
             case BUCKET -> bucket = subspace;

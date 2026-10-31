@@ -23,7 +23,7 @@ import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
-import com.kronotop.DataStructureKind;
+import com.kronotop.DataModelKind;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.MemberSubspace;
 import com.kronotop.directory.KronotopDirectory;
@@ -88,7 +88,7 @@ public class NamespaceUtil {
      * @throws NoSuchNamespaceException       if the namespace does not exist
      * @throws NamespaceBeingRemovedException if the namespace is marked for removal
      */
-    public static DirectorySubspace open(ReadTransaction tr, Context context, String namespace, DataStructureKind kind) {
+    public static DirectorySubspace open(ReadTransaction tr, Context context, String namespace, DataModelKind kind) {
         try {
             List<String> hierarchy = splitNamespaceHierarchy(namespace);
             checkBeingRemoved(tr, context, hierarchy);
@@ -115,7 +115,7 @@ public class NamespaceUtil {
      * @return the DirectorySubspace object representing the opened or created data structure subspace.
      * @throws IllegalArgumentException if the namespace is not specified in the session.
      */
-    public static DirectorySubspace openDataStructureSubspace(Context context, ReadTransaction tr, Session session, DataStructureKind kind) {
+    public static DirectorySubspace openDataStructureSubspace(Context context, ReadTransaction tr, Session session, DataModelKind kind) {
         return openDataStructureSubspace(context, tr, session, resolve(session, null), kind);
     }
 
@@ -148,7 +148,7 @@ public class NamespaceUtil {
      * @param kind    the kind of data structure to open or create.
      * @return the DirectorySubspace object representing the opened or created data structure subspace.
      */
-    public static DirectorySubspace openDataStructureSubspace(Context context, ReadTransaction tr, Session session, String name, DataStructureKind kind) {
+    public static DirectorySubspace openDataStructureSubspace(Context context, ReadTransaction tr, Session session, String name, DataModelKind kind) {
         Map<String, Namespace> namespaces = session.attr(SessionAttributes.OPEN_NAMESPACES).get();
         Namespace namespace = namespaces.get(name);
         if (namespace == null) {
@@ -380,7 +380,7 @@ public class NamespaceUtil {
             createMetadata(context, tr, subspace, subpath);
 
             // Create the internal leaves
-            for (DataStructureKind kind : DataStructureKind.values()) {
+            for (DataModelKind kind : DataModelKind.values()) {
                 List<String> dataStructureSubpath = new ArrayList<>(namespaceSubpath);
                 dataStructureSubpath.add(Namespace.INTERNAL_LEAF);
                 dataStructureSubpath.add(kind.name().toLowerCase());

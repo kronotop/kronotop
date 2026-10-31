@@ -16,10 +16,10 @@
 
 package com.kronotop.worker;
 
-import com.kronotop.DataStructureKind;
+import com.kronotop.DataModelKind;
 
 public class WorkerTag {
-    public static String generate(DataStructureKind kind, String name) {
+    public static String generate(DataModelKind kind, String name) {
         return String.format("%s%s", kind.name().toLowerCase(), name);
     }
 }

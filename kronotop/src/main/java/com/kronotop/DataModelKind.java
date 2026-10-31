@@ -16,7 +16,25 @@
 
 package com.kronotop;
 
-public enum DataStructureKind {
-    ZMAP,
-    BUCKET
+public enum DataModelKind {
+    ZMAP((byte) 0x01),
+    BUCKET((byte) 0x02);
+
+    private final byte value;
+
+    DataModelKind(byte value) {
+        this.value = value;
+    }
+
+    public static DataModelKind valueOf(byte value) {
+        return switch (value) {
+            case 0x01 -> ZMAP;
+            case 0x02 -> BUCKET;
+            default -> throw new IllegalArgumentException();
+        };
+    }
+
+    public byte getValue() {
+        return value;
+    }
 }

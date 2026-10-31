@@ -18,7 +18,7 @@ package com.kronotop.bucket.index.maintenance;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.kronotop.DataStructureKind;
+import com.kronotop.DataModelKind;
 import com.kronotop.worker.WorkerTag;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -64,6 +64,6 @@ public class IndexMaintenanceTask {
     }
 
     public String getTag() {
-        return WorkerTag.generate(DataStructureKind.BUCKET, bucket);
+        return WorkerTag.generate(DataModelKind.BUCKET, bucket);
     }
 }

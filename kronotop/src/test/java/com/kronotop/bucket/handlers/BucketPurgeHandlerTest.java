@@ -19,7 +19,7 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.kronotop.DataStructureKind;
+import com.kronotop.DataModelKind;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.NoSuchBucketException;
@@ -152,7 +152,7 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
 
             @Override
             public String getTag() {
-                return WorkerTag.generate(DataStructureKind.BUCKET, TEST_BUCKET);
+                return WorkerTag.generate(DataModelKind.BUCKET, TEST_BUCKET);
             }
 
             @Override
@@ -188,7 +188,7 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
         context.getWorkerRegistry().put(TEST_NAMESPACE, worker);
 
         // Verify worker is registered
-        String tag = WorkerTag.generate(DataStructureKind.BUCKET, TEST_BUCKET);
+        String tag = WorkerTag.generate(DataModelKind.BUCKET, TEST_BUCKET);
         List<Worker> workers = context.getWorkerRegistry().get(TEST_NAMESPACE, tag);
         assertEquals(1, workers.size());
 
@@ -233,7 +233,7 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
         class StuckWorker implements Worker {
             @Override
             public String getTag() {
-                return WorkerTag.generate(DataStructureKind.BUCKET, TEST_BUCKET);
+                return WorkerTag.generate(DataModelKind.BUCKET, TEST_BUCKET);
             }
 
             @Override
@@ -263,7 +263,7 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
         context.getWorkerRegistry().put(TEST_NAMESPACE, worker);
 
         // Verify worker is registered
-        String tag = WorkerTag.generate(DataStructureKind.BUCKET, TEST_BUCKET);
+        String tag = WorkerTag.generate(DataModelKind.BUCKET, TEST_BUCKET);
         List<Worker> workers = context.getWorkerRegistry().get(TEST_NAMESPACE, tag);
         assertEquals(1, workers.size());
 
