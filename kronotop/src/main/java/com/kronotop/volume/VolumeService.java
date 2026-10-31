@@ -56,7 +56,8 @@ import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * Owns the volumes opened on this member and registers the internal volume handlers.
+ * Owns the volumes opened on this member, registers the internal volume handlers, and clears
+ * invalidated prefixes from the volumes this member owns.
  */
 public class VolumeService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Volume";
@@ -123,8 +124,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Starts the prefix-invalidations consumer, its journal watcher, and the periodic fallback check.
-     * Returns after the watcher has drained the journal once.
+     * Starts prefix invalidation processing. Returns after the first drain of the journal.
      */
     @Override
     public void start() {
@@ -150,8 +150,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Resumes {@link MarkStalePrefixesTask} on startup when the owner stored in its task metadata is this member.
-     * The task continues from the last prefix it persisted. Missing task metadata means there is nothing to resume.
+     * Resumes {@link MarkStalePrefixesTask} when its task metadata names this member as the owner.
      */
     private void resumeMarkStalePrefixesTaskIfAny() {
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -186,8 +185,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Opens a volume for the given config and creates its data directory if needed.
-     * Returns the existing volume when one with the same name is already open.
+     * Opens a volume for the config. Returns the already open volume when one with the same name exists.
      *
      * @throws IOException if the data directory or the volume cannot be created
      */
@@ -289,7 +287,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Reads the volume id from FoundationDB on first use and caches it per subspace.
+     * Returns the volume id of the subspace. Reads it from FoundationDB once and caches it.
      */
     public long getVolumeId(DirectorySubspace subspace) {
         return volumeIdCache.computeIfAbsent(subspace, ds -> {
@@ -300,7 +298,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Computes the mutation trigger key on first use and caches it per subspace.
+     * Returns the mutation trigger key of the subspace. Computed once and cached.
      */
     public byte[] getMutationTriggerKey(DirectorySubspace subspace) {
         return mutationTriggerKeyCache.computeIfAbsent(subspace, VolumeUtil::computeMutationTriggerKey);
@@ -334,9 +332,8 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Drains the prefix-invalidations journal. Each transaction consumes up to 100 events and clears
-     * their prefixes from the volumes this member owns. A failed event stops the drain; the periodic
-     * task retries it later. A commit conflict restarts the drain.
+     * Drains the prefix invalidations journal in batches and clears each prefix from the volumes
+     * this member owns. Stops at the first failed event and leaves it to the periodic task.
      */
     private synchronized void fetchPrefixInvalidations() {
         boolean done = false;
@@ -379,7 +376,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Stops the journal consumer, the watcher, and the scheduler, then closes every volume.
+     * Stops prefix invalidation processing and closes every volume.
      */
     @Override
     public void shutdown() {
@@ -412,8 +409,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Fallback drain of the prefix-invalidations journal. Runs every 5 minutes and picks up events
-     * the watcher missed or failed to process.
+     * Fallback drain of the prefix invalidations journal for events the watcher missed or failed to process.
      */
     private class PeriodicPrefixInvalidationsCheckerTask implements Runnable {
 
@@ -427,8 +423,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Watches the trigger key of the prefix-invalidations journal and drains the journal on every change.
-     * Reschedules itself after each run until the service shuts down.
+     * Watches the trigger key of the prefix invalidations journal and drains the journal on every change.
      */
     private class PrefixInvalidationsWatcher implements Runnable {
         private final CountDownLatch latch = new CountDownLatch(1);
