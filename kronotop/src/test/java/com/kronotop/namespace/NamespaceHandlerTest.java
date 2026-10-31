@@ -440,7 +440,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         }
 
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
-            assertTrue(PrefixUtil.isStale(instance.getContext(), tr, prefix));
+            assertTrue(PrefixUtil.inspectPrefix(instance.getContext(), tr, prefix).isStale());
         }
     }
 

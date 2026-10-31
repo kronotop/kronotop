@@ -59,21 +59,32 @@ public class PrefixUtil {
     }
 
     /**
-     * Returns true when the binding key of the prefix is gone or points to a different prefix.
-     * A prefix that is not in the registry is not stale.
+     * Returns the registry entry of the prefix and whether it is stale. A prefix is stale when its
+     * binding key is gone.
+     *
+     * @throws NoSuchPrefixException     if the prefix is not in the registry
+     * @throws PrefixCorruptionException if the binding key points to a different prefix
      */
-    public static boolean isStale(Context context, Transaction tr, Prefix prefix) {
+    public static PrefixInspection inspectPrefix(Context context, Transaction tr, Prefix prefix) {
         byte[] prefixKey = packPrefixKey(context, prefix);
-        byte[] value = tr.get(prefixKey).join();
-        if (value == null) {
+        byte[] rawEntry = tr.get(prefixKey).join();
+        if (rawEntry == null) {
             // Not registered to global subspace. Possibly, this is an internal prefix.
-            return false;
+            throw new NoSuchPrefixException(
+                    String.format("No such prefix: %d", prefix.asLong())
+            );
         }
-        byte[] expectedRawPrefix = tr.get(PrefixEntry.decode(value).key()).join();
+        PrefixEntry entry = PrefixEntry.decode(rawEntry);
+        byte[] expectedRawPrefix = tr.get(entry.key()).join();
         if (expectedRawPrefix == null) {
-            return true;
+            return new PrefixInspection(entry, true);
         }
-        return !Arrays.equals(prefix.asBytes(), expectedRawPrefix);
+        if (!Arrays.equals(prefix.asBytes(), expectedRawPrefix)) {
+            throw new PrefixCorruptionException(
+                    String.format("Prefix corruption detected: binding key of prefix %d points to a different prefix", prefix.asLong())
+            );
+        }
+        return new PrefixInspection(entry, false);
     }
 
     /**

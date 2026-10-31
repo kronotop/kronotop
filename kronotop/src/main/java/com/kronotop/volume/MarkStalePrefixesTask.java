@@ -171,9 +171,16 @@ public class MarkStalePrefixesTask extends BaseTask implements Task {
                             break;
                         }
                         byte[] prefix = (byte[]) prefixesSubspace.unpack(keyValue.getKey()).get(0);
-                        if (PrefixUtil.isStale(context, tr, Prefix.fromBytes(prefix))) {
-                            tr.clear(keyValue.getKey());
-                            journal.getPublisher().publish(tr, JournalName.PREFIX_INVALIDATIONS, prefix);
+                        try {
+                            if (PrefixUtil.inspectPrefix(context, tr, Prefix.fromBytes(prefix)).isStale()) {
+                                tr.clear(keyValue.getKey());
+                                journal.getPublisher().publish(tr, JournalName.PREFIX_INVALIDATIONS, prefix);
+                            }
+                        } catch (NoSuchPrefixException e) {
+                            // Not registered to global subspace. Possibly, this is an internal prefix.
+                        } catch (PrefixCorruptionException e) {
+                            // Leave the registry entry and the data untouched, an operator has to look at it.
+                            LOGGER.error(e.getMessage());
                         }
                         latestKey = keyValue.getKey();
                         total++;

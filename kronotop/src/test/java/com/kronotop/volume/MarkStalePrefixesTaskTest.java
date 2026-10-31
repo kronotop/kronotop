@@ -118,6 +118,30 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    void shouldKeepCorruptedPrefix() {
+        // Behavior: a prefix whose binding key points to a different prefix is left in the registry
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-subspace");
+        byte[] prefixPointer = subspace.pack("corrupted-pointer");
+        Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
+        try (Transaction tr = context.getTransactionManager().create()) {
+            PrefixUtil.register(context, tr, testPrefix, new PrefixEntry(prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
+            tr.commit().join();
+        }
+
+        // Rebind the pointer to another prefix by hand
+        try (Transaction tr = context.getTransactionManager().create()) {
+            tr.set(prefixPointer, new Prefix(UUID.randomUUID().toString()).asBytes());
+            tr.commit().join();
+        }
+
+        MarkStalePrefixesTask task = new MarkStalePrefixesTask(context);
+        task.run();
+
+        assertTrue(task.isFinished());
+        assertEquals(1, countPrefixes());
+    }
+
+    @Test
     void shouldCompleteImmediatelyWhenNoPrefixesExist() {
         // No prefixes registered
         assertEquals(0, countPrefixes());

@@ -51,6 +51,7 @@ class PrefixUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldDetectStalePrefixWhenPointerIsRemoved() {
+        // Behavior: a registered prefix is not stale while its binding key exists and becomes stale once the key is cleared
         try (Transaction tr = context.getTransactionManager().create()) {
             PrefixEntry entry = new PrefixEntry(bundle.prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(bundle.metadata.uuid()));
             PrefixUtil.register(context, tr, bundle.metadata.prefix(), entry);
@@ -59,7 +60,7 @@ class PrefixUtilTest extends BaseStandaloneInstanceTest {
 
         // Not stale, because prefixPointer still exists;
         try (Transaction tr = context.getTransactionManager().create()) {
-            assertFalse(PrefixUtil.isStale(context, tr, bundle.metadata.prefix()));
+            assertFalse(PrefixUtil.inspectPrefix(context, tr, bundle.metadata.prefix()).isStale());
         }
 
         // Make it stale, the prefix pointer somehow removed
@@ -69,12 +70,13 @@ class PrefixUtilTest extends BaseStandaloneInstanceTest {
         }
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            assertTrue(PrefixUtil.isStale(context, tr, bundle.metadata.prefix()));
+            assertTrue(PrefixUtil.inspectPrefix(context, tr, bundle.metadata.prefix()).isStale());
         }
     }
 
     @Test
-    void shouldUnregisterPrefixAndNotBeStale() {
+    void shouldThrowNoSuchPrefixAfterUnregister() {
+        // Behavior: inspecting a prefix after unregister throws NoSuchPrefixException
         try (Transaction tr = context.getTransactionManager().create()) {
             PrefixEntry entry = new PrefixEntry(bundle.prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(bundle.metadata.uuid()));
             PrefixUtil.register(context, tr, bundle.metadata.prefix(), entry);
@@ -83,11 +85,11 @@ class PrefixUtilTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getTransactionManager().create()) {
             assertDoesNotThrow(() -> PrefixUtil.unregister(context, tr, bundle.prefixPointer, bundle.metadata.prefix()));
+            tr.commit().join();
         }
 
-        // Not stale, because it's unregistered
         try (Transaction tr = context.getTransactionManager().create()) {
-            assertFalse(PrefixUtil.isStale(context, tr, bundle.metadata.prefix()));
+            assertThrows(NoSuchPrefixException.class, () -> PrefixUtil.inspectPrefix(context, tr, bundle.metadata.prefix()));
         }
     }
 
