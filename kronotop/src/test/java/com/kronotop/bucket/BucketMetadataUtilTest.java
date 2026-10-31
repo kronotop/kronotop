@@ -25,6 +25,8 @@ import com.kronotop.bucket.index.*;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.UUIDUtil;
+import com.kronotop.volume.NoSuchPrefixException;
+import com.kronotop.volume.Prefix;
 import com.kronotop.journal.Consumer;
 import com.kronotop.journal.ConsumerConfig;
 import com.kronotop.journal.Event;
@@ -614,9 +616,12 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldOpenByPrefixFailForPurgedBucketRecreatedWithSameName() {
-        // Behavior: after purge and re-create under the same name, the old prefix must not open the new bucket.
-        // The binding is dropped and the old prefix fails to resolve.
+    void shouldOpenByPrefixFailWithStalePrefixAfterPurgeWithoutUnregister() {
+        // Behavior: A bucket is created and opened by prefix once, so the cache holds a binding for its prefix. The bucket
+        // is then purged without PrefixUtil.unregister, as NAMESPACE PURGE does, so the prefix stays in the registry
+        // while its binding key is removed with the pointer subspace. A new bucket is created under the same name and
+        // gets a different prefix. Opening the old prefix must not return the new bucket: it throws KronotopException
+        // with the "Stale prefix" message, and the cached binding for the old prefix is dropped.
         Session session = getSession();
         BucketMetadata old = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -635,7 +640,10 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             KronotopException exception = assertThrows(KronotopException.class, () ->
                     BucketMetadataUtil.openByPrefix(context, tr, old.prefix().asBytes()));
-            assertEquals("Prefix not registered", exception.getMessage());
+            assertEquals(
+                    String.format("Stale prefix: binding key of prefix %d is gone", old.prefix().asLong()),
+                    exception.getMessage()
+            );
         }
         assertNull(context.getBucketMetadataCache().getBinding(old.prefix()));
     }
@@ -660,13 +668,18 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldThrowWhenOpenByPrefixWithUnregisteredPrefix() {
-        // Behavior: openByPrefix throws KronotopException for an unregistered prefix.
+        // Behavior: Opening a prefix that has no entry in the global prefix registry throws NoSuchPrefixException
+        // with the "No such prefix" message. Nothing is cached for the prefix.
         byte[] bogusPrefix = new byte[]{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
         try (Transaction tr = context.getTransactionManager().create()) {
-            KronotopException exception = assertThrows(KronotopException.class, () ->
+            NoSuchPrefixException exception = assertThrows(NoSuchPrefixException.class, () ->
                     BucketMetadataUtil.openByPrefix(context, tr, bogusPrefix));
-            assertEquals("Prefix not registered", exception.getMessage());
+            assertEquals(
+                    String.format("No such prefix: %d", Prefix.fromBytes(bogusPrefix).asLong()),
+                    exception.getMessage()
+            );
         }
+        assertNull(context.getBucketMetadataCache().getBinding(Prefix.fromBytes(bogusPrefix)));
     }
 
     @Test

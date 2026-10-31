@@ -19,8 +19,8 @@ package com.kronotop.bucket;
 import com.apple.foundationdb.*;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
+import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.google.common.cache.CacheBuilder;
@@ -35,7 +35,6 @@ import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.statistics.Histogram;
 import com.kronotop.bucket.index.statistics.HistogramCodec;
 import com.kronotop.directory.KronotopDirectory;
-import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.UUIDUtil;
 import com.kronotop.journal.JournalName;
@@ -44,9 +43,7 @@ import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.namespace.NoSuchNamespaceException;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
-import com.kronotop.volume.Prefix;
-import com.kronotop.volume.PrefixEntry;
-import com.kronotop.volume.PrefixUtil;
+import com.kronotop.volume.*;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -111,19 +108,11 @@ public class BucketMetadataUtil {
      * @return the 16-byte UUID pointer bytes, or {@code null} if the prefix is not registered or its binding is gone
      */
     public static byte[] resolvePointerBytes(Context context, Transaction tr, byte[] prefix) {
-        DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache()
-                .get(DirectorySubspaceCache.Key.PREFIXES);
-        byte[] prefixKey = prefixesSubspace.pack(Tuple.from((Object) prefix));
-        byte[] value = tr.get(prefixKey).join();
-        if (value == null) {
-            return null;
+        PrefixInspection inspection = PrefixUtil.inspectPrefix(context, tr, Prefix.fromBytes(prefix));
+        if (inspection.isStale()) {
+            throw new StalePrefixException(prefix);
         }
-        PrefixEntry entry = PrefixEntry.decode(value);
-        byte[] boundPrefix = tr.get(entry.key()).join();
-        if (boundPrefix == null || !Arrays.equals(boundPrefix, prefix)) {
-            return null;
-        }
-        return entry.pointer();
+        return inspection.entry().pointer();
     }
 
     public static byte[] namespaceBindingKey(DirectorySubspace subspace) {
@@ -481,10 +470,6 @@ public class BucketMetadataUtil {
         }
 
         byte[] pointer = resolvePointerBytes(context, tr, prefixBytes);
-        if (pointer == null) {
-            throw new KronotopException("Prefix not registered");
-        }
-
         UUID uuid = UUIDUtil.fromBytes(pointer);
         DirectorySubspace bucketSubspace = context.getDirectoryLayer()
                 .open(tr, registryPath(context.getClusterName(), uuid)).join();
