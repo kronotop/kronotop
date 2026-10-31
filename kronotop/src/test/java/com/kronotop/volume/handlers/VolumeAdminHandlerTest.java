@@ -18,6 +18,7 @@ package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.DataModelKind;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
@@ -26,6 +27,7 @@ import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.commands.TaskAdminCommandBuilder;
 import com.kronotop.commands.VolumeAdminCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.internal.UUIDUtil;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
 import com.kronotop.server.RESPVersion;
@@ -71,7 +73,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             byte[] prefixPointer = subspace.pack("stale-pointer");
             for (int i = 0; i < count; i++) {
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
-                PrefixUtil.register(context, tr, prefixPointer, testPrefix);
+                PrefixUtil.register(context, tr, testPrefix, new PrefixEntry(prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
             }
             // Clear the pointer to make all prefixes stale
             tr.clear(prefixPointer);

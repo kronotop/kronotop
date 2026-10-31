@@ -546,10 +546,10 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            byte[] pointerBytes = BucketMetadataUtil.resolvePointerBytes(context, tr, metadata.prefix().asBytes());
-            assertNotNull(pointerBytes);
-            UUID resolved = UUIDUtil.fromBytes(pointerBytes);
-            assertEquals(metadata.uuid(), resolved);
+            byte[] pointer = BucketMetadataUtil.resolvePointerBytes(context, tr, metadata.prefix().asBytes());
+            assertNotNull(pointer);
+            UUID uuid = UUIDUtil.fromBytes(pointer);
+            assertEquals(metadata.uuid(), uuid);
         }
     }
 

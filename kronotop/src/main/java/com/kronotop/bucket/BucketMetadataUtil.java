@@ -19,8 +19,8 @@ package com.kronotop.bucket;
 import com.apple.foundationdb.*;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.subspace.Subspace;
+import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.google.common.cache.CacheBuilder;
@@ -45,6 +45,7 @@ import com.kronotop.namespace.NoSuchNamespaceException;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
 import com.kronotop.volume.Prefix;
+import com.kronotop.volume.PrefixEntry;
 import com.kronotop.volume.PrefixUtil;
 
 import java.nio.ByteBuffer;
@@ -89,10 +90,11 @@ public class BucketMetadataUtil {
                 .registry(uuid).toList();
     }
 
-    private static Prefix createPrefix(Context context, Transaction tr, byte[] prefixBindingKey, byte[] pointerBytes) {
-        HashCode hashCode = UUIDUtil.hash(UUIDUtil.fromBytes(pointerBytes));
+    private static Prefix createPrefix(Context context, Transaction tr, byte[] prefixBindingKey, byte[] pointer) {
+        HashCode hashCode = UUIDUtil.hash(UUIDUtil.fromBytes(pointer));
         Prefix prefix = new Prefix(hashCode);
-        PrefixUtil.register(context, tr, prefixBindingKey, prefix);
+        PrefixEntry entry = new PrefixEntry(prefixBindingKey, DataModelKind.BUCKET, pointer);
+        PrefixUtil.register(context, tr, prefix, entry);
         return prefix;
     }
 
@@ -101,27 +103,27 @@ public class BucketMetadataUtil {
     }
 
     /**
-     * Resolves the UUID pointer bytes for a given volume prefix by walking the FDB binding chain
-     * in reverse: prefix bytes -> prefixBindingKey -> pointerSubspace -> pointer (UUID) bytes.
+     * Resolves the UUID pointer bytes for a given volume prefix from the global prefix registry.
      *
      * @param context the context providing environment and services
      * @param tr      the active transaction
      * @param prefix  the 8-byte SipHash prefix identifying the bucket
-     * @return the 16-byte UUID pointer bytes, or {@code null} if the prefix is not registered
+     * @return the 16-byte UUID pointer bytes, or {@code null} if the prefix is not registered or its binding is gone
      */
     public static byte[] resolvePointerBytes(Context context, Transaction tr, byte[] prefix) {
         DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache()
                 .get(DirectorySubspaceCache.Key.PREFIXES);
         byte[] prefixKey = prefixesSubspace.pack(Tuple.from((Object) prefix));
-        byte[] prefixBindingKey = tr.get(prefixKey).join();
-        if (prefixBindingKey == null) {
+        byte[] value = tr.get(prefixKey).join();
+        if (value == null) {
             return null;
         }
-
-        byte[] suffix = Tuple.from(BucketMetadataMagic.PREFIX_BINDING_KEY.getValue()).pack();
-        byte[] rawPointerSubspacePrefix = Arrays.copyOf(prefixBindingKey, prefixBindingKey.length - suffix.length);
-        Subspace pointerSubspace = new Subspace(rawPointerSubspacePrefix);
-        return tr.get(pointerSubspace.pack(Tuple.from(BUCKET_POINTER))).join();
+        PrefixEntry entry = PrefixEntry.decode(value);
+        byte[] boundPrefix = tr.get(entry.key()).join();
+        if (boundPrefix == null || !Arrays.equals(boundPrefix, prefix)) {
+            return null;
+        }
+        return entry.pointer();
     }
 
     public static byte[] namespaceBindingKey(DirectorySubspace subspace) {
@@ -245,17 +247,17 @@ public class BucketMetadataUtil {
             throw new BucketAlreadyExistsException(bucket);
         }
 
-        UUID pointer = UUID.randomUUID();
-        byte[] pointerBytes = UUIDUtil.toBytes(pointer);
-        tr.set(pointerKey, pointerBytes);
+        UUID uuid = UUID.randomUUID();
+        byte[] pointer = UUIDUtil.toBytes(uuid);
+        tr.set(pointerKey, pointer);
 
         byte[] prefixBindingKey = prefixBindingKey(pointerSubspace);
-        Prefix prefix = createPrefix(context, tr, prefixBindingKey, pointerBytes);
+        Prefix prefix = createPrefix(context, tr, prefixBindingKey, pointer);
 
         DirectorySubspace bucketSubspace = context.getDirectoryLayer()
                 .create(
                         tr,
-                        registryPath(context.getClusterName(), pointer)
+                        registryPath(context.getClusterName(), uuid)
                 ).join();
 
         // This is required to resolve namespace name during vacuum & reclaim
@@ -278,7 +280,7 @@ public class BucketMetadataUtil {
         long version = readVersion(tr, bucketSubspace);
 
         return new BucketMetadata(
-                pointer,
+                uuid,
                 namespace,
                 bucket,
                 version,
@@ -478,14 +480,14 @@ public class BucketMetadataUtil {
             cache.invalidateBinding(prefix);
         }
 
-        byte[] rawPointer = resolvePointerBytes(context, tr, prefixBytes);
-        if (rawPointer == null) {
+        byte[] pointer = resolvePointerBytes(context, tr, prefixBytes);
+        if (pointer == null) {
             throw new KronotopException("Prefix not registered");
         }
 
-        UUID pointer = UUIDUtil.fromBytes(rawPointer);
+        UUID uuid = UUIDUtil.fromBytes(pointer);
         DirectorySubspace bucketSubspace = context.getDirectoryLayer()
-                .open(tr, registryPath(context.getClusterName(), pointer)).join();
+                .open(tr, registryPath(context.getClusterName(), uuid)).join();
 
         byte[] rawBucketName = tr.get(bucketNameKey(bucketSubspace)).join();
         if (rawBucketName == null) {
@@ -504,7 +506,7 @@ public class BucketMetadataUtil {
 
         DirectorySubspace pointerSubspace = openPointerSubspace(tr, context, namespace, bucket);
         cache.setBinding(prefix, namespace, bucket);
-        return loadMetadata(context, tr, bucketSubspace, pointerSubspace, pointer, namespace, bucket, prefix, false);
+        return loadMetadata(context, tr, bucketSubspace, pointerSubspace, uuid, namespace, bucket, prefix, false);
     }
 
     /**

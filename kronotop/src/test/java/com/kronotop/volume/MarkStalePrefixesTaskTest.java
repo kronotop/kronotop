@@ -21,11 +21,13 @@ import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.kronotop.DataModelKind;
 import com.kronotop.TestUtil;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
+import com.kronotop.internal.UUIDUtil;
 import com.kronotop.journal.Consumer;
 import com.kronotop.journal.ConsumerConfig;
 import com.kronotop.journal.Event;
@@ -58,7 +60,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 20; i++) {
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
-                PrefixUtil.register(context, tr, prefixPointer, testPrefix);
+                PrefixUtil.register(context, tr, testPrefix, new PrefixEntry(prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
             }
             tr.commit().join();
         }
@@ -85,7 +87,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
             for (int i = 0; i < 10; i++) {
                 byte[] prefixPointer = subspace.pack("valid-pointer-" + i);
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
-                PrefixUtil.register(context, tr, prefixPointer, testPrefix);
+                PrefixUtil.register(context, tr, testPrefix, new PrefixEntry(prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
             }
             tr.commit().join();
         }
@@ -95,7 +97,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 10; i++) {
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
-                PrefixUtil.register(context, tr, stalePointer, testPrefix);
+                PrefixUtil.register(context, tr, testPrefix, new PrefixEntry(stalePointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
             }
             tr.commit().join();
         }
@@ -136,7 +138,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
             for (int i = 0; i < 10; i++) {
                 byte[] prefixPointer = subspace.pack("valid-pointer-" + i);
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
-                PrefixUtil.register(context, tr, prefixPointer, testPrefix);
+                PrefixUtil.register(context, tr, testPrefix, new PrefixEntry(prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
             }
             tr.commit().join();
         }
@@ -159,7 +161,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 5; i++) {
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
-                PrefixUtil.register(context, tr, stalePointer, testPrefix);
+                PrefixUtil.register(context, tr, testPrefix, new PrefixEntry(stalePointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
             }
             tr.commit().join();
         }
@@ -205,7 +207,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 20; i++) {
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
-                PrefixUtil.register(context, tr, stalePointer, testPrefix);
+                PrefixUtil.register(context, tr, testPrefix, new PrefixEntry(stalePointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
             }
             tr.commit().join();
         }
@@ -251,7 +253,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         byte[] stalePointer = testSubspace.pack("stale-pointer");
         try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 5; i++) {
-                PrefixUtil.register(context, tr, stalePointer, new Prefix(UUID.randomUUID().toString()));
+                PrefixUtil.register(context, tr, new Prefix(UUID.randomUUID().toString()), new PrefixEntry(stalePointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
             }
             tr.commit().join();
         }
@@ -288,7 +290,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         byte[] stalePointer = testSubspace.pack("stale-pointer");
         try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 5; i++) {
-                PrefixUtil.register(context, tr, stalePointer, new Prefix(UUID.randomUUID().toString()));
+                PrefixUtil.register(context, tr, new Prefix(UUID.randomUUID().toString()), new PrefixEntry(stalePointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
             }
             tr.commit().join();
         }
@@ -321,7 +323,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         byte[] stalePointer = testSubspace.pack("stale-pointer");
         try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 20; i++) {
-                PrefixUtil.register(context, tr, stalePointer, new Prefix(UUID.randomUUID().toString()));
+                PrefixUtil.register(context, tr, new Prefix(UUID.randomUUID().toString()), new PrefixEntry(stalePointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
             }
             tr.commit().join();
         }
@@ -363,7 +365,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 20; i++) {
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
-                PrefixUtil.register(context, tr, stalePointer, testPrefix);
+                PrefixUtil.register(context, tr, testPrefix, new PrefixEntry(stalePointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
             }
             tr.commit().join();
         }

@@ -25,8 +25,8 @@ import com.kronotop.internal.DirectorySubspaceCache;
 import java.util.Arrays;
 
 /**
- * Keeps the global prefix registry in the {@code PREFIXES} subspace. A prefix maps to its binding key,
- * and the binding key maps back to the prefix.
+ * Keeps the global prefix registry in the {@code PREFIXES} subspace. A prefix maps to a tuple of its
+ * binding key, data model kind and pointer. The binding key maps back to the prefix.
  */
 public class PrefixUtil {
 
@@ -40,17 +40,22 @@ public class PrefixUtil {
      *
      * @throws PrefixCollisionException if the prefix is already bound to a different key
      */
-    public static void register(Context context, Transaction tr, byte[] prefixBindingKey, Prefix prefix) {
+    public static void register(
+            Context context,
+            Transaction tr,
+            Prefix prefix,
+            PrefixEntry entry
+    ) {
         byte[] prefixKey = packPrefixKey(context, prefix);
-        byte[] existingPointer = tr.get(prefixKey).join();
-        if (existingPointer != null && !Arrays.equals(existingPointer, prefixBindingKey)) {
+        byte[] existing = tr.get(prefixKey).join();
+        if (existing != null && !Arrays.equals(PrefixEntry.decode(existing).key(), entry.key())) {
             throw new PrefixCollisionException(
                     String.format("Prefix collision detected: prefix %d is already registered by a different pointer", prefix.asLong())
             );
         }
 
-        tr.set(prefixBindingKey, prefix.asBytes());
-        tr.set(prefixKey, prefixBindingKey);
+        tr.set(entry.key(), prefix.asBytes());
+        tr.set(prefixKey, entry.encode());
     }
 
     /**
@@ -59,12 +64,12 @@ public class PrefixUtil {
      */
     public static boolean isStale(Context context, Transaction tr, Prefix prefix) {
         byte[] prefixKey = packPrefixKey(context, prefix);
-        byte[] prefixBindingKey = tr.get(prefixKey).join();
-        if (prefixBindingKey == null) {
+        byte[] value = tr.get(prefixKey).join();
+        if (value == null) {
             // Not registered to global subspace. Possibly, this is an internal prefix.
             return false;
         }
-        byte[] expectedRawPrefix = tr.get(prefixBindingKey).join();
+        byte[] expectedRawPrefix = tr.get(PrefixEntry.decode(value).key()).join();
         if (expectedRawPrefix == null) {
             return true;
         }

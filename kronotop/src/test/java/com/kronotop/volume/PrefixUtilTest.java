@@ -18,8 +18,10 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseStandaloneInstanceTest;
+import com.kronotop.DataModelKind;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.internal.UUIDUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -39,7 +41,10 @@ class PrefixUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldRegisterPrefixSuccessfully() {
         try (Transaction tr = context.getTransactionManager().create()) {
-            assertDoesNotThrow(() -> PrefixUtil.register(context, tr, bundle.prefixPointer, bundle.metadata.prefix()));
+            PrefixEntry entry = new PrefixEntry(bundle.prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(bundle.metadata.uuid()));
+            assertDoesNotThrow(() ->
+                    PrefixUtil.register(context, tr, bundle.metadata.prefix(), entry)
+            );
             tr.commit().join();
         }
     }
@@ -47,7 +52,8 @@ class PrefixUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldDetectStalePrefixWhenPointerIsRemoved() {
         try (Transaction tr = context.getTransactionManager().create()) {
-            PrefixUtil.register(context, tr, bundle.prefixPointer, bundle.metadata.prefix());
+            PrefixEntry entry = new PrefixEntry(bundle.prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(bundle.metadata.uuid()));
+            PrefixUtil.register(context, tr, bundle.metadata.prefix(), entry);
             tr.commit().join();
         }
 
@@ -70,7 +76,8 @@ class PrefixUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldUnregisterPrefixAndNotBeStale() {
         try (Transaction tr = context.getTransactionManager().create()) {
-            PrefixUtil.register(context, tr, bundle.prefixPointer, bundle.metadata.prefix());
+            PrefixEntry entry = new PrefixEntry(bundle.prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(bundle.metadata.uuid()));
+            PrefixUtil.register(context, tr, bundle.metadata.prefix(), entry);
             tr.commit().join();
         }
 
