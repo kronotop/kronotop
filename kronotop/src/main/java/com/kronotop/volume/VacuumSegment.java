@@ -24,6 +24,8 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.transaction.InstrumentedTransaction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -34,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 
 class VacuumSegment {
+    private static final Logger LOGGER = LoggerFactory.getLogger(VacuumSegment.class);
     private final Context context;
     private final VolumeSubspace subspace;
 
@@ -111,6 +114,7 @@ class VacuumSegment {
             if (ctx.isStopped()) break;
 
             byte[] cursor = prefixRange.begin;
+            boolean evacuatedAny = false;
 
             while (true) {
                 if (ctx.isStopped()) break;
@@ -138,7 +142,16 @@ class VacuumSegment {
                         byte[] metadataBytes = entryTuple.getBytes(1);
                         EntryMetadata metadata = EntryMetadata.decode(metadataBytes);
                         Versionstamp versionstamp = VersionstampUtil.decodeVersionstampedValue(entry.getValue());
-                        if (!evacuator.evacuate(context, tr, metadata, versionstamp)) {
+                        try {
+                            boolean batchHasRoom = evacuator.evacuate(context, tr, metadata, versionstamp);
+                            evacuatedAny = true;
+                            if (!batchHasRoom) {
+                                break;
+                            }
+                        } catch (StalePrefixException | NoSuchPrefixException e) {
+                            // Every entry of this prefix fails the same way. Skip the prefix and move on to the next one.
+                            // The PREFIX_INVALIDATIONS consumer deletes the data of a stale prefix later.
+                            LOGGER.warn("Skipping prefix {} in segment {}: {}", prefix.asLong(), segmentId, e.getMessage());
                             break;
                         }
                     }
@@ -153,6 +166,10 @@ class VacuumSegment {
                     completed = true;
                     break;
                 }
+            }
+            if (!evacuatedAny) {
+                // The remaining entries belong to skipped prefixes. Another pass cannot make progress.
+                break;
             }
         }
         return completed;

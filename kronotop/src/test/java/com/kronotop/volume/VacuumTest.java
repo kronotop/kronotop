@@ -345,6 +345,63 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         assertThrows(IllegalStateException.class, () -> volume.destroyStaleSegment(sealedSegmentId));
     }
 
+    @Test
+    void shouldSkipStaleAndUnregisteredPrefixesAndKeepSegment() throws IOException {
+        // Behavior: a sealed segment holds entries of three prefixes. The evacuator throws
+        // StalePrefixException for alpha and NoSuchPrefixException for beta, gamma is healthy.
+        // vacuum returns without throwing, evacuates only the gamma entries, skips alpha and beta,
+        // and stops after a pass that makes no progress. The segment is not destroyed and its
+        // vacuum status stays EVACUATING because the skipped entries are still in the segment.
+        Prefix alpha = new Prefix("alpha");
+        Prefix beta = new Prefix("beta");
+        Prefix gamma = new Prefix("gamma");
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            volume.append(new VolumeSession(tr, alpha), getEntries(5));
+            volume.append(new VolumeSession(tr, beta), getEntries(3));
+            volume.append(new VolumeSession(tr, gamma), getEntries(4));
+            tr.commit().join();
+        }
+
+        long bufferSize = 100480;
+        long segmentSize = VolumeConfiguration.segmentSize;
+        long numIterations = 2 * (segmentSize / bufferSize);
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, alpha);
+            for (int i = 1; i <= numIterations; i++) {
+                volume.append(session, randomBytes((int) bufferSize));
+            }
+            tr.commit().join();
+        }
+
+        List<SegmentAnalysis> analysis = volume.analyze();
+        assertEquals(2, analysis.size());
+        long sealedSegmentId = analysis.getFirst().segmentId();
+
+        VacuumContext ctx = new VacuumContext();
+        PrefixFailingEvacuator evacuator = new PrefixFailingEvacuator(volume, alpha, beta);
+        assertDoesNotThrow(() -> volume.vacuum(ctx, sealedSegmentId, evacuator));
+
+        assertEquals(4, evacuator.evacuated.size());
+        for (EntryMetadata metadata : evacuator.evacuated) {
+            assertEquals(gamma, Prefix.fromBytes(metadata.prefix()));
+        }
+
+        VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
+        try (Transaction tr = context.getTransactionManager().create()) {
+            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace);
+            assertTrue(segmentIds.contains(sealedSegmentId));
+
+            VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, volumeSubspace, sealedSegmentId);
+            assertNotNull(metadata);
+            assertEquals(VacuumMetadataStatus.EVACUATING, metadata.status());
+        }
+
+        Path segmentPath = SegmentUtil.getFilePath(volume.getConfig().dataDir(), sealedSegmentId);
+        assertTrue(Files.exists(segmentPath));
+    }
+
     static class MockEntryEvacuator implements EntryEvacuator {
         private final VacuumContext ctx;
         private final Set<Versionstamp> seen = new HashSet<>();
@@ -384,6 +441,37 @@ class VacuumTest extends BaseVolumeIntegrationTest {
             VersionstampedEntryUpdate update = new VersionstampedEntryUpdate(versionstamp, metadata, data);
             volume.updateByVersionstampedEntryUpdate(session, update);
             return true;
+        }
+    }
+
+    static class PrefixFailingEvacuator implements EntryEvacuator {
+        private final EvacuatingEvacuator delegate;
+        private final Prefix stalePrefix;
+        private final Prefix unregisteredPrefix;
+        private final List<EntryMetadata> evacuated = new ArrayList<>();
+
+        PrefixFailingEvacuator(Volume volume, Prefix stalePrefix, Prefix unregisteredPrefix) {
+            this.delegate = new EvacuatingEvacuator(volume);
+            this.stalePrefix = stalePrefix;
+            this.unregisteredPrefix = unregisteredPrefix;
+        }
+
+        @Override
+        public boolean evacuate(
+                Context context,
+                Transaction tr,
+                EntryMetadata metadata,
+                Versionstamp versionstamp
+        ) throws IOException {
+            Prefix prefix = Prefix.fromBytes(metadata.prefix());
+            if (prefix.equals(stalePrefix)) {
+                throw new StalePrefixException(metadata.prefix());
+            }
+            if (prefix.equals(unregisteredPrefix)) {
+                throw new NoSuchPrefixException(String.format("No such prefix: %d", prefix.asLong()));
+            }
+            evacuated.add(metadata);
+            return delegate.evacuate(context, tr, metadata, versionstamp);
         }
     }
 }
