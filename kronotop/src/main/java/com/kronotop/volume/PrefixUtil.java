@@ -24,21 +24,24 @@ import com.kronotop.internal.DirectorySubspaceCache;
 
 import java.util.Arrays;
 
+/**
+ * Keeps the global prefix registry in the {@code PREFIXES} subspace. A prefix maps to its binding key,
+ * and the binding key maps back to the prefix.
+ */
 public class PrefixUtil {
 
+    private static byte[] packPrefixKey(Context context, Prefix prefix) {
+        DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
+        return prefixesSubspace.pack(Tuple.from((Object) prefix.asBytes()));
+    }
+
     /**
-     * Registers a prefix in the context's DirectorySubspace, associating it with a given prefix pointer
-     * and storing the mapping in the `PREFIXES` subspace.
+     * Binds a prefix and its binding key to each other.
      *
-     * @param context          the current context of the Kronotop instance managing DirectorySubspaceCache
-     * @param tr               the active transaction used to register the prefix and pointer
-     * @param prefixBindingKey the byte array that serves as a pointer to the prefix being registered
-     * @param prefix           the prefix object whose bytes are to be associated in the DirectorySubspace
+     * @throws PrefixCollisionException if the prefix is already bound to a different key
      */
     public static void register(Context context, Transaction tr, byte[] prefixBindingKey, Prefix prefix) {
-        DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
-        byte[] prefixKey = prefixesSubspace.pack(Tuple.from((Object) prefix.asBytes()));
-
+        byte[] prefixKey = packPrefixKey(context, prefix);
         byte[] existingPointer = tr.get(prefixKey).join();
         if (existingPointer != null && !Arrays.equals(existingPointer, prefixBindingKey)) {
             throw new PrefixCollisionException(
@@ -51,19 +54,11 @@ public class PrefixUtil {
     }
 
     /**
-     * Determines if a given prefix is stale in the context of a transaction.
-     * A prefix is considered stale if its pointer no longer points to its expected raw prefix
-     * or if it is not registered correctly in the global subspace.
-     *
-     * @param context the current context of the Kronotop instance managing DirectorySubspaceCache
-     * @param tr      the active transaction used to check the prefix state
-     * @param prefix  the prefix object to evaluate for staleness
-     * @return true if the prefix is stale, false otherwise
+     * Returns true when the binding key of the prefix is gone or points to a different prefix.
+     * A prefix that is not in the registry is not stale.
      */
     public static boolean isStale(Context context, Transaction tr, Prefix prefix) {
-        DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
-        byte[] prefixKey = prefixesSubspace.pack(Tuple.from((Object) prefix.asBytes()));
-
+        byte[] prefixKey = packPrefixKey(context, prefix);
         byte[] prefixBindingKey = tr.get(prefixKey).join();
         if (prefixBindingKey == null) {
             // Not registered to global subspace. Possibly, this is an internal prefix.
@@ -77,19 +72,11 @@ public class PrefixUtil {
     }
 
     /**
-     * Unregisters a prefix from the context's DirectorySubspace, removing its association
-     * with both the prefix pointer and the key in the `PREFIXES` subspace.
-     *
-     * @param context          the current context of the Kronotop instance used to manage DirectorySubspaceCache
-     * @param tr               the active transaction during which the prefix and pointer are unregistered
-     * @param prefixBindingKey the byte array that serves as a pointer to the prefix being unregistered
-     * @param prefix           the prefix object whose bytes are to be removed from the DirectorySubspace
+     * Removes the prefix and its binding key from the registry.
      */
     public static void unregister(Context context, Transaction tr, byte[] prefixBindingKey, Prefix prefix) {
         tr.clear(prefixBindingKey);
-
-        DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
-        byte[] prefixKey = prefixesSubspace.pack(Tuple.from((Object) prefix.asBytes()));
+        byte[] prefixKey = packPrefixKey(context, prefix);
         tr.clear(prefixKey);
     }
 }
