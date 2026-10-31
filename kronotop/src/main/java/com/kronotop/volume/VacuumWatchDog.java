@@ -56,14 +56,6 @@ class VacuumWatchDog implements Runnable {
         this.evacuatorFactory = evacuatorFactory;
     }
 
-    private Set<Long> getActiveSegmentIds() {
-        Set<Long> ids = new HashSet<>();
-        for (VacuumWorker worker : activeWorkers) {
-            ids.add(worker.getSegmentId());
-        }
-        return ids;
-    }
-
     private boolean startWorker(long segmentId) {
         EntryEvacuator evacuator = evacuatorFactory.get();
         VacuumWorker worker = new VacuumWorker(context, volume, segmentId, evacuator, completionQueue);
@@ -98,11 +90,13 @@ class VacuumWatchDog implements Runnable {
     public void run() {
         long startedAt = System.currentTimeMillis();
         int segmentsProcessed = 0;
+        // A segment is vacuumed at most once per run. A segment that cannot reach COMPLETED
+        // would otherwise be picked again right away and spin until the next run.
+        Set<Long> attemptedSegmentIds = new HashSet<>();
         try {
             while (!isStopped()) {
                 long writableSegmentId = volume.getWritableSegmentId();
                 List<SegmentAnalysis> analyses = volume.analyze();
-                Set<Long> activeSegmentIds = getActiveSegmentIds();
 
                 for (SegmentAnalysis analysis : analyses) {
                     if (isStopped()) {
@@ -111,7 +105,7 @@ class VacuumWatchDog implements Runnable {
                     if (analysis.segmentId() == writableSegmentId) {
                         continue;
                     }
-                    if (activeSegmentIds.contains(analysis.segmentId())) {
+                    if (attemptedSegmentIds.contains(analysis.segmentId())) {
                         continue;
                     }
                     if (analysis.garbagePercentage() < garbageThreshold) {
@@ -126,6 +120,7 @@ class VacuumWatchDog implements Runnable {
                     if (!startWorker(analysis.segmentId())) {
                         break;
                     }
+                    attemptedSegmentIds.add(analysis.segmentId());
                     segmentsProcessed++;
                 }
 
@@ -251,6 +246,7 @@ class VacuumWatchDog implements Runnable {
                 if (status != VacuumMetadataStatus.COMPLETED) {
                     VacuumSegmentMetadataUtil.setStatus(tr, volume.getSubspace(), segmentId, VacuumMetadataStatus.STOPPED);
                     tr.commit().join();
+                    WORKER_LOGGER.warn("Vacuum did not complete for segment {}, it will be retried on the next vacuum run", segmentId);
                 }
             } catch (IllegalStateException e) {
                 // No metadata found — segment was never analyzed, nothing to mark

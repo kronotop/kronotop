@@ -21,15 +21,19 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.volume.segment.SegmentAnalysis;
+import com.kronotop.volume.segment.SegmentUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -248,6 +252,44 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    void shouldAttemptSegmentOnceWhenVacuumCannotComplete() throws Exception {
+        // Behavior: a sealed segment is above the garbage threshold but every entry belongs to a stale
+        // prefix, so the evacuator throws StalePrefixException and the segment cannot reach COMPLETED.
+        // The WatchDog starts exactly one worker for that segment, does not pick it again in the same
+        // run, finishes the run on its own, and leaves the segment with status STOPPED and its file intact.
+        long sealedSegmentId = fillAndSealSegmentWithGarbage(stashVolumeSyncerPrefix);
+
+        AtomicInteger evacuatorsCreated = new AtomicInteger();
+        VacuumWatchDog watchDog = new VacuumWatchDog(context, volume, 0.001f, 2, () -> {
+            evacuatorsCreated.incrementAndGet();
+            return new StalePrefixEvacuator();
+        });
+        Thread watchDogThread = Thread.ofVirtual().start(watchDog);
+        watchDogThread.join(10_000);
+
+        assertFalse(watchDogThread.isAlive());
+        assertTrue(watchDog.isStopped());
+        assertEquals(1, evacuatorsCreated.get());
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
+            VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, volumeSubspace, sealedSegmentId);
+            assertNotNull(metadata);
+            assertEquals(VacuumMetadataStatus.STOPPED, metadata.status());
+
+            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace);
+            assertTrue(segmentIds.contains(sealedSegmentId));
+
+            VacuumMetadata vacuumMetadata = VacuumMetadataUtil.load(tr, volumeSubspace);
+            assertNotNull(vacuumMetadata);
+            assertEquals(1, vacuumMetadata.segmentsProcessed());
+        }
+
+        Path segmentPath = SegmentUtil.getFilePath(volume.getConfig().dataDir(), sealedSegmentId);
+        assertTrue(Files.exists(segmentPath));
+    }
+
+    @Test
     void shouldLimitConcurrentWorkers() throws Exception {
         // Behavior: WatchDog runs at most maxWorkers workers concurrently
         fillAndSealSegmentWithGarbage(stashVolumeSyncerPrefix);
@@ -346,6 +388,13 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
         @Override
         public boolean evacuate(Context context, Transaction tr, EntryMetadata metadata, Versionstamp versionstamp) {
             return true;
+        }
+    }
+
+    static class StalePrefixEvacuator implements EntryEvacuator {
+        @Override
+        public boolean evacuate(Context context, Transaction tr, EntryMetadata metadata, Versionstamp versionstamp) {
+            throw new StalePrefixException(metadata.prefix());
         }
     }
 
