@@ -1,18 +1,16 @@
 {
-  "MARK-STALE-PREFIXES": {
-    "summary": "Starts, stops, removes or locates the stale-prefix scanning task.",
+  "COLLECT-STALE-PREFIXES": {
+    "summary": "Starts, stops, removes or locates the stale prefix collection task.",
     "complexity": "O(1)",
-    "group": "volume",
+    "group": "cluster",
     "since": "2026.06-1",
     "arity": 3,
-    "container": "VOLUME.ADMIN",
+    "container": "KR.ADMIN",
     "command_flags": [
       "ADMIN",
       "WRITE"
     ],
-    "acl_categories": [
-      "VOLUME"
-    ],
+    "acl_categories": [],
     "key_specs": [],
     "reply_schema": {
       "oneOf": [

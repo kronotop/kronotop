@@ -140,6 +140,11 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         }
     }
 
+    public Command<K, V, String> collectStalePrefixes(String operation) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.COLLECT_STALE_PREFIXES).add(operation);
+        return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
+    }
+
     enum CommandKeyword implements ProtocolKeyword {
         INITIALIZE_CLUSTER("INITIALIZE-CLUSTER"),
         LIST_MEMBERS("LIST-MEMBERS"),
@@ -152,7 +157,8 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         DESCRIBE_SHARD("DESCRIBE-SHARD"),
         DESCRIBE_CLUSTER("DESCRIBE-CLUSTER"),
         ROUTE("ROUTE"),
-        DROP_CLUSTER("DROP-CLUSTER");
+        DROP_CLUSTER("DROP-CLUSTER"),
+        COLLECT_STALE_PREFIXES("COLLECT-STALE-PREFIXES");
 
         public final byte[] bytes;
 

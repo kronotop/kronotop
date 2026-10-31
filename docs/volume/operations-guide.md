@@ -13,7 +13,7 @@ cluster administrators.
 When documents are deleted or updated, the metadata in FoundationDB is removed or replaced immediately. However,
 internal prefix references may become orphaned over time.
 
-The **Mark stale prefixes** admin task scans all prefix references in FoundationDB, identifies those that no longer
+The **Collect stale prefixes** admin task scans all prefix references in FoundationDB, identifies those that no longer
 point to valid data, and clears them. Stale references skew garbage percentage calculations until cleared.
 
 This task does not run automatically. It must be triggered explicitly by an administrator.
@@ -26,13 +26,13 @@ A *prefix* is the internal grouping key that associates stored entries with thei
 bucket or namespace is deleted, the data and metadata it owned become orphaned, but the prefix references in
 FoundationDB are not automatically cleaned up in every case.
 
-The `MARK-STALE-PREFIXES` task scans all prefix references, detects those whose targets are missing or invalid, and
+The `COLLECT-STALE-PREFIXES` task scans all prefix references, detects those whose targets are missing or invalid, and
 clears them. This makes the associated data eligible for garbage collection.
 
 **Starting the task:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN MARK-STALE-PREFIXES START
+127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES START
 OK
 ```
 
@@ -45,11 +45,12 @@ The task auto-completes when all prefixes have been scanned. No manual stop is r
 **Stopping the task (if needed):**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN MARK-STALE-PREFIXES STOP
+127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES STOP
 OK
 ```
 
-Only one instance of the task can run at a time.
+Only one instance of the task can run at a time. For full argument details and error conditions, see
+[KR.ADMIN COLLECT-STALE-PREFIXES](../admin/cluster/commands/kr-admin-collect-stale-prefixes.md).
 
 ---
 
@@ -61,17 +62,17 @@ The bytes on the disk and any orphaned prefix references remain until explicitly
 After purging a namespace, run the stale prefix scan to clean up orphaned references:
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN MARK-STALE-PREFIXES START
+127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES START
 OK
 # Wait for the task to complete
 ```
 
-For single-bucket deletion, `BUCKET.PURGE` handles its own prefix cleanup immediately, so `MARK-STALE-PREFIXES` is not
+For single-bucket deletion, `BUCKET.PURGE` handles its own prefix cleanup immediately, so `COLLECT-STALE-PREFIXES` is not
 required.
 
 **Prefer per-bucket deletion over namespace purge.** When possible, delete buckets individually with
 `BUCKET.REMOVE` + `BUCKET.PURGE` before dropping the namespace. This approach is cleaner because `BUCKET.PURGE`
-handles prefix cleanup inline. No separate `MARK-STALE-PREFIXES` pass is needed. Reserve `NAMESPACE PURGE` for cases
+handles prefix cleanup inline. No separate `COLLECT-STALE-PREFIXES` pass is needed. Reserve `NAMESPACE PURGE` for cases
 where the namespace contains too many buckets to delete one by one, or when the namespace must be removed urgently
 regardless of cleanup cost.
 
@@ -79,11 +80,11 @@ regardless of cleanup cost.
 
 ## Vacuuming Segments
 
-Over time, delete and update operations leave unreachable data in segments. Marking stale prefixes makes this garbage
+Over time, delete and update operations leave unreachable data in segments. Collecting stale prefixes makes this garbage
 visible, but does not free disk space. Vacuum is the step that actually reclaims it: live entries are evacuated from
 high-garbage segments into the current writable segment, and the emptied segment files are destroyed.
 
-**When to run:** After `MARK-STALE-PREFIXES` has completed and `VOLUME.ADMIN DESCRIBE` shows elevated
+**When to run:** After `COLLECT-STALE-PREFIXES` has completed and `VOLUME.ADMIN DESCRIBE` shows elevated
 `garbage_percentage` values on one or more segments.
 
 **Typical workflow:**
@@ -129,7 +130,7 @@ Follow this checklist after namespace purges or periodic maintenance:
 
 1. **Run stale prefix cleanup**
    ```kronotop
-   127.0.0.1:3320> VOLUME.ADMIN MARK-STALE-PREFIXES START
+   127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES START
    OK
    ```
    Wait for the task to auto-complete. It processes in the background and does not require monitoring.

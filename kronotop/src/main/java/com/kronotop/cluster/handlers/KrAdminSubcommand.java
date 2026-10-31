@@ -30,7 +30,8 @@ public enum KrAdminSubcommand {
     SET_SHARD_STATUS("set-shard-status"),
     DESCRIBE_SHARD("describe-shard"),
     DESCRIBE_MEMBER("describe-member"),
-    DROP_CLUSTER("drop-cluster");
+    DROP_CLUSTER("drop-cluster"),
+    COLLECT_STALE_PREFIXES("collect-stale-prefixes");
 
     private final String value;
 

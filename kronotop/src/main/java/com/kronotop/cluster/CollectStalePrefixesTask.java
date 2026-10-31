@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume;
+package com.kronotop.cluster;
 
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
@@ -25,9 +25,6 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.cluster.Member;
-import com.kronotop.cluster.MemberNotRegisteredException;
-import com.kronotop.cluster.MembershipService;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
@@ -37,16 +34,20 @@ import com.kronotop.task.BaseTask;
 import com.kronotop.task.Task;
 import com.kronotop.task.handlers.TaskNames;
 import com.kronotop.transaction.TransactionUtil;
+import com.kronotop.volume.NoSuchPrefixException;
+import com.kronotop.volume.Prefix;
+import com.kronotop.volume.PrefixCorruptionException;
+import com.kronotop.volume.PrefixUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-public class MarkStalePrefixesTask extends BaseTask implements Task {
-    public static final String NAME = TaskNames.format("volume", "mark-stale-prefixes-task");
+public class CollectStalePrefixesTask extends BaseTask implements Task {
+    public static final String NAME = TaskNames.format("cluster", "collect-stale-prefixes-task");
     private static final int DEFAULT_BATCH_SIZE = 10000;
-    private static final Logger LOGGER = LoggerFactory.getLogger(MarkStalePrefixesTask.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CollectStalePrefixesTask.class);
     private final int batchSize;
     private final Context context;
     private final JournalService journal;
@@ -54,11 +55,11 @@ public class MarkStalePrefixesTask extends BaseTask implements Task {
     private final DirectorySubspace subspace;
     private volatile boolean shutdown;
 
-    public MarkStalePrefixesTask(Context context) {
+    public CollectStalePrefixesTask(Context context) {
         this(context, DEFAULT_BATCH_SIZE);
     }
 
-    protected MarkStalePrefixesTask(Context context, int batchSize) {
+    protected CollectStalePrefixesTask(Context context, int batchSize) {
         this.context = context;
         this.journal = context.getService(JournalService.NAME);
         this.batchSize = batchSize;

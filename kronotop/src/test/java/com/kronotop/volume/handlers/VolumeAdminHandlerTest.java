@@ -17,17 +17,13 @@
 package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.DataModelKind;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.KrAdminCommandBuilder;
-import com.kronotop.commands.TaskAdminCommandBuilder;
 import com.kronotop.commands.VolumeAdminCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
-import com.kronotop.internal.UUIDUtil;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
 import com.kronotop.server.RESPVersion;
@@ -50,7 +46,6 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.EnumMap;
 import java.util.List;
-import java.util.UUID;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -63,22 +58,6 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void useRESP3() {
         // These tests assert RESP3 types, so the session must speak RESP3.
         switchProtocol(channel, RESPVersion.RESP3);
-    }
-
-    private void createStalePrefixes(int count) {
-        String clusterName = context.getConfig().getString("cluster.name");
-        List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).extend("test-stale-prefixes");
-        try (Transaction tr = database.createTransaction()) {
-            DirectorySubspace subspace = context.getDirectoryLayer().createOrOpen(tr, subpath).join();
-            byte[] prefixPointer = subspace.pack("stale-pointer");
-            for (int i = 0; i < count; i++) {
-                Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
-                PrefixUtil.register(context, tr, testPrefix, new PrefixEntry(prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
-            }
-            // Clear the pointer to make all prefixes stale
-            tr.clear(prefixPointer);
-            tr.commit().join();
-        }
     }
 
     private void injectTestData() throws IOException {
@@ -312,244 +291,6 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertEquals(orphanFile.getAbsolutePath(), path.content().toString(StandardCharsets.UTF_8));
         // Deleted
         assertFalse(orphanFile.exists());
-    }
-
-    @Test
-    void shouldStartMarkStalePrefixesTask() {
-        {
-            VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
-            ByteBuf buf = Unpooled.buffer();
-            cmd.markStalePrefixes("START").encode(buf);
-
-            Object msg = runCommand(channel, buf);
-
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        {
-            TaskAdminCommandBuilder<String, String> taskAdmin = new TaskAdminCommandBuilder<>(StringCodec.ASCII);
-
-            ByteBuf buf = Unpooled.buffer();
-            taskAdmin.list().encode(buf);
-
-            KronotopTestInstance instance = getInstances().getFirst();
-            instance.getChannel().writeInbound(buf);
-            Object msg = instance.getChannel().readOutbound();
-            assertInstanceOf(MapRedisMessage.class, msg);
-            MapRedisMessage actualMessage = (MapRedisMessage) msg;
-            boolean found = false;
-            for (RedisMessage message : actualMessage.children().keySet()) {
-                FullBulkStringRedisMessage taskName = (FullBulkStringRedisMessage) message;
-                if (MarkStalePrefixesTask.NAME.equals(taskName.content().toString(StandardCharsets.UTF_8))) {
-                    found = true;
-                    break;
-                }
-            }
-            assertTrue(found);
-        }
-    }
-
-    @Test
-    void shouldReturnErrorWhenMarkStalePrefixesTaskAlreadyExists() {
-        // Behavior: Starting a mark-stale-prefixes task while one is already running returns an error.
-
-        // Create stale prefixes so the task has real work and doesn't finish instantly.
-        createStalePrefixes(500);
-
-        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.markStalePrefixes("START").encode(buf);
-
-            Object msg = runCommand(channel, buf);
-
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        ByteBuf buf = Unpooled.buffer();
-        cmd.markStalePrefixes("START").encode(buf);
-
-        Object msg = runCommand(channel, buf);
-
-        assertInstanceOf(ErrorRedisMessage.class, msg);
-        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Task volume:mark-stale-prefixes-task already exists", actualMessage.content());
-
-        // Cleanup: stop the running task
-        ByteBuf stopBuf = Unpooled.buffer();
-        cmd.markStalePrefixes("STOP").encode(stopBuf);
-        runCommand(channel, stopBuf);
-    }
-
-    @Test
-    void shouldReturnErrorWhenStoppingNonExistentMarkStalePrefixesTask() {
-        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
-
-        ByteBuf buf = Unpooled.buffer();
-        cmd.markStalePrefixes("STOP").encode(buf);
-
-        Object msg = runCommand(channel, buf);
-
-        assertInstanceOf(ErrorRedisMessage.class, msg);
-        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Task with name volume:mark-stale-prefixes-task does not exist", actualMessage.content());
-    }
-
-    boolean hasMarkStalePrefixesTask() {
-        TaskAdminCommandBuilder<String, String> taskAdmin = new TaskAdminCommandBuilder<>(StringCodec.ASCII);
-
-        ByteBuf buf = Unpooled.buffer();
-        taskAdmin.list().encode(buf);
-
-        KronotopTestInstance instance = getInstances().getFirst();
-        instance.getChannel().writeInbound(buf);
-        Object msg = instance.getChannel().readOutbound();
-        assertInstanceOf(MapRedisMessage.class, msg);
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
-        for (RedisMessage message : actualMessage.children().keySet()) {
-            FullBulkStringRedisMessage taskName = (FullBulkStringRedisMessage) message;
-            if (MarkStalePrefixesTask.NAME.equals(taskName.content().toString(StandardCharsets.UTF_8))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @Test
-    void shouldStartThenStopMarkStalePrefixesTask() {
-        {
-            VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
-            ByteBuf buf = Unpooled.buffer();
-            cmd.markStalePrefixes("START").encode(buf);
-
-            Object msg = runCommand(channel, buf);
-
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        {
-            VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
-
-            ByteBuf buf = Unpooled.buffer();
-            cmd.markStalePrefixes("STOP").encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        assertFalse(hasMarkStalePrefixesTask());
-    }
-
-    @Test
-    void shouldRemoveMarkStalePrefixesTask() {
-        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.markStalePrefixes("START").encode(buf);
-
-            Object msg = runCommand(channel, buf);
-
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.markStalePrefixes("REMOVE").encode(buf);
-
-            Object msg = runCommand(channel, buf);
-
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        assertFalse(hasMarkStalePrefixesTask());
-    }
-
-    @Test
-    void shouldLocateMarkStalePrefixesTask() {
-        // Behavior: LOCATE returns a map with member_id, process_id and the advertise lists of the task owner.
-        createStalePrefixes(500);
-
-        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
-
-        // Start the task
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.markStalePrefixes("START").encode(buf);
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-        }
-
-        // Locate the task
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.markStalePrefixes("LOCATE").encode(buf);
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(MapRedisMessage.class, msg);
-            MapRedisMessage mapMsg = (MapRedisMessage) msg;
-
-            boolean foundMemberId = false;
-            boolean foundProcessId = false;
-            boolean foundExternalAdvertise = false;
-            boolean foundInternalAdvertise = false;
-            for (var entry : mapMsg.children().entrySet()) {
-                String key = ((FullBulkStringRedisMessage) entry.getKey()).content().toString(StandardCharsets.US_ASCII);
-                if ("member_id".equals(key)) {
-                    String value = ((FullBulkStringRedisMessage) entry.getValue()).content().toString(StandardCharsets.US_ASCII);
-                    assertFalse(value.isEmpty());
-                    assertEquals(context.getMember().getId(), value);
-                    foundMemberId = true;
-                } else if ("process_id".equals(key)) {
-                    String value = ((FullBulkStringRedisMessage) entry.getValue()).content().toString(StandardCharsets.US_ASCII);
-                    assertFalse(value.isEmpty());
-                    assertEquals(context.getMember().getProcessId(), VersionstampUtil.base32HexDecode(value));
-                    foundProcessId = true;
-                } else if ("external_advertise".equals(key)) {
-                    assertAdvertise(entry.getValue(), context.getMember().getExternalAdvertise());
-                    foundExternalAdvertise = true;
-                } else if ("internal_advertise".equals(key)) {
-                    assertAdvertise(entry.getValue(), context.getMember().getInternalAdvertise());
-                    foundInternalAdvertise = true;
-                }
-            }
-            assertTrue(foundMemberId);
-            assertTrue(foundProcessId);
-            assertTrue(foundInternalAdvertise);
-            assertTrue(foundExternalAdvertise);
-        }
-
-        // Stop the task
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.markStalePrefixes("STOP").encode(buf);
-            runCommand(channel, buf);
-        }
-    }
-
-    @Test
-    void shouldReturnErrorWhenRemovingNonExistentMarkStalePrefixesTask() {
-        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.markStalePrefixes("REMOVE").encode(buf);
-
-            Object msg = runCommand(channel, buf);
-
-            assertInstanceOf(ErrorRedisMessage.class, msg);
-            ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-            assertEquals("ERR Task with name volume:mark-stale-prefixes-task does not exist", actualMessage.content());
-        }
     }
 
     private void setStandbyMember(KronotopTestInstance standby) {

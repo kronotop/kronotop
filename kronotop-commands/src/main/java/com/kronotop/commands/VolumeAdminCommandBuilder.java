@@ -56,11 +56,6 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
     }
 
-    public Command<K, V, String> markStalePrefixes(String operation) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.MARK_STALE_PREFIXES).add(operation);
-        return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
-    }
-
     public Command<K, V, List<Long>> listSegments(String volumeName) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 add(CommandKeyword.LIST_SEGMENTS).
@@ -145,7 +140,6 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         DESCRIBE("DESCRIBE"),
         SET_STATUS("SET-STATUS"),
         CLEANUP_ORPHAN_FILES("CLEANUP-ORPHAN-FILES"),
-        MARK_STALE_PREFIXES("MARK-STALE-PREFIXES"),
         LIST_SEGMENTS("LIST-SEGMENTS"),
         REPLICATION("REPLICATION"),
         PRUNE_CHANGELOG("PRUNE-CHANGELOG"),

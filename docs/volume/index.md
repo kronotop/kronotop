@@ -196,7 +196,6 @@ See [VOLUME.STATS Commands](../monitoring/volume/index.md) for the full referenc
 | [VOLUME.ADMIN VACUUM](commands/volume-admin-vacuum.md)                             | Start, stop, or inspect garbage collection |
 | [VOLUME.ADMIN REPLICATION](commands/volume-admin-replication.md)                   | Start or stop replication on a standby     |
 | [VOLUME.ADMIN PRUNE-CHANGELOG](commands/volume-admin-prune-changelog.md)           | Remove old changelog entries               |
-| [VOLUME.ADMIN MARK-STALE-PREFIXES](commands/volume-admin-mark-stale-prefixes.md)   | Scan and clear orphaned prefix references  |
 | [VOLUME.ADMIN CLEANUP-ORPHAN-FILES](commands/volume-admin-cleanup-orphan-files.md) | Remove orphaned segment files from disk    |
 | [VOLUME.INSPECT REPLICATION](commands/volume-inspect-replication.md)               | Inspect replication state for a standby    |
 | [VOLUME.INSPECT CURSOR](commands/volume-inspect-cursor.md)                         | Show the write cursor for a volume         |

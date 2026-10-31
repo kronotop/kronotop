@@ -105,7 +105,10 @@ public class BucketMetadataUtil {
      * @param context the context providing environment and services
      * @param tr      the active transaction
      * @param prefix  the 8-byte SipHash prefix identifying the bucket
-     * @return the 16-byte UUID pointer bytes, or {@code null} if the prefix is not registered or its binding is gone
+     * @return the 16-byte UUID pointer bytes
+     * @throws NoSuchPrefixException     if the prefix is not in the registry
+     * @throws StalePrefixException      if the binding key of the prefix is gone
+     * @throws PrefixCorruptionException if the binding key points to a different prefix
      */
     public static byte[] resolvePointerBytes(Context context, Transaction tr, byte[] prefix) {
         PrefixInspection inspection = PrefixUtil.inspectPrefix(context, tr, Prefix.fromBytes(prefix));

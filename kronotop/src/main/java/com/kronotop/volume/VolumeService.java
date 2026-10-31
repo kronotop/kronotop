@@ -19,7 +19,6 @@ package com.kronotop.volume;
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
@@ -29,8 +28,6 @@ import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.core.InfoCollector;
-import com.kronotop.directory.KronotopDirectory;
-import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KeyWatcher;
@@ -38,7 +35,6 @@ import com.kronotop.journal.*;
 import com.kronotop.metrics.InfoReport;
 import com.kronotop.server.CommandAlreadyRegisteredException;
 import com.kronotop.server.ServerKind;
-import com.kronotop.task.TaskService;
 import com.kronotop.volume.handlers.*;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -101,8 +97,6 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         handlerMethod(ServerKind.INTERNAL, new VolumeAdminHandler(this));
         handlerMethod(ServerKind.INTERNAL, new VolumeInspectHandler(this));
         handlerMethod(ServerKind.INTERNAL, new VolumeStatsHandler(this));
-
-        resumeMarkStalePrefixesTaskIfAny();
     }
 
     private static @NonNull String prepareVolumeSection(Volume volume) {
@@ -146,41 +140,6 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         } catch (IOException e) {
             LOGGER.error("{} could not be created", dataDir, e);
             throw new KronotopException(e);
-        }
-    }
-
-    /**
-     * Resumes {@link MarkStalePrefixesTask} when its task metadata names this member as the owner.
-     */
-    private void resumeMarkStalePrefixesTaskIfAny() {
-        try (Transaction tr = context.getTransactionManager().create()) {
-            KronotopDirectoryNode node = KronotopDirectory.
-                    kronotop().
-                    cluster(context.getClusterName()).
-                    metadata().
-                    tasks().
-                    task(MarkStalePrefixesTask.NAME);
-            try {
-                DirectorySubspace subspace = context.getDirectoryLayer().open(tr, node.toList()).join();
-                byte[] value = tr.get(subspace.pack(MarkStalePrefixesTask.METADATA_KEY.MEMBER_ID.name())).join();
-                if (value == null) {
-                    // This should not be happened
-                    return;
-                }
-                String memberId = new String(value);
-                if (context.getMember().getId().equals(memberId)) {
-                    TaskService taskService = context.getService(TaskService.NAME);
-                    MarkStalePrefixesTask task = new MarkStalePrefixesTask(context);
-                    taskService.execute(task);
-                    LOGGER.info("Resuming {}", MarkStalePrefixesTask.NAME);
-                }
-            } catch (CompletionException e) {
-                if (e.getCause() instanceof NoSuchDirectoryException) {
-                    // Ignore
-                    return;
-                }
-                throw e;
-            }
         }
     }
 

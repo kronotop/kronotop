@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume;
+package com.kronotop.cluster;
 
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.DataModelKind;
+import com.kronotop.KronotopTestInstance;
 import com.kronotop.TestUtil;
-import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
@@ -32,15 +33,20 @@ import com.kronotop.journal.Consumer;
 import com.kronotop.journal.ConsumerConfig;
 import com.kronotop.journal.Event;
 import com.kronotop.journal.JournalName;
+import com.kronotop.volume.Prefix;
+import com.kronotop.volume.PrefixEntry;
+import com.kronotop.volume.PrefixUtil;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
-class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
+class CollectStalePrefixesTaskTest extends BaseStandaloneInstanceTest {
 
     private int countPrefixes() {
         DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
@@ -72,7 +78,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         }
 
         // 20/5 = 4, it will take 4 iterations to remove all stale prefixes.
-        MarkStalePrefixesTask task = new MarkStalePrefixesTask(context, 5);
+        CollectStalePrefixesTask task = new CollectStalePrefixesTask(context, 5);
         task.run();
 
         assertEquals(0, countPrefixes());
@@ -110,7 +116,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        MarkStalePrefixesTask task = new MarkStalePrefixesTask(context, 5);
+        CollectStalePrefixesTask task = new CollectStalePrefixesTask(context, 5);
         task.run();
 
         // Only 10 non-stale prefixes should remain
@@ -134,7 +140,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        MarkStalePrefixesTask task = new MarkStalePrefixesTask(context);
+        CollectStalePrefixesTask task = new CollectStalePrefixesTask(context);
         task.run();
 
         assertTrue(task.isFinished());
@@ -146,7 +152,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         // No prefixes registered
         assertEquals(0, countPrefixes());
 
-        MarkStalePrefixesTask task = new MarkStalePrefixesTask(context);
+        CollectStalePrefixesTask task = new CollectStalePrefixesTask(context);
         task.run();
 
         assertTrue(task.isFinished());
@@ -169,7 +175,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
 
         assertEquals(10, countPrefixes());
 
-        MarkStalePrefixesTask task = new MarkStalePrefixesTask(context, 5);
+        CollectStalePrefixesTask task = new CollectStalePrefixesTask(context, 5);
         task.run();
 
         assertTrue(task.isFinished());
@@ -196,7 +202,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        MarkStalePrefixesTask task = new MarkStalePrefixesTask(context);
+        CollectStalePrefixesTask task = new CollectStalePrefixesTask(context);
         task.run();
 
         // Consume events from the PREFIX_INVALIDATIONS journal
@@ -245,13 +251,13 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         assertEquals(20, countPrefixes());
 
         // First task: run in a separate thread and shutdown immediately
-        MarkStalePrefixesTask firstTask = new MarkStalePrefixesTask(context, 5);
+        CollectStalePrefixesTask firstTask = new CollectStalePrefixesTask(context, 5);
         Thread taskThread = new Thread(firstTask);
         taskThread.start();
         firstTask.shutdown();
 
         // Second task: should resume and complete the remaining work
-        MarkStalePrefixesTask secondTask = new MarkStalePrefixesTask(context, 5);
+        CollectStalePrefixesTask secondTask = new CollectStalePrefixesTask(context, 5);
         secondTask.run();
 
         assertTrue(secondTask.isFinished());
@@ -261,7 +267,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
     private DirectorySubspace openTaskSubspace() {
         KronotopDirectoryNode node = KronotopDirectory.kronotop()
                 .cluster(context.getClusterName()).metadata().tasks()
-                .task(MarkStalePrefixesTask.NAME);
+                .task(CollectStalePrefixesTask.NAME);
         try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace subspace = context.getDirectoryLayer().createOrOpen(tr, node.toList()).join();
             tr.commit().join();
@@ -287,7 +293,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         }
 
         // Start and stop the task to create metadata
-        MarkStalePrefixesTask firstTask = new MarkStalePrefixesTask(context, 5);
+        CollectStalePrefixesTask firstTask = new CollectStalePrefixesTask(context, 5);
         Thread taskThread = new Thread(firstTask);
         taskThread.start();
         firstTask.shutdown();
@@ -295,13 +301,13 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         // Overwrite stored PROCESS_ID with a different Versionstamp
         DirectorySubspace taskSubspace = openTaskSubspace();
         try (Transaction tr = context.getTransactionManager().create()) {
-            tr.set(taskSubspace.pack(MarkStalePrefixesTask.METADATA_KEY.PROCESS_ID.name()),
+            tr.set(taskSubspace.pack(CollectStalePrefixesTask.METADATA_KEY.PROCESS_ID.name()),
                     TestUtil.generateVersionstamp(0).getBytes());
             tr.commit().join();
         }
 
         // A new task should succeed (takeover)
-        MarkStalePrefixesTask secondTask = new MarkStalePrefixesTask(context, 5);
+        CollectStalePrefixesTask secondTask = new CollectStalePrefixesTask(context, 5);
         secondTask.run();
         assertTrue(secondTask.isFinished());
     }
@@ -326,15 +332,15 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         // Write metadata with a non-existent member ID
         DirectorySubspace taskSubspace = openTaskSubspace();
         try (Transaction tr = context.getTransactionManager().create()) {
-            tr.set(taskSubspace.pack(MarkStalePrefixesTask.METADATA_KEY.MEMBER_ID.name()),
+            tr.set(taskSubspace.pack(CollectStalePrefixesTask.METADATA_KEY.MEMBER_ID.name()),
                     MemberIdGenerator.generateId().getBytes());
-            tr.set(taskSubspace.pack(MarkStalePrefixesTask.METADATA_KEY.PROCESS_ID.name()),
+            tr.set(taskSubspace.pack(CollectStalePrefixesTask.METADATA_KEY.PROCESS_ID.name()),
                     TestUtil.generateVersionstamp(0).getBytes());
             tr.commit().join();
         }
 
         // A new task should succeed (takeover)
-        MarkStalePrefixesTask task = new MarkStalePrefixesTask(context, 5);
+        CollectStalePrefixesTask task = new CollectStalePrefixesTask(context, 5);
         task.run();
         assertTrue(task.isFinished());
     }
@@ -359,7 +365,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         assertEquals(20, countPrefixes());
 
         // Start and stop the task to create metadata with partial progress
-        MarkStalePrefixesTask firstTask = new MarkStalePrefixesTask(context, 5);
+        CollectStalePrefixesTask firstTask = new CollectStalePrefixesTask(context, 5);
         Thread taskThread = new Thread(firstTask);
         taskThread.start();
         firstTask.shutdown();
@@ -367,13 +373,13 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         // Overwrite stored PROCESS_ID to simulate a restarted member
         DirectorySubspace taskSubspace = openTaskSubspace();
         try (Transaction tr = context.getTransactionManager().create()) {
-            tr.set(taskSubspace.pack(MarkStalePrefixesTask.METADATA_KEY.PROCESS_ID.name()),
+            tr.set(taskSubspace.pack(CollectStalePrefixesTask.METADATA_KEY.PROCESS_ID.name()),
                     TestUtil.generateVersionstamp(0).getBytes());
             tr.commit().join();
         }
 
         // New task should take over and finish the remaining work
-        MarkStalePrefixesTask secondTask = new MarkStalePrefixesTask(context, 5);
+        CollectStalePrefixesTask secondTask = new CollectStalePrefixesTask(context, 5);
         secondTask.run();
 
         assertTrue(secondTask.isFinished());
@@ -400,12 +406,60 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        MarkStalePrefixesTask task = new MarkStalePrefixesTask(context, 5);
+        CollectStalePrefixesTask task = new CollectStalePrefixesTask(context, 5);
         Thread taskThread = new Thread(task);
         taskThread.start();
 
         // Call shutdown - it should complete gracefully without throwing exceptions,
         // regardless of whether the task has finished or is still running
         assertDoesNotThrow(task::shutdown);
+    }
+
+    @Test
+    void shouldResumeTaskOnMemberStartup() throws Exception {
+        // Behavior: Task metadata in FoundationDB names this member as the owner while 20 stale prefixes
+        // are registered. The member is shut down and started again with the same data directory, so it keeps
+        // its member id. No START command is sent. On startup the member resumes the task on its own, the task
+        // removes all stale prefixes and then removes its own metadata directory.
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-subspace");
+
+        byte[] stalePointer = subspace.pack("stale-pointer");
+        try (Transaction tr = context.getTransactionManager().create()) {
+            for (int i = 0; i < 20; i++) {
+                Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
+                PrefixUtil.register(context, tr, testPrefix, new PrefixEntry(stalePointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
+            }
+            tr.commit().join();
+        }
+        try (Transaction tr = context.getTransactionManager().create()) {
+            tr.clear(stalePointer);
+            tr.commit().join();
+        }
+        assertEquals(20, countPrefixes());
+
+        // Task metadata that names this member as the owner, as if the member died while the task was running
+        DirectorySubspace taskSubspace = openTaskSubspace();
+        try (Transaction tr = context.getTransactionManager().create()) {
+            tr.set(taskSubspace.pack(CollectStalePrefixesTask.METADATA_KEY.MEMBER_ID.name()), context.getMember().getId().getBytes());
+            tr.set(taskSubspace.pack(CollectStalePrefixesTask.METADATA_KEY.PROCESS_ID.name()), TestUtil.generateVersionstamp(0).getBytes());
+            tr.commit().join();
+        }
+
+        String memberId = context.getMember().getId();
+        instance.shutdownWithoutCleanup();
+
+        instance = new KronotopTestInstance(config);
+        instance.start();
+        context = instance.getContext();
+        assertEquals(memberId, context.getMember().getId());
+
+        await().atMost(Duration.ofSeconds(10)).until(() -> countPrefixes() == 0);
+
+        KronotopDirectoryNode node = KronotopDirectory.kronotop()
+                .cluster(context.getClusterName()).metadata().tasks()
+                .task(CollectStalePrefixesTask.NAME);
+        try (Transaction tr = context.getTransactionManager().create()) {
+            assertFalse(context.getDirectoryLayer().exists(tr, node.toList()).join());
+        }
     }
 }

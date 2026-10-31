@@ -15,17 +15,18 @@
  */
 
 
-package com.kronotop.volume.handlers;
+package com.kronotop.cluster.handlers;
 
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.Member;
+import com.kronotop.cluster.CollectStalePrefixesTask;
 import com.kronotop.cluster.MemberNotRegisteredException;
-import com.kronotop.cluster.MembershipService;
-import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.ProtocolMessageUtil;
@@ -37,8 +38,7 @@ import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.task.TaskService;
-import com.kronotop.volume.MarkStalePrefixesTask;
-import com.kronotop.volume.VolumeService;
+import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -49,37 +49,36 @@ import java.util.concurrent.CompletionException;
 
 import static com.kronotop.AsyncCommandExecutor.runAsync;
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
-import static com.kronotop.server.RESPUtil.bulkString;
 
-public class MarkStalePrefixesSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
+class CollectStalePrefixesSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    public MarkStalePrefixesSubcommand(VolumeService service) {
+    CollectStalePrefixesSubcommand(RoutingService service) {
         super(service);
     }
 
     @Override
     public void execute(Request request, Response response) {
-        MarkStalePrefixesArguments arguments = new MarkStalePrefixesArguments(request.getArguments());
+        CollectStalePrefixesArguments arguments = new CollectStalePrefixesArguments(request.getArguments());
 
-        if (arguments.operation.equals(MarkStalePrefixesArguments.Operation.LOCATE)) {
+        if (arguments.operation.equals(CollectStalePrefixesArguments.Operation.LOCATE)) {
             supplyAsync(context, response, () -> {
                 KronotopDirectoryNode node = KronotopDirectory.kronotop()
                         .cluster(context.getClusterName()).metadata().tasks()
-                        .task(MarkStalePrefixesTask.NAME);
+                        .task(CollectStalePrefixesTask.NAME);
                 try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                     DirectorySubspace subspace;
                     try {
                         subspace = context.getDirectoryLayer().open(tr, node.toList()).join();
                     } catch (CompletionException e) {
                         if (e.getCause() instanceof NoSuchDirectoryException) {
-                            throw new KronotopException("no metadata found");
+                            throw new KronotopException("No metadata found");
                         }
                         throw e;
                     }
-                    byte[] memberIdBytes = tr.get(subspace.pack(MarkStalePrefixesTask.METADATA_KEY.MEMBER_ID.name())).join();
-                    byte[] processIdBytes = tr.get(subspace.pack(MarkStalePrefixesTask.METADATA_KEY.PROCESS_ID.name())).join();
+                    byte[] memberIdBytes = tr.get(subspace.pack(CollectStalePrefixesTask.METADATA_KEY.MEMBER_ID.name())).join();
+                    byte[] processIdBytes = tr.get(subspace.pack(CollectStalePrefixesTask.METADATA_KEY.PROCESS_ID.name())).join();
                     if (memberIdBytes == null) {
-                        throw new KronotopException("no metadata found");
+                        throw new KronotopException("No metadata found");
                     }
 
                     String memberId = new String(memberIdBytes);
@@ -92,7 +91,6 @@ public class MarkStalePrefixesSubcommand extends BaseSubcommandHandler implement
                     List<RedisMessage> externalAdvertise = new ArrayList<>();
                     List<RedisMessage> internalAdvertise = new ArrayList<>();
                     try {
-                        MembershipService membership = context.getService(MembershipService.NAME);
                         Member member = membership.findMember(memberId);
 
                         for (Address address : member.getExternalAdvertise()) {
@@ -113,23 +111,33 @@ public class MarkStalePrefixesSubcommand extends BaseSubcommandHandler implement
         } else {
             runAsync(context, response, () -> {
                 TaskService taskService = context.getService(TaskService.NAME);
-                if (arguments.operation.equals(MarkStalePrefixesArguments.Operation.START)) {
-                    MarkStalePrefixesTask task = new MarkStalePrefixesTask(context);
+                if (arguments.operation.equals(CollectStalePrefixesArguments.Operation.START)) {
+                    CollectStalePrefixesTask task;
+                    try {
+                        task = new CollectStalePrefixesTask(context);
+                    } catch (CompletionException e) {
+                        // Two members ran START at the same time. The task metadata is written in one transaction,
+                        // so the loser fails with a conflict. Report it instead of the raw FDB error.
+                        if (TransactionUtil.getRootCause(e) instanceof FDBException fdbEx && fdbEx.getCode() == 1020) {
+                            throw new KronotopException("Another member is starting task " + CollectStalePrefixesTask.NAME + " at the same time");
+                        }
+                        throw e;
+                    }
                     taskService.execute(task);
-                } else if (arguments.operation.equals(MarkStalePrefixesArguments.Operation.STOP)) {
-                    taskService.shutdownAndRemoveTask(MarkStalePrefixesTask.NAME);
-                } else if (arguments.operation.equals(MarkStalePrefixesArguments.Operation.REMOVE)) {
-                    taskService.shutdownAndRemoveTask(MarkStalePrefixesTask.NAME);
-                    MarkStalePrefixesTask.removeMetadata(context);
+                } else if (arguments.operation.equals(CollectStalePrefixesArguments.Operation.STOP)) {
+                    taskService.shutdownAndRemoveTask(CollectStalePrefixesTask.NAME);
+                } else if (arguments.operation.equals(CollectStalePrefixesArguments.Operation.REMOVE)) {
+                    taskService.shutdownAndRemoveTask(CollectStalePrefixesTask.NAME);
+                    CollectStalePrefixesTask.removeMetadata(context);
                 }
             }, response::writeOK);
         }
     }
 
-    private static class MarkStalePrefixesArguments {
+    private static class CollectStalePrefixesArguments {
         private final Operation operation;
 
-        private MarkStalePrefixesArguments(ArrayList<ByteBuf> args) {
+        private CollectStalePrefixesArguments(ArrayList<ByteBuf> args) {
             if (args.size() != 2) {
                 throw new InvalidNumberOfArgumentsException();
             }

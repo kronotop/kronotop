@@ -51,7 +51,7 @@ it.
 
 `NAMESPACE PURGE` deletes the namespace's FoundationDB directory but does **not** clean up volume data. The bytes on
 the disk and any orphaned prefix references remain until explicitly reclaimed. After purging, run
-`VOLUME.ADMIN MARK-STALE-PREFIXES START` on the affected volumes to clean up orphaned references.
+`KR.ADMIN COLLECT-STALE-PREFIXES START` to clean up orphaned references.
 When possible, prefer deleting buckets individually with `BUCKET.REMOVE` + `BUCKET.PURGE` before dropping
 the namespace. `BUCKET.PURGE` handles prefix cleanup inline, avoiding the need for a separate stale prefix scan. See
 the [Volume Operations Guide](../../volume/operations-guide.md) for the full procedure.

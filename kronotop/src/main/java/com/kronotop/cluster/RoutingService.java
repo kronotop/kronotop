@@ -18,6 +18,7 @@ package com.kronotop.cluster;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Tuple;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.*;
@@ -25,11 +26,14 @@ import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.core.InfoCollector;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.KeyWatcher;
 import com.kronotop.metrics.InfoReport;
 import com.kronotop.server.ServerKind;
+import com.kronotop.task.TaskService;
 import io.netty.util.Attribute;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,6 +88,43 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         this.executor = Executors.newFixedThreadPool(2, factory);
 
         handlerMethod(ServerKind.INTERNAL, new KrAdminHandler(this));
+
+        resumeCollectStalePrefixesTaskIfAny();
+    }
+
+    /**
+     * Resumes {@link CollectStalePrefixesTask} when its task metadata names this member as the owner.
+     */
+    private void resumeCollectStalePrefixesTaskIfAny() {
+        try (Transaction tr = context.getTransactionManager().create()) {
+            KronotopDirectoryNode node = KronotopDirectory.
+                    kronotop().
+                    cluster(context.getClusterName()).
+                    metadata().
+                    tasks().
+                    task(CollectStalePrefixesTask.NAME);
+            try {
+                DirectorySubspace subspace = context.getDirectoryLayer().open(tr, node.toList()).join();
+                byte[] value = tr.get(subspace.pack(CollectStalePrefixesTask.METADATA_KEY.MEMBER_ID.name())).join();
+                if (value == null) {
+                    // This should not be happened
+                    return;
+                }
+                String memberId = new String(value);
+                if (context.getMember().getId().equals(memberId)) {
+                    TaskService taskService = context.getService(TaskService.NAME);
+                    CollectStalePrefixesTask task = new CollectStalePrefixesTask(context);
+                    taskService.execute(task);
+                    LOGGER.info("Resuming {}", CollectStalePrefixesTask.NAME);
+                }
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof NoSuchDirectoryException) {
+                    // Ignore
+                    return;
+                }
+                throw e;
+            }
+        }
     }
 
     /**

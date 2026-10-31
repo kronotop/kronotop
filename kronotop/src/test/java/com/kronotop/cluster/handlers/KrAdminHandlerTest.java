@@ -16,13 +16,19 @@
 
 package com.kronotop.cluster.handlers;
 
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.DataModelKind;
 import com.kronotop.KronotopTestInstance;
+import com.kronotop.cluster.CollectStalePrefixesTask;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commands.KrAdminCommandBuilder;
+import com.kronotop.commands.TaskAdminCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.internal.UUIDUtil;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
 import com.kronotop.server.RESPVersion;
@@ -31,6 +37,9 @@ import com.kronotop.server.ServerKind;
 import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
+import com.kronotop.volume.Prefix;
+import com.kronotop.volume.PrefixEntry;
+import com.kronotop.volume.PrefixUtil;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -821,6 +830,260 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         String fresh = requestDropClusterToken(cmd);
         assertNotEquals(expired, fresh);
+    }
+
+    private void createStalePrefixes(int count) {
+        String clusterName = context.getConfig().getString("cluster.name");
+        List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).extend("test-stale-prefixes");
+        try (Transaction tr = database.createTransaction()) {
+            DirectorySubspace subspace = context.getDirectoryLayer().createOrOpen(tr, subpath).join();
+            byte[] prefixPointer = subspace.pack("stale-pointer");
+            for (int i = 0; i < count; i++) {
+                Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
+                PrefixUtil.register(context, tr, testPrefix, new PrefixEntry(prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
+            }
+            // Clear the pointer to make all prefixes stale
+            tr.clear(prefixPointer);
+            tr.commit().join();
+        }
+    }
+
+    @Test
+    void shouldStartCollectStalePrefixesTask() {
+        {
+            KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+            ByteBuf buf = Unpooled.buffer();
+            cmd.collectStalePrefixes("START").encode(buf);
+
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            TaskAdminCommandBuilder<String, String> taskAdmin = new TaskAdminCommandBuilder<>(StringCodec.ASCII);
+
+            ByteBuf buf = Unpooled.buffer();
+            taskAdmin.list().encode(buf);
+
+            KronotopTestInstance instance = getInstances().getFirst();
+            instance.getChannel().writeInbound(buf);
+            Object msg = instance.getChannel().readOutbound();
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage actualMessage = (MapRedisMessage) msg;
+            boolean found = false;
+            for (RedisMessage message : actualMessage.children().keySet()) {
+                FullBulkStringRedisMessage taskName = (FullBulkStringRedisMessage) message;
+                if (CollectStalePrefixesTask.NAME.equals(taskName.content().toString(StandardCharsets.UTF_8))) {
+                    found = true;
+                    break;
+                }
+            }
+            assertTrue(found);
+        }
+    }
+
+    @Test
+    void shouldReturnErrorWhenCollectStalePrefixesTaskAlreadyExists() {
+        // Behavior: Starting a collect-stale-prefixes task while one is already running returns an error.
+
+        // Create stale prefixes so the task has real work and doesn't finish instantly.
+        createStalePrefixes(500);
+
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.collectStalePrefixes("START").encode(buf);
+
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.collectStalePrefixes("START").encode(buf);
+
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR Task cluster:collect-stale-prefixes-task already exists", actualMessage.content());
+
+        // Cleanup: stop the running task
+        ByteBuf stopBuf = Unpooled.buffer();
+        cmd.collectStalePrefixes("STOP").encode(stopBuf);
+        runCommand(channel, stopBuf);
+    }
+
+    @Test
+    void shouldReturnErrorWhenStoppingNonExistentCollectStalePrefixesTask() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.collectStalePrefixes("STOP").encode(buf);
+
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR Task with name cluster:collect-stale-prefixes-task does not exist", actualMessage.content());
+    }
+
+    boolean hasCollectStalePrefixesTask() {
+        TaskAdminCommandBuilder<String, String> taskAdmin = new TaskAdminCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        taskAdmin.list().encode(buf);
+
+        KronotopTestInstance instance = getInstances().getFirst();
+        instance.getChannel().writeInbound(buf);
+        Object msg = instance.getChannel().readOutbound();
+        assertInstanceOf(MapRedisMessage.class, msg);
+        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        for (RedisMessage message : actualMessage.children().keySet()) {
+            FullBulkStringRedisMessage taskName = (FullBulkStringRedisMessage) message;
+            if (CollectStalePrefixesTask.NAME.equals(taskName.content().toString(StandardCharsets.UTF_8))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Test
+    void shouldStartThenStopCollectStalePrefixesTask() {
+        {
+            KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+            ByteBuf buf = Unpooled.buffer();
+            cmd.collectStalePrefixes("START").encode(buf);
+
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+
+            ByteBuf buf = Unpooled.buffer();
+            cmd.collectStalePrefixes("STOP").encode(buf);
+
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        assertFalse(hasCollectStalePrefixesTask());
+    }
+
+    @Test
+    void shouldRemoveCollectStalePrefixesTask() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.collectStalePrefixes("START").encode(buf);
+
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.collectStalePrefixes("REMOVE").encode(buf);
+
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        assertFalse(hasCollectStalePrefixesTask());
+    }
+
+    @Test
+    void shouldLocateCollectStalePrefixesTask() {
+        // Behavior: LOCATE returns a map with member_id, process_id and the advertise lists of the task owner.
+        createStalePrefixes(500);
+
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+
+        // Start the task
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.collectStalePrefixes("START").encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+        }
+
+        // Locate the task
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.collectStalePrefixes("LOCATE").encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage mapMsg = (MapRedisMessage) msg;
+
+            boolean foundMemberId = false;
+            boolean foundProcessId = false;
+            boolean foundExternalAdvertise = false;
+            boolean foundInternalAdvertise = false;
+            for (var entry : mapMsg.children().entrySet()) {
+                String key = ((FullBulkStringRedisMessage) entry.getKey()).content().toString(StandardCharsets.US_ASCII);
+                if ("member_id".equals(key)) {
+                    String value = ((FullBulkStringRedisMessage) entry.getValue()).content().toString(StandardCharsets.US_ASCII);
+                    assertFalse(value.isEmpty());
+                    assertEquals(context.getMember().getId(), value);
+                    foundMemberId = true;
+                } else if ("process_id".equals(key)) {
+                    String value = ((FullBulkStringRedisMessage) entry.getValue()).content().toString(StandardCharsets.US_ASCII);
+                    assertFalse(value.isEmpty());
+                    assertEquals(context.getMember().getProcessId(), VersionstampUtil.base32HexDecode(value));
+                    foundProcessId = true;
+                } else if ("external_advertise".equals(key)) {
+                    assertAdvertise(entry.getValue(), context.getMember().getExternalAdvertise());
+                    foundExternalAdvertise = true;
+                } else if ("internal_advertise".equals(key)) {
+                    assertAdvertise(entry.getValue(), context.getMember().getInternalAdvertise());
+                    foundInternalAdvertise = true;
+                }
+            }
+            assertTrue(foundMemberId);
+            assertTrue(foundProcessId);
+            assertTrue(foundInternalAdvertise);
+            assertTrue(foundExternalAdvertise);
+        }
+
+        // Stop the task
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.collectStalePrefixes("STOP").encode(buf);
+            runCommand(channel, buf);
+        }
+    }
+
+    @Test
+    void shouldReturnErrorWhenRemovingNonExistentCollectStalePrefixesTask() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.collectStalePrefixes("REMOVE").encode(buf);
+
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(ErrorRedisMessage.class, msg);
+            ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+            assertEquals("ERR Task with name cluster:collect-stale-prefixes-task does not exist", actualMessage.content());
+        }
     }
 
     private void assertAdvertise(RedisMessage message, List<Address> expected) {

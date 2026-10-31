@@ -49,6 +49,7 @@ public class KrAdminHandler implements Handler {
         handlers.put(KrAdminSubcommand.DESCRIBE_SHARD, new DescribeShardSubcommand(service));
         handlers.put(KrAdminSubcommand.DESCRIBE_MEMBER, new DescribeMemberSubcommand(service));
         handlers.put(KrAdminSubcommand.DROP_CLUSTER, new DropClusterSubcommand(service));
+        handlers.put(KrAdminSubcommand.COLLECT_STALE_PREFIXES, new CollectStalePrefixesSubcommand(service));
     }
 
     @Override

@@ -23,7 +23,6 @@ public enum VolumeAdminSubcommand {
     DESCRIBE("describe"),
     SET_STATUS("set-status"),
     CLEANUP_ORPHAN_FILES("cleanup-orphan-files"),
-    MARK_STALE_PREFIXES("mark-stale-prefixes"),
     LIST_SEGMENTS("list-segments"),
     REPLICATION("replication"),
     PRUNE_CHANGELOG("prune-changelog"),

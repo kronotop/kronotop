@@ -1,15 +1,15 @@
 ---
-title: "VOLUME.ADMIN MARK-STALE-PREFIXES"
-description: "Starts, stops, removes, or locates the stale-prefix scanning task."
+title: "KR.ADMIN COLLECT-STALE-PREFIXES"
+description: "Starts, stops, removes, or locates the stale prefix collection task."
 ---
 
-Starts, stops, removes, or locates the stale-prefix scanning task. A stale prefix is one whose pointer no longer
+Starts, stops, removes, or locates the stale prefix collection task. A stale prefix is one whose pointer no longer
 references valid data. Stale prefixes are cleared and published to a prefix-invalidations journal for downstream cleanup.
 
 ## Syntax
 
 ```kronotop
-VOLUME.ADMIN MARK-STALE-PREFIXES <operation>
+KR.ADMIN COLLECT-STALE-PREFIXES <operation>
 ```
 
 ## Arguments
@@ -68,49 +68,50 @@ Argument errors:
 | `ERR`      | `invalid number of arguments`  | -     |
 | `ERR`      | `Unknown operation: '<value>'` | -     |
 
-Volume errors:
+Task errors:
 
-| Error Code | Error message                                                   | Cause |
-|------------|-----------------------------------------------------------------|-------|
-| `ERR`      | `Task volume:mark-stale-prefixes-task already exists`           | -     |
-| `ERR`      | `Task with name volume:mark-stale-prefixes-task does not exist` | -     |
-| `ERR`      | `Run by another cluster member`                                 | -     |
-| `ERR`      | `no metadata found`                                             | -     |
+| Error Code | Error message                                                                          | Cause                                    |
+|------------|----------------------------------------------------------------------------------------|------------------------------------------|
+| `ERR`      | `Task cluster:collect-stale-prefixes-task already exists`                              | -                                        |
+| `ERR`      | `Task with name cluster:collect-stale-prefixes-task does not exist`                    | -                                        |
+| `ERR`      | `Run by another cluster member`                                                        | -                                        |
+| `ERR`      | `Another member is starting task cluster:collect-stale-prefixes-task at the same time` | Two members ran `START` at the same time |
+| `ERR`      | `No metadata found`                                                                    | -                                        |
 
 ## Examples
 
 **Start the task:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN MARK-STALE-PREFIXES START
+127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES START
 OK
 ```
 
 **Stop a running task:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN MARK-STALE-PREFIXES STOP
+127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES STOP
 OK
 ```
 
 **Remove a task and its metadata:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN MARK-STALE-PREFIXES REMOVE
+127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES REMOVE
 OK
 ```
 
 **Start when the task is already running:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN MARK-STALE-PREFIXES START
-(error) ERR Task volume:mark-stale-prefixes-task already exists
+127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES START
+(error) ERR Task cluster:collect-stale-prefixes-task already exists
 ```
 
 **Locate the task owner:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN MARK-STALE-PREFIXES LOCATE
+127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES LOCATE
 1# "member_id" => "cdef7490344552d50e60f42b04e1febcaeafd4b4"
 2# "process_id" => "000016M5BPGLO0000000xxxx"
 3# "external_advertise" =>
@@ -122,6 +123,6 @@ OK
 **Stop when no task is running:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN MARK-STALE-PREFIXES STOP
-(error) ERR Task with name volume:mark-stale-prefixes-task does not exist
+127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES STOP
+(error) ERR Task with name cluster:collect-stale-prefixes-task does not exist
 ```

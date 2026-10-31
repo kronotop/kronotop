@@ -38,7 +38,6 @@ public class VolumeAdminHandler extends BaseSubcommandHandler implements Handler
         handlers.put(VolumeAdminSubcommand.DESCRIBE, new DescribeSubcommand(service));
         handlers.put(VolumeAdminSubcommand.SET_STATUS, new SetStatusSubcommand(service));
         handlers.put(VolumeAdminSubcommand.CLEANUP_ORPHAN_FILES, new CleanupOrphanFilesSubcommand(service));
-        handlers.put(VolumeAdminSubcommand.MARK_STALE_PREFIXES, new MarkStalePrefixesSubcommand(service));
         handlers.put(VolumeAdminSubcommand.LIST_SEGMENTS, new ListSegments(service));
         handlers.put(VolumeAdminSubcommand.REPLICATION, new ReplicationSubcommand(service));
         handlers.put(VolumeAdminSubcommand.PRUNE_CHANGELOG, new PruneChangeLogSubcommand(service));

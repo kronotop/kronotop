@@ -190,6 +190,22 @@ Before removing a member, reassign any shards it owns as primary. See
 
 ---
 
+## Collecting Stale Prefixes
+
+A prefix is the internal key that ties stored data to its owner, such as a bucket. When the owner is removed
+without its data being purged, the prefix becomes stale. [`COLLECT-STALE-PREFIXES`](commands/kr-admin-collect-stale-prefixes.md)
+scans the cluster-wide prefix registry in batches, removes stale entries, and publishes them so that the data they
+own is cleaned up. One instance runs at a time and the task completes on its own.
+
+```kronotop
+127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES START
+OK
+```
+
+See the [Volume Operations Guide](../../volume/operations-guide.md) for when to run it and what to do afterwards.
+
+---
+
 ## Dropping a Cluster
 
 [`DROP-CLUSTER`](commands/kr-admin-drop-cluster.md) removes a cluster's entire metadata tree from
