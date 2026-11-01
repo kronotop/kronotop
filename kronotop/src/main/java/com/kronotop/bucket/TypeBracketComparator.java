@@ -24,18 +24,9 @@ import java.util.Iterator;
 import java.util.Map;
 
 /**
- * Comparator for {@link BsonValue} instances using Kronotop's type bracketing order.
- * <p>
- * Type order (lowest to highest):
- * Null, Numeric (Int32, Int64, Double, Decimal128), String, Document, Array, Binary, ObjectId, Boolean, DateTime, Timestamp
- * <p>
- * All numeric types share a single bracket and are compared by their actual numeric
- * value using lossless widening. Values are first compared by type order. If both values
- * have the same type bracket, they are compared by their actual values. Documents are
- * compared field-by-field, arrays element-by-element.
- *
- * @see BsonValue
- * @see BsonType
+ * Orders {@link BsonValue} instances by type bracket first and by value inside the same bracket.
+ * The bracket order is null, numeric, string, document, array, binary, ObjectId, boolean, date-time, timestamp,
+ * and all numeric types share one bracket.
  */
 public final class TypeBracketComparator implements Comparator<BsonValue> {
 
@@ -44,13 +35,6 @@ public final class TypeBracketComparator implements Comparator<BsonValue> {
     private TypeBracketComparator() {
     }
 
-    /**
-     * Returns the type order for the given BSON type.
-     *
-     * @param type the BSON type
-     * @return the ordinal position in Kronotop's type bracketing order
-     * @throws IllegalArgumentException if the type is not supported
-     */
     private int getTypeOrder(BsonType type) {
         return switch (type) {
             case NULL -> 0;
@@ -68,13 +52,13 @@ public final class TypeBracketComparator implements Comparator<BsonValue> {
     }
 
     /**
-     * Compares two {@link BsonValue} instances using type bracketing order.
-     * Java null is treated as equivalent to {@link BsonNull}.
+     * Compares two values by type bracket first and by value inside the same bracket, and treats Java null as BSON
+     * null.
      *
-     * @param a the first value to compare
-     * @param b the second value to compare
-     * @return negative if {@code a < b}, zero if {@code a == b}, positive if {@code a > b}
-     * @throws IllegalArgumentException if either value has an unsupported type
+     * @param a the first value
+     * @param b the second value
+     * @return negative if {@code a} is smaller, zero if they are equal, positive if {@code a} is larger
+     * @throws IllegalArgumentException if either value has an unsupported BSON type
      */
     @Override
     public int compare(BsonValue a, BsonValue b) {
@@ -129,15 +113,6 @@ public final class TypeBracketComparator implements Comparator<BsonValue> {
         };
     }
 
-    /**
-     * Compares two documents field-by-field in iteration order.
-     * For each field pair, keys are compared first, then values if keys are equal.
-     * If all compared fields are equal, the document with fewer fields is smaller.
-     *
-     * @param a the first document
-     * @param b the second document
-     * @return negative if {@code a < b}, zero if equal, positive if {@code a > b}
-     */
     private int compareDocuments(BsonDocument a, BsonDocument b) {
         Iterator<Map.Entry<String, BsonValue>> iterA = a.entrySet().iterator();
         Iterator<Map.Entry<String, BsonValue>> iterB = b.entrySet().iterator();
@@ -160,15 +135,6 @@ public final class TypeBracketComparator implements Comparator<BsonValue> {
         return Integer.compare(a.size(), b.size());
     }
 
-    /**
-     * Compares two arrays element-by-element using lexicographic ordering.
-     * Elements are compared at each index until a difference is found.
-     * If all compared elements are equal, the shorter array is smaller.
-     *
-     * @param a the first array
-     * @param b the second array
-     * @return negative if {@code a < b}, zero if equal, positive if {@code a > b}
-     */
     private int compareArrays(BsonArray a, BsonArray b) {
         int minSize = Math.min(a.size(), b.size());
         for (int i = 0; i < minSize; i++) {
