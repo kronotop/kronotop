@@ -301,7 +301,7 @@ class CommandHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReturnKrAdminSubcommands() {
-        // Behavior: on the internal server COMMAND INFO KR.ADMIN nests twelve subcommands and COMMAND DOCS KR.ADMIN|ROUTE lists five arguments
+        // Behavior: on the internal server COMMAND INFO KR.ADMIN nests thirteen subcommands and COMMAND DOCS KR.ADMIN|ROUTE lists five arguments
         EmbeddedChannel internal = newInternalChannel();
         List<RedisMessage> entries = infoEntries(run(internal, "COMMAND", "INFO", "kr.admin"));
 
@@ -311,7 +311,7 @@ class CommandHandlerTest extends BaseHandlerTest {
         List<String> subcommands = ((ArrayRedisMessage) krAdmin.get(9)).children().stream()
                 .map(sub -> text(((ArrayRedisMessage) sub).children().getFirst()))
                 .toList();
-        assertEquals(12, subcommands.size());
+        assertEquals(13, subcommands.size());
         assertTrue(subcommands.contains("kr.admin|initialize-cluster"));
         assertTrue(subcommands.contains("kr.admin|drop-cluster"));
 
@@ -323,7 +323,7 @@ class CommandHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReturnVolumeCommandDefinitions() {
-        // Behavior: on the internal server COMMAND INFO nests nine VOLUME.ADMIN and two VOLUME.INSPECT subcommands, and COMMAND DOCS exposes their arguments
+        // Behavior: on the internal server COMMAND INFO nests eight VOLUME.ADMIN and two VOLUME.INSPECT subcommands, and COMMAND DOCS exposes their arguments
         EmbeddedChannel internal = newInternalChannel();
         List<RedisMessage> entries = infoEntries(run(internal, "COMMAND", "INFO", "volume.admin", "volume.inspect"));
         assertEquals(2, entries.size());
@@ -333,7 +333,7 @@ class CommandHandlerTest extends BaseHandlerTest {
         List<String> adminSubcommands = ((ArrayRedisMessage) volumeAdmin.get(9)).children().stream()
                 .map(sub -> text(((ArrayRedisMessage) sub).children().getFirst()))
                 .toList();
-        assertEquals(9, adminSubcommands.size());
+        assertEquals(8, adminSubcommands.size());
         assertTrue(adminSubcommands.contains("volume.admin|vacuum"));
         assertTrue(adminSubcommands.contains("volume.admin|set-status"));
 
