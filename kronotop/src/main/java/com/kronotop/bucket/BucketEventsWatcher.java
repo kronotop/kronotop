@@ -60,6 +60,7 @@ import java.util.concurrent.locks.LockSupport;
  * Applies bucket events from the BUCKET_EVENTS journal on this member.
  */
 public class BucketEventsWatcher implements Runnable {
+    static final int BUCKET_EVENTS_BATCH_SIZE = 100;
     private static final Logger LOGGER = LoggerFactory.getLogger(BucketEventsWatcher.class);
     private final String journalName = JournalName.BUCKET_EVENTS.getValue();
     private final Context context;
@@ -234,28 +235,39 @@ public class BucketEventsWatcher implements Runnable {
         }
     }
 
+    private boolean fetchBucketEventsBatch() {
+        try (Transaction tr = context.getTransactionManager().create()) {
+            boolean more = false;
+            for (int i = 0; i < BUCKET_EVENTS_BATCH_SIZE && !shutdown; i++) {
+                // Try to consume the latest event.
+                Event event = consumer.consume(tr);
+                if (event == null) {
+                    break;
+                }
+
+                try {
+                    processBucketEvent(tr, event);
+                    consumer.markConsumed(tr, event);
+                } catch (Exception e) {
+                    LOGGER.error("Bucket event processing failed, will retry on next trigger", e);
+                    break;
+                }
+                more = i == BUCKET_EVENTS_BATCH_SIZE - 1;
+            }
+            tr.commit().join();
+            return more;
+        }
+    }
+
     private void fetchBucketEvents() {
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
-        retry.executeRunnable(() -> {
-            try (Transaction tr = context.getTransactionManager().create()) {
-                while (!shutdown) {
-                    // Try to consume the latest event.
-                    Event event = consumer.consume(tr);
-                    if (event == null) {
-                        break;
-                    }
-
-                    try {
-                        processBucketEvent(tr, event);
-                        consumer.markConsumed(tr, event);
-                    } catch (Exception e) {
-                        LOGGER.error("Bucket event processing failed, will retry on next trigger", e);
-                        break;
-                    }
-                }
-                tr.commit().join();
+        // Each batch commits on its own, so a long journal never exceeds the transaction limits.
+        while (!shutdown) {
+            boolean more = retry.executeSupplier(this::fetchBucketEventsBatch);
+            if (!more) {
+                break;
             }
-        });
+        }
     }
 
     @Override

@@ -30,6 +30,9 @@ import com.kronotop.commands.BucketCreateArgs;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.internal.task.TaskStorage;
+import com.kronotop.journal.JournalName;
+import com.kronotop.journal.JournalService;
+import com.kronotop.volume.Prefix;
 import io.lettuce.core.codec.StringCodec;
 import org.junit.jupiter.api.Test;
 
@@ -37,8 +40,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -117,5 +122,30 @@ class StaleBucketCleanupTest extends BaseBucketHandlerTest {
             assertEquals(0, countTasks(shardId));
         }
         assertFalse(Files.exists(vectorDir));
+    }
+
+    @Test
+    void shouldDrainBucketEventsInBatches() {
+        // Behavior: more stale bucket events than two batches are published in one transaction for
+        // buckets that have no registry directory. Each event's prefix has a binding in the bucket
+        // metadata cache. The watcher consumes the journal batch by batch, and the binding of every
+        // event, including the last one, is removed from the cache.
+        BucketMetadataCache cache = context.getBucketMetadataCache();
+        List<Prefix> prefixes = new ArrayList<>();
+        JournalService journal = context.getService(JournalService.NAME);
+        try (Transaction tr = context.getTransactionManager().create()) {
+            for (int i = 0; i < 2 * BucketEventsWatcher.BUCKET_EVENTS_BATCH_SIZE + 1; i++) {
+                Prefix prefix = Prefix.fromLong(ThreadLocalRandom.current().nextLong());
+                cache.setBinding(prefix, "ns", "bucket");
+                prefixes.add(prefix);
+                StaleBucketEvent event = new StaleBucketEvent(prefix.asLong(), UUID.randomUUID().toString());
+                journal.getPublisher().publish(tr, JournalName.BUCKET_EVENTS, event);
+            }
+            tr.commit().join();
+        }
+
+        await().atMost(Duration.ofSeconds(15)).until(
+                () -> prefixes.stream().allMatch(prefix -> cache.getBinding(prefix) == null)
+        );
     }
 }
