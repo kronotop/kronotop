@@ -1,14 +1,14 @@
 # Proof: Millions of databases
 
-This proof creates **1,000,001 namespaces** in a single Kronotop cluster to back the
-claim *"Millions of databases."* Every namespace is an isolated database on a single
-shared FoundationDB.
+This script creates 1,000,001 namespaces in one Kronotop cluster to back the claim
+"Millions of databases." Each namespace is an isolated logical database on one shared
+FoundationDB.
 
 ## Structure
 
-The tree is nested under Kronotop's fixed default namespace `global`, which always
-exists and cannot be removed. The script never creates or touches `global` itself.
-The `global.millions` node is the single explicit "+1" root it creates.
+The tree sits under Kronotop's default namespace `global`, which always exists and
+cannot be removed. The script does not create or touch `global`. It creates
+`global.millions` as the root of its own subtree; that root is the "+1" in the total.
 
 ```
 global                                     (already exists, untouched)
@@ -20,22 +20,21 @@ global.millions.<parent-uuid>.<leaf-uuid> 999 leaves
 ```
 
 `total = 1 + parents + (parents * leaves)`. With the defaults `parents=1000` and
-`leaves=999` that is exactly 1,000,001. Each level is created explicitly.
+`leaves=999` that is exactly 1,000,001. The script creates every level with its own
+`NAMESPACE CREATE` call; nothing is created implicitly.
 
 ## How it works
 
-Each `NAMESPACE CREATE` is a single, isolated FoundationDB transaction. The script runs a fixed pool of `asyncio` workers 
-over one multiplexed connection pool. Concurrency equals the number of workers; a background reporter prints throughput 
-every two seconds.
+Each `NAMESPACE CREATE` runs in its own FoundationDB transaction. The script runs a fixed pool of `asyncio` workers
+over one connection pool. Concurrency equals the number of workers. A background reporter prints throughput every
+two seconds.
 
 ## Run
 
 The script declares its dependencies inline (PEP 723), so [uv](https://docs.astral.sh/uv/)
-fetches them into an ephemeral environment. No virtualenv, no `pip install`.
+fetches them into a temporary environment. You do not need a virtualenv or `pip install`.
 
-Spin up a local Kronotop cluster with Docker Compose.
-
-Download the Docker Compose file:
+Start a local Kronotop cluster with Docker Compose. Download the Compose file:
 
 ```bash
 curl -O https://kronotop.com/kronotop-quickstart.yaml
@@ -47,7 +46,7 @@ Start the cluster:
 docker compose -f kronotop-quickstart.yaml up
 ```
 
-Finally, run the proof script, which creates **1,000,001 logical databases (namespaces)** on the same cluster.
+Run the script against that cluster:
 
 ```bash
 uv run millions_of_databases.py
@@ -62,7 +61,7 @@ uv run millions_of_databases.py \
   --concurrency 200
 ```
 
-Quick smoke test before the full million:
+A small run to check the setup before the full million:
 
 ```bash
 uv run millions_of_databases.py --parents 10 --leaves 9
@@ -89,7 +88,7 @@ Done in 2,693.0s (44.9 min)  created=1,000,001 existed=0 failed=0  avg=371/s
 
 ## Spot-check
 
-You can confirm a slice of the tree with the client:
+List a slice of the tree with the client to confirm it exists:
 
 ```
 NAMESPACE LIST global.millions

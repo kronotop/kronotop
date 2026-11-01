@@ -1,18 +1,21 @@
 ---
 title: "Introduction"
-description: "Kronotop gives every AI agent, tenant, or app its own logical database on one cluster, with transactions that span all of them."
+description: "A transactional document database with a logical database per tenant, and one commit across all of them."
 ---
 
 Kronotop is a distributed, transactional document database built on [FoundationDB](https://www.foundationdb.org/).
 
-Each tenant, app, or AI agent gets its own logical database, called a namespace, and one cluster runs many of them.
+Each tenant or app gets its own logical database, called a namespace, and one cluster runs many of them.
 A namespace is a keyspace prefix, so creating one costs nothing and the prefix alone keeps namespaces apart.
-One transaction can commit across any number of namespaces.
+Isolation lives in the keyspace, so application code carries no tenant filter. One transaction can commit across
+any number of namespaces.
 
-Inside a namespace you work with two data models over one RESP connection. Bucket stores documents and gives you
-secondary indexes and vector search. ZMap is a plain ordered key-value store for the data that does not fit a
-document. You can mix both in one transaction. Document bodies live on local disk in Volume, a segment-based storage
-engine that replicates from a primary to a standby.
+Each namespace is a full database: documents, an ordered key-value store, secondary indexes, and vector search,
+under one transaction. Bucket stores the documents and carries the indexes and vector search. ZMap is a plain
+ordered key-value store for the data that does not fit a document. Both speak over one RESP connection. Document
+bodies live in Volume, an append-only storage engine on local disk that replicates from a primary to a standby.
+The same model fits an AI agent: a namespace per agent holds its memory, vector search runs over those documents,
+and one transaction updates the documents and ZMap state, such as counters, together.
 
 ## Namespaces
 

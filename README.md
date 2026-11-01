@@ -6,9 +6,9 @@ Kronotop is a distributed, transactional document database backed by [Foundation
 
 > Millions of databases. One cluster.
 
-Each tenant, app, or AI agent gets its own logical database, called a namespace. A namespace is a FoundationDB key
-prefix, so creating one is almost free and its data stays isolated from other namespaces. A single transaction can
-commit atomically across any number of namespaces.
+Each tenant or app gets its own logical database, called a namespace. A namespace is a FoundationDB key prefix, so
+creating one costs almost nothing. Isolation lives in the keyspace, so application code carries no tenant filter. One
+transaction can commit across any number of namespaces.
 
 Proof: we [created 1,000,001 namespaces in a single cluster](proof/README.md).
 
@@ -18,13 +18,13 @@ without a new driver.
 ```
 BEGIN
 
-# In an agent's namespace: store a memory with its embedding.
-NAMESPACE USE agents.support-bot
-BUCKET.INSERT memories DOCS '{"text": "prefers email", "embedding": [0.12, 0.07, 0.91]}'
+# The tenant's own database: a new order.
+NAMESPACE USE tenants.acme
+BUCKET.INSERT orders DOCS '{"item": "keyboard", "qty": 2, "price": 49.99}'
 
-# In the billing namespace: bump a shared usage counter, conflict-free.
+# A shared database, same commit: metered usage.
 NAMESPACE USE billing
-ZINC.I64 support-bot:tokens 1240
+ZINC.I64 acme:requests 1
 
 COMMIT
 ```
@@ -32,20 +32,23 @@ COMMIT
 Read it back with the Bucket Query Language (BQL):
 
 ```
-NAMESPACE USE agents.support-bot
-BUCKET.QUERY memories '{ "text": { "$eq": "prefers email" } }'
+NAMESPACE USE tenants.acme
+BUCKET.QUERY orders '{"qty": {"$gte": 1}}'
 1# "cursor_id" => (integer) 1
-2# "entries" => 1) {"_id": "6a133c8806bf494c9e7e00cb", "text": "prefers email", "embedding": [0.12, 0.07, 0.91]}
+2# "entries" => 1) {"_id": "6a133c8806bf494c9e7e00cb", "item": "keyboard", "qty": 2, "price": 49.99}
 ```
 
-Or, with a vector index on `embedding`, recall it by similarity over the same field:
+A bucket with a vector index on `embedding` also answers similarity queries over its documents:
 
 ```
-NAMESPACE USE agents.support-bot
-BUCKET.VECTOR memories embedding '[0.10, 0.09, 0.88]' TOP 3
+NAMESPACE USE tenants.acme
+BUCKET.VECTOR products embedding '[0.10, 0.09, 0.88]' FILTER '{"in_stock": true}' TOP 3
 1) 1# "score" => (double) 0.9981
-   2# "entry" => {"_id": "6a133c8806bf494c9e7e00cb", "text": "prefers email", "embedding": [0.12, 0.07, 0.91]}
+   2# "entry" => {"_id": "69ce80c76597b10d87d13500", "name": "Wireless Headphones", "in_stock": true, "embedding": [0.12, 0.07, 0.91]}
 ```
+
+The same model fits an AI agent: a namespace per agent holds its memory, vector search runs over those documents,
+and one transaction updates the documents and ZMap state, such as counters, together.
 
 See [Quickstart](#quickstart) to spin up a cluster.
 
@@ -190,7 +193,7 @@ Strictly serializable by default, inherited from FoundationDB. Both auto-commit 
 
 ### Storage
 
-Metadata and indexes live in FoundationDB. Document bodies are stored in Volume, Kronotop’s segment-based storage engine
+Metadata and indexes live in FoundationDB. Document bodies are stored in Volume, Kronotop's append-only storage engine on local disk
 with primary-standby replication. ZMap data is stored directly in FoundationDB.
 
 ## Benchmarks
@@ -219,10 +222,11 @@ See the [full benchmark results and deployment guide](benchmarks/README.md) for 
 
 ## Use Cases
 
-- AI agent context store with namespace-level isolation, vector search, and transactional updates.
-- Horizontally scalable transactional document store.
-- Lease-based distributed locks with atomic acquire, safe release, and fencing tokens from versionstamped commits.
-- ZMap-based ordered key-value workloads: range scans, counters, and atomic mutations.
+- Agent context store: namespace-level isolation, vector search, and transactional updates for agent memory.
+- Transactional document store: horizontally scalable, backed by strictly serializable transactions.
+- Distributed coordination: lease-based locks with atomic acquire, safe release, and fencing tokens from versionstamped
+  commits.
+- Ordered key-value: range scans, counters, and conflict-free atomic mutations on the ZMap model.
 
 ## Namespaces
 
