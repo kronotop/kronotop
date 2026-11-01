@@ -10,8 +10,8 @@ A namespace is a keyspace prefix, so creating one costs nothing and the prefix a
 Isolation lives in the keyspace, so application code carries no tenant filter. One transaction can commit across
 any number of namespaces.
 
-Each namespace is a full database: documents, an ordered key-value store, secondary indexes, and vector search,
-under one transaction. Bucket stores the documents and carries the indexes and vector search. ZMap is a plain
+Each namespace is a full database: documents, an ordered key-value store, secondary indexes, and vector search.
+Bucket stores the documents and carries the indexes and vector search. ZMap is a plain
 ordered key-value store for the data that does not fit a document. Both speak over one RESP connection. Document
 bodies live in Volume, an append-only storage engine on local disk that replicates from a primary to a standby.
 The same model fits an AI agent: a namespace per agent holds its memory, vector search runs over those documents,
