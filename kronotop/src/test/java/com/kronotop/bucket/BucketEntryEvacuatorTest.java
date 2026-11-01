@@ -370,16 +370,20 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         // resolve to a stale, freed position once the index becomes READY.
         createBucket(TEST_BUCKET);
 
-        // Pin a vector index at WAITING: create it directly without advancing it to READY.
+        // Pin a vector index at WAITING. This overload schedules no build task, so no background
+        // builder writes the index keys while the evacuator runs.
         String vectorIndexName = VectorIndexNameGenerator.generate("embedding", 3, DistanceFunction.COSINE);
         VectorIndexDefinition vectorDef = VectorIndexDefinition.create(
                 vectorIndexName, "embedding", 3, DistanceFunction.COSINE, IndexStatus.WAITING
         );
         try (Transaction tr = context.getTransactionManager().create()) {
-            TransactionalContext tx = new TransactionalContext(context, tr);
-            VectorIndexUtil.create(tx, getBucketMetadata(TEST_BUCKET), vectorDef);
+            BucketMetadata bucketMetadata = getBucketMetadata(TEST_BUCKET);
+            VectorIndexUtil.create(tr, bucketMetadata.subspace(), vectorDef);
+            BucketMetadataUtil.publishBucketMetadataUpdatedEvent(new TransactionalContext(context, tr), bucketMetadata);
             tr.commit().join();
         }
+        // Load the new index into the cache before the insert.
+        refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
         float[] vector = new float[]{1.0f, 2.0f, 3.0f};
         Map<ObjectId, byte[]> inserted = insertDocumentsAndGetObjectIds(
