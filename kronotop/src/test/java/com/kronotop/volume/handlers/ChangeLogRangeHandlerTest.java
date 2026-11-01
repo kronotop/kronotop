@@ -88,8 +88,7 @@ class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
 
-        String start = "[0"; // start from the beginning
-        String end = String.format("%s]", hlc.next(System.currentTimeMillis()));
+        String end = String.format("%s]", HybridLogicalClock.fromPhysicalTime(System.currentTimeMillis() + 1));
         cmd.changelogRange(volumeConfig.name(), "*", "[0", end, null).encode(buf);
 
         Object msg = runCommand(channel, buf);
