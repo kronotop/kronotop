@@ -25,9 +25,11 @@ import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.DataModelKind;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.TestUtil;
+import com.kronotop.bucket.StaleBucketEvent;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
+import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.UUIDUtil;
 import com.kronotop.journal.Consumer;
 import com.kronotop.journal.ConsumerConfig;
@@ -461,5 +463,48 @@ class CollectStalePrefixesTaskTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             assertFalse(context.getDirectoryLayer().exists(tr, node.toList()).join());
         }
+    }
+    @Test
+    void shouldPublishStaleBucketEventWithPointer() {
+        // Behavior: a stale prefix registered for the BUCKET data model is published to the
+        // BUCKET_EVENTS journal as a STALE_BUCKET_EVENT that carries the prefix and the bucket uuid.
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-subspace");
+        byte[] stalePointer = subspace.pack("stale-pointer");
+        Prefix stalePrefix = new Prefix(UUID.randomUUID().toString());
+        UUID bucketId = UUID.randomUUID();
+        try (Transaction tr = context.getTransactionManager().create()) {
+            PrefixUtil.register(context, tr, stalePrefix, new PrefixEntry(stalePointer, DataModelKind.BUCKET, UUIDUtil.toBytes(bucketId)));
+            tr.clear(stalePointer);
+            tr.commit().join();
+        }
+
+        CollectStalePrefixesTask task = new CollectStalePrefixesTask(context);
+        task.run();
+
+        ConsumerConfig config = new ConsumerConfig(
+                "test-consumer",
+                JournalName.BUCKET_EVENTS.getValue(),
+                ConsumerConfig.Offset.EARLIEST
+        );
+        Consumer consumer = new Consumer(context, config);
+        consumer.start();
+
+        List<StaleBucketEvent> events = new ArrayList<>();
+        try (Transaction tr = context.getTransactionManager().create()) {
+            Event event;
+            while ((event = consumer.consume(tr)) != null) {
+                BaseBroadcastEvent base = JSONUtil.readValue(event.value(), BaseBroadcastEvent.class);
+                if (base.kind() == BroadcastEventKind.STALE_BUCKET_EVENT) {
+                    events.add(JSONUtil.readValue(event.value(), StaleBucketEvent.class));
+                }
+                consumer.markConsumed(tr, event);
+            }
+            tr.commit().join();
+        }
+        consumer.stop();
+
+        assertEquals(1, events.size());
+        assertEquals(stalePrefix.asLong(), events.getFirst().prefix());
+        assertEquals(bucketId.toString(), events.getFirst().pointer());
     }
 }

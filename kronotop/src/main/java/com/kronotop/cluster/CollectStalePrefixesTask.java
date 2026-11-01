@@ -24,20 +24,20 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.DataModelKind;
 import com.kronotop.KronotopException;
+import com.kronotop.bucket.StaleBucketEvent;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
+import com.kronotop.internal.UUIDUtil;
 import com.kronotop.journal.JournalName;
 import com.kronotop.journal.JournalService;
 import com.kronotop.task.BaseTask;
 import com.kronotop.task.Task;
 import com.kronotop.task.handlers.TaskNames;
 import com.kronotop.transaction.TransactionUtil;
-import com.kronotop.volume.NoSuchPrefixException;
-import com.kronotop.volume.Prefix;
-import com.kronotop.volume.PrefixCorruptionException;
-import com.kronotop.volume.PrefixUtil;
+import com.kronotop.volume.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -171,11 +171,20 @@ public class CollectStalePrefixesTask extends BaseTask implements Task {
                         if (shutdown) {
                             break;
                         }
-                        byte[] prefix = (byte[]) prefixesSubspace.unpack(keyValue.getKey()).get(0);
+                        byte[] prefixBytes = (byte[]) prefixesSubspace.unpack(keyValue.getKey()).get(0);
+                        Prefix prefix = Prefix.fromBytes(prefixBytes);
                         try {
-                            if (PrefixUtil.inspectPrefix(context, tr, Prefix.fromBytes(prefix)).isStale()) {
+                            PrefixInspection inspection = PrefixUtil.inspectPrefix(context, tr, prefix);
+                            if (inspection.isStale()) {
                                 tr.clear(keyValue.getKey());
-                                journal.getPublisher().publish(tr, JournalName.PREFIX_INVALIDATIONS, prefix);
+                                journal.getPublisher().publish(tr, JournalName.PREFIX_INVALIDATIONS, prefixBytes);
+                                if (inspection.entry().model() == DataModelKind.BUCKET) {
+                                    StaleBucketEvent event = new StaleBucketEvent(
+                                            prefix.asLong(),
+                                            UUIDUtil.fromBytes(inspection.entry().pointer()).toString()
+                                    );
+                                    journal.getPublisher().publish(tr, JournalName.BUCKET_EVENTS, event);
+                                }
                             }
                         } catch (NoSuchPrefixException e) {
                             // Not registered to global subspace. Possibly, this is an internal prefix.

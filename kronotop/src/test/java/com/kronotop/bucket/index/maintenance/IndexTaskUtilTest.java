@@ -139,7 +139,7 @@ class IndexTaskUtilTest extends BaseBucketHandlerTest {
         // Call clearBucketTasks
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
-            IndexTaskUtil.clearBucketTasks(tx, metadata);
+            IndexTaskUtil.clearBucketTasks(tx, metadata.subspace());
             tr.commit().join();
         }
 

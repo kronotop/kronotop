@@ -18,10 +18,13 @@ package com.kronotop.bucket;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.DataModelKind;
 import com.kronotop.KronotopException;
+import com.kronotop.TransactionalContext;
+import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.bucket.vector.VectorGraphIndexRegistry;
 import com.kronotop.cluster.BaseBroadcastEvent;
 import com.kronotop.cluster.BroadcastEventKind;
@@ -35,6 +38,7 @@ import com.kronotop.internal.KeyWatcher;
 import com.kronotop.journal.*;
 import com.kronotop.namespace.NamespaceBeingRemovedException;
 import com.kronotop.namespace.NoSuchNamespaceException;
+import com.kronotop.volume.Prefix;
 import com.kronotop.worker.Worker;
 import com.kronotop.worker.WorkerTag;
 import com.kronotop.worker.WorkerUtil;
@@ -47,21 +51,13 @@ import java.nio.ByteOrder;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * Consumes the BUCKET_EVENTS journal and reacts to bucket changes on this member.
- *
- * <p>Depending on the event, it invalidates the plan and metadata caches, removes vector indexes
- * from memory and disk, and records the latest metadata version for every shard this member owns
- * as primary. {@link BucketMetadataVersionBarrier} reads that record, stored under each shard's
- * {@code lastSeenVersions} subspace as an 8-byte little-endian long.
- *
- * <p>Events are read with a RESUME offset, so each one is processed once, even across restarts.
- * A failed event stays unconsumed and is retried on the next trigger. Events for buckets or
- * namespaces that no longer exist are ignored.
+ * Applies bucket events from the BUCKET_EVENTS journal on this member.
  */
 public class BucketEventsWatcher implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(BucketEventsWatcher.class);
@@ -76,10 +72,10 @@ public class BucketEventsWatcher implements Runnable {
     private volatile boolean shutdown;
 
     /**
-     * Creates a new watcher for the current cluster member.
+     * Creates a watcher for this cluster member.
      *
-     * @param context   the system context providing services and configuration
-     * @param planCache the plan cache to invalidate when buckets change
+     * @param context   the service context
+     * @param planCache the plan cache to invalidate when a bucket changes
      */
     public BucketEventsWatcher(Context context, PlanCache planCache) {
         this.context = context;
@@ -97,13 +93,6 @@ public class BucketEventsWatcher implements Runnable {
         this.consumer = new Consumer(context, config);
     }
 
-    /**
-     * Opens the lastSeenVersions subspace for a shard, caching the result.
-     *
-     * @param tr      the FoundationDB transaction
-     * @param shardId the shard identifier
-     * @return the directory subspace for storing version witness records
-     */
     private DirectorySubspace openLastSeenVersionsSubspace(Transaction tr, int shardId) {
         KronotopDirectoryNode directory = KronotopDirectory.
                 kronotop().
@@ -118,13 +107,6 @@ public class BucketEventsWatcher implements Runnable {
         );
     }
 
-    /**
-     * Updates the last seen version for shards owned by this member.
-     *
-     * @param tr         the FoundationDB transaction
-     * @param metadataId the bucket metadata identifier
-     * @param value      the version number encoded as 8-byte little-endian
-     */
     private void updateLastSeenVersion(Transaction tr, UUID metadataId, byte[] value) {
         for (int shardId : context.getShardRegistry().getShardIds(ShardKind.BUCKET)) {
             Route route = routing.findRoute(ShardKind.BUCKET, shardId);
@@ -148,12 +130,41 @@ public class BucketEventsWatcher implements Runnable {
         }
     }
 
-    /**
-     * Dispatches a single bucket event to the handling for its kind.
-     *
-     * @param tr    the FoundationDB transaction
-     * @param event the journal event to process
-     */
+    private void processStaleBucketEvent(Transaction tr, StaleBucketEvent evt) {
+        UUID uuid = UUID.fromString(evt.pointer());
+        BucketService bucketService = context.getService(BucketService.NAME);
+
+        // Local leftovers. Both calls are no-ops when there is nothing to remove.
+        context.getBucketMetadataCache().invalidateBinding(Prefix.fromLong(evt.prefix()));
+        bucketService.deleteVectorIndexFiles(uuid, null);
+
+        List<String> registryPath = BucketMetadataUtil.registryPath(context.getClusterName(), uuid);
+        DirectorySubspace registry;
+        try {
+            registry = context.getDirectoryLayer().open(tr, registryPath).join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof NoSuchDirectoryException) {
+                // Another member removed the registry already.
+                return;
+            }
+            throw e;
+        }
+
+        List<Integer> shards = BucketMetadataHeader.read(tr, registry).shards();
+        boolean hosted = shards.stream().anyMatch(shardId -> bucketService.getShard(shardId) != null);
+        if (!hosted) {
+            return;
+        }
+
+        // Task back-pointers live under the registry, so clear the tasks before the directory goes.
+        IndexTaskUtil.clearBucketTasks(new TransactionalContext(context, tr), registry);
+        for (int shardId : shards) {
+            DirectorySubspace subspace = openLastSeenVersionsSubspace(tr, shardId);
+            tr.clear(subspace.pack(Tuple.from(uuid)));
+        }
+        context.getDirectoryLayer().removeIfExists(tr, registryPath).join();
+    }
+
     private void processBucketEvent(Transaction tr, Event event) {
         BaseBroadcastEvent base = JSONUtil.readValue(event.value(), BaseBroadcastEvent.class);
         if (Objects.requireNonNull(base.kind()) == BroadcastEventKind.BUCKET_METADATA_UPDATED_EVENT) {
@@ -215,14 +226,14 @@ public class BucketEventsWatcher implements Runnable {
             IndexStatisticsUpdatedEvent evt = JSONUtil.readValue(event.value(), IndexStatisticsUpdatedEvent.class);
             planCache.invalidateBucket(evt.namespace(), evt.id());
             context.getBucketMetadataCache().invalidate(evt.namespace(), evt.bucket());
+        } else if (Objects.requireNonNull(base.kind()) == BroadcastEventKind.STALE_BUCKET_EVENT) {
+            StaleBucketEvent evt = JSONUtil.readValue(event.value(), StaleBucketEvent.class);
+            processStaleBucketEvent(tr, evt);
         } else {
             throw new KronotopException(String.format("Unknown %s kind: %s", JournalName.BUCKET_EVENTS, base.kind()));
         }
     }
 
-    /**
-     * Fetches and processes all available metadata events from the journal.
-     */
     private void fetchBucketEvents() {
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(() -> {
@@ -247,9 +258,6 @@ public class BucketEventsWatcher implements Runnable {
         });
     }
 
-    /**
-     * Runs the watcher loop, processing events until shutdown is requested.
-     */
     @Override
     public void run() {
         try {
@@ -290,7 +298,9 @@ public class BucketEventsWatcher implements Runnable {
     }
 
     /**
-     * Initiates shutdown and waits for graceful termination.
+     * Stops the watcher loop and waits until it exits.
+     *
+     * @throws KronotopException if the calling thread is interrupted while waiting
      */
     public void shutdown() {
         shutdown = true;

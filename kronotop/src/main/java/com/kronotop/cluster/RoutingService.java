@@ -47,25 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * Manages shard routing and topology change detection for the Kronotop cluster.
- *
- * <p>This service maintains an in-memory routing table that maps shards to their primary
- * and standby members. It watches FoundationDB for topology changes and triggers event
- * hooks when routing assignments change.
- *
- * <p>Key responsibilities:
- * <ul>
- *   <li>Loading and caching the routing table from FoundationDB</li>
- *   <li>Watching for cluster initialization and topology changes</li>
- *   <li>Detecting routing changes and invoking registered hooks</li>
- *   <li>Providing route lookups for shard-to-member resolution</li>
- * </ul>
- *
- * <p>The service uses two background watchers:
- * <ul>
- *   <li>{@link ClusterInitializationWatcher} - waits for cluster initialization</li>
- *   <li>{@link RoutingEventsWatcher} - monitors topology changes after initialization</li>
- * </ul>
+ * Keeps the in-memory routing table that maps each shard to its primary and standby members.
  */
 public class RoutingService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Routing";
@@ -92,9 +74,6 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         resumeCollectStalePrefixesTaskIfAny();
     }
 
-    /**
-     * Resumes {@link CollectStalePrefixesTask} when its task metadata names this member as the owner.
-     */
     private void resumeCollectStalePrefixesTaskIfAny() {
         try (Transaction tr = context.getTransactionManager().create()) {
             KronotopDirectoryNode node = KronotopDirectory.
@@ -128,10 +107,10 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
     }
 
     /**
-     * Registers a hook to be invoked when the specified routing event occurs.
+     * Registers a hook that runs when the given routing event happens on this member.
      *
-     * @param kind the routing event type that triggers this hook
-     * @param hook the callback to execute when the event occurs
+     * @param kind the routing event that triggers the hook
+     * @param hook the callback to run
      */
     public void registerHook(RoutingEventKind kind, RoutingEventHook hook) {
         hooksByKind.compute(kind, (ignored, value) -> {
@@ -143,13 +122,6 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         });
     }
 
-    /**
-     * Starts the routing service by initializing the routing table and background watchers.
-     *
-     * <p>If the cluster is already initialized, loads the routing table immediately and
-     * starts the {@link RoutingEventsWatcher}. Otherwise, starts the
-     * {@link ClusterInitializationWatcher} to wait for cluster initialization.
-     */
     @Override
     public void start() {
         Attribute<Boolean> clusterInitialized = context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
@@ -162,9 +134,6 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         }
     }
 
-    /**
-     * Shuts down the routing service, cancelling all watchers and releasing resources.
-     */
     @Override
     public void shutdown() {
         shutdown = true;
@@ -175,11 +144,11 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
     }
 
     /**
-     * Finds and returns the route information for the specified shard based on its kind and ID.
+     * Returns the route of the given shard.
      *
-     * @param kind    the kind of the shard, represented by an instance of ShardKind
-     * @param shardId the ID of the shard for which to retrieve the route information
-     * @return the Route object containing the primary and standby members, or null if no route information is found
+     * @param kind    the shard kind
+     * @param shardId the shard id
+     * @return the route with the primary and standby members, or null if the shard has no route yet
      */
     public Route findRoute(ShardKind kind, int shardId) {
         return routingTable.get().get(kind, shardId);
@@ -207,12 +176,6 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         collector.put(InfoReport.KRONOTOP_SECTION, "standby_shards", standby);
     }
 
-    /**
-     * Checks if the cluster has been initialized by verifying a specific key
-     * in the FoundationDB cluster metadata subspace.
-     *
-     * @return true if the cluster is initialized, otherwise false.
-     */
     private boolean isClusterInitialized_internal() {
         try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
@@ -227,9 +190,6 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         return false;
     }
 
-    /**
-     * Converts a set of member IDs to their corresponding Member objects.
-     */
     private Set<Member> memberIdsToMembers(Transaction tr, Set<String> memberIds) {
         Set<Member> members = new HashSet<>();
         for (String memberId : memberIds) {
@@ -239,14 +199,6 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         return members;
     }
 
-    /**
-     * Loads the shard routing information from the specified subspace within a transaction.
-     *
-     * @param tr            The transaction used to read from the database.
-     * @param shardSubspace The specific directory subspace containing the route information.
-     * @return A {@link Route} object containing the primary and standby members,
-     * or null if no route information is found.
-     */
     private Route loadRoute(Transaction tr, DirectorySubspace shardSubspace) {
         String primaryMemberId = MembershipUtil.loadPrimaryMemberId(tr, shardSubspace);
         if (primaryMemberId == null) {
@@ -269,14 +221,6 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         return null;
     }
 
-    /**
-     * Loads the routing information for shards into the provided routing table within a transaction.
-     *
-     * @param tr        The transaction used for database operations.
-     * @param table     The routing table to update with routing information.
-     * @param shardKind The type of shard (e.g., STASH) to load routes for.
-     * @param shardIds  The list of shard IDs to process.
-     */
     private void loadRoute(Transaction tr, RoutingTable table, ShardKind shardKind, List<Integer> shardIds) {
         for (int shardId : shardIds) {
             DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardKind, shardId);
@@ -287,16 +231,6 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         }
     }
 
-    /**
-     * Loads the routing table from FoundationDB and detects routing changes.
-     *
-     * <p>Creates a new routing table, loads routes for all shard kinds (STASH, BUCKET),
-     * and atomically replaces the current table. On subsequent runs, compares with
-     * the previous table to detect and trigger routing event hooks.
-     *
-     * @param firstRun true if this is the initial load (skip change detection)
-     * @throws KronotopException if an unknown shard kind is encountered
-     */
     private void loadRoutingTableFromFoundationDB(boolean firstRun) {
         Attribute<Boolean> clusterInitialized = context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
         if (clusterInitialized.get() == null || !clusterInitialized.get()) {
@@ -321,9 +255,6 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         }
     }
 
-    /**
-     * Executes all registered hooks for the specified routing event.
-     */
     private void runHooks(RoutingEventKind routingEventKind, ShardKind shardKind, int shardId) {
         List<RoutingEventHook> hooks = hooksByKind.get(routingEventKind);
         if (hooks == null) {
@@ -338,18 +269,6 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         }
     }
 
-    /**
-     * Detects routing changes between the previous and current routing tables, invoking
-     * appropriate hooks for this member based on assignment changes.
-     *
-     * <p>Detected events include:
-     * <ul>
-     *   <li>New primary assignment (triggers LOAD_STASH_SHARD or INITIALIZE_BUCKET_SHARD)</li>
-     *   <li>New standby assignment (triggers START_REPLICATION)</li>
-     *   <li>Primary ownership change (triggers HAND_OVER_SHARD_OWNERSHIP, PRIMARY_OWNER_CHANGED)</li>
-     *   <li>Standby removal (triggers STOP_REPLICATION)</li>
-     * </ul>
-     */
     private void changesBetweenRoutingTables(RoutingTable previous, ShardKind shardKind) {
         List<Integer> shardIds = context.getShardRegistry().getShardIds(shardKind);
         RoutingTable current = routingTable.get();
@@ -416,11 +335,6 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         }
     }
 
-    /**
-     * Watches for cluster initialization by monitoring the CLUSTER_INITIALIZED key in FoundationDB.
-     *
-     * <p>Blocks until the cluster is initialized, then transitions to {@link RoutingEventsWatcher}.
-     */
     private class ClusterInitializationWatcher implements Runnable {
 
         @Override
@@ -463,12 +377,6 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         }
     }
 
-    /**
-     * Watches for topology changes by monitoring the CLUSTER_TOPOLOGY_CHANGED key in FoundationDB.
-     *
-     * <p>When triggered, reloads the routing table and invokes hooks for any detected changes.
-     * Runs continuously until shutdown.
-     */
     private class RoutingEventsWatcher implements Runnable {
 
         @Override

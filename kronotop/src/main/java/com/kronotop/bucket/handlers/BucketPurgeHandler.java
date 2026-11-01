@@ -80,7 +80,7 @@ public class BucketPurgeHandler extends AbstractBucketHandler {
                 PrefixUtil.unregister(context, tr, prefixPointer, metadata.prefix());
                 journal.getPublisher().publish(tr, JournalName.PREFIX_INVALIDATIONS, metadata.prefix().asBytes());
 
-                IndexTaskUtil.clearBucketTasks(tx, metadata);
+                IndexTaskUtil.clearBucketTasks(tx, metadata.subspace());
                 BucketMetadataUtil.purge(tx, namespace, message.getBucket());
                 tr.commit().join();
 

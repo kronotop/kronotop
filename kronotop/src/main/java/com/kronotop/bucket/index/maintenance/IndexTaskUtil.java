@@ -144,22 +144,22 @@ public class IndexTaskUtil {
      * Removes all index maintenance tasks for every index in the given bucket.
      * Drops each task from the task storage and clears its corresponding back-pointer.
      *
-     * @param tx       the transactional context
-     * @param metadata the bucket metadata identifying the bucket and its indexes
+     * @param tx             the transactional context
+     * @param bucketSubspace the bucket's registry subspace that holds its indexes
      */
-    public static void clearBucketTasks(TransactionalContext tx, BucketMetadata metadata) {
+    public static void clearBucketTasks(TransactionalContext tx, DirectorySubspace bucketSubspace) {
         Transaction tr = tx.tr();
 
         List<String> indexNames;
         try {
-            indexNames = IndexUtil.list(tr, metadata.subspace());
+            indexNames = IndexUtil.list(tr, bucketSubspace);
         } catch (KronotopException e) {
             // No indexes directory exists, nothing to clean
             return;
         }
 
         for (String indexName : indexNames) {
-            DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), indexName);
+            DirectorySubspace indexSubspace = IndexUtil.open(tr, bucketSubspace, indexName);
 
             scanTaskBackPointers(tr, indexSubspace, (taskId, shardId) -> {
                 DirectorySubspace taskSubspace = openTasksSubspace(tx.context(), shardId);

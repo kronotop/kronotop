@@ -79,7 +79,7 @@ public class BucketMetadataUtil {
         return pointerSubspace.pack(BUCKET_POINTER);
     }
 
-    private static List<String> registryPath(String clusterName, UUID uuid) {
+    public static List<String> registryPath(String clusterName, UUID uuid) {
         return KronotopDirectory.kronotop()
                 .cluster(clusterName)
                 .metadata()

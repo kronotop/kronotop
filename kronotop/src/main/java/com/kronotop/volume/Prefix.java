@@ -71,8 +71,8 @@ public class Prefix {
         return new Prefix(hashCode);
     }
 
-    public static Prefix fromLong(long hash) {
-        HashCode hashCode = HashCode.fromLong(hash);
+    public static Prefix fromLong(long number) {
+        HashCode hashCode = HashCode.fromLong(number);
         return new Prefix(hashCode);
     }
 
