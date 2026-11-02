@@ -84,7 +84,9 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private final BucketMetrics metrics = new BucketMetrics();
     private final Planner planner;
     private final DelayQueue<VectorFlushTask> vectorFlushQueue = new DelayQueue<>();
+    private final LinkedBlockingQueue<VectorSyncTask> vectorSyncQueue = new LinkedBlockingQueue<>();
     private final VectorFlushMaintainer vectorFlushMaintainer;
+    private final VectorSyncMaintainer vectorSyncMaintainer;
     private final long vectorFlushThresholdBytes;
     private final int pqTrainingThreshold;
     private final int pqSubspaceDivisor;
@@ -127,6 +129,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         this.planner = new Planner(planCache, metrics);
         this.queryExecutor = new QueryExecutor(this);
         this.vectorFlushMaintainer = new VectorFlushMaintainer(context);
+        this.vectorSyncMaintainer = new VectorSyncMaintainer(context);
     }
 
     public PlanCache getPlanCache() {
@@ -139,6 +142,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
     public DelayQueue<VectorFlushTask> getVectorFlushQueue() {
         return vectorFlushQueue;
+    }
+
+    public LinkedBlockingQueue<VectorSyncTask> getVectorSyncQueue() {
+        return vectorSyncQueue;
     }
 
     @Override
@@ -403,6 +410,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                 15, 15, TimeUnit.SECONDS
         );
         vectorFlushMaintainer.start();
+        vectorSyncMaintainer.start();
     }
 
     @Override
@@ -448,6 +456,9 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             vectorFlushMaintainer.setDrainMode();
             vectorGraphRegistry.enqueueAllForFlush();
             vectorFlushMaintainer.shutdown();
+
+            vectorSyncMaintainer.setDrainMode();
+            vectorSyncMaintainer.shutdown();
 
             vectorGraphRegistry.closeAll();
         } catch (InterruptedException exp) {
