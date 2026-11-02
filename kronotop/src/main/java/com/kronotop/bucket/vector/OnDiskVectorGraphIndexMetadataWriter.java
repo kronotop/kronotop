@@ -25,9 +25,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -81,8 +79,7 @@ public class OnDiskVectorGraphIndexMetadataWriter {
 
     /**
      * Writes the metadata to the given path. {@code ordinalMap} translates on-heap ordinals to the
-     * sequential on-disk ordinals. The data goes to a temporary file first and is moved into place
-     * with an atomic rename, so a crash never leaves a partial file at {@code path}.
+     * sequential on-disk ordinals. The file at {@code path} is created or truncated and written in place.
      *
      * @throws IllegalStateException if an on-disk ordinal has no document location
      */
@@ -106,8 +103,7 @@ public class OnDiskVectorGraphIndexMetadataWriter {
         }
         int objectIdSectionOffset = HEADER_SIZE + ordinalSlots * ORDINAL_SLOT_SIZE;
 
-        Path tmpPath = path.resolveSibling(path.getFileName() + ".tmp");
-        try (FileChannel channel = FileChannel.open(tmpPath,
+        try (FileChannel channel = FileChannel.open(path,
                 StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
 
             // Write header
@@ -155,6 +151,5 @@ public class OnDiskVectorGraphIndexMetadataWriter {
 
             channel.force(true);
         }
-        Files.move(tmpPath, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
     }
 }
