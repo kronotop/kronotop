@@ -50,7 +50,7 @@ public final class BlobChunkWriter implements AutoCloseable {
      * @param volume    target volume
      * @param prefix    prefix the chunks are appended under
      * @param path      file to split
-     * @param name      blob name stored in every chunk header
+     * @param name      name of the file, stored in every chunk header.
      * @param chunkSize payload size of a chunk in bytes
      * @throws IOException              if the file cannot be mapped
      * @throws IllegalArgumentException if the file is empty or a chunk would exceed {@link Volume#ENTRY_SIZE_LIMIT}
@@ -97,7 +97,7 @@ public final class BlobChunkWriter implements AutoCloseable {
         }
         long offset = (long) chunkIndex * chunkSize;
         int length = (int) Math.min(chunkSize, mappedMemory.byteSize() - offset);
-        byte[] header = new BlobChunkHeader(name, chunkIndex, chunkCount).encode();
+        byte[] header = new BlobChunkHeader(name, offset, chunkCount).encode();
         ByteBuffer buffer = ByteBuffer.allocate(header.length + length);
         buffer.put(header);
         MemorySegment.copy(mappedMemory, ValueLayout.JAVA_BYTE, offset, buffer.array(), header.length, length);

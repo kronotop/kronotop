@@ -39,7 +39,7 @@ class BlobChunkWriterTest extends BaseVolumeIntegrationTest {
     private static final String NAME = "vector-index.bin";
     private static final int CHUNK_SIZE = 1024;
     private static final int FILE_SIZE = 2560;
-    private final Prefix prefix = Prefix.fromBytes(
+    private final Prefix prefix = new Prefix(
             UUID.randomUUID().toString().getBytes()
     );
 
@@ -52,7 +52,7 @@ class BlobChunkWriterTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldWriteAllChunksAndRoundTrip(@TempDir Path dir) throws Exception {
         // Behavior: a 2560 byte file is split with chunkSize 1024, so chunkCount is 3. Every chunk is written in its own
-        // transaction and committed. Reading each entry back gives a header with the blob name, the chunk index and
+        // transaction and committed. Reading each entry back gives a header with the blob name, offset i * 1024 and
         // chunkCount 3; the payloads concatenated in index order are equal to the original file, and the last chunk
         // carries the remaining 512 bytes.
         Path path = writeRandomFile(dir);
@@ -76,7 +76,7 @@ class BlobChunkWriterTest extends BaseVolumeIntegrationTest {
             for (int i = 0; i < keys.size(); i++) {
                 ByteBuffer entry = volume.get(session, keys.get(i));
                 BlobChunkHeader header = BlobChunkHeader.readHeader(entry);
-                assertEquals(new BlobChunkHeader(NAME, i, 3), header);
+                assertEquals(new BlobChunkHeader(NAME, (long) i * CHUNK_SIZE, 3), header);
                 assertEquals(i == 2 ? 512 : CHUNK_SIZE, entry.remaining());
                 actual.put(entry);
             }

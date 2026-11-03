@@ -22,14 +22,15 @@ import java.nio.charset.StandardCharsets;
 /**
  * Header stored in front of every chunk of a blob.
  *
- * @param name       ASCII name of the blob
- * @param chunkIndex zero based position of this chunk in the blob
+ * @param name       ASCII name of the file this chunk belongs to. Many files can share one prefix, the name separates them.
+ * @param offset     byte offset of the chunk payload in the blob
  * @param chunkCount total number of chunks in the blob
  */
-public record BlobChunkHeader(String name, int chunkIndex, int chunkCount) {
+public record BlobChunkHeader(String name, long offset, int chunkCount) {
 
     static final int MAGIC = 0x4B424C42;
-    private static final int FIXED_LENGTH = 4 * 4;
+    // magic (int) + header length (int) + offset (long) + chunk count (int)
+    private static final int FIXED_LENGTH = 4 + 4 + 8 + 4;
 
     /**
      * Encodes this header to its wire form.
@@ -41,7 +42,7 @@ public record BlobChunkHeader(String name, int chunkIndex, int chunkCount) {
         ByteBuffer buffer = ByteBuffer.allocate(headerLength);
         buffer.putInt(MAGIC);
         buffer.putInt(headerLength);
-        buffer.putInt(chunkIndex);
+        buffer.putLong(offset);
         buffer.putInt(chunkCount);
         buffer.put(name.getBytes(StandardCharsets.US_ASCII));
         return buffer.array();
@@ -66,13 +67,13 @@ public record BlobChunkHeader(String name, int chunkIndex, int chunkCount) {
         if (headerLength <= FIXED_LENGTH || headerLength > buffer.limit()) {
             throw new CorruptBlobChunkException("invalid header length: " + headerLength);
         }
-        int chunkIndex = buffer.getInt();
+        long offset = buffer.getLong();
         int chunkCount = buffer.getInt();
-        if (chunkIndex < 0 || chunkIndex >= chunkCount) {
-            throw new CorruptBlobChunkException("invalid chunk position: " + chunkIndex + "/" + chunkCount);
+        if (offset < 0 || chunkCount <= 0) {
+            throw new CorruptBlobChunkException("invalid chunk fields: " + offset + "/" + chunkCount);
         }
         byte[] name = new byte[headerLength - FIXED_LENGTH];
         buffer.get(name);
-        return new BlobChunkHeader(new String(name, StandardCharsets.US_ASCII), chunkIndex, chunkCount);
+        return new BlobChunkHeader(new String(name, StandardCharsets.US_ASCII), offset, chunkCount);
     }
 }

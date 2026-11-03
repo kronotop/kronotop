@@ -27,9 +27,9 @@ class BlobChunkHeaderTest {
 
     @Test
     void shouldRoundTripHeader() {
-        // Behavior: a header with name "vector-index.bin", chunkIndex 3 and chunkCount 7 is encoded to bytes
+        // Behavior: a header with name "vector-index.bin", offset 3072 and chunkCount 7 is encoded to bytes
         // and decoded again; the decoded record is equal to the original, so all three fields survive the trip.
-        BlobChunkHeader header = new BlobChunkHeader("vector-index.bin", 3, 7);
+        BlobChunkHeader header = new BlobChunkHeader("vector-index.bin", 3L * 1024, 7);
 
         BlobChunkHeader decoded = BlobChunkHeader.readHeader(ByteBuffer.wrap(header.encode()));
 
@@ -40,7 +40,7 @@ class BlobChunkHeaderTest {
     void shouldLeaveBufferPositionAtPayloadStart() {
         // Behavior: a buffer holds the encoded header followed by 16 payload bytes; after readHeader the buffer
         // position is at the end of the header, so the remaining bytes are exactly the payload.
-        byte[] headerBytes = new BlobChunkHeader("vector-index.bin", 3, 7).encode();
+        byte[] headerBytes = new BlobChunkHeader("vector-index.bin", 3L * 1024, 7).encode();
         byte[] payload = new byte[16];
         for (int i = 0; i < payload.length; i++) {
             payload[i] = (byte) i;
@@ -61,7 +61,7 @@ class BlobChunkHeaderTest {
     void shouldRejectChunkWithBadMagic() {
         // Behavior: a valid encoded header whose first 4 bytes are overwritten with zeros is not a blob chunk;
         // readHeader throws CorruptBlobChunkException instead of decoding it.
-        byte[] bytes = new BlobChunkHeader("vector-index.bin", 3, 7).encode();
+        byte[] bytes = new BlobChunkHeader("vector-index.bin", 3L * 1024, 7).encode();
         ByteBuffer.wrap(bytes).putInt(0);
 
         assertThrows(CorruptBlobChunkException.class, () -> BlobChunkHeader.readHeader(ByteBuffer.wrap(bytes)));
@@ -75,11 +75,13 @@ class BlobChunkHeaderTest {
     }
 
     @Test
-    void shouldRejectInconsistentChunkFields() {
-        // Behavior: a header with chunkIndex 7 and chunkCount 3 encodes fine but cannot be a real chunk position;
-        // readHeader throws CorruptBlobChunkException.
-        byte[] bytes = new BlobChunkHeader("x", 7, 3).encode();
+    void shouldRejectNegativeOffsetOrZeroChunkCount() {
+        // Behavior: a header with offset -1, and a header with chunkCount 0, both encode fine but cannot describe a
+        // real chunk; readHeader throws CorruptBlobChunkException for each of them.
+        byte[] negativeOffset = new BlobChunkHeader("x", -1, 3).encode();
+        byte[] zeroChunkCount = new BlobChunkHeader("x", 0, 0).encode();
 
-        assertThrows(CorruptBlobChunkException.class, () -> BlobChunkHeader.readHeader(ByteBuffer.wrap(bytes)));
+        assertThrows(CorruptBlobChunkException.class, () -> BlobChunkHeader.readHeader(ByteBuffer.wrap(negativeOffset)));
+        assertThrows(CorruptBlobChunkException.class, () -> BlobChunkHeader.readHeader(ByteBuffer.wrap(zeroChunkCount)));
     }
 }
