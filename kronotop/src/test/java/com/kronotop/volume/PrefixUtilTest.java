@@ -41,7 +41,7 @@ class PrefixUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldRegisterPrefixSuccessfully() {
         try (Transaction tr = context.getTransactionManager().create()) {
-            PrefixEntry entry = new PrefixEntry(bundle.prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(bundle.metadata.uuid()));
+            PrefixEntry entry = new PrefixEntry(bundle.prefixPointer, EntryKind.DOCUMENT, UUIDUtil.toBytes(bundle.metadata.uuid()));
             assertDoesNotThrow(() ->
                     PrefixUtil.register(context, tr, bundle.metadata.prefix(), entry)
             );
@@ -53,7 +53,7 @@ class PrefixUtilTest extends BaseStandaloneInstanceTest {
     void shouldDetectStalePrefixWhenPointerIsRemoved() {
         // Behavior: a registered prefix is not stale while its binding key exists and becomes stale once the key is cleared
         try (Transaction tr = context.getTransactionManager().create()) {
-            PrefixEntry entry = new PrefixEntry(bundle.prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(bundle.metadata.uuid()));
+            PrefixEntry entry = new PrefixEntry(bundle.prefixPointer, EntryKind.DOCUMENT, UUIDUtil.toBytes(bundle.metadata.uuid()));
             PrefixUtil.register(context, tr, bundle.metadata.prefix(), entry);
             tr.commit().join();
         }
@@ -78,7 +78,7 @@ class PrefixUtilTest extends BaseStandaloneInstanceTest {
     void shouldThrowNoSuchPrefixAfterUnregister() {
         // Behavior: inspecting a prefix after unregister throws NoSuchPrefixException
         try (Transaction tr = context.getTransactionManager().create()) {
-            PrefixEntry entry = new PrefixEntry(bundle.prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(bundle.metadata.uuid()));
+            PrefixEntry entry = new PrefixEntry(bundle.prefixPointer, EntryKind.DOCUMENT, UUIDUtil.toBytes(bundle.metadata.uuid()));
             PrefixUtil.register(context, tr, bundle.metadata.prefix(), entry);
             tr.commit().join();
         }

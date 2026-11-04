@@ -36,10 +36,7 @@ import com.kronotop.server.Response;
 import com.kronotop.server.ServerKind;
 import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.TransactionUtil;
-import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
-import com.kronotop.volume.Prefix;
-import com.kronotop.volume.PrefixEntry;
-import com.kronotop.volume.PrefixUtil;
+import com.kronotop.volume.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -840,7 +837,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             byte[] prefixPointer = subspace.pack("stale-pointer");
             for (int i = 0; i < count; i++) {
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
-                PrefixUtil.register(context, tr, testPrefix, new PrefixEntry(prefixPointer, DataModelKind.BUCKET, UUIDUtil.toBytes(UUID.randomUUID())));
+                PrefixUtil.register(context, tr, testPrefix, new PrefixEntry(prefixPointer, EntryKind.DOCUMENT, UUIDUtil.toBytes(UUID.randomUUID())));
             }
             // Clear the pointer to make all prefixes stale
             tr.clear(prefixPointer);

@@ -90,7 +90,7 @@ public class BucketMetadataUtil {
     private static Prefix createPrefix(Context context, Transaction tr, byte[] prefixBindingKey, byte[] pointer) {
         HashCode hashCode = UUIDUtil.hash(UUIDUtil.fromBytes(pointer));
         Prefix prefix = new Prefix(hashCode);
-        PrefixEntry entry = new PrefixEntry(prefixBindingKey, DataModelKind.BUCKET, pointer);
+        PrefixEntry entry = new PrefixEntry(prefixBindingKey, EntryKind.DOCUMENT, pointer);
         PrefixUtil.register(context, tr, prefix, entry);
         return prefix;
     }

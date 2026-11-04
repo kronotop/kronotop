@@ -178,7 +178,7 @@ public class CollectStalePrefixesTask extends BaseTask implements Task {
                             if (inspection.isStale()) {
                                 tr.clear(keyValue.getKey());
                                 journal.getPublisher().publish(tr, JournalName.PREFIX_INVALIDATIONS, prefixBytes);
-                                if (inspection.entry().model() == DataModelKind.BUCKET) {
+                                if (inspection.entry().kind() == EntryKind.DOCUMENT) {
                                     StaleBucketEvent event = new StaleBucketEvent(
                                             prefix.asLong(),
                                             UUIDUtil.fromBytes(inspection.entry().pointer()).toString()

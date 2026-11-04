@@ -17,19 +17,18 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.tuple.Tuple;
-import com.kronotop.DataModelKind;
 
-public record PrefixEntry(byte[] key, DataModelKind model, byte[] pointer) {
+public record PrefixEntry(byte[] key, EntryKind kind, byte[] pointer) {
 
     public byte[] encode() {
-        return Tuple.from(key, model.getValue(), pointer).pack();
+        return Tuple.from(key, kind.getValue(), pointer).pack();
     }
 
     public static PrefixEntry decode(byte[] input) {
         Tuple tuple = Tuple.fromBytes(input);
         return new PrefixEntry(
                 tuple.getBytes(0),
-                DataModelKind.valueOf((byte) tuple.getLong(1)),
+                EntryKind.valueOf((byte) tuple.getLong(1)),
                 tuple.getBytes(2)
         );
     }
