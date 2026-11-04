@@ -15,10 +15,10 @@ shards are replicated.
 <svg viewBox="0 0 720 488" width="720" height="488" style="display:block;margin-inline:auto;max-width:100%;height:auto" role="img" aria-label="Kronotop architecture: RESP clients connect to a Kronotop member. Inside the member, the Bucket and ZMap data models share one transaction boundary, and the Volume storage engine sits under Bucket. The volume replicates its segments to a standby member. Both members run on top of FoundationDB." xmlns="http://www.w3.org/2000/svg" font-family="'IBM Plex Sans Variable', sans-serif">
   <defs>
     <marker id="kr-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0 0L8 4L0 8z" fill="#00c5d1"/>
+      <path d="M0 0L8 4L0 8z" fill="#22C7E0"/>
     </marker>
   </defs>
-  <rect x="0" y="0" width="720" height="488" rx="16" fill="#061827"/>
+  <rect x="0" y="0" width="720" height="488" rx="16" fill="#07192B"/>
   <rect x="220" y="26" width="280" height="42" rx="8" fill="none" stroke="#3b5a70" stroke-width="1.5"/>
   <text x="360" y="52" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="600">RESP-compatible clients</text>
   <g stroke="#3b5a70" stroke-width="1.5">
@@ -28,9 +28,9 @@ shards are replicated.
     <line x1="600" y1="84" x2="600" y2="100"/>
   </g>
   <rect x="40" y="100" width="440" height="252" rx="14" fill="none" stroke="#3b5a70" stroke-width="1.5"/>
-  <text x="64" y="127" fill="#cdd9e1" font-size="13" font-weight="600">Kronotop member</text>
-  <rect x="56" y="140" width="408" height="110" rx="8" fill="none" stroke="#00c5d1" stroke-width="1.5" stroke-dasharray="6 5"/>
-  <text x="260" y="162" text-anchor="middle" fill="#00c5d1" font-size="12" font-weight="600">strictly serializable transactions · namespaces</text>
+  <text x="64" y="127" fill="#E6F1F5" font-size="13" font-weight="600">Kronotop member</text>
+  <rect x="56" y="140" width="408" height="110" rx="8" fill="none" stroke="#22C7E0" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="260" y="162" text-anchor="middle" fill="#22C7E0" font-size="12" font-weight="600">strictly serializable transactions · namespaces</text>
   <g fill="none" stroke="#3b5a70" stroke-width="1.5">
     <rect x="68" y="174" width="184" height="60" rx="8"/>
     <rect x="268" y="174" width="184" height="60" rx="8"/>
@@ -48,16 +48,16 @@ shards are replicated.
   <rect x="520" y="100" width="160" height="252" rx="14" fill="none" stroke="#3b5a70" stroke-width="1.5"/>
   <text x="600" y="127" text-anchor="middle" fill="#93a7b5" font-size="13" font-weight="600">standby member</text>
   <rect x="536" y="274" width="128" height="58" rx="8" fill="none" stroke="#3b5a70" stroke-width="1.5"/>
-  <text x="600" y="298" text-anchor="middle" fill="#cdd9e1" font-size="14" font-weight="600">Volume</text>
+  <text x="600" y="298" text-anchor="middle" fill="#E6F1F5" font-size="14" font-weight="600">Volume</text>
   <text x="600" y="318" text-anchor="middle" fill="#93a7b5" font-size="11">segments</text>
-  <line x1="372" y1="303" x2="530" y2="303" stroke="#00c5d1" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#kr-arrow)"/>
-  <text x="452" y="292" text-anchor="middle" fill="#00c5d1" font-size="11" font-weight="600">replication</text>
+  <line x1="372" y1="303" x2="530" y2="303" stroke="#22C7E0" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#kr-arrow)"/>
+  <text x="452" y="292" text-anchor="middle" fill="#22C7E0" font-size="11" font-weight="600">replication</text>
   <g stroke="#3b5a70" stroke-width="1.5">
     <line x1="260" y1="352" x2="260" y2="384"/>
     <line x1="600" y1="352" x2="600" y2="384"/>
   </g>
   <rect x="40" y="384" width="640" height="72" rx="12" fill="none" stroke="#3b5a70" stroke-width="1.5"/>
-  <text x="360" y="414" text-anchor="middle" fill="#cdd9e1" font-size="14" font-weight="600">FoundationDB</text>
+  <text x="360" y="414" text-anchor="middle" fill="#E6F1F5" font-size="14" font-weight="600">FoundationDB</text>
   <text x="360" y="434" text-anchor="middle" fill="#93a7b5" font-size="11">metadata · indexes · ZMap data · cluster state</text>
 </svg>
 
