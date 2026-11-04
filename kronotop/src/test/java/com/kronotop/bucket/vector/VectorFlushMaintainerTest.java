@@ -104,9 +104,17 @@ class VectorFlushMaintainerTest extends BaseStandaloneInstanceTest {
         return new VectorFlushTask(key, 0);
     }
 
-    private void addOneVector(ObjectId generationId) {
+    private OnHeapVectorGraphIndex addOneVector(ObjectId generationId) {
         OnHeapVectorGraphIndex onHeap = group.getOrCreateOnHeap(generationId.toByteArray(), DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 6);
         onHeap.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        return onHeap;
+    }
+
+    private boolean hasFlushedRecord(OnHeapVectorGraphIndex onHeap) {
+        byte[] key = vectorIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.FLUSHED.getValue(), onHeap.getId().toByteArray()));
+        try (Transaction tr = context.getTransactionManager().create()) {
+            return tr.get(key).join() != null;
+        }
     }
 
     private List<KeyValue> mutationLogEntries(ObjectId generationId) {
@@ -139,9 +147,10 @@ class VectorFlushMaintainerTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldFlushIdleIndexAndTruncateMutationLog() {
         // Behavior: When the on-heap index of a generation stayed idle past the idle window,
-        // the maintainer writes it to disk and removes the mutation log entries of that generation.
+        // the maintainer writes it to disk, records (FLUSHED, id) in FDB and removes the
+        // mutation log entries of that generation.
         ObjectId generationId = new ObjectId();
-        addOneVector(generationId);
+        OnHeapVectorGraphIndex onHeap = addOneVector(generationId);
         byte[] encodedEntry = new IndexEntry(1, VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test").encode()).encode();
         try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.appendMutation(
@@ -164,6 +173,7 @@ class VectorFlushMaintainerTest extends BaseStandaloneInstanceTest {
 
         await().atMost(Duration.ofSeconds(10)).until(() -> group.hasNoOnHeapIndexes(generationId));
         assertEquals(1, group.getOnDiskIndexes().size());
+        assertTrue(hasFlushedRecord(onHeap));
         await().atMost(Duration.ofSeconds(5)).until(() -> mutationLogEntries(generationId).isEmpty());
     }
 }

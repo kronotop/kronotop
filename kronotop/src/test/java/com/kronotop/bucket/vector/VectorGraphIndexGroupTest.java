@@ -698,6 +698,29 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    void shouldWriteFlushedRecordToFoundationDB(@TempDir Path tempDir) {
+        // Behavior: After flush writes an on-heap index to disk, FDB holds exactly one (FLUSHED, id)
+        // key for it, where id is the on-heap index id as bytes, with an empty value.
+        group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
+
+        OnHeapVectorGraphIndex target = openOnHeap();
+        target.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+
+        group.flush(tempDir, target);
+
+        DirectorySubspace indexSubspace = vectorIndex.subspace();
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.FLUSHED.getValue()));
+        List<KeyValue> entries;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            entries = tr.getRange(prefix, ByteArrayUtil.strinc(prefix)).asList().join();
+        }
+        assertEquals(1, entries.size());
+        Tuple key = indexSubspace.unpack(entries.getFirst().getKey());
+        assertArrayEquals(target.getId().toByteArray(), key.getBytes(1));
+        assertEquals(0, entries.getFirst().getValue().length);
+    }
+
+    @Test
     void shouldFlushSkipEmptyIndex(@TempDir Path tempDir) {
         // Behavior: flush is a no-op when the given index has no vectors.
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);

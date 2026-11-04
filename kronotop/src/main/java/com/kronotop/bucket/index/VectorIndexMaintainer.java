@@ -175,6 +175,14 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
     }
 
     /**
+     * Records that the on-heap graph with the given id was flushed to disk under {@code (FLUSHED, id)}.
+     */
+    public static void setFlushed(Transaction tr, DirectorySubspace indexSubspace, ObjectId id) {
+        Tuple tuple = Tuple.from(IndexSubspaceMagic.FLUSHED.getValue(), id.toByteArray());
+        tr.set(indexSubspace.pack(tuple), new byte[0]);
+    }
+
+    /**
      * Reads every deleted ordinal of an on-disk graph and passes it to the sink. The read is paged, one
      * transaction per page.
      */

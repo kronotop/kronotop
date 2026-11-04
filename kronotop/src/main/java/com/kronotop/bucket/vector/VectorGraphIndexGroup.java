@@ -24,7 +24,10 @@ import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.VectorIndex;
+import com.kronotop.bucket.index.VectorIndexMaintainer;
+import com.kronotop.transaction.TransactionUtil;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
+import io.github.resilience4j.retry.Retry;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +36,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.Lock;
@@ -520,8 +524,8 @@ public class VectorGraphIndexGroup {
 
     /**
      * Writes the on-heap index to disk, opens it as an on-disk index and removes the on-heap one
-     * from the group. An empty index is skipped. On a write error the on-heap index stays in place,
-     * so the flush maintainer can try again.
+     * from the group. An empty index is skipped. On a write error or a FoundationDB error the
+     * on-heap index stays in place, so the flush maintainer can try again.
      */
     public void flush(Path bucketDataDir, OnHeapVectorGraphIndex index) {
         if (index.size() == 0) return;
@@ -543,6 +547,14 @@ public class VectorGraphIndexGroup {
         // in between finds the node in no list, stores a tombstone, and the delete is lost.
         if (indexPath != null) {
             try {
+                setFlushed(index.getId());
+            } catch (RuntimeException e) {
+                LOGGER.error("Failed to record flushed vector graph index {}", indexPath, e);
+                service.getMetrics().incrementVectorFlushFailures();
+                return;
+            }
+            // It's time to open the new on-disk index.
+            try {
                 OnDiskVectorGraphIndex onDisk = new OnDiskVectorGraphIndex(
                         vectorIndex.subspace(),
                         indexPath,
@@ -562,6 +574,16 @@ public class VectorGraphIndexGroup {
         } catch (IOException e) {
             LOGGER.error("Failed to close flushed vector graph index", e);
         }
+    }
+
+    private void setFlushed(ObjectId id) {
+        Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
+        retry.executeRunnable(() -> {
+            try (Transaction tr = context.getTransactionManager().create()) {
+                VectorIndexMaintainer.setFlushed(tr, vectorIndex.subspace(), id);
+                tr.commit().join();
+            }
+        });
     }
 
     /**
