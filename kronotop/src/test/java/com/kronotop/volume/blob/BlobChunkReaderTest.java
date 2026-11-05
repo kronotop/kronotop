@@ -16,6 +16,7 @@
 
 package com.kronotop.volume.blob;
 
+import com.apple.foundationdb.Transaction;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -42,7 +43,10 @@ class BlobChunkReaderTest extends BaseBlobChunkTest {
             writeChunk(writerA, 1);
         }
 
-        readInto(out);
+        try (Transaction tr = context.getTransactionManager().create();
+             DirectoryBlobChunkSink sink = new DirectoryBlobChunkSink(out)) {
+            new BlobChunkReader(volume, prefix).read(tr, sink);
+        }
 
         assertArrayEquals(Files.readAllBytes(a), Files.readAllBytes(out.resolve("a.bin")));
         assertArrayEquals(Files.readAllBytes(b), Files.readAllBytes(out.resolve("b.bin")));
@@ -58,7 +62,12 @@ class BlobChunkReaderTest extends BaseBlobChunkTest {
             writeChunk(writer, 2);
         }
 
-        IllegalStateException e = assertThrows(IllegalStateException.class, () -> readInto(out));
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> {
+            try (Transaction tr = context.getTransactionManager().create();
+                 DirectoryBlobChunkSink sink = new DirectoryBlobChunkSink(out)) {
+                new BlobChunkReader(volume, prefix).read(tr, sink);
+            }
+        });
         assertTrue(e.getMessage().contains("a.bin"));
     }
 }

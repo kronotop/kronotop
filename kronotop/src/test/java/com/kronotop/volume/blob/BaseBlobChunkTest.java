@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 
+
 class BaseBlobChunkTest extends BaseVolumeIntegrationTest {
     protected static final int CHUNK_SIZE = 1024;
     protected final Prefix prefix = new Prefix(UUID.randomUUID().toString().getBytes());
@@ -39,14 +40,6 @@ class BaseBlobChunkTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             writer.write(tr, chunkIndex);
             tr.commit().join();
-        }
-    }
-
-    protected void readInto(Path outDir) throws Exception {
-        try (Transaction tr = context.getTransactionManager().create()) {
-            try (DirectoryBlobChunkSink sink = new DirectoryBlobChunkSink(outDir)) {
-                new BlobChunkReader(volume, prefix).read(tr, sink);
-            }
         }
     }
 }

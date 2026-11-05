@@ -42,7 +42,10 @@ class BlobChunkWriterTest extends BaseBlobChunkTest {
             }
         }
 
-        readInto(out);
+        try (Transaction tr = context.getTransactionManager().create();
+             DirectoryBlobChunkSink sink = new DirectoryBlobChunkSink(out)) {
+            new BlobChunkReader(volume, prefix).read(tr, sink);
+        }
 
         assertArrayEquals(Files.readAllBytes(path), Files.readAllBytes(out.resolve(NAME)));
     }
