@@ -43,7 +43,7 @@ class VectorFlushMaintainerTest extends BaseVectorMaintainerTest {
     }
 
     private List<KeyValue> mutationLogEntries(ObjectId generationId) {
-        byte[] prefix = vectorIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue(), generationId.toByteArray()));
+        byte[] prefix = vectorIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.VECTOR_MUTATION_LOG.getValue(), generationId.toByteArray()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -72,7 +72,7 @@ class VectorFlushMaintainerTest extends BaseVectorMaintainerTest {
     @Test
     void shouldFlushIdleIndexAndTruncateMutationLog() {
         // Behavior: When the on-heap index of a generation stayed idle past the idle window,
-        // the maintainer writes it to disk, records (FLUSHED, id) in FDB and removes the
+        // the maintainer writes it to disk, records (GRAPH_ON_DISK, id) in FDB and removes the
         // mutation log entries of that generation.
         ObjectId generationId = new ObjectId();
         OnHeapVectorGraphIndex onHeap = addOneVector(generationId);
@@ -98,7 +98,7 @@ class VectorFlushMaintainerTest extends BaseVectorMaintainerTest {
 
         await().atMost(Duration.ofSeconds(10)).until(() -> group.hasNoOnHeapIndexes(generationId));
         assertEquals(1, group.getOnDiskIndexes().size());
-        assertTrue(hasKey(IndexSubspaceMagic.FLUSHED.getValue(), onHeap.getId()));
+        assertTrue(hasKey(IndexSubspaceMagic.GRAPH_ON_DISK.getValue(), onHeap.getId()));
         await().atMost(Duration.ofSeconds(5)).until(() -> mutationLogEntries(generationId).isEmpty());
     }
 }

@@ -69,7 +69,7 @@ class VectorSyncMaintainerTest extends BaseVectorMaintainerTest {
     }
 
     private boolean isSynced(ObjectId indexId) {
-        return hasKey(IndexSubspaceMagic.SYNCED.getValue(), indexId);
+        return hasKey(IndexSubspaceMagic.GRAPH_SYNCED.getValue(), indexId);
     }
 
     private List<VolumeEntry> entriesUnder(Prefix prefix) {
@@ -101,7 +101,7 @@ class VectorSyncMaintainerTest extends BaseVectorMaintainerTest {
         // Behavior: An on-heap index with one vector is flushed and the sync task for its id runs. The
         // maintainer writes the .index and .vmeta files to the owner shard Volume under the prefix built
         // from the id. There is no .pqv file because PQ is not trained with one vector. Reading the chunks
-        // back gives files equal to the ones on disk. The (SYNCED, id) key exists in FDB. The prefix
+        // back gives files equal to the ones on disk. The (GRAPH_SYNCED, id) key exists in FDB. The prefix
         // registry holds a VECTOR_INDEX entry that is not stale and whose pointer is the id bytes. The sync
         // failure counter stays at zero.
         try (OnHeapVectorGraphIndex onHeap = flushOneVector()) {
@@ -125,7 +125,7 @@ class VectorSyncMaintainerTest extends BaseVectorMaintainerTest {
     void shouldSkipTaskWhenGroupIsGone() {
         // Behavior: A sync task points to a vector index group that is not in the registry, as after an
         // index drop. The maintainer consumes the task and writes nothing. The prefix has no Volume entry,
-        // the (SYNCED, id) key is absent, and the sync failure counter stays at zero.
+        // the (GRAPH_SYNCED, id) key is absent, and the sync failure counter stays at zero.
         ObjectId indexId = new ObjectId();
         VectorSyncTask task = new VectorSyncTask(metadata.namespace(), metadata.name(), Long.MAX_VALUE, indexId);
 

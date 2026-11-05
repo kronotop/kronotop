@@ -2605,7 +2605,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(MapRedisMessage.class, msg);
 
         // Verify mutation log has an INSERT entry
-        byte[] prefix = vectorIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue()));
+        byte[] prefix = vectorIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.VECTOR_MUTATION_LOG.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 

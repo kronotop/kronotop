@@ -699,7 +699,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldWriteFlushedRecordToFoundationDB(@TempDir Path tempDir) {
-        // Behavior: After flush writes an on-heap index to disk, FDB holds exactly one (FLUSHED, id)
+        // Behavior: After flush writes an on-heap index to disk, FDB holds exactly one (GRAPH_ON_DISK, id)
         // key for it, where id is the on-heap index id as bytes, with an empty value.
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
 
@@ -709,7 +709,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         group.flush(tempDir, target);
 
         DirectorySubspace indexSubspace = vectorIndex.subspace();
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.FLUSHED.getValue()));
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.GRAPH_ON_DISK.getValue()));
         List<KeyValue> entries;
         try (Transaction tr = context.getTransactionManager().create()) {
             entries = tr.getRange(prefix, ByteArrayUtil.strinc(prefix)).asList().join();
@@ -1172,7 +1172,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldWriteDeletedOrdinalToFoundationDB(@TempDir Path tempDir) throws IOException {
-        // Behavior: markNodeDeleted on an on-disk index writes (DELETED_ORDINALS, baseName, ordinal) to FDB.
+        // Behavior: markNodeDeleted on an on-disk index writes (GRAPH_DELETED_ORDINALS, baseName, ordinal) to FDB.
         OnHeapVectorGraphIndex heapIndex = newIndex();
         ObjectId objectId = new ObjectId();
         heapIndex.addGraphNode(objectId, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
@@ -1186,7 +1186,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
             }
 
             DirectorySubspace indexSubspace = vectorIndex.subspace();
-            byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.DELETED_ORDINALS.getValue()));
+            byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.GRAPH_DELETED_ORDINALS.getValue()));
             List<KeyValue> entries;
             try (Transaction tr = context.getTransactionManager().create()) {
                 entries = tr.getRange(prefix, ByteArrayUtil.strinc(prefix)).asList().join();
@@ -1252,7 +1252,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldLoadDeletedOrdinalsOnBootstrap() throws IOException {
-        // Behavior: openOnDiskIndexes reads (DELETED_ORDINALS, baseName, ordinal) from FDB into the bitset.
+        // Behavior: openOnDiskIndexes reads (GRAPH_DELETED_ORDINALS, baseName, ordinal) from FDB into the bitset.
         BucketService service = context.getService(BucketService.NAME);
         OnHeapVectorGraphIndex heapIndex = group.getOrCreateOnHeap(GEN, DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
         ObjectId objectId = new ObjectId();

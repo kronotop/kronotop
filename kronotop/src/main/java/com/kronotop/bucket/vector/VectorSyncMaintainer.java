@@ -145,7 +145,7 @@ public class VectorSyncMaintainer extends BaseVectorMaintainer<VectorSyncTask> {
         Prefix prefix = new Prefix(indexId.toByteArray());
         DirectorySubspace indexSubspace = group.getVectorIndex().subspace();
         PrefixEntry entry = new PrefixEntry(
-                VectorIndexMaintainer.prefixBindingKey(indexSubspace, indexId),
+                VectorIndexMaintainer.graphPrefixBindingKey(indexSubspace, indexId),
                 EntryKind.VECTOR_INDEX,
                 indexId.toByteArray()
         );
@@ -155,7 +155,7 @@ public class VectorSyncMaintainer extends BaseVectorMaintainer<VectorSyncTask> {
         // chunks are reclaimed.
         clearAndRegisterPrefix(volume, prefix, entry);
 
-        Consumer<Transaction> finalizer = tr -> VectorIndexMaintainer.setSynced(tr, indexSubspace, indexId);
+        Consumer<Transaction> finalizer = tr -> VectorIndexMaintainer.markGraphSynced(tr, indexSubspace, indexId);
         for (int i = 0; i < files.size(); i++) {
             writeFile(volume, prefix, files.get(i), i == files.size() - 1, finalizer);
         }

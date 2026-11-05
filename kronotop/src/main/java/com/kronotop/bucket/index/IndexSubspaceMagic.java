@@ -23,11 +23,11 @@ public enum IndexSubspaceMagic {
     VOLUME_POINTER_BACK_REF((byte) 0x04),
     STAT_HINTS((byte) 0x05),
     TASKS((byte) 0x06),
-    MUTATION_LOG((byte) 0x07),
-    DELETED_ORDINALS((byte) 0x08),
-    FLUSHED((byte) 0x09),
-    SYNCED((byte) 0x0A),
-    PREFIX_BINDING_KEY((byte) 0x0B);
+    VECTOR_MUTATION_LOG((byte) 0x07),
+    GRAPH_DELETED_ORDINALS((byte) 0x08),
+    GRAPH_ON_DISK((byte) 0x09),
+    GRAPH_SYNCED((byte) 0x0A),
+    GRAPH_PREFIX_BINDING_KEY((byte) 0x0B);
 
     public final byte value;
 

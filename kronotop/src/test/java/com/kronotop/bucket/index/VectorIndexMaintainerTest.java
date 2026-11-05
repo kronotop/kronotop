@@ -342,7 +342,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
     }
 
     private List<KeyValue> getMutationLogEntries(DirectorySubspace indexSubspace) {
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue()));
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.VECTOR_MUTATION_LOG.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -442,7 +442,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
     @Test
     void shouldWriteGenerationIdIntoMutationLogKey() {
         // Behavior: appendMutation and appendDeleteMutation write the generation id into the log key
-        // right after the MUTATION_LOG magic, followed by the versionstamp.
+        // right after the VECTOR_MUTATION_LOG magic, followed by the versionstamp.
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
 
@@ -460,7 +460,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(2, logEntries.size());
         for (KeyValue kv : logEntries) {
             Tuple unpacked = vectorIndex.subspace().unpack(kv.getKey());
-            assertEquals((long) IndexSubspaceMagic.MUTATION_LOG.getValue(), unpacked.get(0));
+            assertEquals((long) IndexSubspaceMagic.VECTOR_MUTATION_LOG.getValue(), unpacked.get(0));
             assertArrayEquals(GENERATION_ID, unpacked.getBytes(1));
             assertNotNull(unpacked.getVersionstamp(2));
         }

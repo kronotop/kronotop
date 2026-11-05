@@ -163,11 +163,11 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
     }
 
     /**
-     * Writes the deleted ordinal of an on-disk graph under {@code (DELETED_ORDINALS, baseName, ordinal)}.
+     * Writes the deleted ordinal of an on-disk graph under {@code (GRAPH_DELETED_ORDINALS, baseName, ordinal)}.
      */
     public static void setDeletedOrdinal(Transaction tr, DirectorySubspace indexSubspace, String baseName, int ordinal) {
         Tuple tuple = Tuple.from(
-                IndexSubspaceMagic.DELETED_ORDINALS.getValue(),
+                IndexSubspaceMagic.GRAPH_DELETED_ORDINALS.getValue(),
                 baseName,
                 ordinal
         );
@@ -175,25 +175,25 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
     }
 
     /**
-     * Returns the {@code (PREFIX_BINDING_KEY, id)} key that binds the Volume prefix of a flushed graph.
+     * Returns the {@code (GRAPH_PREFIX_BINDING_KEY, id)} key that binds the Volume prefix of a flushed graph.
      */
-    public static byte[] prefixBindingKey(DirectorySubspace indexSubspace, ObjectId id) {
-        return indexSubspace.pack(Tuple.from(IndexSubspaceMagic.PREFIX_BINDING_KEY.getValue(), id.toByteArray()));
+    public static byte[] graphPrefixBindingKey(DirectorySubspace indexSubspace, ObjectId id) {
+        return indexSubspace.pack(Tuple.from(IndexSubspaceMagic.GRAPH_PREFIX_BINDING_KEY.getValue(), id.toByteArray()));
     }
 
     /**
-     * Records that the on-heap graph with the given id was flushed to disk under {@code (FLUSHED, id)}.
+     * Records that the on-heap graph with the given id was flushed to disk under {@code (GRAPH_ON_DISK, id)}.
      */
-    public static void setFlushed(Transaction tr, DirectorySubspace indexSubspace, ObjectId id) {
-        Tuple tuple = Tuple.from(IndexSubspaceMagic.FLUSHED.getValue(), id.toByteArray());
+    public static void markGraphOnDisk(Transaction tr, DirectorySubspace indexSubspace, ObjectId id) {
+        Tuple tuple = Tuple.from(IndexSubspaceMagic.GRAPH_ON_DISK.getValue(), id.toByteArray());
         tr.set(indexSubspace.pack(tuple), new byte[0]);
     }
 
     /**
-     * Records that the flushed graph with the given id was written to Volume under {@code (SYNCED, id)}.
+     * Records that the flushed graph with the given id was written to Volume under {@code (GRAPH_SYNCED, id)}.
      */
-    public static void setSynced(Transaction tr, DirectorySubspace indexSubspace, ObjectId id) {
-        Tuple tuple = Tuple.from(IndexSubspaceMagic.SYNCED.getValue(), id.toByteArray());
+    public static void markGraphSynced(Transaction tr, DirectorySubspace indexSubspace, ObjectId id) {
+        Tuple tuple = Tuple.from(IndexSubspaceMagic.GRAPH_SYNCED.getValue(), id.toByteArray());
         tr.set(indexSubspace.pack(tuple), new byte[0]);
     }
 
@@ -205,7 +205,7 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
                                            DirectorySubspace indexSubspace,
                                            String baseName,
                                            IntConsumer sink) {
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.DELETED_ORDINALS.getValue(), baseName));
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.GRAPH_DELETED_ORDINALS.getValue(), baseName));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
         while (true) {
@@ -225,7 +225,7 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
 
     /**
      * Appends an insert or update mutation to the mutation log for crash recovery.
-     * The log key is {@code (MUTATION_LOG, generationId, versionstamp)}; the versionstamp preserves mutation ordering.
+     * The log key is {@code (VECTOR_MUTATION_LOG, generationId, versionstamp)}; the versionstamp preserves mutation ordering.
      */
     public static void appendMutation(
             Transaction tr,
@@ -245,7 +245,7 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
 
     /**
      * Appends a delete mutation to the mutation log for crash recovery.
-     * The log key is {@code (MUTATION_LOG, generationId, versionstamp)}; the versionstamp preserves mutation ordering.
+     * The log key is {@code (VECTOR_MUTATION_LOG, generationId, versionstamp)}; the versionstamp preserves mutation ordering.
      */
     public static void appendDeleteMutation(
             Transaction tr,
@@ -264,13 +264,13 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
      * Removes every mutation log entry of the given generation.
      */
     public static void truncateMutationLog(Transaction tr, DirectorySubspace indexSubspace, byte[] generationId) {
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue(), generationId));
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.VECTOR_MUTATION_LOG.getValue(), generationId));
         tr.clear(Range.startsWith(prefix));
     }
 
     private static byte[] mutationLogKey(DirectorySubspace indexSubspace, byte[] generationId, int userVersion) {
         Tuple tuple = Tuple.from(
-                IndexSubspaceMagic.MUTATION_LOG.getValue(),
+                IndexSubspaceMagic.VECTOR_MUTATION_LOG.getValue(),
                 generationId,
                 Versionstamp.incomplete(userVersion)
         );

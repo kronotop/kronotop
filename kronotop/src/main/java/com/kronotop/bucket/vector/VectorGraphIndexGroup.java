@@ -547,7 +547,7 @@ public class VectorGraphIndexGroup {
         // in between finds the node in no list, stores a tombstone, and the delete is lost.
         if (indexPath != null) {
             try {
-                setFlushed(index.getId());
+                markGraphOnDisk(index.getId());
             } catch (RuntimeException e) {
                 LOGGER.error("Failed to record flushed vector graph index {}", indexPath, e);
                 service.getMetrics().incrementVectorFlushFailures();
@@ -576,11 +576,11 @@ public class VectorGraphIndexGroup {
         }
     }
 
-    private void setFlushed(ObjectId id) {
+    private void markGraphOnDisk(ObjectId id) {
         Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
         retry.executeRunnable(() -> {
             try (Transaction tr = context.getTransactionManager().create()) {
-                VectorIndexMaintainer.setFlushed(tr, vectorIndex.subspace(), id);
+                VectorIndexMaintainer.markGraphOnDisk(tr, vectorIndex.subspace(), id);
                 tr.commit().join();
             }
         });

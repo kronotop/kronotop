@@ -383,7 +383,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
     private boolean hasMutationLogEntries(VectorIndex vectorIndex) {
         DirectorySubspace indexSubspace = vectorIndex.subspace();
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue()));
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.VECTOR_MUTATION_LOG.getValue()));
         try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> result = tr.getRange(
                     KeySelector.firstGreaterOrEqual(prefix),

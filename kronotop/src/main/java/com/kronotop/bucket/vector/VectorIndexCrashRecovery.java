@@ -114,7 +114,7 @@ public final class VectorIndexCrashRecovery {
             int pqTrainingThreshold,
             int pqSubspaceDivisor
     ) {
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue()));
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.VECTOR_MUTATION_LOG.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
