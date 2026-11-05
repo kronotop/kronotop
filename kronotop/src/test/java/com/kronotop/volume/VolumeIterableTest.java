@@ -209,6 +209,38 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    void shouldIterateToPrefixEndWhenEndSelectorIsNull() throws IOException {
+        // Behavior: 5 entries are appended under one prefix. A range read with begin set to firstGreaterThan of the
+        // second key and end left null does not stop right after the begin key. It runs to the end of the prefix and
+        // returns the entries at index 2, 3 and 4 in order.
+        ByteBuffer[] entries = getEntries(5);
+
+        Versionstamp[] versionstampedKeys;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            AppendResult result = volume.append(session, entries);
+            tr.commit().join();
+            versionstampedKeys = result.getVersionstampedKeys();
+        }
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterThan(versionstampedKeys[1]);
+            Iterable<VolumeEntry> iterable = volume.getRange(session, begin, null);
+
+            List<VolumeEntry> retrievedEntries = new ArrayList<>();
+            for (VolumeEntry volumeEntry : iterable) {
+                retrievedEntries.add(volumeEntry);
+            }
+
+            assertEquals(3, retrievedEntries.size());
+            assertEquals(versionstampedKeys[2], retrievedEntries.get(0).key());
+            assertEquals(versionstampedKeys[3], retrievedEntries.get(1).key());
+            assertEquals(versionstampedKeys[4], retrievedEntries.get(2).key());
+        }
+    }
+
+    @Test
     void shouldFilterWithBothFirstGreaterThan() throws IOException {
         ByteBuffer[] entries = getEntries(5);
 

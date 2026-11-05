@@ -64,20 +64,30 @@ class VolumeIterable implements Iterable<VolumeEntry> {
         this.asyncIterable = createAsyncIterable(session, begin, end);
     }
 
-    private AsyncIterable<KeyValue> createAsyncIterable(VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
+    private AsyncIterable<KeyValue> createAsyncIterable(
+            VolumeSession session,
+            VersionstampedKeySelector begin,
+            VersionstampedKeySelector end
+    ) {
         VolumeSubspace subspace = volume.getSubspace();
         KeySelector beginKeySelector;
         if (begin == null) {
             beginKeySelector = KeySelector.firstGreaterOrEqual(subspace.packEntryKeyPrefix(session.prefix()));
         } else {
-            beginKeySelector = new KeySelector(subspace.packEntryKey(session.prefix(), begin.getKey()), begin.orEqual(), begin.getOffset());
+            beginKeySelector = new KeySelector(
+                    subspace.packEntryKey(session.prefix(), begin.getKey()), begin.orEqual(), begin.getOffset()
+            );
         }
 
         KeySelector endKeySelector;
         if (end == null) {
-            endKeySelector = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(beginKeySelector.getKey()));
+            endKeySelector = KeySelector.firstGreaterOrEqual(
+                    ByteArrayUtil.strinc(subspace.packEntryKeyPrefix(session.prefix()))
+            );
         } else {
-            endKeySelector = new KeySelector(subspace.packEntryKey(session.prefix(), end.getKey()), end.orEqual(), end.getOffset());
+            endKeySelector = new KeySelector(
+                    subspace.packEntryKey(session.prefix(), end.getKey()), end.orEqual(), end.getOffset()
+            );
         }
         return session.transaction().getRange(beginKeySelector, endKeySelector, limit, reverse);
     }
