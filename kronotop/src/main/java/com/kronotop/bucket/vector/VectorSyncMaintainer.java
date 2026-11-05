@@ -145,7 +145,7 @@ public class VectorSyncMaintainer extends BaseVectorMaintainer<VectorSyncTask> {
         Prefix prefix = new Prefix(indexId.toByteArray());
         DirectorySubspace indexSubspace = group.getVectorIndex().subspace();
         PrefixEntry entry = new PrefixEntry(
-                VectorIndexMaintainer.flushedKey(indexSubspace, indexId),
+                VectorIndexMaintainer.prefixBindingKey(indexSubspace, indexId),
                 EntryKind.VECTOR_INDEX,
                 indexId.toByteArray()
         );

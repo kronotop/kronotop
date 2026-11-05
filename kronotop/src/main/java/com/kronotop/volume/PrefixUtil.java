@@ -25,8 +25,26 @@ import com.kronotop.internal.DirectorySubspaceCache;
 import java.util.Arrays;
 
 /**
- * Keeps the global prefix registry in the {@code PREFIXES} subspace. A prefix maps to a tuple of its
- * binding key, data model kind and pointer. The binding key maps back to the prefix.
+ * Keeps the global prefix registry in the PREFIXES subspace.
+ * <p>
+ * A Prefix owns a set of entries in a Volume, and every prefix has an owner. The binding key is a key
+ * inside the owner's FDB subspace whose value is the prefix bytes. Dropping the owner drops its subspace,
+ * so the binding key disappears with it. That is the only signal the registry needs to learn that the
+ * owner is gone.
+ * <p>
+ * The registry and the binding key point at each other:
+ * <p>
+ *   PREFIXES/<prefix>   -->  PrefixEntry(key, kind, pointer)
+ *   PrefixEntry.key     -->  binding key, holds <prefix>
+ *   PrefixEntry.kind    -->  DOCUMENT | VECTOR_INDEX
+ *   PrefixEntry.pointer -->  bucket UUID (DOCUMENT) | index ObjectId (VECTOR_INDEX)
+ * <p>
+ * When the binding key is gone the prefix is stale. inspectPrefix reports this through
+ * PrefixInspection, and the stale prefix collector reclaims the data.
+ * <p>
+ * Registering a prefix that is already bound to a different binding key is a collision. A binding key
+ * that holds a different prefix is corruption. A prefix with no registry entry is unknown, which is
+ * normal for internal prefixes.
  */
 public class PrefixUtil {
 
