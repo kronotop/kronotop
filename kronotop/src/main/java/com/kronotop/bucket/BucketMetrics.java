@@ -36,6 +36,7 @@ public class BucketMetrics {
     private final LongAdder indexMaintenanceProcessedEntries = new LongAdder();
     private final LongAdder indexMaintenanceRetriedConflicts = new LongAdder();
     private final LongAdder vectorFlushFailures = new LongAdder();
+    private final LongAdder vectorSyncFailures = new LongAdder();
 
     public void incrementInserts() {
         inserts.increment();
@@ -135,6 +136,14 @@ public class BucketMetrics {
 
     public long getVectorFlushFailures() {
         return vectorFlushFailures.sum();
+    }
+
+    public void incrementVectorSyncFailures() {
+        vectorSyncFailures.increment();
+    }
+
+    public long getVectorSyncFailures() {
+        return vectorSyncFailures.sum();
     }
 
     public long getIndexMaintenanceRetriedConflicts() {

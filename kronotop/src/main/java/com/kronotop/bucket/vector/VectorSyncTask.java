@@ -22,6 +22,6 @@ public record VectorSyncTask(
         String namespace,
         String bucket,
         long vectorIndexId,
-        ObjectId indexId) {
+        ObjectId onDiskIndexId) {
 
 }

@@ -353,6 +353,9 @@ Configuration for the vector index subsystem.
 | `bucket.vector.default_overquery`           | float               | `1.0`                 | Overquery multiplier for vector search. Controls how many extra candidates the graph traversal collects before reranking to the final top-K. Higher values improve recall for PQ-scored indexes at the cost of latency.      |
 | `bucket.vector.flush_drain_timeout_seconds` | long (seconds)      | `600`                 | How long shutdown waits for all on-heap vector indexes to be flushed to disk. After this time the flush stops. Unflushed data is rebuilt from the mutation log at the next start.                                            |
 | `bucket.vector.flush_idle_millis`           | long (milliseconds) | `10000`               | An on-heap vector index with no mutations for this long is flushed to disk.                                                                                                                                                  |
+| `bucket.vector.sync_drain_timeout_seconds`  | long (seconds)      | `600`                 | How long shutdown waits for flushed vector index files to be written to Volume. After this time the sync stops.                                                                                                              |
+| `bucket.vector.sync_chunk_size_bytes`       | int (bytes)         | `1048576` (1 MiB)     | Chunk size used when a flushed vector index file is written to Volume. Each chunk is one Volume entry. Small chunks keep inserts from waiting behind a long segment fsync.                                                   |
+| `bucket.vector.sync_chunks_per_transaction` | int                 | `50`                  | Number of chunks written in one transaction during vector index sync.                                                                                                                                                        |
 
 ---
 

@@ -21,9 +21,12 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.internal.ExecutorServiceUtil;
+import com.kronotop.transaction.TransactionUtil;
+import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -57,6 +60,10 @@ public abstract class BaseVectorMaintainer<T> {
         this.executor = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder().setNameFormat(threadNameFormat).build()
         );
+    }
+
+    static Retry retry() {
+        return TransactionUtil.retry(10, Duration.ofMillis(100));
     }
 
     protected abstract BlockingQueue<T> queue();

@@ -175,10 +175,24 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
     }
 
     /**
+     * Returns the {@code (FLUSHED, id)} key of a flushed on-heap graph.
+     */
+    public static byte[] flushedKey(DirectorySubspace indexSubspace, ObjectId id) {
+        return indexSubspace.pack(Tuple.from(IndexSubspaceMagic.FLUSHED.getValue(), id.toByteArray()));
+    }
+
+    /**
      * Records that the on-heap graph with the given id was flushed to disk under {@code (FLUSHED, id)}.
      */
     public static void setFlushed(Transaction tr, DirectorySubspace indexSubspace, ObjectId id) {
-        Tuple tuple = Tuple.from(IndexSubspaceMagic.FLUSHED.getValue(), id.toByteArray());
+        tr.set(flushedKey(indexSubspace, id), new byte[0]);
+    }
+
+    /**
+     * Records that the flushed graph with the given id was written to Volume under {@code (SYNCED, id)}.
+     */
+    public static void setSynced(Transaction tr, DirectorySubspace indexSubspace, ObjectId id) {
+        Tuple tuple = Tuple.from(IndexSubspaceMagic.SYNCED.getValue(), id.toByteArray());
         tr.set(indexSubspace.pack(tuple), new byte[0]);
     }
 

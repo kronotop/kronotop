@@ -201,6 +201,8 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         collector.put(InfoReport.VECTOR_SECTION, "vector_on_disk_indexes", onDisk[0]);
         collector.put(InfoReport.VECTOR_SECTION, "vector_flush_queue_size", vectorFlushQueue.size());
         collector.put(InfoReport.VECTOR_SECTION, "vector_flush_failures", metrics.getVectorFlushFailures());
+        collector.put(InfoReport.VECTOR_SECTION, "vector_sync_queue_size", vectorSyncQueue.size());
+        collector.put(InfoReport.VECTOR_SECTION, "vector_sync_failures", metrics.getVectorSyncFailures());
     }
 
     public Route findRoute(int shardId) {
@@ -423,10 +425,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             retryPendingOnDiskDeletesForAllGroups();
             bucketEventsWatcher.shutdown();
 
-            for (BucketShard shard : getServiceContext().shards().values()) {
-                shard.close();
-            }
-
             executor.shutdownNow();
             if (!executor.awaitTermination(
                     ExecutorServiceUtil.DEFAULT_TIMEOUT,
@@ -457,8 +455,13 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             vectorGraphRegistry.enqueueAllForFlush();
             vectorFlushMaintainer.shutdown();
 
+            // The sync maintainer writes into the shard volumes, so the shards close after it stops.
             vectorSyncMaintainer.setDrainMode();
             vectorSyncMaintainer.shutdown();
+
+            for (BucketShard shard : getServiceContext().shards().values()) {
+                shard.close();
+            }
 
             vectorGraphRegistry.closeAll();
         } catch (InterruptedException exp) {

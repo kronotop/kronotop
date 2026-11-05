@@ -19,11 +19,8 @@ package com.kronotop.bucket.vector;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
 import com.kronotop.bucket.index.VectorIndexMaintainer;
-import com.kronotop.transaction.TransactionUtil;
-import io.github.resilience4j.retry.Retry;
 import org.bson.types.ObjectId;
 
-import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -47,8 +44,7 @@ public class VectorFlushMaintainer extends BaseVectorMaintainer<VectorFlushTask>
     }
 
     private void truncateGenerationId(VectorGraphIndexGroup group, ObjectId generationId) {
-        Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
-        retry.executeRunnable(() -> {
+        retry().executeRunnable(() -> {
             try (Transaction tr = context.getTransactionManager().create()) {
                 VectorIndexMaintainer.truncateMutationLog(tr, group.getVectorIndex().subspace(), generationId.toByteArray());
                 tr.commit().join();
@@ -57,6 +53,11 @@ public class VectorFlushMaintainer extends BaseVectorMaintainer<VectorFlushTask>
     }
 
     private void reschedule(VectorFlushTask task) {
+        // In drain mode a task that still has data is dropped, so the drain can finish. The next
+        // start rebuilds it from the mutation log.
+        if (drainMode) {
+            return;
+        }
         long newDue = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(idleMillis);
         service.getVectorFlushQueue().add(new VectorFlushTask(task.key(), newDue));
     }
