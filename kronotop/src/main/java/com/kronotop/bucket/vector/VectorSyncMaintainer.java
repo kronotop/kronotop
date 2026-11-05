@@ -38,13 +38,13 @@ import java.util.function.Consumer;
 public class VectorSyncMaintainer extends BaseVectorMaintainer<VectorSyncTask> {
     private static final String[] EXTENSIONS = {".index", ".vmeta", ".pqv"};
     private final int chunkSize;
-    private final int chunksPerTransaction;
+    private final int writeChunksPerTransaction;
 
     public VectorSyncMaintainer(Context context) {
         super(context, "sync", "kr.vector-sync-maintainer-%d",
                 context.getConfig().getLong("bucket.vector.sync_drain_timeout_seconds"));
         this.chunkSize = context.getConfig().getInt("bucket.vector.sync_chunk_size_bytes");
-        this.chunksPerTransaction = context.getConfig().getInt("bucket.vector.sync_chunks_per_transaction");
+        this.writeChunksPerTransaction = context.getConfig().getInt("bucket.vector.sync_write_chunks_per_transaction");
     }
 
     @Override
@@ -94,8 +94,8 @@ public class VectorSyncMaintainer extends BaseVectorMaintainer<VectorSyncTask> {
         String name = path.getFileName().toString();
         try (BlobChunkWriter writer = new BlobChunkWriter(volume, prefix, path, name, chunkSize)) {
             int count = writer.chunkCount();
-            for (int from = 0; from < count; from += chunksPerTransaction) {
-                int to = Math.min(from + chunksPerTransaction, count);
+            for (int from = 0; from < count; from += writeChunksPerTransaction) {
+                int to = Math.min(from + writeChunksPerTransaction, count);
                 boolean finalBatch = lastFile && to == count;
                 writeChunks(writer, from, to, finalBatch ? finalizer : null);
             }

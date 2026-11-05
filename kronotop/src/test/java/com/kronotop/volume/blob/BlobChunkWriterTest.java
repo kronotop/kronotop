@@ -32,8 +32,8 @@ class BlobChunkWriterTest extends BaseBlobChunkTest {
     @Test
     void shouldWriteAllChunksAndRoundTrip(@TempDir Path src, @TempDir Path out) throws Exception {
         // Behavior: a 2560 byte file is split with chunkSize 1024, so chunkCount is 3. Every chunk is written in its own
-        // transaction and committed. Reading the prefix back into a directory recreates the file, and its bytes are equal
-        // to the original.
+        // transaction and committed. Reading the prefix back into a directory in pages of 2 recreates the file, and its
+        // bytes are equal to the original.
         Path path = writeRandomFile(src, NAME, FILE_SIZE);
         try (BlobChunkWriter writer = new BlobChunkWriter(volume, prefix, path, NAME, CHUNK_SIZE)) {
             assertEquals(3, writer.chunkCount());
@@ -42,10 +42,7 @@ class BlobChunkWriterTest extends BaseBlobChunkTest {
             }
         }
 
-        try (Transaction tr = context.getTransactionManager().create();
-             DirectoryBlobChunkSink sink = new DirectoryBlobChunkSink(out)) {
-            new BlobChunkReader(volume, prefix).read(tr, sink);
-        }
+        readAll(out, 2);
 
         assertArrayEquals(Files.readAllBytes(path), Files.readAllBytes(out.resolve(NAME)));
     }

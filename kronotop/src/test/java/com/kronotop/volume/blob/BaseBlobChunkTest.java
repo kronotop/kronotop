@@ -17,6 +17,7 @@
 package com.kronotop.volume.blob;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.volume.BaseVolumeIntegrationTest;
 import com.kronotop.volume.Prefix;
 
@@ -40,6 +41,18 @@ class BaseBlobChunkTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             writer.write(tr, chunkIndex);
             tr.commit().join();
+        }
+    }
+
+    protected void readAll(Path outDir, int limit) throws Exception {
+        try (DirectoryBlobChunkSink sink = new DirectoryBlobChunkSink(outDir)) {
+            BlobChunkReader reader = new BlobChunkReader(volume, prefix);
+            Versionstamp cursor = null;
+            do {
+                try (Transaction tr = context.getTransactionManager().create()) {
+                    cursor = reader.read(tr, cursor, limit, sink);
+                }
+            } while (cursor != null);
         }
     }
 }

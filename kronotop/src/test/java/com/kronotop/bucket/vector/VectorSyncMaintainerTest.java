@@ -17,6 +17,7 @@
 package com.kronotop.bucket.vector;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.volume.*;
 import com.kronotop.volume.blob.BlobChunkReader;
@@ -80,15 +81,19 @@ class VectorSyncMaintainerTest extends BaseVectorMaintainerTest {
         }
     }
 
-    private void restoreInto(Prefix prefix, Path out) throws Exception {
-        try (Transaction tr = context.getTransactionManager().create();
-             DirectoryBlobChunkSink sink = new DirectoryBlobChunkSink(out)) {
-            new BlobChunkReader(volume(), prefix).read(tr, sink);
-        }
-    }
-
     private void assertRestoredFilesMatch(ObjectId indexId, Path out) throws Exception {
-        restoreInto(prefixOf(indexId), out);
+        Prefix prefix = prefixOf(indexId);
+
+        try (DirectoryBlobChunkSink sink = new DirectoryBlobChunkSink(out)) {
+            BlobChunkReader reader = new BlobChunkReader(volume(), prefix);
+            Versionstamp cursor = null;
+            do {
+                try (Transaction tr = context.getTransactionManager().create()) {
+                    cursor = reader.read(tr, cursor, 2, sink);
+                }
+            } while (cursor != null);
+        }
+
         for (String extension : new String[]{".index", ".vmeta"}) {
             String name = indexId.toHexString() + extension;
             assertArrayEquals(Files.readAllBytes(indexDir().resolve(name)), Files.readAllBytes(out.resolve(name)), name);

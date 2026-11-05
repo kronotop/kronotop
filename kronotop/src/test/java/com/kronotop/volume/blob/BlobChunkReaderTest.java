@@ -17,6 +17,7 @@
 package com.kronotop.volume.blob;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -31,7 +32,7 @@ class BlobChunkReaderTest extends BaseBlobChunkTest {
     void shouldSeparateFilesAndPlaceChunksByOffset(@TempDir Path src, @TempDir Path out) throws Exception {
         // Behavior: two files share one prefix: "a.bin" is 2560 bytes (3 chunks) and "b.bin" is 1536 bytes (2 chunks).
         // Their chunks are written mixed and out of order, each in its own transaction: a2, b1, a0, b0, a1. Reading the
-        // prefix into a directory produces both files, and each one is byte for byte equal to its original.
+        // prefix into a directory in pages of 2 produces both files, and each one is byte for byte equal to its original.
         Path a = writeRandomFile(src, "a.bin", 2560);
         Path b = writeRandomFile(src, "b.bin", 1536);
         try (BlobChunkWriter writerA = new BlobChunkWriter(volume, prefix, a, "a.bin", CHUNK_SIZE);
@@ -43,10 +44,7 @@ class BlobChunkReaderTest extends BaseBlobChunkTest {
             writeChunk(writerA, 1);
         }
 
-        try (Transaction tr = context.getTransactionManager().create();
-             DirectoryBlobChunkSink sink = new DirectoryBlobChunkSink(out)) {
-            new BlobChunkReader(volume, prefix).read(tr, sink);
-        }
+        readAll(out, 2);
 
         assertArrayEquals(Files.readAllBytes(a), Files.readAllBytes(out.resolve("a.bin")));
         assertArrayEquals(Files.readAllBytes(b), Files.readAllBytes(out.resolve("b.bin")));
@@ -62,12 +60,37 @@ class BlobChunkReaderTest extends BaseBlobChunkTest {
             writeChunk(writer, 2);
         }
 
-        IllegalStateException e = assertThrows(IllegalStateException.class, () -> {
-            try (Transaction tr = context.getTransactionManager().create();
-                 DirectoryBlobChunkSink sink = new DirectoryBlobChunkSink(out)) {
-                new BlobChunkReader(volume, prefix).read(tr, sink);
-            }
-        });
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> readAll(out, 2));
         assertTrue(e.getMessage().contains("a.bin"));
+    }
+
+    @Test
+    void shouldPageThroughAllChunks(@TempDir Path src, @TempDir Path out) throws Exception {
+        // Behavior: a 5120 byte file is written as 5 chunks of 1024 bytes. read is called four times with limit 2,
+        // each call in its own transaction. The first two calls each feed 2 chunks and return a key, the third feeds
+        // the last chunk and returns a key, the fourth returns null. The output file is byte for byte equal to the
+        // original.
+        Path path = writeRandomFile(src, "a.bin", 5120);
+        try (BlobChunkWriter writer = new BlobChunkWriter(volume, prefix, path, "a.bin", CHUNK_SIZE)) {
+            for (int i = 0; i < writer.chunkCount(); i++) {
+                writeChunk(writer, i);
+            }
+        }
+
+        BlobChunkReader reader = new BlobChunkReader(volume, prefix);
+        try (DirectoryBlobChunkSink sink = new DirectoryBlobChunkSink(out)) {
+            Versionstamp cursor = null;
+            for (int page = 0; page < 3; page++) {
+                try (Transaction tr = context.getTransactionManager().create()) {
+                    cursor = reader.read(tr, cursor, 2, sink);
+                }
+                assertNotNull(cursor, "page " + page);
+            }
+            try (Transaction tr = context.getTransactionManager().create()) {
+                assertNull(reader.read(tr, cursor, 2, sink));
+            }
+        }
+
+        assertArrayEquals(Files.readAllBytes(path), Files.readAllBytes(out.resolve("a.bin")));
     }
 }

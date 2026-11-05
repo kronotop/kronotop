@@ -17,7 +17,9 @@
 package com.kronotop.volume.blob;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.volume.Prefix;
+import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VolumeSession;
@@ -25,8 +27,8 @@ import com.kronotop.volume.VolumeSession;
 import java.io.IOException;
 
 /**
- * Reads every chunk stored under a prefix and hands each one to a {@link BlobChunkSink}. The caller owns the
- * transaction and the sink.
+ * Reads the chunks stored under a prefix in pages and hands each chunk to a {@link BlobChunkSink}. The caller owns
+ * the sink and opens a new transaction for every call, so a large prefix does not hit the transaction time limit.
  */
 public final class BlobChunkReader {
     private final Volume volume;
@@ -38,17 +40,27 @@ public final class BlobChunkReader {
     }
 
     /**
-     * Passes all chunks under the prefix to the sink in storage order.
+     * Passes up to {@code limit} chunks after the cursor to the sink in storage order and returns the new cursor.
      *
-     * @param tr   transaction the range read runs in
-     * @param sink receiver of the chunks
+     * @param tr     transaction the range read runs in
+     * @param cursor key returned by the previous call, or null to start at the beginning of the prefix
+     * @param limit  maximum number of chunks to read in this call
+     * @param sink   receiver of the chunks
+     * @return key of the last chunk read, or null when there are no chunks after the cursor
      * @throws IOException               if a chunk cannot be read or consumed
      * @throws CorruptBlobChunkException if an entry does not start with a valid header
      */
-    public void read(Transaction tr, BlobChunkSink sink) throws IOException {
-        for (VolumeEntry entry : volume.getRange(new VolumeSession(tr, prefix))) {
+    public Versionstamp read(Transaction tr, Versionstamp cursor, int limit, BlobChunkSink sink) throws IOException {
+        VolumeSession session = new VolumeSession(tr, prefix);
+        Iterable<VolumeEntry> entries = cursor == null
+                ? volume.getRange(session, limit)
+                : volume.getRange(session, VersionstampedKeySelector.firstGreaterThan(cursor), null, limit);
+        Versionstamp last = null;
+        for (VolumeEntry entry : entries) {
             BlobChunkHeader header = BlobChunkHeader.readHeader(entry.entry());
             sink.accept(header, entry.entry());
+            last = entry.key();
         }
+        return last;
     }
 }
