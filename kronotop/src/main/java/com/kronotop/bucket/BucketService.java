@@ -92,6 +92,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private final int pqSubspaceDivisor;
     private final int maxScanCandidates;
     private final float defaultOverquery;
+    private final int syncReadChunksPerTransaction;
     private final Path bucketDataDir;
 
     public BucketService(Context context) {
@@ -102,6 +103,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         this.pqSubspaceDivisor = context.getConfig().getInt("bucket.vector.pq_subspace_divisor");
         this.maxScanCandidates = context.getConfig().getInt("bucket.vector.max_scan_candidates");
         this.defaultOverquery = (float) context.getConfig().getDouble("bucket.vector.default_overquery");
+        this.syncReadChunksPerTransaction = context.getConfig().getInt("bucket.vector.sync_read_chunks_per_transaction");
         this.bucketDataDir = context.getDataDir().resolve("bucket");
 
         context.setBucketMetadataCache(new BucketMetadataCache(context));
@@ -303,21 +305,30 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     /**
-     * Creates the graph index group of a vector index. If the index has no on-disk files and no
-     * mutation log entries, the group is ready at once. Otherwise, the on-disk indexes are opened and
-     * the mutation log is replayed in the background; the group becomes ready when that work ends.
+     * Creates the graph index group of a vector index. The group is ready at once if the index has no
+     * on-disk files, no synced graphs in Volume and no mutation log entries. Otherwise, a background task
+     * restores missing on-disk files from Volume, opens the on-disk indexes and replays the mutation log.
+     * The group becomes ready when that task ends.
      */
     public VectorGraphIndexGroup bootstrapVectorGroup(BucketMetadata metadata, VectorIndex vectorIndex) {
-        if (!hasOnDiskIndexes(metadata, vectorIndex) && !hasMutationLogEntries(vectorIndex)) {
+        if (!hasOnDiskIndexes(metadata, vectorIndex) && !hasSyncedGraphs(vectorIndex) && !hasMutationLogEntries(vectorIndex)) {
             return new VectorGraphIndexGroup(context, metadata, vectorIndex);
         }
 
         CompletableFuture<Void> bootstrapFuture = new CompletableFuture<>();
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex, bootstrapFuture);
+        VectorIndexDefinition definition = vectorIndex.definition();
 
         vectorGraphExecutor.submit(() -> {
             try {
-                VectorIndexDefinition definition = vectorIndex.definition();
+                VectorIndexVolumeRestore.restore(
+                        context,
+                        metadata,
+                        vectorIndex,
+                        bucketDataDir,
+                        syncReadChunksPerTransaction
+                );
+
                 List<OnDiskVectorGraphIndex> onDiskIndexes = VectorGraphIndexGroup.openOnDiskIndexes(
                         context,
                         vectorIndex.subspace(),
@@ -382,8 +393,16 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     private boolean hasMutationLogEntries(VectorIndex vectorIndex) {
+        return hasAnyKey(vectorIndex, IndexSubspaceMagic.VECTOR_MUTATION_LOG);
+    }
+
+    private boolean hasSyncedGraphs(VectorIndex vectorIndex) {
+        return hasAnyKey(vectorIndex, IndexSubspaceMagic.GRAPH_SYNCED);
+    }
+
+    private boolean hasAnyKey(VectorIndex vectorIndex, IndexSubspaceMagic magic) {
         DirectorySubspace indexSubspace = vectorIndex.subspace();
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.VECTOR_MUTATION_LOG.getValue()));
+        byte[] prefix = indexSubspace.pack(Tuple.from(magic.getValue()));
         try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> result = tr.getRange(
                     KeySelector.firstGreaterOrEqual(prefix),

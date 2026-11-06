@@ -18,7 +18,6 @@ package com.kronotop.bucket.vector;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.volume.*;
 import com.kronotop.volume.blob.BlobChunkReader;
 import com.kronotop.volume.blob.DirectoryBlobChunkSink;
@@ -37,41 +36,6 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VectorSyncMaintainerTest extends BaseVectorMaintainerTest {
-
-    private Path indexDir() {
-        return VectorGraphIndexGroup.resolveVectorDir(
-                        context.getDataDir().resolve("bucket"),
-                        VectorGraphIndexGroup.ownerShardId(metadata)
-                )
-                .resolve(metadata.uuid().toString())
-                .resolve(Long.toString(vectorIndex.definition().id()));
-    }
-
-    private Volume volume() {
-        return service.getShard(VectorGraphIndexGroup.ownerShardId(metadata)).volume();
-    }
-
-    private Prefix prefixOf(ObjectId indexId) {
-        return new Prefix(indexId.toByteArray());
-    }
-
-    private VectorSyncTask newTask(ObjectId indexId) {
-        return new VectorSyncTask(metadata.namespace(), metadata.name(), vectorIndex.definition().id(), indexId);
-    }
-
-    // Creates an on-heap index with one vector and flushes it, so its .index and .vmeta files are on disk.
-    // The flush and sync queues are cleared first, so the test controls when the sync task runs.
-    private OnHeapVectorGraphIndex flushOneVector() {
-        OnHeapVectorGraphIndex onHeap = addOneVector(new ObjectId());
-        service.getVectorFlushQueue().clear();
-        service.getVectorSyncQueue().clear();
-        group.flush(service.getBucketDataDir(), onHeap);
-        return onHeap;
-    }
-
-    private boolean isSynced(ObjectId indexId) {
-        return hasKey(IndexSubspaceMagic.GRAPH_SYNCED.getValue(), indexId);
-    }
 
     private List<VolumeEntry> entriesUnder(Prefix prefix) {
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -112,7 +76,7 @@ class VectorSyncMaintainerTest extends BaseVectorMaintainerTest {
         try (OnHeapVectorGraphIndex onHeap = flushOneVector()) {
             ObjectId indexId = onHeap.getId();
 
-            service.getVectorSyncQueue().add(newTask(indexId));
+            service.getVectorSyncQueue().add(newSyncTask(indexId));
 
             await().atMost(Duration.ofSeconds(10)).until(() -> isSynced(indexId));
             assertRestoredFilesMatch(indexId, out);
@@ -156,7 +120,7 @@ class VectorSyncMaintainerTest extends BaseVectorMaintainerTest {
             }
             assertEquals(1, entriesUnder(prefixOf(indexId)).size());
 
-            service.getVectorSyncQueue().add(newTask(indexId));
+            service.getVectorSyncQueue().add(newSyncTask(indexId));
 
             await().atMost(Duration.ofSeconds(10)).until(() -> isSynced(indexId));
             assertRestoredFilesMatch(indexId, out);

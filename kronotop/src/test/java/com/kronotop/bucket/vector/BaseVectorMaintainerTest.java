@@ -26,6 +26,8 @@ import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.*;
 import com.kronotop.internal.DirectoryUtil;
 import com.kronotop.volume.EntryMetadata;
+import com.kronotop.volume.Prefix;
+import com.kronotop.volume.Volume;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
@@ -115,5 +117,40 @@ abstract class BaseVectorMaintainerTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             return tr.get(key).join() != null;
         }
+    }
+
+    protected Path indexDir() {
+        return VectorGraphIndexGroup.resolveVectorDir(
+                        context.getDataDir().resolve("bucket"),
+                        VectorGraphIndexGroup.ownerShardId(metadata)
+                )
+                .resolve(metadata.uuid().toString())
+                .resolve(Long.toString(vectorIndex.definition().id()));
+    }
+
+    protected Volume volume() {
+        return service.getShard(VectorGraphIndexGroup.ownerShardId(metadata)).volume();
+    }
+
+    protected Prefix prefixOf(ObjectId indexId) {
+        return new Prefix(indexId.toByteArray());
+    }
+
+    protected VectorSyncTask newSyncTask(ObjectId indexId) {
+        return new VectorSyncTask(metadata.namespace(), metadata.name(), vectorIndex.definition().id(), indexId);
+    }
+
+    // Creates an on-heap index with one vector and flushes it, so its .index and .vmeta files are on disk.
+    // The flush and sync queues are cleared first, so the test controls when the sync task runs.
+    protected OnHeapVectorGraphIndex flushOneVector() {
+        OnHeapVectorGraphIndex onHeap = addOneVector(new ObjectId());
+        service.getVectorFlushQueue().clear();
+        service.getVectorSyncQueue().clear();
+        group.flush(service.getBucketDataDir(), onHeap);
+        return onHeap;
+    }
+
+    protected boolean isSynced(ObjectId indexId) {
+        return hasKey(IndexSubspaceMagic.GRAPH_SYNCED.getValue(), indexId);
     }
 }

@@ -21,6 +21,8 @@ import com.kronotop.Context;
 import com.kronotop.bucket.index.VectorIndexMaintainer;
 import org.bson.types.ObjectId;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -71,14 +73,16 @@ public class VectorFlushMaintainer extends BaseVectorMaintainer<VectorFlushTask>
         final VectorFlushKey key = task.key();
         group.forEachOnHeap(key.generationId(), (onHeap) -> {
             if (drainMode || System.currentTimeMillis() - onHeap.getLastMutation() >= idleMillis) {
-                group.flush(service.getBucketDataDir(), onHeap);
-                VectorSyncTask syncTask = new VectorSyncTask(
-                        key.namespace(),
-                        key.bucket(),
-                        key.indexId(),
-                        onHeap.getId()
-                );
-                service.getVectorSyncQueue().add(syncTask);
+                boolean flushed = group.flush(service.getBucketDataDir(), onHeap);
+                if (flushed) {
+                    VectorSyncTask syncTask = new VectorSyncTask(
+                            key.namespace(),
+                            key.bucket(),
+                            key.indexId(),
+                            onHeap.getId()
+                    );
+                    service.getVectorSyncQueue().add(syncTask);
+                }
             }
         });
         if (!group.hasNoOnHeapIndexes(key.generationId())) {

@@ -523,16 +523,31 @@ public class VectorGraphIndexGroup {
     }
 
     /**
+     * Returns the directory that holds the on-disk files of this vector index.
+     *
+     * @param bucketDataDir root data directory of the bucket service
+     * @return the index directory under the owner shard's vector directory
+     */
+    private Path resolveIndexDir(Path bucketDataDir) {
+        return resolveVectorDir(bucketDataDir, ownerShardId(metadata))
+                .resolve(metadata.uuid().toString())
+                .resolve(Long.toString(vectorIndex.definition().id()));
+    }
+
+    /**
      * Writes the on-heap index to disk, opens it as an on-disk index and removes the on-heap one
      * from the group. An empty index is skipped. On a write error or a FoundationDB error the
      * on-heap index stays in place, so the flush maintainer can try again.
+     *
+     * @param bucketDataDir root data directory of the bucket service
+     * @param index         the on-heap index to flush
+     * @return true if the index was written and replaced by an on-disk index, false if it was
+     * empty or the flush failed
      */
-    public void flush(Path bucketDataDir, OnHeapVectorGraphIndex index) {
-        if (index.size() == 0) return;
+    public boolean flush(Path bucketDataDir, OnHeapVectorGraphIndex index) {
+        if (index.size() == 0) return false;
 
-        Path indexDir = resolveVectorDir(bucketDataDir, ownerShardId(metadata))
-                .resolve(metadata.uuid().toString())
-                .resolve(Long.toString(vectorIndex.definition().id()));
+        Path indexDir = resolveIndexDir(bucketDataDir);
         Path indexPath;
         try {
             Files.createDirectories(indexDir);
@@ -540,18 +555,18 @@ public class VectorGraphIndexGroup {
         } catch (IOException | RuntimeException e) {
             LOGGER.error("Failed to flush vector graph index to {}", indexDir, e);
             service.getMetrics().incrementVectorFlushFailures();
-            return;
+            return false;
         }
 
         // Add the on-disk index before removing the on-heap index. Otherwise, a delete that runs
         // in between finds the node in no list, stores a tombstone, and the delete is lost.
         if (indexPath != null) {
             try {
-                markGraphOnDisk(index.getId());
+                markGraphFlushed(index.getId());
             } catch (RuntimeException e) {
                 LOGGER.error("Failed to record flushed vector graph index {}", indexPath, e);
                 service.getMetrics().incrementVectorFlushFailures();
-                return;
+                return false;
             }
             // It's time to open the new on-disk index.
             try {
@@ -564,7 +579,7 @@ public class VectorGraphIndexGroup {
             } catch (IOException e) {
                 LOGGER.error("Failed to open flushed vector graph index from {}", indexPath, e);
                 service.getMetrics().incrementVectorFlushFailures();
-                return;
+                return false;
             }
         }
 
@@ -574,13 +589,15 @@ public class VectorGraphIndexGroup {
         } catch (IOException e) {
             LOGGER.error("Failed to close flushed vector graph index", e);
         }
+
+        return true;
     }
 
-    private void markGraphOnDisk(ObjectId id) {
+    private void markGraphFlushed(ObjectId id) {
         Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
         retry.executeRunnable(() -> {
             try (Transaction tr = context.getTransactionManager().create()) {
-                VectorIndexMaintainer.markGraphOnDisk(tr, vectorIndex.subspace(), id);
+                VectorIndexMaintainer.markGraphFlushed(tr, vectorIndex.subspace(), id);
                 tr.commit().join();
             }
         });

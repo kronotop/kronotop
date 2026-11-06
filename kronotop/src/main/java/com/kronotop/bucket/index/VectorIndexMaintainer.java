@@ -182,10 +182,10 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
     }
 
     /**
-     * Records that the on-heap graph with the given id was flushed to disk under {@code (GRAPH_ON_DISK, id)}.
+     * Records that the on-heap graph with the given id was flushed to the local disk under {@code (GRAPH_FLUSHED, id)}.
      */
-    public static void markGraphOnDisk(Transaction tr, DirectorySubspace indexSubspace, ObjectId id) {
-        Tuple tuple = Tuple.from(IndexSubspaceMagic.GRAPH_ON_DISK.getValue(), id.toByteArray());
+    public static void markGraphFlushed(Transaction tr, DirectorySubspace indexSubspace, ObjectId id) {
+        Tuple tuple = Tuple.from(IndexSubspaceMagic.GRAPH_FLUSHED.getValue(), id.toByteArray());
         tr.set(indexSubspace.pack(tuple), new byte[0]);
     }
 

@@ -699,7 +699,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldWriteFlushedRecordToFoundationDB(@TempDir Path tempDir) {
-        // Behavior: After flush writes an on-heap index to disk, FDB holds exactly one (GRAPH_ON_DISK, id)
+        // Behavior: After flush writes an on-heap index to disk, FDB holds exactly one (GRAPH_FLUSHED, id)
         // key for it, where id is the on-heap index id as bytes, with an empty value.
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
 
@@ -709,7 +709,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         group.flush(tempDir, target);
 
         DirectorySubspace indexSubspace = vectorIndex.subspace();
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.GRAPH_ON_DISK.getValue()));
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.GRAPH_FLUSHED.getValue()));
         List<KeyValue> entries;
         try (Transaction tr = context.getTransactionManager().create()) {
             entries = tr.getRange(prefix, ByteArrayUtil.strinc(prefix)).asList().join();

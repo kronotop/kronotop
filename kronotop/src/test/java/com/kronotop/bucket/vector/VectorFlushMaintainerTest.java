@@ -72,7 +72,7 @@ class VectorFlushMaintainerTest extends BaseVectorMaintainerTest {
     @Test
     void shouldFlushIdleIndexAndTruncateMutationLog() {
         // Behavior: When the on-heap index of a generation stayed idle past the idle window,
-        // the maintainer writes it to disk, records (GRAPH_ON_DISK, id) in FDB and removes the
+        // the maintainer writes it to disk, records (GRAPH_FLUSHED, id) in FDB and removes the
         // mutation log entries of that generation.
         ObjectId generationId = new ObjectId();
         OnHeapVectorGraphIndex onHeap = addOneVector(generationId);
@@ -98,7 +98,7 @@ class VectorFlushMaintainerTest extends BaseVectorMaintainerTest {
 
         await().atMost(Duration.ofSeconds(10)).until(() -> group.hasNoOnHeapIndexes(generationId));
         assertEquals(1, group.getOnDiskIndexes().size());
-        assertTrue(hasKey(IndexSubspaceMagic.GRAPH_ON_DISK.getValue(), onHeap.getId()));
+        assertTrue(hasKey(IndexSubspaceMagic.GRAPH_FLUSHED.getValue(), onHeap.getId()));
         await().atMost(Duration.ofSeconds(5)).until(() -> mutationLogEntries(generationId).isEmpty());
     }
 }

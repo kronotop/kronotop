@@ -44,8 +44,8 @@ public enum IndexSubspaceMagic {
     /** Ordinals deleted from an on-disk vector graph. */
     GRAPH_DELETED_ORDINALS((byte) 0x08),
 
-    /** Marks an on-heap vector graph as flushed to local disk. */
-    GRAPH_ON_DISK((byte) 0x09),
+    /** Marks an on-heap vector graph as flushed to the local disk. */
+    GRAPH_FLUSHED((byte) 0x09),
 
     /** Marks a flushed vector graph as written to Volume. */
     GRAPH_SYNCED((byte) 0x0A),
