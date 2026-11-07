@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.vector;
 
+import com.apple.foundationdb.FDBException;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
@@ -26,6 +27,8 @@ import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -39,7 +42,7 @@ import java.util.concurrent.TimeUnit;
  */
 public abstract class BaseVectorMaintainer<T> {
     private static final long DRAIN_LOG_INTERVAL_SECONDS = 10;
-    protected final Logger logger = LoggerFactory.getLogger(getClass());
+    protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
     protected final Context context;
     protected BucketService service;
     protected volatile boolean drainMode;
@@ -94,17 +97,17 @@ public abstract class BaseVectorMaintainer<T> {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(drainTimeoutSeconds);
         while (!executor.awaitTermination(DRAIN_LOG_INTERVAL_SECONDS, TimeUnit.SECONDS)) {
             if (System.nanoTime() >= deadline) {
-                logger.warn("Vector {} drain exceeded {} seconds, aborting.", label, drainTimeoutSeconds);
+                LOGGER.warn("Vector {} drain exceeded {} seconds, aborting.", label, drainTimeoutSeconds);
                 executor.shutdownNow();
                 if (!executor.awaitTermination(
                         ExecutorServiceUtil.DEFAULT_TIMEOUT,
                         ExecutorServiceUtil.DEFAULT_TIMEOUT_TIMEUNIT
                 )) {
-                    logger.warn("Vector {} maintainer cannot be stopped gracefully.", label);
+                    LOGGER.warn("Vector {} maintainer cannot be stopped gracefully.", label);
                 }
                 return;
             }
-            logger.info("Vector {} drain still in progress.", label);
+            LOGGER.info("Vector {} drain still in progress.", label);
         }
     }
 
@@ -124,7 +127,11 @@ public abstract class BaseVectorMaintainer<T> {
                 Thread.currentThread().interrupt();
                 throw new KronotopException(exp);
             } catch (Exception exp) {
-                onFailure(task, exp);
+                if (exp instanceof IOException || exp instanceof UncheckedIOException || exp instanceof FDBException) {
+                    onFailure(task, exp);
+                    continue;
+                }
+                LOGGER.error("Vector maintainer task failed with an unexpected error, task dropped: {}", task, exp);
             }
         }
     }

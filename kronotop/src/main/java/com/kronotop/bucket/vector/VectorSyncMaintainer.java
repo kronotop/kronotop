@@ -121,24 +121,24 @@ public class VectorSyncMaintainer extends BaseVectorMaintainer<VectorSyncTask> {
                 task.vectorIndexId()
         );
         if (group == null) {
-            logger.warn("Vector sync task skipped, no index group for namespace={}, bucket={}, indexId={}",
+            LOGGER.warn("Vector sync task skipped, no index group for namespace={}, bucket={}, indexId={}",
                     task.namespace(), task.bucket(), task.vectorIndexId());
+            return;
+        }
+
+        Path indexDir = group.resolveIndexDir(service.getBucketDataDir());
+
+        List<Path> files = listFiles(indexDir, task.onDiskIndexId());
+        if (files.isEmpty()) {
+            // The files are gone from the local disk. A retry cannot bring them back, so the task is dropped.
+            LOGGER.error("Vector sync task dropped, flushed index files are missing: indexId={}, dir={}",
+                    task.onDiskIndexId(), indexDir);
+            service.getMetrics().incrementVectorSyncFailures();
             return;
         }
 
         BucketMetadata metadata = group.getBucketMetadata();
         int shardId = VectorGraphIndexGroup.ownerShardId(metadata);
-        Path indexDir = VectorGraphIndexGroup.resolveVectorDir(service.getBucketDataDir(), shardId)
-                .resolve(metadata.uuid().toString())
-                .resolve(Long.toString(task.vectorIndexId()));
-        List<Path> files = listFiles(indexDir, task.onDiskIndexId());
-        if (files.isEmpty()) {
-            // The files are gone from the local disk. A retry cannot bring them back, so the task is dropped.
-            logger.error("Vector sync task dropped, flushed index files are missing: indexId={}, dir={}",
-                    task.onDiskIndexId(), indexDir);
-            service.getMetrics().incrementVectorSyncFailures();
-            return;
-        }
 
         Volume volume = service.getShard(shardId).volume();
         ObjectId indexId = task.onDiskIndexId();
@@ -163,7 +163,7 @@ public class VectorSyncMaintainer extends BaseVectorMaintainer<VectorSyncTask> {
 
     @Override
     protected void onFailure(VectorSyncTask task, Exception exp) {
-        logger.error("Vector sync task failed", exp);
+        LOGGER.error("Vector sync task failed", exp);
         service.getMetrics().incrementVectorSyncFailures();
         // In drain mode a failed task is dropped, so the drain can finish. The next start syncs it again.
         if (task != null && !drainMode) {

@@ -21,8 +21,6 @@ import com.kronotop.Context;
 import com.kronotop.bucket.index.VectorIndexMaintainer;
 import org.bson.types.ObjectId;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -95,7 +93,7 @@ public class VectorFlushMaintainer extends BaseVectorMaintainer<VectorFlushTask>
 
     @Override
     protected void onFailure(VectorFlushTask task, Exception exp) {
-        logger.error("Vector flush task failed", exp);
+        LOGGER.error("Vector flush task failed", exp);
         service.getMetrics().incrementVectorFlushFailures();
         if (task != null) {
             reschedule(task);

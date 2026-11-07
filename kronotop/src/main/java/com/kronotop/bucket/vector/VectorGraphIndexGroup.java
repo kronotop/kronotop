@@ -528,7 +528,7 @@ public class VectorGraphIndexGroup {
      * @param bucketDataDir root data directory of the bucket service
      * @return the index directory under the owner shard's vector directory
      */
-    private Path resolveIndexDir(Path bucketDataDir) {
+    public Path resolveIndexDir(Path bucketDataDir) {
         return resolveVectorDir(bucketDataDir, ownerShardId(metadata))
                 .resolve(metadata.uuid().toString())
                 .resolve(Long.toString(vectorIndex.definition().id()));
