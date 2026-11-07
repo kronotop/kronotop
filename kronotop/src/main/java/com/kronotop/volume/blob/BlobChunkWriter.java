@@ -44,6 +44,8 @@ public final class BlobChunkWriter implements AutoCloseable {
     private final Arena arena;
     private final MemorySegment mappedMemory;
 
+    private ByteBuffer buffer;
+
     /**
      * Maps the file and computes the chunk count.
      *
@@ -98,11 +100,17 @@ public final class BlobChunkWriter implements AutoCloseable {
         long offset = (long) chunkIndex * chunkSize;
         int length = (int) Math.min(chunkSize, mappedMemory.byteSize() - offset);
         byte[] header = new BlobChunkHeader(name, offset, chunkCount).encode();
-        ByteBuffer buffer = ByteBuffer.allocate(header.length + length);
-        buffer.put(header);
-        MemorySegment.copy(mappedMemory, ValueLayout.JAVA_BYTE, offset, buffer.array(), header.length, length);
-        buffer.position(header.length + length).flip();
-        return volume.append(new VolumeSession(tr, prefix), buffer);
+        if (buffer == null || buffer.capacity() < header.length + length) {
+            buffer = ByteBuffer.allocate(header.length + length);
+        }
+        try {
+            buffer.put(header);
+            MemorySegment.copy(mappedMemory, ValueLayout.JAVA_BYTE, offset, buffer.array(), header.length, length);
+            buffer.position(header.length + length).flip();
+            return volume.append(new VolumeSession(tr, prefix), buffer);
+        } finally {
+            buffer.clear();
+        }
     }
 
     @Override
