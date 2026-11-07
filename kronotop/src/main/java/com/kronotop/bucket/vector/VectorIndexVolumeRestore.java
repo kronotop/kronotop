@@ -73,9 +73,7 @@ public final class VectorIndexVolumeRestore {
     ) throws IOException {
         BucketService service = context.getService(BucketService.NAME);
         int shardId = VectorGraphIndexGroup.ownerShardId(metadata);
-        Path indexDir = VectorGraphIndexGroup.resolveVectorDir(bucketDataDir, shardId)
-                .resolve(metadata.uuid().toString())
-                .resolve(Long.toString(vectorIndex.definition().id()));
+        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(bucketDataDir, metadata, vectorIndex.definition().id());
         DirectorySubspace indexSubspace = vectorIndex.subspace();
 
         // (GRAPH_SYNCED, graphId) keys, one per graph that is fully written to Volume.

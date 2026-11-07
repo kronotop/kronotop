@@ -332,10 +332,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                 List<OnDiskVectorGraphIndex> onDiskIndexes = VectorGraphIndexGroup.openOnDiskIndexes(
                         context,
                         vectorIndex.subspace(),
-                        bucketDataDir,
-                        VectorGraphIndexGroup.ownerShardId(metadata),
-                        metadata.uuid(),
-                        definition.id(),
+                        group.resolveIndexDir(bucketDataDir),
                         OnHeapVectorGraphIndex.toSimilarityFunction(definition.distance())
                 );
                 for (OnDiskVectorGraphIndex onDisk : onDiskIndexes) {
@@ -364,10 +361,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     private boolean hasOnDiskIndexes(BucketMetadata metadata, VectorIndex vectorIndex) {
-        Path indexDir = VectorGraphIndexGroup
-                .resolveVectorDir(bucketDataDir, VectorGraphIndexGroup.ownerShardId(metadata))
-                .resolve(metadata.uuid().toString())
-                .resolve(Long.toString(vectorIndex.definition().id()));
+        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(bucketDataDir, metadata, vectorIndex.definition().id());
         if (!Files.isDirectory(indexDir)) {
             return false;
         }

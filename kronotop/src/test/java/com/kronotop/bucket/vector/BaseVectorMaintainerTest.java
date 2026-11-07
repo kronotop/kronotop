@@ -120,12 +120,7 @@ abstract class BaseVectorMaintainerTest extends BaseStandaloneInstanceTest {
     }
 
     protected Path indexDir() {
-        return VectorGraphIndexGroup.resolveVectorDir(
-                        context.getDataDir().resolve("bucket"),
-                        VectorGraphIndexGroup.ownerShardId(metadata)
-                )
-                .resolve(metadata.uuid().toString())
-                .resolve(Long.toString(vectorIndex.definition().id()));
+        return VectorGraphIndexGroup.resolveIndexDir(context.getDataDir().resolve("bucket"), metadata, vectorIndex.definition().id());
     }
 
     protected Volume volume() {

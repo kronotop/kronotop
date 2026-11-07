@@ -523,8 +523,9 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         List<OnDiskVectorGraphIndex> onDiskIndexes = VectorGraphIndexGroup.openOnDiskIndexes(
-                context, vectorIndex.subspace(), service.getBucketDataDir(),
-                VectorGraphIndexGroup.ownerShardId(metadata), metadata.uuid(), vectorIndex.definition().id(),
+                context,
+                vectorIndex.subspace(),
+                VectorGraphIndexGroup.resolveIndexDir(service.getBucketDataDir(), metadata, vectorIndex.definition().id()),
                 VectorSimilarityFunction.COSINE
         );
         assertEquals(1, onDiskIndexes.size());

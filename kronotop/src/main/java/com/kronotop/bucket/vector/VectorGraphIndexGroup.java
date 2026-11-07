@@ -114,24 +114,33 @@ public class VectorGraphIndexGroup {
     }
 
     /**
+     * Returns the directory that holds the on-disk files of a vector index.
+     *
+     * @param bucketDataDir root data directory of the bucket service
+     * @param metadata      metadata of the bucket that owns the index
+     * @param indexId       id of the vector index
+     * @return the index directory under the owner shard's vector directory
+     */
+    public static Path resolveIndexDir(Path bucketDataDir, BucketMetadata metadata, long indexId) {
+        return resolveVectorDir(bucketDataDir, ownerShardId(metadata))
+                .resolve(metadata.uuid().toString())
+                .resolve(Long.toString(indexId));
+    }
+
+    /**
      * Opens the flushed on-disk indexes in the given directory. A file set is loaded only if its
      * {@code .complete} marker exists, which means the flush finished. Files without a marker
      * are deleted.
      *
+     * @param indexDir directory that holds the on-disk files of the index
      * @return the opened indexes, or an empty list if the directory does not exist or holds no complete file set
      */
     public static List<OnDiskVectorGraphIndex> openOnDiskIndexes(
             Context context,
             DirectorySubspace indexSubspace,
-            Path bucketDataDir,
-            int shardId,
-            UUID bucketId,
-            long indexId,
+            Path indexDir,
             VectorSimilarityFunction similarityFunction
     ) throws IOException {
-        Path indexDir = resolveVectorDir(bucketDataDir, shardId)
-                .resolve(bucketId.toString())
-                .resolve(Long.toString(indexId));
         if (!Files.isDirectory(indexDir)) {
             return List.of();
         }
@@ -529,9 +538,7 @@ public class VectorGraphIndexGroup {
      * @return the index directory under the owner shard's vector directory
      */
     public Path resolveIndexDir(Path bucketDataDir) {
-        return resolveVectorDir(bucketDataDir, ownerShardId(metadata))
-                .resolve(metadata.uuid().toString())
-                .resolve(Long.toString(vectorIndex.definition().id()));
+        return resolveIndexDir(bucketDataDir, metadata, vectorIndex.definition().id());
     }
 
     /**
