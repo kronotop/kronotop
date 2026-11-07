@@ -31,6 +31,7 @@ import com.kronotop.bucket.index.VectorIndex;
 import com.kronotop.volume.Prefix;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.blob.BlobChunkReader;
+import com.kronotop.volume.blob.CorruptBlobChunkException;
 import com.kronotop.volume.blob.DirectoryBlobChunkSink;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
@@ -126,8 +127,12 @@ public final class VectorIndexVolumeRestore {
                     cursor = reader.read(tr, cursor, readChunksPerTransaction, sink);
                 }
             } while (cursor != null);
-        } catch (IllegalStateException e) {
-            LOGGER.error("Vector index restore skipped, chunks are incomplete: graphId={}, dir={}", baseName, indexDir, e);
+        } catch (CorruptBlobChunkException exp) {
+            LOGGER.error("Vector index restore skipped, chunk is corrupt: graphId={}, dir={}", baseName, indexDir, exp);
+            service.getMetrics().incrementVectorSyncFailures();
+            return;
+        } catch (IllegalStateException exp) {
+            LOGGER.error("Vector index restore skipped, chunks are incomplete: graphId={}, dir={}", baseName, indexDir, exp);
             service.getMetrics().incrementVectorSyncFailures();
             return;
         }
