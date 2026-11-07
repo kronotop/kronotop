@@ -93,4 +93,59 @@ class BlobChunkReaderTest extends BaseBlobChunkTest {
 
         assertArrayEquals(Files.readAllBytes(path), Files.readAllBytes(out.resolve("a.bin")));
     }
+
+    @Test
+    void shouldRestoreFileWhenBatchIsDuplicatedMidFile(@TempDir Path src, @TempDir Path out) throws Exception {
+        // Behavior: a 4096 byte file (4 chunks) is written as 0, 1, 0, 1, 2, 3, each chunk in its own transaction. This
+        // is what a retried batch leaves behind after commit_unknown_result. Reading the prefix in pages of 2 does not
+        // close the file early on the repeated chunks, does not throw, and the output file is byte for byte equal to
+        // the original.
+        Path path = writeRandomFile(src, "a.bin", 4096);
+        try (BlobChunkWriter writer = new BlobChunkWriter(volume, prefix, path, "a.bin", CHUNK_SIZE)) {
+            writeChunk(writer, 0);
+            writeChunk(writer, 1);
+            writeChunk(writer, 0);
+            writeChunk(writer, 1);
+            writeChunk(writer, 2);
+            writeChunk(writer, 3);
+        }
+
+        readAll(out, 2);
+
+        assertArrayEquals(Files.readAllBytes(path), Files.readAllBytes(out.resolve("a.bin")));
+    }
+
+    @Test
+    void shouldIgnoreDuplicateChunkAfterFileIsComplete(@TempDir Path src, @TempDir Path out) throws Exception {
+        // Behavior: a 3072 byte file (3 chunks) is written as 0, 1, 2, 0. The file is complete after the third chunk.
+        // The late copy of chunk 0 is ignored: it does not reopen and truncate the finished file, reading in pages of 2
+        // does not throw, and the output file is byte for byte equal to the original.
+        Path path = writeRandomFile(src, "a.bin", 3072);
+        try (BlobChunkWriter writer = new BlobChunkWriter(volume, prefix, path, "a.bin", CHUNK_SIZE)) {
+            writeChunk(writer, 0);
+            writeChunk(writer, 1);
+            writeChunk(writer, 2);
+            writeChunk(writer, 0);
+        }
+
+        readAll(out, 2);
+
+        assertArrayEquals(Files.readAllBytes(path), Files.readAllBytes(out.resolve("a.bin")));
+    }
+
+    @Test
+    void shouldStillFailWhenDuplicatesDoNotCoverAllChunks(@TempDir Path src, @TempDir Path out) throws Exception {
+        // Behavior: a 3072 byte file (3 chunks) is written as 0, 0, 2. Three chunks arrive but chunk 1 never does.
+        // Duplicates do not count toward completion, so closing the directory sink throws IllegalStateException and
+        // the message names the incomplete file.
+        Path path = writeRandomFile(src, "a.bin", 3072);
+        try (BlobChunkWriter writer = new BlobChunkWriter(volume, prefix, path, "a.bin", CHUNK_SIZE)) {
+            writeChunk(writer, 0);
+            writeChunk(writer, 0);
+            writeChunk(writer, 2);
+        }
+
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> readAll(out, 2));
+        assertTrue(e.getMessage().contains("a.bin"));
+    }
 }

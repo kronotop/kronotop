@@ -21,12 +21,17 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Writes chunks into files under a directory. Every chunk goes to the file named in its header, at the offset in its
- * header, so chunks may arrive in any order. A file is closed when all of its chunks have arrived.
+ * header, so chunks may arrive in any order. A chunk that arrives more than once is written again at the same offset
+ * and counts once. A file is closed when every offset has arrived, and chunks for a closed file are ignored.
  */
 public final class DirectoryBlobChunkSink implements BlobChunkSink {
     private final Path directory;
@@ -46,16 +51,18 @@ public final class DirectoryBlobChunkSink implements BlobChunkSink {
             );
             file = new OpenFile(channel, header.chunkCount());
             files.put(header.name(), file);
+        } else if (file.done) {
+            return;
         }
         long position = header.offset();
         while (payload.hasRemaining()) {
             position += file.channel.write(payload, position);
         }
-        file.remaining--;
-        if (file.remaining == 0) {
-            files.remove(header.name());
+        file.offsets.add(header.offset());
+        if (file.offsets.size() == file.chunkCount) {
             file.channel.force(true);
             file.channel.close();
+            file.done = true;
         }
     }
 
@@ -67,21 +74,29 @@ public final class DirectoryBlobChunkSink implements BlobChunkSink {
      */
     @Override
     public void close() throws IOException {
-        for (OpenFile file : files.values()) {
-            file.channel.close();
+        List<String> incomplete = new ArrayList<>();
+        for (Map.Entry<String, OpenFile> entry : files.entrySet()) {
+            if (entry.getValue().done) {
+                continue;
+            }
+            entry.getValue().channel.close();
+            incomplete.add(entry.getKey());
         }
-        if (!files.isEmpty()) {
-            throw new IllegalStateException("incomplete files: " + files.keySet());
+        if (!incomplete.isEmpty()) {
+            throw new IllegalStateException("incomplete files: " + incomplete);
         }
     }
 
     private static final class OpenFile {
         private final FileChannel channel;
-        private int remaining;
+        private final int chunkCount;
+        // Explicit deduplication: a retried batch appends the same chunk twice.
+        private final Set<Long> offsets = new HashSet<>();
+        private boolean done;
 
-        private OpenFile(FileChannel channel, int remaining) {
+        private OpenFile(FileChannel channel, int chunkCount) {
             this.channel = channel;
-            this.remaining = remaining;
+            this.chunkCount = chunkCount;
         }
     }
 }
