@@ -25,6 +25,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -141,7 +142,7 @@ class VolumeIterable implements Iterable<VolumeEntry> {
                 ByteBuffer entry = volume.getByEntryMetadata(session.prefix(), key, entryMetadata);
                 return new VolumeEntry(key, entry, rawMetadata);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new UncheckedIOException(e);
             }
         }
     }

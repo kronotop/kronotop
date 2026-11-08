@@ -522,6 +522,10 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertTrue(intField(info, "vector_on_disk_indexes") >= 0);
         assertTrue(intField(info, "vector_flush_queue_size") >= 0);
         assertTrue(longField(info, "vector_flush_failures") >= 0);
+        assertTrue(intField(info, "vector_sync_queue_size") >= 0);
+        assertTrue(longField(info, "vector_sync_failures") >= 0);
+        assertTrue(longField(info, "vector_lost_graphs") >= 0);
+        assertTrue(longField(info, "vector_restore_failures") >= 0);
     }
 
     @Test

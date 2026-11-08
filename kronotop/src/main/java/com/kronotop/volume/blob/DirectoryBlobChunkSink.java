@@ -70,7 +70,7 @@ public final class DirectoryBlobChunkSink implements BlobChunkSink {
      * Closes the files that are still open.
      *
      * @throws IOException           if a file cannot be closed
-     * @throws IllegalStateException if some files did not receive all of their chunks
+     * @throws IncompleteBlobException if some files did not receive all of their chunks
      */
     @Override
     public void close() throws IOException {
@@ -83,7 +83,7 @@ public final class DirectoryBlobChunkSink implements BlobChunkSink {
             incomplete.add(entry.getKey());
         }
         if (!incomplete.isEmpty()) {
-            throw new IllegalStateException("incomplete files: " + incomplete);
+            throw new IncompleteBlobException("incomplete files: " + incomplete);
         }
     }
 

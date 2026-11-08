@@ -23,8 +23,11 @@ import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VolumeSession;
+import com.kronotop.volume.segment.SegmentNotFoundException;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Iterator;
 
 /**
  * Reads the chunks stored under a prefix in pages and hands each chunk to a {@link BlobChunkSink}. The caller owns
@@ -47,7 +50,8 @@ public final class BlobChunkReader {
      * @param limit  maximum number of chunks to read in this call
      * @param sink   receiver of the chunks
      * @return key of the last chunk read, or null when there are no chunks after the cursor
-     * @throws IOException               if a chunk cannot be read or consumed
+     * @throws IOException               if the sink cannot consume a chunk
+     * @throws BlobChunkReadException    if a chunk cannot be read from Volume
      * @throws CorruptBlobChunkException if an entry does not start with a valid header
      */
     public Versionstamp read(Transaction tr, Versionstamp cursor, int limit, BlobChunkSink sink) throws IOException {
@@ -56,7 +60,17 @@ public final class BlobChunkReader {
                 ? volume.getRange(session, limit)
                 : volume.getRange(session, VersionstampedKeySelector.firstGreaterThan(cursor), null, limit);
         Versionstamp last = null;
-        for (VolumeEntry entry : entries) {
+        Iterator<VolumeEntry> iterator = entries.iterator();
+        while (true) {
+            VolumeEntry entry;
+            try {
+                if (!iterator.hasNext()) {
+                    break;
+                }
+                entry = iterator.next();
+            } catch (UncheckedIOException | SegmentNotFoundException exp) {
+                throw new BlobChunkReadException(exp);
+            }
             BlobChunkHeader header = BlobChunkHeader.readHeader(entry.entry());
             sink.accept(header, entry.entry());
             last = entry.key();

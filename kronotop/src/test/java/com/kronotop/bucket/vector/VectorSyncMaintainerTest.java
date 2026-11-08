@@ -107,6 +107,48 @@ class VectorSyncMaintainerTest extends BaseVectorMaintainerTest {
     }
 
     @Test
+    void shouldCountLostGraphWhenFilesAreMissing() throws Exception {
+        // Behavior: An on-heap index with one vector is flushed, then its .index, .vmeta and .complete files
+        // are deleted from the index directory before the sync task for its id runs. The maintainer consumes
+        // the task and writes nothing: the prefix has no Volume entry and the (GRAPH_SYNCED, id) key is
+        // absent. The lost graph counter goes to one and the sync failure counter stays at zero.
+        try (OnHeapVectorGraphIndex onHeap = flushOneVector()) {
+            ObjectId indexId = onHeap.getId();
+            for (String extension : new String[]{".index", ".vmeta", ".complete"}) {
+                Files.deleteIfExists(indexDir().resolve(indexId.toHexString() + extension));
+            }
+
+            service.getVectorSyncQueue().add(newSyncTask(indexId));
+
+            await().atMost(Duration.ofSeconds(5)).until(() -> service.getVectorSyncQueue().isEmpty());
+            assertTrue(entriesUnder(prefixOf(indexId)).isEmpty());
+            assertFalse(isSynced(indexId));
+            assertEquals(1, service.getMetrics().getVectorLostGraphs());
+            assertEquals(0, service.getMetrics().getVectorSyncFailures());
+        }
+    }
+
+    @Test
+    void shouldCountLostGraphWhenRequiredFileIsMissing() throws Exception {
+        // Behavior: An on-heap index with one vector is flushed, then only its .index file is deleted while
+        // .vmeta and .complete stay on disk. The sync task for its id runs. The maintainer treats the graph as
+        // lost and writes nothing: the prefix has no Volume entry and the (GRAPH_SYNCED, id) key is absent.
+        // The lost graph counter goes to one and the sync failure counter stays at zero.
+        try (OnHeapVectorGraphIndex onHeap = flushOneVector()) {
+            ObjectId indexId = onHeap.getId();
+            Files.delete(indexDir().resolve(indexId.toHexString() + ".index"));
+
+            service.getVectorSyncQueue().add(newSyncTask(indexId));
+
+            await().atMost(Duration.ofSeconds(5)).until(() -> service.getVectorSyncQueue().isEmpty());
+            assertTrue(entriesUnder(prefixOf(indexId)).isEmpty());
+            assertFalse(isSynced(indexId));
+            assertEquals(1, service.getMetrics().getVectorLostGraphs());
+            assertEquals(0, service.getMetrics().getVectorSyncFailures());
+        }
+    }
+
+    @Test
     void shouldClearPartialChunksBeforeSync(@TempDir Path out) throws Exception {
         // Behavior: An entry that is not a valid chunk sits under the prefix of a flushed index before the
         // sync, like a leftover from a sync that stopped halfway. The maintainer clears that entry first

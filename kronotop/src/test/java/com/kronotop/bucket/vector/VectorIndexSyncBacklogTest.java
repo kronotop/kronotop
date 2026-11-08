@@ -67,7 +67,7 @@ class VectorIndexSyncBacklogTest extends BaseVectorMaintainerTest {
     void shouldSkipIndexWhoseFilesAreMissing() throws Exception {
         // Behavior: An index is flushed but not synced, then its index directory is deleted from the local
         // disk. The backlog scan queues nothing, the sync queue stays empty, (GRAPH_SYNCED, id) stays
-        // absent and the sync failure counter is incremented by one.
+        // absent, the lost graph counter is incremented by one and the sync failure counter stays at zero.
         try (OnHeapVectorGraphIndex onHeap = flushOneVector()) {
             ObjectId indexId = onHeap.getId();
             DirectoryUtil.deleteRecursively(indexDir());
@@ -76,7 +76,8 @@ class VectorIndexSyncBacklogTest extends BaseVectorMaintainerTest {
 
             assertTrue(service.getVectorSyncQueue().isEmpty());
             assertFalse(isSynced(indexId));
-            assertEquals(1, service.getMetrics().getVectorSyncFailures());
+            assertEquals(1, service.getMetrics().getVectorLostGraphs());
+            assertEquals(0, service.getMetrics().getVectorSyncFailures());
         }
     }
 

@@ -40,7 +40,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Queues a sync task for every flushed vector graph that never reached Volume. A graph whose files are
- * gone from the local disk cannot be synced and is skipped.
+ * gone from the local disk cannot be synced. It is logged as lost, counted, and skipped.
  */
 public final class VectorIndexSyncBacklog {
     static final int PAGE_SIZE = 1000;
@@ -92,10 +92,8 @@ public final class VectorIndexSyncBacklog {
                 }
             }
             for (ObjectId graphId : unsynced) {
-                if (!Files.exists(indexDir.resolve(graphId.toHexString() + ".complete"))) {
-                    LOGGER.error("Vector sync backlog skipped, flushed index files are missing: indexId={}, dir={}",
-                            graphId, indexDir);
-                    service.getMetrics().incrementVectorSyncFailures();
+                if (!Files.exists(VectorGraphFiles.completeMarker(indexDir, graphId.toHexString()))) {
+                    reportLostGraph(service, metadata.namespace(), metadata.name(), indexId, graphId, indexDir);
                     continue;
                 }
                 service.getVectorSyncQueue().add(
@@ -108,5 +106,22 @@ public final class VectorIndexSyncBacklog {
             }
             begin = KeySelector.firstGreaterThan(page.getLast().getKey());
         }
+    }
+
+    // Logs and counts a flushed graph that never reached Volume and whose files are not on this member.
+    // Nothing on this member can bring it back. Its vectors stay out of the index until the index is rebuilt.
+    static void reportLostGraph(
+            BucketService service,
+            String namespace,
+            String bucket,
+            long indexId,
+            ObjectId graphId,
+            Path indexDir
+    ) {
+        LOGGER.error("Vector graph lost, flushed but never synced to Volume and its files are not on " +
+                        "this member, the index needs a rebuild: namespace={}, bucket={}, indexId={}, " +
+                        "graphId={}, dir={}",
+                namespace, bucket, indexId, graphId, indexDir);
+        service.getMetrics().incrementVectorLostGraphs();
     }
 }

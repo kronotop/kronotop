@@ -205,6 +205,8 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         collector.put(InfoReport.VECTOR_SECTION, "vector_flush_failures", metrics.getVectorFlushFailures());
         collector.put(InfoReport.VECTOR_SECTION, "vector_sync_queue_size", vectorSyncQueue.size());
         collector.put(InfoReport.VECTOR_SECTION, "vector_sync_failures", metrics.getVectorSyncFailures());
+        collector.put(InfoReport.VECTOR_SECTION, "vector_lost_graphs", metrics.getVectorLostGraphs());
+        collector.put(InfoReport.VECTOR_SECTION, "vector_restore_failures", metrics.getVectorRestoreFailures());
     }
 
     public Route findRoute(int shardId) {
@@ -368,8 +370,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         if (!Files.isDirectory(indexDir)) {
             return false;
         }
-        try (Stream<Path> stream = Files.list(indexDir)) {
-            return stream.anyMatch(p -> p.toString().endsWith(".complete"));
+        try {
+            try (Stream<Path> stream = Files.list(indexDir)) {
+                return stream.anyMatch(p -> p.getFileName().toString().endsWith(VectorGraphFiles.COMPLETE_SUFFIX));
+            }
         } catch (IOException e) {
             // Assume data exists so bootstrapVectorGroup takes the slow-path rather than skipping recovery.
             return true;

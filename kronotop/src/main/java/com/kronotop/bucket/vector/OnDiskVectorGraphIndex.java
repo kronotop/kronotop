@@ -73,10 +73,10 @@ public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
 
         String fileName = indexPath.getFileName().toString();
         this.baseName = fileName.substring(0, fileName.lastIndexOf('.'));
-        Path metadataPath = indexPath.resolveSibling(baseName + ".vmeta");
+        Path metadataPath = indexPath.resolveSibling(baseName + VectorGraphFiles.VMETA_SUFFIX);
         this.metadata = new OnDiskVectorGraphIndexMetadata(metadataPath);
 
-        Path pqPath = indexPath.resolveSibling(baseName + ".pqv");
+        Path pqPath = indexPath.resolveSibling(baseName + VectorGraphFiles.PQV_SUFFIX);
         if (Files.exists(pqPath)) {
             try (ReaderSupplier pqRs = ReaderSupplierFactory.open(pqPath);
                  RandomAccessReader reader = pqRs.get()) {

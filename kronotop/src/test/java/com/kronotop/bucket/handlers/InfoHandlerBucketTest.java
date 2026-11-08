@@ -144,5 +144,9 @@ class InfoHandlerBucketTest extends BaseBucketHandlerTest {
         assertTrue(Integer.parseInt(Objects.requireNonNull(fieldValue(info, "vector_on_disk_indexes"))) >= 0);
         assertTrue(Integer.parseInt(Objects.requireNonNull(fieldValue(info, "vector_flush_queue_size"))) >= 0);
         assertTrue(Long.parseLong(Objects.requireNonNull(fieldValue(info, "vector_flush_failures"))) >= 0);
+        assertTrue(Integer.parseInt(Objects.requireNonNull(fieldValue(info, "vector_sync_queue_size"))) >= 0);
+        assertTrue(Long.parseLong(Objects.requireNonNull(fieldValue(info, "vector_sync_failures"))) >= 0);
+        assertTrue(Long.parseLong(Objects.requireNonNull(fieldValue(info, "vector_lost_graphs"))) >= 0);
+        assertTrue(Long.parseLong(Objects.requireNonNull(fieldValue(info, "vector_restore_failures"))) >= 0);
     }
 }

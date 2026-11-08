@@ -19,9 +19,13 @@ package com.kronotop.bucket.vector;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.index.VectorIndexMaintainer;
 import com.kronotop.internal.DirectoryUtil;
+import com.kronotop.volume.VolumeSession;
+import com.kronotop.volume.blob.BlobChunkWriter;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
@@ -49,6 +53,13 @@ class VectorIndexVolumeRestoreTest extends BaseVectorMaintainerTest {
 
     private Path file(ObjectId indexId, String extension) {
         return indexDir().resolve(indexId.toHexString() + extension);
+    }
+
+    private void markSynced(ObjectId indexId) {
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VectorIndexMaintainer.markGraphSynced(tr, vectorIndex.subspace(), indexId);
+            tr.commit().join();
+        }
     }
 
     @Test
@@ -94,20 +105,76 @@ class VectorIndexVolumeRestoreTest extends BaseVectorMaintainerTest {
     @Test
     void shouldNotCreateCompleteMarkerWhenChunksAreMissing() throws Exception {
         // Behavior: A (GRAPH_SYNCED, id) key exists but the Volume prefix of that id holds no chunks.
-        // Restore does not throw, writes no .index, .vmeta or .complete file for that id, and increments
-        // the sync failure counter by one.
+        // Restore does not throw, writes no .index, .vmeta or .complete file for that id, increments the
+        // restore failure counter by one and leaves the sync failure counter at zero.
         ObjectId indexId = new ObjectId();
-        try (Transaction tr = context.getTransactionManager().create()) {
-            VectorIndexMaintainer.markGraphSynced(tr, vectorIndex.subspace(), indexId);
-            tr.commit().join();
-        }
+        markSynced(indexId);
 
         restore();
 
         assertFalse(Files.exists(file(indexId, ".index")));
         assertFalse(Files.exists(file(indexId, ".vmeta")));
         assertFalse(Files.exists(file(indexId, ".complete")));
-        assertEquals(1, service.getMetrics().getVectorSyncFailures());
+        assertEquals(1, service.getMetrics().getVectorRestoreFailures());
+        assertEquals(0, service.getMetrics().getVectorSyncFailures());
+    }
+
+    @Test
+    void shouldSkipGraphWithCorruptChunk() throws Exception {
+        // Behavior: One graph is flushed and synced. A second graph id is marked synced, but the only entry
+        // under its Volume prefix is a byte array with no chunk header. The index directory is deleted and
+        // restore runs. It does not throw. The healthy graph gets its .index, .vmeta and .complete files
+        // back, the corrupt one gets no files, the restore failure counter is one and the sync failure
+        // counter stays at zero.
+        ObjectId healthy = flushAndSyncOneVector();
+        ObjectId corrupt = new ObjectId();
+        try (Transaction tr = context.getTransactionManager().create()) {
+            volume().append(new VolumeSession(tr, prefixOf(corrupt)), ByteBuffer.wrap(new byte[]{1, 2, 3, 4}));
+            tr.commit().join();
+        }
+        markSynced(corrupt);
+        DirectoryUtil.deleteRecursively(indexDir());
+
+        restore();
+
+        assertTrue(Files.exists(file(healthy, ".index")));
+        assertTrue(Files.exists(file(healthy, ".vmeta")));
+        assertTrue(Files.exists(file(healthy, ".complete")));
+        assertFalse(Files.exists(file(corrupt, ".index")));
+        assertFalse(Files.exists(file(corrupt, ".complete")));
+        assertEquals(1, service.getMetrics().getVectorRestoreFailures());
+        assertEquals(0, service.getMetrics().getVectorSyncFailures());
+    }
+
+    @Test
+    void shouldSkipGraphWithIncompleteChunks(@TempDir Path src) throws Exception {
+        // Behavior: One graph is flushed and synced. A second graph id is marked synced, but only the first
+        // of the two chunks of its .index file is in Volume. The index directory is deleted and restore runs.
+        // It does not throw. The healthy graph gets its .complete marker back. The incomplete one gets no
+        // .complete marker and its partial .index and .vmeta files are removed from the directory. The restore
+        // failure counter is one and the sync failure counter stays at zero.
+        ObjectId healthy = flushAndSyncOneVector();
+        ObjectId incomplete = new ObjectId();
+        Path path = src.resolve("partial.index");
+        Files.write(path, new byte[2048]);
+        String name = incomplete.toHexString() + ".index";
+        try (BlobChunkWriter writer = new BlobChunkWriter(volume(), prefixOf(incomplete), path, name, 1024);
+             Transaction tr = context.getTransactionManager().create()) {
+            assertEquals(2, writer.chunkCount());
+            writer.write(tr, 0);
+            tr.commit().join();
+        }
+        markSynced(incomplete);
+        DirectoryUtil.deleteRecursively(indexDir());
+
+        restore();
+
+        assertTrue(Files.exists(file(healthy, ".complete")));
+        assertFalse(Files.exists(file(incomplete, ".complete")));
+        assertFalse(Files.exists(file(incomplete, ".index")));
+        assertFalse(Files.exists(file(incomplete, ".vmeta")));
+        assertEquals(1, service.getMetrics().getVectorRestoreFailures());
+        assertEquals(0, service.getMetrics().getVectorSyncFailures());
     }
 
     @Test

@@ -30,9 +30,11 @@ import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.VectorIndex;
 import com.kronotop.volume.Prefix;
 import com.kronotop.volume.Volume;
+import com.kronotop.volume.blob.BlobChunkReadException;
 import com.kronotop.volume.blob.BlobChunkReader;
 import com.kronotop.volume.blob.CorruptBlobChunkException;
 import com.kronotop.volume.blob.DirectoryBlobChunkSink;
+import com.kronotop.volume.blob.IncompleteBlobException;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +47,9 @@ import java.util.List;
 /**
  * Restores flushed vector graph index files from Volume. A graph listed under {@code GRAPH_SYNCED} with no
  * {@code .complete} marker on the local disk is read back chunk by chunk, then the marker is created.
- * A graph with missing or incomplete chunks is logged and skipped.
+ * A graph whose chunks are corrupt, incomplete, missing or unreadable from Volume is logged, counted as a
+ * restore failure and skipped. A skipped graph has no marker, so the next start reads it again. Any other
+ * error, such as a local disk write failure or a FoundationDB error, stops the restore of the whole index.
  */
 public final class VectorIndexVolumeRestore {
     static final int PAGE_SIZE = 1000;
@@ -88,14 +92,15 @@ public final class VectorIndexVolumeRestore {
             }
             for (KeyValue kv : page) {
                 ObjectId graphId = new ObjectId(indexSubspace.unpack(kv.getKey()).getBytes(1));
-                if (Files.exists(indexDir.resolve(graphId.toHexString() + ".complete"))) {
+                if (Files.exists(VectorGraphFiles.completeMarker(indexDir, graphId.toHexString()))) {
                     continue;
                 }
                 if (volume == null) {
                     Files.createDirectories(indexDir);
                     volume = service.getShard(shardId).volume();
                 }
-                restoreGraph(context, service, volume, indexDir, graphId, readChunksPerTransaction);
+                restoreGraph(context, service, metadata, vectorIndex.definition().id(), volume, indexDir, graphId,
+                        readChunksPerTransaction);
             }
             if (page.size() < PAGE_SIZE) {
                 return;
@@ -107,6 +112,8 @@ public final class VectorIndexVolumeRestore {
     private static void restoreGraph(
             Context context,
             BucketService service,
+            BucketMetadata metadata,
+            long indexId,
             Volume volume,
             Path indexDir,
             ObjectId graphId,
@@ -114,9 +121,7 @@ public final class VectorIndexVolumeRestore {
     ) throws IOException {
         String baseName = graphId.toHexString();
         // A previous restore may have stopped halfway. Remove what it left behind.
-        for (String extension : new String[]{".complete", ".index", ".vmeta", ".pqv"}) {
-            Files.deleteIfExists(indexDir.resolve(baseName + extension));
-        }
+        VectorGraphFiles.deleteFiles(indexDir, baseName);
         BlobChunkReader reader = new BlobChunkReader(volume, new Prefix(graphId.toByteArray()));
         try (DirectoryBlobChunkSink sink = new DirectoryBlobChunkSink(indexDir)) {
             Versionstamp cursor = null;
@@ -126,20 +131,37 @@ public final class VectorIndexVolumeRestore {
                 }
             } while (cursor != null);
         } catch (CorruptBlobChunkException exp) {
-            LOGGER.error("Vector index restore skipped, chunk is corrupt: graphId={}, dir={}", baseName, indexDir, exp);
-            service.getMetrics().incrementVectorSyncFailures();
+            skip(service, metadata, indexId, graphId, indexDir, "chunk is corrupt", exp);
             return;
-        } catch (IllegalStateException exp) {
-            LOGGER.error("Vector index restore skipped, chunks are incomplete: graphId={}, dir={}", baseName, indexDir, exp);
-            service.getMetrics().incrementVectorSyncFailures();
+        } catch (IncompleteBlobException exp) {
+            skip(service, metadata, indexId, graphId, indexDir, "chunks are incomplete", exp);
+            return;
+        } catch (BlobChunkReadException exp) {
+            skip(service, metadata, indexId, graphId, indexDir, "chunks could not be read from Volume", exp);
             return;
         }
 
-        if (!Files.exists(indexDir.resolve(baseName + ".index")) || !Files.exists(indexDir.resolve(baseName + ".vmeta"))) {
-            LOGGER.error("Vector index restore skipped, chunks are missing: graphId={}, dir={}", baseName, indexDir);
-            service.getMetrics().incrementVectorSyncFailures();
+        if (!Files.exists(indexDir.resolve(baseName + VectorGraphFiles.INDEX_SUFFIX))
+                || !Files.exists(indexDir.resolve(baseName + VectorGraphFiles.VMETA_SUFFIX))) {
+            skip(service, metadata, indexId, graphId, indexDir, "chunks are missing", null);
             return;
         }
-        Files.createFile(indexDir.resolve(baseName + ".complete"));
+        Files.createFile(VectorGraphFiles.completeMarker(indexDir, baseName));
+    }
+
+    private static void skip(
+            BucketService service,
+            BucketMetadata metadata,
+            long indexId,
+            ObjectId graphId,
+            Path indexDir,
+            String reason,
+            Exception exp
+    ) throws IOException {
+        LOGGER.error("Vector graph restore skipped, {}: namespace={}, bucket={}, indexId={}, graphId={}, dir={}",
+                reason, metadata.namespace(), metadata.name(), indexId, graphId, indexDir, exp);
+        service.getMetrics().incrementVectorRestoreFailures();
+        // The sink is already closed. Remove the partial files so the next start reads the graph again.
+        VectorGraphFiles.deleteFiles(indexDir, graphId.toHexString());
     }
 }

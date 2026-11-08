@@ -36,7 +36,6 @@ import java.util.function.Consumer;
 
 
 public class VectorSyncMaintainer extends BaseVectorMaintainer<VectorSyncTask> {
-    private static final String[] EXTENSIONS = {".index", ".vmeta", ".pqv"};
     private final int chunkSize;
     private final int writeChunksPerTransaction;
 
@@ -102,13 +101,21 @@ public class VectorSyncMaintainer extends BaseVectorMaintainer<VectorSyncTask> {
         }
     }
 
+    // The .index and .vmeta files are required. The .pqv file exists only when PQ was trained. An empty
+    // list means a required file is gone.
     private List<Path> listFiles(Path indexDir, ObjectId indexId) {
+        String baseName = indexId.toHexString();
         List<Path> files = new ArrayList<>();
-        for (String extension : EXTENSIONS) {
-            Path path = indexDir.resolve(indexId.toHexString() + extension);
-            if (Files.exists(path)) {
-                files.add(path);
+        for (String extension : new String[]{VectorGraphFiles.INDEX_SUFFIX, VectorGraphFiles.VMETA_SUFFIX}) {
+            Path path = indexDir.resolve(baseName + extension);
+            if (!Files.exists(path)) {
+                return List.of();
             }
+            files.add(path);
+        }
+        Path pq = indexDir.resolve(baseName + VectorGraphFiles.PQV_SUFFIX);
+        if (Files.exists(pq)) {
+            files.add(pq);
         }
         return files;
     }
@@ -121,8 +128,8 @@ public class VectorSyncMaintainer extends BaseVectorMaintainer<VectorSyncTask> {
                 task.vectorIndexId()
         );
         if (group == null) {
-            LOGGER.warn("Vector sync task skipped, no index group for namespace={}, bucket={}, indexId={}",
-                    task.namespace(), task.bucket(), task.vectorIndexId());
+            LOGGER.debug("Vector sync task skipped, no index group: namespace={}, bucket={}, indexId={}, graphId={}",
+                    task.namespace(), task.bucket(), task.vectorIndexId(), task.onDiskIndexId());
             return;
         }
 
@@ -130,10 +137,9 @@ public class VectorSyncMaintainer extends BaseVectorMaintainer<VectorSyncTask> {
 
         List<Path> files = listFiles(indexDir, task.onDiskIndexId());
         if (files.isEmpty()) {
-            // The files are gone from the local disk. A retry cannot bring them back, so the task is dropped.
-            LOGGER.error("Vector sync task dropped, flushed index files are missing: indexId={}, dir={}",
+            // A retry cannot bring the files back, so the task is dropped.
+            VectorIndexSyncBacklog.reportLostGraph(service, task.namespace(), task.bucket(), task.vectorIndexId(),
                     task.onDiskIndexId(), indexDir);
-            service.getMetrics().incrementVectorSyncFailures();
             return;
         }
 
@@ -163,7 +169,12 @@ public class VectorSyncMaintainer extends BaseVectorMaintainer<VectorSyncTask> {
 
     @Override
     protected void onFailure(VectorSyncTask task, Exception exp) {
-        LOGGER.error("Vector sync task failed", exp);
+        if (task == null) {
+            LOGGER.error("Vector sync task failed", exp);
+        } else {
+            LOGGER.error("Vector sync task failed: namespace={}, bucket={}, indexId={}, graphId={}",
+                    task.namespace(), task.bucket(), task.vectorIndexId(), task.onDiskIndexId(), exp);
+        }
         service.getMetrics().incrementVectorSyncFailures();
         // In drain mode a failed task is dropped, so the drain can finish. The next start syncs it again.
         if (task != null && !drainMode) {

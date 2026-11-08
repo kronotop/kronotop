@@ -6,7 +6,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 41,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "refresh": "30s",
   "time": {
@@ -673,6 +673,186 @@
       "id": 23
     },
     {
+      "type": "timeseries",
+      "title": "Sync queue",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_vector_sync_queue_size{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 0,
+        "y": 43
+      },
+      "id": 24
+    },
+    {
+      "type": "timeseries",
+      "title": "Sync failures/s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_vector_sync_failures_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 6,
+        "y": 43
+      },
+      "id": 25
+    },
+    {
+      "type": "timeseries",
+      "title": "Restore failures/s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_vector_restore_failures_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 12,
+        "y": 43
+      },
+      "id": 26
+    },
+    {
+      "type": "stat",
+      "title": "Lost graphs",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_vector_lost_graphs_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 18,
+        "y": 43
+      },
+      "id": 27
+    },
+    {
       "type": "row",
       "title": "ZMap",
       "collapsed": false,
@@ -680,7 +860,7 @@
         "w": 24,
         "h": 1,
         "x": 0,
-        "y": 43
+        "y": 51
       },
       "id": 15
     },
@@ -757,7 +937,7 @@
         "w": 12,
         "h": 8,
         "x": 0,
-        "y": 44
+        "y": 52
       },
       "id": 16
     },
@@ -816,7 +996,7 @@
         "w": 6,
         "h": 8,
         "x": 12,
-        "y": 44
+        "y": 52
       },
       "id": 17
     },
@@ -857,7 +1037,7 @@
         "w": 6,
         "h": 8,
         "x": 18,
-        "y": 44
+        "y": 52
       },
       "id": 18
     },
@@ -869,7 +1049,7 @@
         "w": 24,
         "h": 1,
         "x": 0,
-        "y": 52
+        "y": 60
       },
       "id": 19
     },
@@ -910,7 +1090,7 @@
         "w": 6,
         "h": 8,
         "x": 0,
-        "y": 53
+        "y": 61
       },
       "id": 20
     }

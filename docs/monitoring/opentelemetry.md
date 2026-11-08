@@ -262,13 +262,17 @@ The `volumeN` lines are not sent.
 
 ### Vector
 
-| INFO field                | Prometheus name                        | Type    |
-|---------------------------|----------------------------------------|---------|
-| `vector_indexes`          | `kronotop_vector_indexes`              | gauge   |
-| `vector_bytes_used`       | `kronotop_vector_bytes_used`           | gauge   |
-| `vector_on_disk_indexes`  | `kronotop_vector_on_disk_indexes`      | gauge   |
-| `vector_flush_queue_size` | `kronotop_vector_flush_queue_size`     | gauge   |
-| `vector_flush_failures`   | `kronotop_vector_flush_failures_total` | counter |
+| INFO field                | Prometheus name                          | Type    |
+|---------------------------|------------------------------------------|---------|
+| `vector_indexes`          | `kronotop_vector_indexes`                | gauge   |
+| `vector_bytes_used`       | `kronotop_vector_bytes_used`             | gauge   |
+| `vector_on_disk_indexes`  | `kronotop_vector_on_disk_indexes`        | gauge   |
+| `vector_flush_queue_size` | `kronotop_vector_flush_queue_size`       | gauge   |
+| `vector_flush_failures`   | `kronotop_vector_flush_failures_total`   | counter |
+| `vector_sync_queue_size`  | `kronotop_vector_sync_queue_size`        | gauge   |
+| `vector_sync_failures`    | `kronotop_vector_sync_failures_total`    | counter |
+| `vector_lost_graphs`      | `kronotop_vector_lost_graphs_total`      | counter |
+| `vector_restore_failures` | `kronotop_vector_restore_failures_total` | counter |
 
 ### ZMap
 

@@ -340,10 +340,10 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
             }
 
             String name = id.toHexString();
-            Path indexPath = path.resolve(name + ".index");
-            Path metadataPath = path.resolve(name + ".vmeta");
-            Path pqPath = path.resolve(name + ".pqv");
-            Path completePath = path.resolve(name + ".complete");
+            Path indexPath = path.resolve(name + VectorGraphFiles.INDEX_SUFFIX);
+            Path metadataPath = path.resolve(name + VectorGraphFiles.VMETA_SUFFIX);
+            Path pqPath = path.resolve(name + VectorGraphFiles.PQV_SUFFIX);
+            Path completePath = VectorGraphFiles.completeMarker(path, name);
 
             // A retried flush writes the same file names. Remove what a failed attempt left behind.
             Files.deleteIfExists(completePath);

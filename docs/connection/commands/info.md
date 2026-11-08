@@ -194,13 +194,17 @@ the cluster port.
 
 ### Vector
 
-| Field                     | Description                                                                               |
-|---------------------------|-------------------------------------------------------------------------------------------|
-| `vector_indexes`          | Vector graph indexes held in memory.                                                      |
-| `vector_bytes_used`       | Total heap usage of those indexes, in bytes.                                              |
-| `vector_on_disk_indexes`  | Vector graph indexes flushed to disk and open for search.                                 |
-| `vector_flush_queue_size` | Flush tasks waiting for the flush maintainer.                                             |
-| `vector_flush_failures`   | Flush attempts that failed since start. The on-heap index stays in memory and is retried. |
+| Field                     | Description                                                                                                                                                             |
+|---------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `vector_indexes`          | Vector graph indexes held in memory.                                                                                                                                    |
+| `vector_bytes_used`       | Total heap usage of those indexes, in bytes.                                                                                                                            |
+| `vector_on_disk_indexes`  | Vector graph indexes flushed to disk and open for search.                                                                                                               |
+| `vector_flush_queue_size` | Flush tasks waiting for the flush maintainer.                                                                                                                           |
+| `vector_flush_failures`   | Flush attempts that failed since start. The on-heap index stays in memory and is retried.                                                                               |
+| `vector_sync_queue_size`  | Flushed graphs waiting to be written to Volume.                                                                                                                         |
+| `vector_sync_failures`    | Sync attempts that failed since start. The task is queued again, except during shutdown. The next start picks it up.                                                    |
+| `vector_lost_graphs`      | Flushed graphs that never reached Volume and whose files are not on this member. Their vectors stay out of the index until it is rebuilt. Counted again on every start. |
+| `vector_restore_failures` | Graphs skipped while loading from Volume since start, because their chunks were corrupt, incomplete, missing or unreadable. Retried on the next start.                  |
 
 ### ZMap
 

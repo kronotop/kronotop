@@ -53,14 +53,14 @@ class BlobChunkReaderTest extends BaseBlobChunkTest {
     @Test
     void shouldFailOnIncompleteFile(@TempDir Path src, @TempDir Path out) throws Exception {
         // Behavior: only chunks 0 and 2 of a 3 chunk file are written. Reading the prefix succeeds, but closing the
-        // directory sink throws IllegalStateException and the message names the incomplete file.
+        // directory sink throws IncompleteBlobException and the message names the incomplete file.
         Path path = writeRandomFile(src, "a.bin", 2560);
         try (BlobChunkWriter writer = new BlobChunkWriter(volume, prefix, path, "a.bin", CHUNK_SIZE)) {
             writeChunk(writer, 0);
             writeChunk(writer, 2);
         }
 
-        IllegalStateException e = assertThrows(IllegalStateException.class, () -> readAll(out, 2));
+        IncompleteBlobException e = assertThrows(IncompleteBlobException.class, () -> readAll(out, 2));
         assertTrue(e.getMessage().contains("a.bin"));
     }
 
@@ -136,7 +136,7 @@ class BlobChunkReaderTest extends BaseBlobChunkTest {
     @Test
     void shouldStillFailWhenDuplicatesDoNotCoverAllChunks(@TempDir Path src, @TempDir Path out) throws Exception {
         // Behavior: a 3072 byte file (3 chunks) is written as 0, 0, 2. Three chunks arrive but chunk 1 never does.
-        // Duplicates do not count toward completion, so closing the directory sink throws IllegalStateException and
+        // Duplicates do not count toward completion, so closing the directory sink throws IncompleteBlobException and
         // the message names the incomplete file.
         Path path = writeRandomFile(src, "a.bin", 3072);
         try (BlobChunkWriter writer = new BlobChunkWriter(volume, prefix, path, "a.bin", CHUNK_SIZE)) {
@@ -145,7 +145,7 @@ class BlobChunkReaderTest extends BaseBlobChunkTest {
             writeChunk(writer, 2);
         }
 
-        IllegalStateException e = assertThrows(IllegalStateException.class, () -> readAll(out, 2));
+        IncompleteBlobException e = assertThrows(IncompleteBlobException.class, () -> readAll(out, 2));
         assertTrue(e.getMessage().contains("a.bin"));
     }
 }

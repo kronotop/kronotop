@@ -70,7 +70,8 @@ class OtlpExportTaskTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldPostGaugesAndSumsAsOtlpJson() {
-        // Behavior: one run posts the allowlisted INFO fields as OTLP gauges and cumulative sums
+        // Behavior: one run posts the allowlisted INFO fields as OTLP gauges and cumulative sums. Vector
+        // section gauges such as vector_sync_queue_size are part of the allowlist.
         new OtlpExportTask(context, endpoint()).run();
 
         assertNotNull(body.get());
@@ -103,6 +104,7 @@ class OtlpExportTaskTest extends BaseStandaloneInstanceTest {
         assertTrue(sum.at("/sum/dataPoints/0").has("startTimeUnixNano"));
 
         assertTrue(metrics.get("kronotop.thread_count").has("gauge"));
+        assertTrue(metrics.get("kronotop.vector_sync_queue_size").has("gauge"));
         assertTrue(metrics.get("kronotop.total_started_threads").at("/sum/isMonotonic").asBoolean());
 
         for (String name : metrics.keySet()) {

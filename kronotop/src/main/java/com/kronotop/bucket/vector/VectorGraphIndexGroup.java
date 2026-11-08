@@ -113,14 +113,6 @@ public class VectorGraphIndexGroup {
         return metadata.shards().getFirst();
     }
 
-    /**
-     * Returns the directory that holds the on-disk files of a vector index.
-     *
-     * @param bucketDataDir root data directory of the bucket service
-     * @param metadata      metadata of the bucket that owns the index
-     * @param indexId       id of the vector index
-     * @return the index directory under the owner shard's vector directory
-     */
     public static Path resolveIndexDir(Path bucketDataDir, BucketMetadata metadata, long indexId) {
         return resolveVectorDir(bucketDataDir, ownerShardId(metadata))
                 .resolve(metadata.uuid().toString())
@@ -148,7 +140,7 @@ public class VectorGraphIndexGroup {
         List<String> completeBaseNames;
         try (Stream<Path> stream = Files.list(indexDir)) {
             completeBaseNames = stream
-                    .filter(p -> p.getFileName().toString().endsWith(".complete"))
+                    .filter(p -> p.getFileName().toString().endsWith(VectorGraphFiles.COMPLETE_SUFFIX))
                     .map(p -> {
                         String fileName = p.getFileName().toString();
                         return fileName.substring(0, fileName.lastIndexOf('.'));
@@ -162,7 +154,7 @@ public class VectorGraphIndexGroup {
                 String fileName = file.getFileName().toString();
                 int dotIndex = fileName.lastIndexOf('.');
                 if (dotIndex < 0) continue;
-                if (fileName.endsWith(".complete")) continue;
+                if (fileName.endsWith(VectorGraphFiles.COMPLETE_SUFFIX)) continue;
                 String baseName = fileName.substring(0, dotIndex);
                 if (!completeBaseNames.contains(baseName)) {
                     LOGGER.warn("Deleting orphaned vector index file: {}", file);
@@ -178,7 +170,7 @@ public class VectorGraphIndexGroup {
         List<OnDiskVectorGraphIndex> opened = new ArrayList<>();
         try {
             for (String baseName : completeBaseNames) {
-                Path indexFile = indexDir.resolve(baseName + ".index");
+                Path indexFile = indexDir.resolve(baseName + VectorGraphFiles.INDEX_SUFFIX);
                 OnDiskVectorGraphIndex onDisk = new OnDiskVectorGraphIndex(indexSubspace, indexFile, similarityFunction);
                 opened.add(onDisk);
                 onDisk.loadDeletedOrdinals(context);
