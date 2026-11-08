@@ -80,7 +80,8 @@ The command supports two transaction modes:
 `ZGETRANGE` also supports **snapshot reads**. When snapshot mode is enabled on the session, the read does not conflict
 with concurrent writes, allowing higher throughput for read-heavy workloads.
 
-All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same keys in different namespaces refer to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same keys in
+different namespaces refer to different entries.
 
 ## Errors
 

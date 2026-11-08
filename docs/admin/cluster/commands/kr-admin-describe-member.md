@@ -41,9 +41,9 @@ Requires cluster initialization.
 
 Argument errors:
 
-| Error Code | Error message                  | Cause |
-|------------|--------------------------------|-------|
-| `ERR`      | `invalid number of arguments`  | -     |
+| Error Code | Error message                 | Cause |
+|------------|-------------------------------|-------|
+| `ERR`      | `invalid number of arguments` | -     |
 
 Cluster errors:
 

@@ -21,12 +21,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Writes chunks into files under a directory. Every chunk goes to the file named in its header, at the offset in its
@@ -69,7 +64,7 @@ public final class DirectoryBlobChunkSink implements BlobChunkSink {
     /**
      * Closes the files that are still open.
      *
-     * @throws IOException           if a file cannot be closed
+     * @throws IOException             if a file cannot be closed
      * @throws IncompleteBlobException if some files did not receive all of their chunks
      */
     @Override

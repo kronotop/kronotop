@@ -5,15 +5,15 @@ description: "A hands-on walkthrough of the Bucket API, from creating your first
 
 A hands-on walkthrough of the Bucket API, from creating your first bucket to removing it.
 
-## Before You Start
+## Before you start
 
 You need a running Kronotop cluster with at least one initialized shard. Connect with any RESP-compatible
-client on port **5484** (the default client port).
+client on port 5484 (the default client port).
 
-All examples in this tutorial use JSON input and output for readability. In production, BSON is recommended
-because it avoids conversion overhead and supports richer data types.
+All examples in this tutorial use JSON input and output because JSON is easy to read. In production, use BSON. It
+avoids conversion overhead and supports more data types.
 
-## Session Setup
+## Session setup
 
 Before working with documents, configure the session to use JSON:
 
@@ -31,7 +31,7 @@ SESSION.ATTRIBUTE SET object_id_format hex
 
 See [Session Attributes](../sessions/index.md) for the full list of session settings.
 
-## Creating a Bucket
+## Creating a bucket
 
 Create a bucket named `users`:
 
@@ -54,23 +54,23 @@ For idempotent scripts, use `IF-NOT-EXISTS` to avoid errors when the bucket alre
 OK
 ```
 
-Every bucket is created with a **primary index** on the `_id` field. This index is always in `READY` status
-and cannot be dropped.
+Every bucket gets a primary index on the `_id` field when it is created. This index is always in `READY` status,
+and you cannot drop it.
 
 See [BUCKET.CREATE](commands/bucket-create.md) for shard assignment and index creation at bucket creation time.
 
-## Data Modelling and Inserting Documents
+## Data modelling and inserting documents
 
-### Single Insert
+### Single insert
 
 ```kronotop
 > BUCKET.INSERT users DOCS '{"name": "Alice", "age": 30, "status": "active"}'
 1) "6a23da8a87f4f93001bd8df6"
 ```
 
-Kronotop auto-generates an `_id` (ObjectId) for each document and returns it.
+Kronotop generates an `_id` (ObjectId) for each document and returns it.
 
-### Batch Insert
+### Batch insert
 
 Pass multiple documents after the `DOCS` keyword:
 
@@ -80,18 +80,18 @@ Pass multiple documents after the `DOCS` keyword:
 2) "6a23da9887f4f93001bd8df8"
 ```
 
-### User-Provided `_id`
+### User-provided `_id`
 
-Supply an ObjectId using extended JSON notation:
+To set the ObjectId yourself, use extended JSON notation:
 
 ```kronotop
 > BUCKET.INSERT users DOCS '{"_id": {"$oid": "507f1f77bcf86cd799439011"}, "name": "Dave", "age": 28}'
 1) "507f1f77bcf86cd799439011"
 ```
 
-If the `_id` already exists, the command returns a `DUPLICATEKEY` error. The `_id` field is immutable.
+If the `_id` already exists, the command returns a `DUPLICATEKEY` error. You cannot change the `_id` field later.
 
-### Schemaless Documents
+### Schemaless documents
 
 Documents in the same bucket can have different fields:
 
@@ -100,7 +100,7 @@ Documents in the same bucket can have different fields:
 1) "6a23dab187f4f93001bd8df9"
 ```
 
-### Nested Documents
+### Nested documents
 
 ```kronotop
 > BUCKET.INSERT users DOCS '{
@@ -118,9 +118,9 @@ Documents in the same bucket can have different fields:
 1) "6a23dac687f4f93001bd8dfb"
 ```
 
-### Supported Data Types
+### Supported data types
 
-| Type      | JSON Example                                           | Notes                 |
+| Type      | JSON example                                           | Notes                 |
 |-----------|--------------------------------------------------------|-----------------------|
 | String    | `"Alice"`                                              | UTF-8                 |
 | Int32     | `25`                                                   | 32-bit integer        |
@@ -137,9 +137,9 @@ Documents in the same bucket can have different fields:
 
 See [BUCKET.INSERT](commands/bucket-insert.md) for the full reference.
 
-## Querying Documents
+## Querying documents
 
-### Match All
+### Match all
 
 An empty filter returns every document in the bucket:
 
@@ -156,12 +156,12 @@ An empty filter returns every document in the bucket:
    7) {"_id": "6a23dac687f4f93001bd8dfb", "name": "Grace", "age": 29, "tags": ["admin", "verified"]}
 ```
 
-Every response contains a `cursor_id` and an `entries` array. Each returned document includes the
-server-injected `_id` field.
+Every response contains a `cursor_id` and an `entries` array. Each returned document includes the `_id` field
+that the server adds.
 
-### Exact Match
+### Exact match
 
-A plain field value is an implicit `$eq`:
+A plain field value works as `$eq`:
 
 ```kronotop
 > BUCKET.QUERY users '{"name": "Alice"}'
@@ -181,10 +181,10 @@ See [BUCKET.QUERY](commands/bucket-query.md) for the full reference.
 
 ## Filtering with BQL
 
-BQL (Bucket Query Language) is used by `BUCKET.QUERY`, `BUCKET.DELETE`, and `BUCKET.UPDATE`. All examples
-below query the `users` bucket.
+`BUCKET.QUERY`, `BUCKET.DELETE`, and `BUCKET.UPDATE` use BQL (Bucket Query Language). All examples below query
+the `users` bucket.
 
-### Comparison Operators
+### Comparison operators
 
 | Operator | Description              |
 |----------|--------------------------|
@@ -208,7 +208,7 @@ Explicit comparison:
    5) {"_id": "6a23dac687f4f93001bd8dfb", "name": "Grace", "age": 29, "tags": ["admin", "verified"]}
 ```
 
-Range shorthand: multiple operators on the same field are implicitly ANDed.
+For a range, put several operators on the same field. They are combined with AND:
 
 ```kronotop
 > BUCKET.QUERY users '{"age": {"$gte": 18, "$lt": 65}}'
@@ -222,9 +222,9 @@ Range shorthand: multiple operators on the same field are implicitly ANDed.
    6) {"_id": "6a23dac687f4f93001bd8dfb", "name": "Grace", "age": 29, "tags": ["admin", "verified"]}
 ```
 
-### Logical Operators
+### Logical operators
 
-**Implicit AND**, multiple fields in the same object:
+Several fields in the same object are combined with AND:
 
 ```kronotop
 > BUCKET.QUERY users '{"status": "active", "age": {"$gte": 18}}'
@@ -234,7 +234,7 @@ Range shorthand: multiple operators on the same field are implicitly ANDed.
    2) {"_id": "6a23da9887f4f93001bd8df7", "name": "Bob", "age": 25, "status": "active"}
 ```
 
-**Explicit `$and`:**
+You can also write the AND explicitly with `$and`:
 
 ```kronotop
 > BUCKET.QUERY users '{"$and": [{"status": "active"}, {"age": {"$gte": 18}}]}'
@@ -244,7 +244,7 @@ Range shorthand: multiple operators on the same field are implicitly ANDed.
    2) {"_id": "6a23da9887f4f93001bd8df7", "name": "Bob", "age": 25, "status": "active"}
 ```
 
-**`$or`:**
+`$or` matches documents that meet at least one condition:
 
 ```kronotop
 > BUCKET.QUERY users '{"$or": [{"status": "active"}, {"status": "pending"}]}'
@@ -254,7 +254,7 @@ Range shorthand: multiple operators on the same field are implicitly ANDed.
    2) {"_id": "6a23da9887f4f93001bd8df7", "name": "Bob", "age": 25, "status": "active"}
 ```
 
-**`$nor`:**
+`$nor` matches documents that meet none of the conditions:
 
 ```kronotop
 > BUCKET.QUERY users '{"$nor": [{"status": "inactive"}, {"status": "deleted"}]}'
@@ -268,7 +268,7 @@ Range shorthand: multiple operators on the same field are implicitly ANDed.
    6) {"_id": "6a23dac687f4f93001bd8dfb", "name": "Grace", "age": 29, "tags": ["admin", "verified"]}
 ```
 
-**`$not`:**
+`$not` inverts an operator expression:
 
 ```kronotop
 > BUCKET.QUERY users '{"age": {"$not": {"$gt": 100}}}'
@@ -283,9 +283,9 @@ Range shorthand: multiple operators on the same field are implicitly ANDed.
    7) {"_id": "6a23dac687f4f93001bd8dfb", "name": "Grace", "age": 29, "tags": ["admin", "verified"]}
 ```
 
-### Array Operators
+### Array operators
 
-**`$in`**, match any value in a set:
+`$in` matches any value in a set:
 
 ```kronotop
 > BUCKET.QUERY users '{"status": {"$in": ["active", "pending"]}}'
@@ -295,7 +295,7 @@ Range shorthand: multiple operators on the same field are implicitly ANDed.
    2) {"_id": "6a23da9887f4f93001bd8df7", "name": "Bob", "age": 25, "status": "active"}
 ```
 
-**`$nin`**, match none of the values:
+`$nin` matches none of the values:
 
 ```kronotop
 > BUCKET.QUERY users '{"status": {"$nin": ["deleted", "archived"]}}'
@@ -310,7 +310,7 @@ Range shorthand: multiple operators on the same field are implicitly ANDed.
    7) {"_id": "6a23dac687f4f93001bd8dfb", "name": "Grace", "age": 29, "tags": ["admin", "verified"]}
 ```
 
-**`$all`**, array field contains all specified values:
+`$all` matches when the array field contains all the given values:
 
 ```kronotop
 > BUCKET.QUERY users '{"tags": {"$all": ["admin", "verified"]}}'
@@ -318,7 +318,7 @@ Range shorthand: multiple operators on the same field are implicitly ANDed.
 2# "entries" => 1) {"_id": "6a23dac687f4f93001bd8dfb", "name": "Grace", "age": 29, "tags": ["admin", "verified"]}
 ```
 
-**`$size`**, array has the specified length:
+`$size` matches when the array has the given length:
 
 ```kronotop
 > BUCKET.QUERY users '{"tags": {"$size": 2}}'
@@ -326,7 +326,8 @@ Range shorthand: multiple operators on the same field are implicitly ANDed.
 2# "entries" => 1) {"_id": "6a23dac687f4f93001bd8dfb", "name": "Grace", "age": 29, "tags": ["admin", "verified"]}
 ```
 
-**`$elemMatch`**, an array element matches a compound condition:
+`$elemMatch` matches when a single array element meets all the conditions. First, insert a document with an
+array:
 
 ```kronotop
 > BUCKET.INSERT users DOCS '{"name": "Henry", "age": 31, "scores": [75, 85, 95]}'
@@ -341,9 +342,9 @@ Query it back with `$elemMatch`:
 2# "entries" => 1) {"_id": "6a23e0ac87f4f93001bd8dfd", "name": "Henry", "age": 31, "scores": [75, 85, 95]}
 ```
 
-### Field Operators
+### Field operators
 
-**`$exists`**, field is present or absent:
+`$exists` checks whether a field is present or absent:
 
 ```kronotop
 > BUCKET.QUERY users '{"email": {"$exists": true}}'
@@ -364,7 +365,7 @@ Query it back with `$elemMatch`:
    7) {"_id": "6a23dac687f4f93001bd8dfb", "name": "Grace", "age": 29, "tags": ["admin", "verified"]}
 ```
 
-### Nested Field Access
+### Nested field access
 
 Use dot notation:
 
@@ -374,7 +375,7 @@ Use dot notation:
 2# "entries" => 1) {"_id": "6a23dabd87f4f93001bd8dfa", "name": "Frank", "age": 40, "address": {"city": "Istanbul", "zip": "34000"}}
 ```
 
-### Null Values
+### Null values
 
 ```kronotop
 > BUCKET.QUERY users '{"middleName": null}'
@@ -391,14 +392,14 @@ Use dot notation:
 
 See [BQL Language Reference](bql-reference.md) for the complete operator reference.
 
-## Sorting and Pagination
+## Sorting and pagination
 
-### Cursor Model
+### Cursor model
 
-Every `BUCKET.QUERY`, `BUCKET.DELETE`, and `BUCKET.UPDATE` response includes a `cursor_id`. The cursor
-tracks position in the result set so you can page through results with `BUCKET.ADVANCE`.
+Every `BUCKET.QUERY`, `BUCKET.DELETE`, and `BUCKET.UPDATE` response includes a `cursor_id`. The cursor keeps
+its position in the result set, so you can page through the results with `BUCKET.ADVANCE`.
 
-### Basic Pagination
+### Basic pagination
 
 ```kronotop
 > BUCKET.QUERY users '{}' BATCH 2
@@ -416,29 +417,28 @@ tracks position in the result set so you can page through results with `BUCKET.A
    2) {"_id": "6a23da9887f4f93001bd8df8", "name": "Carol", "age": 35, "status": "inactive"}
 ```
 
-An empty `entries` array signals that all matching documents have been returned.
+An empty `entries` array means that all matching documents have been returned.
 
-### Default Batch Size
+### Default batch size
 
-When `BATCH` is omitted, the session's `batch` attribute controls the batch size (default: 100). You can
-change it with:
+If you omit `BATCH`, the session's `batch` attribute sets the batch size (default: 100). To change it:
 
 ```kronotop
 > SESSION.ATTRIBUTE SET batch 50
 OK
 ```
 
-### Closing Cursors
+### Closing cursors
 
-Cursors are stored in the session and consume resources while open. Close a cursor with `BUCKET.CLOSE`
-when you are done:
+Cursors live in the session and use resources while they are open. Close a cursor with `BUCKET.CLOSE` when you
+are done:
 
 ```kronotop
 > BUCKET.CLOSE QUERY 0
 OK
 ```
 
-### Listing Active Cursors
+### Listing active cursors
 
 ```kronotop
 > BUCKET.CURSORS
@@ -454,28 +454,28 @@ Filter by operation type:
 1) QUERY -> 0 -> "{}"
 ```
 
-### Sorting with SORTBY
+### Sorting with `SORTBY`
 
 ```kronotop
 BUCKET.QUERY users '{"age": {"$gt": 25}}' SORTBY age ASC BATCH 10
 ```
 
-`SORTBY` requires an index on the sort field, and the query plan must produce results already ordered by that
-field. Here the query filters and sorts on the same indexed field, so the index scan provides the ordering.
-Results are globally sorted across all `BUCKET.ADVANCE` calls. If the plan cannot provide the ordering, the
-query is rejected at planning time. To sort by a different field than the filter, create a compound index
-covering both fields, or use `RESULTSORT` for in-memory per-batch sorting.
+`SORTBY` needs an index on the sort field, and the query plan must return results that are already in order by
+that field. Here the query filters and sorts on the same indexed field, so the index scan gives the order. The
+sort order holds across all `BUCKET.ADVANCE` calls. If the plan cannot give that order, the planner rejects the
+query. To sort by a field other than the filter field, create a compound index on both fields, or use
+`RESULTSORT` to sort each batch in memory.
 
-This example needs the `age` index created in the [Indexes](#indexes) section below. Indexes are built
-asynchronously; `SORTBY` is rejected until the index reaches `READY` status. Check the status with
+This example needs the `age` index from the [Indexes](#indexes) section below. Kronotop builds indexes in the
+background and rejects `SORTBY` until the index reaches `READY` status. Check the status with
 `BUCKET.INDEX DESCRIBE`.
 
 See [SORTBY](sortby.md) for sorting details, [BUCKET.ADVANCE](commands/bucket-advance.md),
 [BUCKET.CLOSE](commands/bucket-close.md), and [BUCKET.CURSORS](commands/bucket-cursors.md) for the full reference.
 
-## Updating Documents
+## Updating documents
 
-### `$set`: Set Field Values
+### `$set`: set field values
 
 ```kronotop
 > BUCKET.UPDATE users '{"name": "Alice"}' '{"$set": {"status": "inactive"}}'
@@ -485,7 +485,7 @@ See [SORTBY](sortby.md) for sorting details, [BUCKET.ADVANCE](commands/bucket-ad
 
 The response contains the ObjectIds of all updated documents.
 
-### `$unset`: Remove Fields
+### `$unset`: remove fields
 
 ```kronotop
 > BUCKET.UPDATE users '{"age": {"$gt": 30}}' '{"$unset": ["temporary_field", "deprecated_field"]}'
@@ -512,7 +512,7 @@ The response contains the ObjectIds of all updated documents.
 
 ### Upsert
 
-When `upsert` is `true`, a new document is inserted if no documents match the filter:
+When `upsert` is `true` and no document matches the filter, the command inserts a new document:
 
 ```kronotop
 > BUCKET.UPDATE users '{"name": "Helen"}' '{"$set": {"name": "Helen", "status": "active"}, "upsert": true}'
@@ -520,11 +520,11 @@ When `upsert` is `true`, a new document is inserted if no documents match the fi
 2# "object_ids" => 1) "6a23dd0287f4f93001bd8dfc"
 ```
 
-### Array Filters
+### Array filters
 
-Use the positional `$[identifier]` syntax with `array_filters` to update only the array elements that match
-a condition. The filter is evaluated against each element. Henry's `scores` array is `[75, 85, 95]`; set the
-elements greater than or equal to 80 to 100:
+To update only the array elements that match a condition, use the positional `$[identifier]` syntax with
+`array_filters`. The filter runs against each element. Henry's `scores` array is `[75, 85, 95]`. This command sets
+every element that is greater than or equal to 80 to 100:
 
 ```kronotop
 > BUCKET.UPDATE users '{"name": "Henry"}' '{"$set": {"scores.$[elem]": 100}, "array_filters": [{"elem": {"$gte": 80}}]}'
@@ -534,11 +534,11 @@ elements greater than or equal to 80 to 100:
 
 Henry's `scores` array is now `[75, 100, 100]`.
 
-### Ordered Batch Updates
+### Ordered batch updates
 
-Combine `SORTBY` and `BATCH` to update documents in a specific order. `SORTBY` requires the query to produce
-results already ordered by the sort field. When the filter field and the sort field are different, create a
-compound index that covers both, with the filter field first:
+Use `SORTBY` with `BATCH` to update documents in a set order. `SORTBY` needs the query to return results that are
+already in order by the sort field. When the filter field and the sort field are different, create a compound
+index on both, with the filter field first:
 
 ```kronotop
 > BUCKET.INDEX CREATE users '{
@@ -553,8 +553,8 @@ compound index that covers both, with the filter field first:
 OK
 ```
 
-Indexes are built asynchronously. Wait until the index reaches `READY` status before running queries that
-sort with it; check with `BUCKET.INDEX DESCRIBE`.
+Kronotop builds indexes in the background. Wait until the index reaches `READY` status before you run queries
+that sort with it. Check the status with `BUCKET.INDEX DESCRIBE`.
 
 Insert a few pending documents with `created_at` timestamps:
 
@@ -586,7 +586,7 @@ Insert a few pending documents with `created_at` timestamps:
 2) "6a23e10987f4f93001bd8e00"
 ```
 
-With an equality filter on `status`, the compound index provides natural ordering on `created_at`:
+With an equality filter on `status`, the compound index returns the documents in `created_at` order:
 
 ```kronotop
 > BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' SORTBY created_at ASC BATCH 2
@@ -608,9 +608,9 @@ The first batch updates the two oldest pending documents. Advance the cursor to 
 
 See [BUCKET.UPDATE](commands/bucket-update.md) for the full reference.
 
-## Deleting Documents
+## Deleting documents
 
-### Delete by Filter
+### Delete by filter
 
 ```kronotop
 > BUCKET.DELETE users '{"status": "inactive"}'
@@ -620,7 +620,7 @@ See [BUCKET.UPDATE](commands/bucket-update.md) for the full reference.
    2) "6a23da9887f4f93001bd8df8"
 ```
 
-### Batched Deletes
+### Batched deletes
 
 Use `BATCH` and `BUCKET.ADVANCE` to delete in batches:
 
@@ -640,7 +640,7 @@ cursor_id -> (integer) 0
 object_ids -> [...] (next 100 deleted)
 ```
 
-### Delete All Documents
+### Delete all documents
 
 ```kronotop
 > BUCKET.DELETE users '{}'
@@ -650,20 +650,20 @@ object_ids -> [...] (next 100 deleted)
    2) "6a23da9887f4f93001bd8df8"
 ```
 
-Note: `SORTBY` is not supported on `BUCKET.DELETE`.
+`BUCKET.DELETE` does not support `SORTBY`.
 
 See [BUCKET.DELETE](commands/bucket-delete.md) for the full reference.
 
 ## Indexes
 
-An index is an accelerator. There is no semantic difference between indexed and non-indexed fields. A query
-returns the same results regardless of which indexes exist; indexes only affect performance.
+An index only makes queries faster. Indexed and non-indexed fields behave the same way, and a query returns the
+same results whatever indexes exist.
 
-### Primary Index
+### Primary index
 
-Every bucket has a primary index on `_id`. It is created automatically and cannot be dropped.
+Every bucket has a primary index on `_id`. Kronotop creates it automatically, and you cannot drop it.
 
-### Creating Secondary Indexes
+### Creating secondary indexes
 
 ```kronotop
 > BUCKET.INDEX CREATE users '{"age": {"bson_type": "int32"}}'
@@ -677,7 +677,7 @@ Create multiple indexes at once:
 OK
 ```
 
-### Indexes at Bucket Creation Time
+### Indexes at bucket creation time
 
 You can define indexes when creating a bucket:
 
@@ -686,7 +686,7 @@ You can define indexes when creating a bucket:
 OK
 ```
 
-### Multi-Key Indexes
+### Multi-key indexes
 
 For array fields, set `multi_key` to `true` so each array element gets its own index entry:
 
@@ -695,10 +695,10 @@ For array fields, set `multi_key` to `true` so each array element gets its own i
 OK
 ```
 
-### Compound Indexes
+### Compound indexes
 
-A compound index covers multiple fields in a defined order. Use it when queries consistently filter on the same
-combination of fields:
+A compound index covers several fields in a fixed order. Use one when your queries often filter on the same set
+of fields:
 
 ```kronotop
 > BUCKET.INDEX CREATE products '{
@@ -713,22 +713,22 @@ combination of fields:
 OK
 ```
 
-Query using both fields. The compound index handles the entire filter in a single scan:
+Query on both fields. The compound index covers the whole filter in one scan:
 
 ```kronotop
 BUCKET.QUERY products '{"category": {"$eq": "electronics"}, "price": {"$gt": 100.0}}'
 ```
 
-The query engine matches filters left to right against the compound index fields. All fields before the last
-must use equality; only the last matched field may use a range operator. At least two fields must match for
-the compound index to activate. The exception is `SORTBY`: a single equality match is enough when the sort
-field is the next field in the index, as in the ordered batch updates example above.
+The query engine matches filters against the compound index fields from left to right. Every field before the
+last one must use equality, and only the last matched field may use a range operator. At least two fields must
+match before the engine uses the compound index. `SORTBY` is the exception. One equality match is enough when the
+sort field is the next field in the index, as in the ordered batch updates example above.
 
 See [Compound Indexes](compound-index.md) for the prefix rule, trade-offs, and constraints.
 
-### Index Lifecycle
+### Index lifecycle
 
-Indexes are built asynchronously in the background. After creation, an index progresses through these states:
+Kronotop builds indexes in the background. After you create an index, it moves through these states:
 
 | Status     | Description                            |
 |------------|----------------------------------------|
@@ -767,7 +767,7 @@ Check index details with `BUCKET.INDEX DESCRIBE`:
    1# "cardinality" => (integer) 6
 ```
 
-### Listing and Dropping Indexes
+### Listing and dropping indexes
 
 ```kronotop
 > BUCKET.INDEX LIST users
@@ -782,34 +782,34 @@ Check index details with `BUCKET.INDEX DESCRIBE`:
 OK
 ```
 
-The primary index (`primary-index`) cannot be dropped.
+You cannot drop the primary index (`primary-index`).
 
-### Analyzing Statistics
+### Analyzing statistics
 
-Trigger statistics analysis to help the query optimizer choose better plans:
+Run a statistics analysis so the query optimizer can choose better plans:
 
 ```kronotop
 > BUCKET.INDEX ANALYZE users "selector:age.bsonType:INT32"
 OK
 ```
 
-### Strict Typing
+### Strict typing
 
-Index types must be compatible with query predicate types. Given an index on `age` with type `int32`:
+The index type must be compatible with the type in the query predicate. For an index on `age` with type `int32`:
 
 ```
 {"age": {"$eq": 25}}       -- uses the index (int32 matches int32)
 {"age": {"$eq": "25"}}     -- does NOT use the index (string does not match int32)
 ```
 
-No implicit type coercion is performed between unrelated types. Numeric types (`INT32`, `INT64`, `DOUBLE`, `DECIMAL128`)
-support lossless widening. See [strict-types.md](strict-types.md#numeric-widening) for details.
+Kronotop does not convert values between unrelated types. Numeric types (`INT32`, `INT64`, `DOUBLE`,
+`DECIMAL128`) support lossless widening. See [strict-types.md](strict-types.md#numeric-widening) for details.
 
 See [BUCKET.INDEX](commands/bucket-index.md) for the full reference.
 
-## Inspecting Query Plans
+## Inspecting query plans
 
-Use `BUCKET.EXPLAIN` to see how a query will be executed without running it:
+Use `BUCKET.EXPLAIN` to see the plan for a query without running it:
 
 ```kronotop
 > BUCKET.EXPLAIN users '{"age": {"$gt": 25}}'
@@ -825,9 +825,9 @@ Use `BUCKET.EXPLAIN` to see how a query will be executed without running it:
    8# "operand" => "Param[ref=ParamRef[index=0]]"
 ```
 
-### Key Node Types
+### Common node types
 
-| Node Type                        | Meaning                                                                     |
+| Node type                        | Meaning                                                                     |
 |----------------------------------|-----------------------------------------------------------------------------|
 | `FullScan`                       | Scans all documents (no usable index).                                      |
 | `IndexScan`                      | Point lookup on an index.                                                   |
@@ -837,7 +837,7 @@ Use `BUCKET.EXPLAIN` to see how a query will be executed without running it:
 | `CompoundIndexScan`              | Single scan on a compound index using equality prefixes and optional range. |
 | `Intersection`                   | Combines results from multiple scans (logical AND).                         |
 
-### Mixed Indexed and Non-Indexed Filters
+### Mixed indexed and non-indexed filters
 
 When `age` is indexed but `name` is not:
 
@@ -869,11 +869,11 @@ When `age` is indexed but `name` is not:
 
 The plan uses an `IndexScan` on `age` followed by a `TransformWithResidualPredicate` that filters on `name`.
 
-### Plan Caching
+### Plan caching
 
-Plans are cached by query shape, the structural fingerprint without literal values. Two queries with the
-same operators and field paths but different values share the same cached plan. The cache is invalidated when
-indexes are created or dropped.
+Kronotop caches plans by query shape, which is the structure of the query without its literal values. Two queries
+with the same operators and field paths but different values use the same cached plan. Creating or dropping an
+index clears the cache.
 
 ```kronotop
 > BUCKET.QUERY users '{"status": "active"}'
@@ -884,7 +884,7 @@ is_cached -> (boolean) true
 plan -> ...
 ```
 
-### Detecting Full Scans
+### Detecting full scans
 
 If `BUCKET.EXPLAIN` shows a `FullScan` node for a query you run frequently, create an index on the
 filtered field.
@@ -893,9 +893,9 @@ See [BUCKET.EXPLAIN](commands/bucket-explain.md) for the full reference.
 
 ## Transactions
 
-By default, every command runs in **auto-commit mode**. Each operation is its own transaction.
+By default, every command runs in auto-commit mode, so each operation is its own transaction.
 
-For multi-step atomic operations, use explicit transactions:
+To run several steps atomically, use an explicit transaction:
 
 ```kronotop
 > BEGIN
@@ -914,9 +914,9 @@ OK
 
 To cancel, use `ROLLBACK` instead of `COMMIT`.
 
-Within an explicit transaction, reads reflect prior writes from the same transaction (read-your-writes).
+Inside an explicit transaction, reads see the earlier writes of the same transaction (read-your-writes).
 
-FoundationDB imposes two constraints on transactions:
+FoundationDB sets two limits on transactions:
 
 | Constraint           | Limit     |
 |----------------------|-----------|
@@ -927,8 +927,8 @@ See [Transactions](../transactions/index.md) for snapshot reads, size inspection
 
 ## Namespaces
 
-Buckets live inside namespaces. The default namespace is `global`. All bucket commands operate within the
-current session namespace.
+Buckets live inside namespaces. The default namespace is `global`. All bucket commands work in the current
+session namespace.
 
 Switch to a different namespace:
 
@@ -956,31 +956,31 @@ OK
 
 See [Namespaces](../namespaces/index.md) for hierarchical namespaces, creation, and removal.
 
-## Bucket Lifecycle
+## Bucket lifecycle
 
-Removing a bucket is a two-phase process.
+Removing a bucket takes two phases.
 
-### Phase 1: Soft Delete
+### Phase 1: soft delete
 
-`BUCKET.REMOVE` marks the bucket as logically removed. The bucket becomes inaccessible, and background workers
-(index maintenance, replication) are signaled to stop.
+`BUCKET.REMOVE` marks the bucket as logically removed. You can no longer access the bucket, and Kronotop tells the
+background workers (index maintenance, replication) to stop.
 
 ```kronotop
 > BUCKET.REMOVE users
 OK
 ```
 
-### Phase 2: Hard Delete
+### Phase 2: hard delete
 
-`BUCKET.PURGE` permanently deletes all bucket data, indexes, and metadata. Before proceeding, it enforces a
-distributed sync barrier that verifies every alive cluster member has observed the removal event.
+`BUCKET.PURGE` permanently deletes all bucket data, indexes, and metadata. Before it deletes anything, it checks a
+distributed sync barrier to make sure that every live cluster member has seen the removal.
 
 ```kronotop
 > BUCKET.PURGE users
 OK
 ```
 
-If the barrier is not yet satisfied, the command returns `BARRIERNOTSATISFIED`. Retry the command; one
+If the barrier is not satisfied yet, the command returns `BARRIERNOTSATISFIED`. Run the command again. One
 retry is usually enough.
 
 ```kronotop
@@ -991,6 +991,6 @@ retry is usually enough.
 OK
 ```
 
-After purging, the bucket name can be reused.
+After the purge, you can reuse the bucket name.
 
 See [BUCKET.REMOVE](commands/bucket-remove.md) and [BUCKET.PURGE](commands/bucket-purge.md) for the full reference.

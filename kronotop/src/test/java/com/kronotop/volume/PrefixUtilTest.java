@@ -18,7 +18,6 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseStandaloneInstanceTest;
-import com.kronotop.DataModelKind;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.internal.UUIDUtil;

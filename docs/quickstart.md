@@ -3,9 +3,10 @@ title: "Quickstart"
 description: "Start a minimal Kronotop cluster with Docker Compose, insert a document, and query it back."
 ---
 
-The fastest way to try Kronotop is with Docker Compose. Prebuilt jars are also published on the [Releases page](https://github.com/kronotop/kronotop/releases); 
-download them and run with `java -jar`, which requires Java 25 or newer. To build Kronotop from source and run a node 
-locally, see the [Building and Running guide](https://github.com/kronotop/kronotop/blob/main/BUILDING.md).
+Docker Compose is the fastest way to try Kronotop. Prebuilt jars are also available on the
+[Releases page](https://github.com/kronotop/kronotop/releases). Download them and run them with `java -jar`. This
+needs Java 25 or newer. To build Kronotop from source and run a node locally, see the
+[Building and Running guide](https://github.com/kronotop/kronotop/blob/main/BUILDING.md).
 
 ## Start the cluster
 
@@ -22,7 +23,7 @@ docker compose -f kronotop-quickstart.yaml up
 ```
 
 This starts a minimal cluster: one FoundationDB instance, one Kronotop primary node, and one standby node.
-The primary owns bucket shard 0; the standby replicates it for failover.
+The primary owns bucket shard 0, and the standby replicates it for failover.
 
 ## Connect
 
@@ -57,7 +58,7 @@ kronotop-primary:3320> KR.ADMIN DESCRIBE-CLUSTER
 
 ## Session setup
 
-Port 3320 is the internal/admin port. Client traffic goes through port 5484. Connect to the client port:
+Port 3320 is the internal/admin port. Client traffic uses port 5484. Connect to the client port:
 
 ```bash
 docker run --rm -it --platform linux/amd64 --network kronotop \
@@ -103,8 +104,8 @@ kronotop-primary:5484> BUCKET.QUERY orders '{"qty": {"$gte": 1}}'
 
 ## One transaction, multiple models
 
-Different data models and namespaces can share one strictly serializable transaction. A single transaction can
-atomically write a document and update a counter across isolated namespaces:
+Different data models and namespaces can share one strictly serializable transaction. In the example below, one
+transaction writes a document in one namespace and updates a counter in another, and both changes commit atomically:
 
 ```kronotop
 BEGIN
@@ -120,7 +121,7 @@ ZINC.I64 keyboard -2
 COMMIT
 ```
 
-Namespaces must exist before use; create them with `NAMESPACE CREATE production.sales` and
+Namespaces must exist before you use them. Create them with `NAMESPACE CREATE production.sales` and
 `NAMESPACE CREATE production.inventory`.
 
 ## Next steps

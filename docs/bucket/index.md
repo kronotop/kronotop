@@ -8,8 +8,8 @@ description: "A bucket is a named collection of BSON documents that lives inside
 ## Overview
 
 A bucket is a named collection of BSON documents that lives inside a [namespace](../namespaces/index.md). Buckets
-are the primary unit of the document model in Kronotop. You insert documents into a bucket, query them with BQL
-(Bucket Query Language), and manage indexes on their fields.
+are the primary unit of the document model in Kronotop. You insert documents into a bucket, query them with BQL (Bucket
+Query Language), and manage indexes on their fields.
 
 Buckets are distributed across one or more shards. Each shard is owned by a primary member and optionally replicated to
 standby members. The number of shards is configured at the cluster level and assigned at bucket creation time.

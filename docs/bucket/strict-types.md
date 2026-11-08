@@ -75,23 +75,23 @@ cause silent precision loss.
 
 When two numeric values of different types need to be compared, Kronotop resolves them to the cheapest lossless common
 type.
+
 It does NOT always promote to `DECIMAL128`.
 
-| Pair                    | Common type | Cost                                                           |
-|-------------------------|-------------|----------------------------------------------------------------|
-| INT32 + INT32           | INT32       | Identity, no conversion                                        |
-| INT32 + INT64           | INT64       | Cheap cast                                                     |
-| INT32 + DOUBLE          | DOUBLE      | Cheap cast                                                     |
-| INT32 + DECIMAL128      | DECIMAL128  | BigDecimal allocation                                          |
-| INT64 + INT64           | INT64       | Identity, no conversion                                        |
+| Pair                    | Common type | Cost                                                            |
+|-------------------------|-------------|-----------------------------------------------------------------|
+| INT32 + INT32           | INT32       | Identity, no conversion                                         |
+| INT32 + INT64           | INT64       | Cheap cast                                                      |
+| INT32 + DOUBLE          | DOUBLE      | Cheap cast                                                      |
+| INT32 + DECIMAL128      | DECIMAL128  | BigDecimal allocation                                           |
+| INT64 + INT64           | INT64       | Identity, no conversion                                         |
 | INT64 + DOUBLE          | DECIMAL128  | BigDecimal allocation, unavoidable since INT64->DOUBLE is lossy |
-| DOUBLE + DOUBLE         | DOUBLE      | Identity, no conversion                                        |
-| DOUBLE + DECIMAL128     | DECIMAL128  | BigDecimal allocation                                          |
-| DECIMAL128 + DECIMAL128 | DECIMAL128  | Identity, no conversion                                        |
+| DOUBLE + DOUBLE         | DOUBLE      | Identity, no conversion                                         |
+| DOUBLE + DECIMAL128     | DECIMAL128  | BigDecimal allocation                                           |
+| DECIMAL128 + DECIMAL128 | DECIMAL128  | Identity, no conversion                                         |
 
 `DECIMAL128` (backed by `BigDecimal`) is only used when one side is already `DECIMAL128`, or for `INT64` vs `DOUBLE`
-where
-it is the only lossless common representation.
+where it is the only lossless common representation.
 
 Same-type pairs are compared with primitive operations directly. Widening is only invoked for actual cross-type
 comparisons.
@@ -106,16 +106,13 @@ comparisons.
 ### What is NOT widened
 
 Non-numeric types are never widened. `STRING`, `BOOLEAN`, `DATETIME`, `OBJECT_ID`, and all other non-numeric types
-remain
-strictly typed. A type mismatch between any of these types always evaluates to `false`.
+remain strictly typed. A type mismatch between any of these types always evaluates to `false`.
 
 ## Behavior when `strict_types = true` (default)
 
 When strict types are enabled, a type mismatch between a document field and the index's declared type causes the
-operation
-to fail, unless the mismatch is a lossless numeric widening. For example, inserting an `INT32` value into an `INT64`
-index
-succeeds because `INT32` can be losslessly widened to `INT64`.
+operation to fail, unless the mismatch is a lossless numeric widening. For example, inserting an `INT32` value into an `INT64`
+index succeeds because `INT32` can be losslessly widened to `INT64`.
 
 - **INSERT**: If a document field's type doesn't match the index's declared type and cannot be losslessly widened, the
   operation fails with an `INDEXTYPE_MISMATCH` error.
@@ -237,5 +234,4 @@ With `strict_types = true` (default), this fails with `INDEXTYPE_MISMATCH`. `STR
 
 Keep `strict_types = true` (the default). It catches data quality issues at write time rather than producing confusing
 query results later. Only disable it if you have a specific need for schemaless flexibility and understand that
-type-mismatched
-fields won't be indexed.
+type-mismatched fields won't be indexed.

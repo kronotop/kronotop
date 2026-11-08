@@ -153,7 +153,8 @@ The command supports two transaction modes:
 
 `ZMUTATE` is a write operation and does not support snapshot reads.
 
-All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in
+different namespaces refers to different entries.
 
 ## Errors
 
@@ -168,10 +169,10 @@ Argument errors:
 
 Transaction errors:
 
-| Error Code                 | Error message                    | Cause                                                                                                        |
-|----------------------------|----------------------------------|--------------------------------------------------------------------------------------------------------------|
-| `CLIENT_INVALID_OPERATION` | `Invalid API call`               | `SET_VERSIONSTAMPED_VALUE` got a `param` shorter than 14 bytes, or an offset that puts the 10 reserved bytes out of range. |
-| `ACCESSED_UNREADABLE`      | `Read or wrote an unreadable key` | A key written by `SET_VERSIONSTAMPED_VALUE` was read in the same transaction, before `COMMIT`.              |
+| Error Code                 | Error message                     | Cause                                                                                                                      |
+|----------------------------|-----------------------------------|----------------------------------------------------------------------------------------------------------------------------|
+| `CLIENT_INVALID_OPERATION` | `Invalid API call`                | `SET_VERSIONSTAMPED_VALUE` got a `param` shorter than 14 bytes, or an offset that puts the 10 reserved bytes out of range. |
+| `ACCESSED_UNREADABLE`      | `Read or wrote an unreadable key` | A key written by `SET_VERSIONSTAMPED_VALUE` was read in the same transaction, before `COMMIT`.                             |
 
 Namespace errors:
 

@@ -168,12 +168,12 @@ Namespace errors:
 
 Bucket errors:
 
-| Error Code           | Error message                        | Cause                                                                                     |
-|----------------------|--------------------------------------|-------------------------------------------------------------------------------------------|
-| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -                                                                                         |
-| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                         |
+| Error Code           | Error message                        | Cause                                                                                                    |
+|----------------------|--------------------------------------|----------------------------------------------------------------------------------------------------------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -                                                                                                        |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                                        |
 | `REJECT`             | `<shardId> <host>:<port>`            | This member is not the primary of any of the bucket's shards. The message carries the primary's address. |
-| `DUPLICATEKEY`       | `Duplicate key: _id '<hex>'`         | A duplicate `_id` was found during upsert.                                                |
+| `DUPLICATEKEY`       | `Duplicate key: _id '<hex>'`         | A duplicate `_id` was found during upsert.                                                               |
 
 Index errors:
 

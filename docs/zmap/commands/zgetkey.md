@@ -14,7 +14,8 @@ ZGETKEY <key> [KEY-SELECTOR selector] [NAMESPACE <path>]
 
 ## Arguments
 
-The first argument is positional. `KEY-SELECTOR` and `NAMESPACE` are keywords. Keyword names are not case-sensitive, and each keyword can appear at most once.
+The first argument is positional. `KEY-SELECTOR` and `NAMESPACE` are keywords. Keyword names are not case-sensitive, and
+each keyword can appear at most once.
 
 | Argument       | Type   | Required | Description                                                                                                                                              |
 |----------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -57,7 +58,8 @@ The command supports two transaction modes:
 `ZGETKEY` also supports **snapshot reads**. When snapshot mode is enabled on the session, the read does not conflict
 with concurrent writes, allowing higher throughput for read-heavy workloads.
 
-All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in
+different namespaces refers to different entries.
 
 ## Errors
 

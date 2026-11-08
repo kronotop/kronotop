@@ -27,11 +27,11 @@ Returns an array with two elements: the route table and the member table.
 
 The route table is a flat array with 3 elements per shard:
 
-| Position | Type    | Description                                                              |
-|----------|---------|--------------------------------------------------------------------------|
-| 0        | integer | Shard ID.                                                                |
-| 1        | string  | Member ID of the primary owner.                                          |
-| 2        | array   | Member IDs of the standby replicas. Empty array if no standbys exist.    |
+| Position | Type    | Description                                                           |
+|----------|---------|-----------------------------------------------------------------------|
+| 0        | integer | Shard ID.                                                             |
+| 1        | string  | Member ID of the primary owner.                                       |
+| 2        | array   | Member IDs of the standby replicas. Empty array if no standbys exist. |
 
 This pattern repeats for each shard the bucket spans. For a bucket on 2 shards, the route table contains 6 elements.
 

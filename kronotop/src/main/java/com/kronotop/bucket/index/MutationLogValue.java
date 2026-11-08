@@ -29,7 +29,8 @@ import java.nio.ByteBuffer;
  * @param objectIdBytes the 12-byte document ObjectId
  * @param vectorPayload the optional VectorIndexValue (null for DELETE)
  */
-public record MutationLogValue(MutationLogKind kind, int shardId, byte[] objectIdBytes, VectorIndexValue vectorPayload) {
+public record MutationLogValue(MutationLogKind kind, int shardId, byte[] objectIdBytes,
+                               VectorIndexValue vectorPayload) {
 
     private static final int OBJECT_ID_LENGTH = 12;
 

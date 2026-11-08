@@ -257,8 +257,8 @@ Each element in the `segments` array is a map:
 
 **Behavior**
 
-Checks whether a vacuum is active, then loads persisted metadata and per-segment records. If no metadata exists
-(vacuum has never run or was already dropped), an error is returned.
+Checks whether a vacuum is active, then loads persisted metadata and per-segment records. If no metadata exists (vacuum
+has never run or was already dropped), an error is returned.
 
 During an active vacuum, `metadata` may not yet be present (it is written when the run completes or is stopped),
 while `segments` reflects real-time per-segment progress.

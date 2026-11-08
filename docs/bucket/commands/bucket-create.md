@@ -15,7 +15,8 @@ BUCKET.CREATE <bucket> [SHARDS <shard-id> [shard-id ...]] [INDEXES <schema>] [CO
 
 ## Arguments
 
-Keyword names are not case-sensitive, and each keyword can appear at most once. `SHARDS` takes one or more values after a single keyword.
+Keyword names are not case-sensitive, and each keyword can appear at most once. `SHARDS` takes one or more values after
+a single keyword.
 
 | Argument        | Type       | Required | Description                                                                                                                                                           |
 |-----------------|------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|

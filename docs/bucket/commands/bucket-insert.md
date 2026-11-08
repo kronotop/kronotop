@@ -111,11 +111,11 @@ Namespace errors:
 
 Bucket errors:
 
-| Error Code           | Error message                        | Cause                                                                                     |
-|----------------------|--------------------------------------|-------------------------------------------------------------------------------------------|
-| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                         |
+| Error Code           | Error message                        | Cause                                                                                                    |
+|----------------------|--------------------------------------|----------------------------------------------------------------------------------------------------------|
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                                        |
 | `REJECT`             | `<shardId> <host>:<port>`            | This member is not the primary of any of the bucket's shards. The message carries the primary's address. |
-| `DUPLICATEKEY`       | `Duplicate key: _id '<hex>'`         | -                                                                                         |
+| `DUPLICATEKEY`       | `Duplicate key: _id '<hex>'`         | -                                                                                                        |
 
 Index errors:
 

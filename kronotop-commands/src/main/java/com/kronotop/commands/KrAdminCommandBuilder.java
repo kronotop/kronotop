@@ -125,6 +125,11 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
+    public Command<K, V, String> collectStalePrefixes(String operation) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.COLLECT_STALE_PREFIXES).add(operation);
+        return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         KR_ADMIN("KR.ADMIN");
 
@@ -138,11 +143,6 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         public byte[] getBytes() {
             return bytes;
         }
-    }
-
-    public Command<K, V, String> collectStalePrefixes(String operation) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.COLLECT_STALE_PREFIXES).add(operation);
-        return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
     enum CommandKeyword implements ProtocolKeyword {

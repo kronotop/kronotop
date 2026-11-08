@@ -2,7 +2,8 @@
 
 [![Website](https://img.shields.io/badge/kronotop.com-docs-00c5d1?labelColor=061827)](https://kronotop.com) [![Build](https://img.shields.io/github/actions/workflow/status/kronotop/kronotop/maven.yaml?branch=main&label=build)](https://github.com/kronotop/kronotop/actions/workflows/maven.yaml) [![Release](https://img.shields.io/github/v/release/kronotop/kronotop)](https://github.com/kronotop/kronotop/releases/latest) [![Docker](https://img.shields.io/badge/ghcr.io-kronotop%2Fkronotop-2496ED?logo=docker&logoColor=white)](https://github.com/kronotop/kronotop/pkgs/container/kronotop) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Discord](https://img.shields.io/discord/1004765247212638239.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/VPRNvdh2C)
 
-Kronotop is a distributed, transactional document database backed by [FoundationDB](https://github.com/apple/foundationdb).
+Kronotop is a distributed, transactional document database backed
+by [FoundationDB](https://github.com/apple/foundationdb).
 
 > Millions of databases. One cluster.
 
@@ -12,7 +13,7 @@ transaction can commit across any number of namespaces.
 
 Proof: we [created 1,000,001 namespaces in a single cluster](proof/README.md).
 
-Kronotop speaks RESP2 and RESP3, so you can use existing RESP-compatible clients, including `redis-cli` or `valkey-cli`, 
+Kronotop speaks RESP2 and RESP3, so you can use existing RESP-compatible clients, including `redis-cli` or `valkey-cli`,
 without a new driver.
 
 ```
@@ -193,7 +194,8 @@ Strictly serializable by default, inherited from FoundationDB. Both auto-commit 
 
 ### Storage
 
-Metadata and indexes live in FoundationDB. Document bodies are stored in Volume, Kronotop's append-only storage engine on local disk
+Metadata and indexes live in FoundationDB. Document bodies are stored in Volume, Kronotop's append-only storage engine
+on local disk
 with primary-standby replication. ZMap data is stored directly in FoundationDB.
 
 ## Benchmarks
@@ -297,7 +299,7 @@ sorting.
 
 Every `BUCKET.QUERY`, `BUCKET.DELETE`, and `BUCKET.UPDATE` command returns results in batches through a cursor.
 Each call produces the next batch and advances the cursor's position. Outside an explicit transaction, each
-`BUCKET.ADVANCE` call runs in its own short-lived transaction, keeping FoundationDB's 5-second transaction limit 
+`BUCKET.ADVANCE` call runs in its own short-lived transaction, keeping FoundationDB's 5-second transaction limit
 out of the way. Cursors are session-scoped and released automatically when the session disconnects.
 
 ```
@@ -392,7 +394,8 @@ created above is picked up by the planner:
 
 ### Vector Search
 
-Bucket supports approximate nearest neighbor (ANN) search on document vector fields, powered by [JVector](https://github.com/datastax/jvector). The graph
+Bucket supports approximate nearest neighbor (ANN) search on document vector fields, powered
+by [JVector](https://github.com/datastax/jvector). The graph
 index uses HNSW with automatic Product Quantization to reduce memory use. Three distance functions are supported:
 `cosine`, `euclidean` and `dot_product`.
 
@@ -430,8 +433,8 @@ options.
 
 ZMap is a thin RESP layer over FoundationDB's ordered key-value API. Unlike Bucket, it does not use Volume. Keys and
 values go straight to FoundationDB as opaque byte sequences, and ZMap does not interpret their contents. The examples
-below use JSON values for readability, but any byte payload works. Please note that FoundationDB's key size limit
-(10 KB) and value size limit (100 KB) apply directly.
+below use JSON values for readability, but any byte payload works. Please note that FoundationDB's key size limit (10
+KB) and value size limit (100 KB) apply directly.
 
 Keys are stored in lexicographic order, and all operations inherit FoundationDB's ACID guarantees. ZMap has typed
 numeric commands for int64, float64 and decimal128, conflict-free atomic mutations, and range operations over the
@@ -472,7 +475,8 @@ See the [ZMap documentation](https://kronotop.com/docs/zmap) for the full comman
 operations.
 
 The [recipes](recipes) directory shows how to compose these primitives into higher-level coordination patterns.
-See the [distributed lock on ZMap](recipes/distributed-lock-on-zmap.md) draft recipe for a lease-based lock with a fencing token.
+See the [distributed lock on ZMap](recipes/distributed-lock-on-zmap.md) draft recipe for a lease-based lock with a
+fencing token.
 
 ## Transactions
 
@@ -500,7 +504,8 @@ Transactions inherit FoundationDB's constraints: a 5-second time window starting
 transaction size limit. For Bucket, only metadata passes through FoundationDB; document bodies are stored in the Volume
 layer, so the size limit does not apply to document bodies.
 
-See the [transaction documentation](https://kronotop.com/docs/transactions) for snapshot reads, cross-namespace transactions, and the transaction time window.
+See the [transaction documentation](https://kronotop.com/docs/transactions) for snapshot reads, cross-namespace
+transactions, and the transaction time window.
 
 ## Clustering
 
@@ -518,7 +523,8 @@ initialization, shard routing, and replication configuration.
 
 The `INFO` command reports runtime metrics: clients, traffic, transactions, memory, Bucket, ZMap and vector index
 activity. Kronotop can also push these metrics to an OpenTelemetry collector over OTLP/HTTP. Ready-made Grafana
-dashboards are in [extras/observability](extras/observability). For a local setup with collector, Prometheus and Grafana, 
+dashboards are in [extras/observability](extras/observability). For a local setup with collector, Prometheus and
+Grafana,
 see [docker/observability](docker/observability).
 
 ## Why These Building Blocks?
@@ -548,9 +554,10 @@ libraries like [JVector](https://github.com/datastax/jvector), which powers Kron
 
 ## About the Name
 
-[Chronotope](https://en.wikipedia.org/wiki/Chronotope) is a concept from literary theory introduced by [Mikhail Bakhtin](https://en.wikipedia.org/wiki/Mikhail_Bakhtin). It refers to the relationship 
-between time and space in a narrative. An early goal of the project was to bring OLTP and OLAP workloads together under 
-different data models. The name felt appropriate: the idea of time and space aligned with that ambition, and nobody in 
+[Chronotope](https://en.wikipedia.org/wiki/Chronotope) is a concept from literary theory introduced
+by [Mikhail Bakhtin](https://en.wikipedia.org/wiki/Mikhail_Bakhtin). It refers to the relationship
+between time and space in a narrative. An early goal of the project was to bring OLTP and OLAP workloads together under
+different data models. The name felt appropriate: the idea of time and space aligned with that ambition, and nobody in
 the database world seemed to be using it. Kronotop is the Turkish phonetic spelling of Chronotope.
 
 ## License

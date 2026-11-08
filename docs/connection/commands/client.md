@@ -34,9 +34,9 @@ Sets a human-readable name for the current connection.
 CLIENT SETNAME <name>
 ```
 
-| Argument  | Type   | Required | Description     |
-|-----------|--------|----------|-----------------|
-| `name`    | string | Yes      | Connection name |
+| Argument | Type   | Required | Description     |
+|----------|--------|----------|-----------------|
+| `name`   | string | Yes      | Connection name |
 
 ## Return Value
 

@@ -3,8 +3,7 @@ title: "Configuration Reference"
 description: "Kronotop uses HOCON (Human-Optimized Config Object Notation) for its configuration files."
 ---
 
-Kronotop uses [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) (Human-Optimized Config Object Notation)
-for its configuration files. HOCON is a superset of
+Kronotop uses [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) (Human-Optimized Config Object Notation) for its configuration files. HOCON is a superset of
 JSON that supports comments, variable substitution, and a more readable syntax.
 
 The built-in defaults ship in `reference.conf` inside the Kronotop JAR. To override any value, pass a custom
@@ -20,8 +19,7 @@ defaults.
 ## Overriding Individual Parameters
 
 Any configuration parameter can be overridden directly on the command line using Java system properties (`-D`). The
-property
-name matches the dotted config path:
+property name matches the dotted config path:
 
 ```bash
 java -Dnetwork.external.port=6000 -Dcluster.name=production -jar kronotop.jar

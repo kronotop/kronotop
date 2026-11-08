@@ -67,7 +67,8 @@ OK
 # Wait for the task to complete
 ```
 
-For single-bucket deletion, `BUCKET.PURGE` handles its own prefix cleanup immediately, so `COLLECT-STALE-PREFIXES` is not
+For single-bucket deletion, `BUCKET.PURGE` handles its own prefix cleanup immediately, so `COLLECT-STALE-PREFIXES` is
+not
 required.
 
 **Prefer per-bucket deletion over namespace purge.** When possible, delete buckets individually with

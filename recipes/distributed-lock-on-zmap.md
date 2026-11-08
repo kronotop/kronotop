@@ -312,5 +312,6 @@ fencing token.
 
 ## Further reading
 
-- Martin Kleppmann, [How to do distributed locking](https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html)
+- Martin
+  Kleppmann, [How to do distributed locking](https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html)
 - Martin Kleppmann, *Designing Data-Intensive Applications* (O'Reilly, 2017)

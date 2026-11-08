@@ -8,7 +8,8 @@ description: "A vector index enables approximate nearest neighbor (ANN) search o
 A vector index enables approximate nearest neighbor (ANN) search on document fields that contain fixed-dimension numeric
 vectors.
 
-It is backed by [JVector](https://github.com/datastax/jvector), a graph-based vector search library. Use vector indexes when your documents contain 
+It is backed by [JVector](https://github.com/datastax/jvector), a graph-based vector search library. Use vector indexes
+when your documents contain
 embeddings and you need similarity search.
 
 ## Creation
@@ -52,11 +53,11 @@ See [BUCKET.INDEX CREATE](commands/bucket-index.md#bucketindex-create) for the f
 
 The distance function determines how similarity is measured between two vectors.
 
-| Function      | Score range | Best for                                                                    |
-|---------------|-------------|-----------------------------------------------------------------------------|
-| `cosine`      | 0 to 1      | Embeddings where only direction matters (e.g., text embeddings).            |
-| `euclidean`   | 0 to 1      | Spatial data where absolute distance matters.                               |
-| `dot_product` | 0 to 1      | Unit-length embeddings. Faster than cosine because it skips normalization.  |
+| Function      | Score range | Best for                                                                   |
+|---------------|-------------|----------------------------------------------------------------------------|
+| `cosine`      | 0 to 1      | Embeddings where only direction matters (e.g., text embeddings).           |
+| `euclidean`   | 0 to 1      | Spatial data where absolute distance matters.                              |
+| `dot_product` | 0 to 1      | Unit-length embeddings. Faster than cosine because it skips normalization. |
 
 Cosine similarity ignores vector magnitude. Two vectors pointing in the same direction score 1.0 regardless of length.
 Cosine rejects the zero vector because its direction is undefined.

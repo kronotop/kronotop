@@ -13,10 +13,10 @@ SNAPSHOTREAD <ON | OFF>
 
 ## Arguments
 
-| Argument  | Required     | Description                                 |
-|-----------|--------------|---------------------------------------------|
-| `ON`      | Yes (one of) | Enables snapshot read mode on the session.  |
-| `OFF`     | Yes (one of) | Disables snapshot read mode on the session. |
+| Argument | Required     | Description                                 |
+|----------|--------------|---------------------------------------------|
+| `ON`     | Yes (one of) | Enables snapshot read mode on the session.  |
+| `OFF`    | Yes (one of) | Disables snapshot read mode on the session. |
 
 Exactly one of `ON` or `OFF` must be provided. The argument is case-insensitive.
 

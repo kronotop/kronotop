@@ -11,9 +11,11 @@ Grafana dashboards for Kronotop. Import the JSON files in [grafana/](grafana/) i
 ## Requirements
 
 - OTLP export enabled in Kronotop (`observability.otlp.enabled`, `observability.otlp.endpoint`).
-- An OpenTelemetry Collector that receives OTLP/HTTP and exposes the Prometheus exporter with `resource_to_telemetry_conversion: enabled`.
+- An OpenTelemetry Collector that receives OTLP/HTTP and exposes the Prometheus exporter with
+  `resource_to_telemetry_conversion: enabled`.
 - Prometheus scraping the collector, added to Grafana as a datasource with `uid: prometheus`.
 
 For a local stack with collector, Prometheus and Grafana, see [docker/observability](../../docker/observability).
 
-See [docs/monitoring/opentelemetry.md](../../docs/monitoring/opentelemetry.md) for metric names, labels and query examples.
+See [docs/monitoring/opentelemetry.md](../../docs/monitoring/opentelemetry.md) for metric names, labels and query
+examples.

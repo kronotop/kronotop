@@ -200,8 +200,8 @@ operators on a compound index field, that field is not matched and the prefix wa
 
 - Queries that filter on a single field where a single-field index exists. A single-field index has smaller keys and is
   more efficient than scanning a compound index for the same field. When both exist, the query engine generally prefers
-  the single-field index, unless a compound index can also satisfy SORTBY (
-  see [Natural sort order](#natural-sort-order)).
+  the single-field index, unless a compound index can also satisfy SORTBY
+  (see [Natural sort order](#natural-sort-order)).
 - Queries where the fields don't match the prefix order. If your queries sometimes filter on `a` alone and sometimes on
   `b` alone, two single-field indexes serve both patterns. A compound index on `(a, b)` only helps queries that start
   with `a`.

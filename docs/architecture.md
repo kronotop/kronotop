@@ -3,14 +3,11 @@ title: "Architecture"
 description: "How Kronotop is structured, from the RESP front end down to the FoundationDB and Volume storage layers."
 ---
 
-RESP-compatible clients talk to a Kronotop member over TCP. The member hosts
-the data models: [Bucket](bucket/index.md) for documents, [ZMap](zmap/index.md) for ordered key-value data. Both
-share the same sessions, [namespaces](namespaces/index.md), and [transactions](transactions/index.md). Underneath,
-FoundationDB stores metadata, indexes, ZMap data, and cluster state, while [Volume](volume/index.md), Kronotop's
-storage engine, keeps document bodies on the member's local disk.
-
-The rest of this page explains what Kronotop delegates to FoundationDB, how data is split into shards, and how
-shards are replicated.
+RESP-compatible clients talk to a Kronotop member over TCP. The member hosts two data models:
+[Bucket](bucket/index.md) for documents and [ZMap](zmap/index.md) for ordered key-value data. Both use the same
+sessions, [namespaces](namespaces/index.md), and [transactions](transactions/index.md). FoundationDB stores
+metadata, indexes, ZMap data, and cluster state. [Volume](volume/index.md), Kronotop's storage engine, keeps
+document bodies on the member's local disk.
 
 <svg viewBox="0 0 720 488" width="720" height="488" style="display:block;margin-inline:auto;max-width:100%;height:auto" role="img" aria-label="Kronotop architecture: RESP clients connect to a Kronotop member. Inside the member, the Bucket and ZMap data models share one transaction boundary, and the Volume storage engine sits under Bucket. The volume replicates its segments to a standby member. Both members run on top of FoundationDB." xmlns="http://www.w3.org/2000/svg" font-family="'IBM Plex Sans Variable', sans-serif">
   <defs>
@@ -61,65 +58,64 @@ shards are replicated.
   <text x="360" y="434" text-anchor="middle" fill="#93a7b5" font-size="11">metadata · indexes · ZMap data · cluster state</text>
 </svg>
 
-## Wire Protocol and Sessions
+## Wire protocol and sessions
 
-Kronotop speaks RESP2 and RESP3 and works with existing RESP-compatible clients. There is no separate query
-endpoint or admin protocol; everything, including cluster administration, is a RESP command. Each member listens
-on two ports: one for clients, one for cluster administration.
+Kronotop speaks RESP2 and RESP3 and works with existing RESP-compatible clients. Every operation, including
+cluster administration, is a RESP command. There is no separate query endpoint or admin protocol. Each member
+listens on two ports: one for clients and one for cluster administration.
 
-Every client connection is bound to a [session](sessions/index.md). The session holds its attributes, its current
-namespace, the active transaction if one is open, and its cursors.
+Every client connection belongs to a [session](sessions/index.md). The session holds its attributes, its current
+namespace, the open transaction if there is one, and its cursors.
 
 ## Kronotop and FoundationDB
 
-Every Kronotop [transaction](transactions/index.md) is a
-FoundationDB transaction; strict serializability, conflict detection, and the ordered keyspace come from
-FoundationDB. Kronotop adds the RESP front end, the document layer with its query engine and indexes, and the
-Volume storage engine on top.
+Every Kronotop [transaction](transactions/index.md) is a FoundationDB transaction. Strict serializability,
+conflict detection, and the ordered keyspace come from FoundationDB. Kronotop adds the RESP front end, the
+document layer with its query engine and indexes, and the Volume storage engine.
 
-FoundationDB holds everything that must be transactional and small: bucket metadata and index entries, ZMap data,
-namespace directories, volume metadata, and cluster state. Document bodies are the exception. FoundationDB is
-optimized for small key-value pairs and enforces a 100 KB value-size limit, which document bodies routinely exceed.
-[Volume](volume/index.md) offloads them to append-only segment files on the member's local disk and keeps only
+FoundationDB holds all data that is small and must be transactional: bucket metadata and index entries, ZMap data,
+namespace directories, volume metadata, and cluster state. Document bodies are different. FoundationDB is built
+for small key-value pairs and limits a value to 100 KB, and document bodies often exceed that limit.
+[Volume](volume/index.md) stores them in append-only segment files on the member's local disk and keeps only
 pointers in FoundationDB.
 
-The write path preserves transactional guarantees across the split: a document body is appended to a segment file
-and flushed to disk first; only after the flush succeeds is the metadata committed to FoundationDB. Metadata never
-references content that has not been persisted.
+Transactional guarantees still hold across this split. Kronotop first appends the document body to a segment file
+and flushes it to disk. It commits the metadata to FoundationDB only after the flush succeeds, so metadata never
+points to content that is not on disk.
 
 ## Sharding
 
-Bucket data is partitioned into shards. Each shard owns exactly one volume, named after the shard
-(`bucket-shard-0`, `bucket-shard-1`, and so on). A bucket spans one or more shards, so its documents are
-distributed across one or more volumes. Within a volume, each bucket's data is isolated by a prefix.
+Bucket data is split into shards. Each shard owns exactly one volume, named after the shard (`bucket-shard-0`,
+`bucket-shard-1`, and so on). A bucket spans one or more shards, so its documents are spread across one or more
+volumes. Inside a volume, a prefix keeps each bucket's data separate.
 
-Shard ownership is assigned through cluster routing: one member is the primary and serves all Bucket commands, standby members
-replicate from it and can be promoted. Each shard also carries a status that controls traffic: `READWRITE`,
-`READONLY`, or `INOPERABLE`. Routing and status are managed with the
+Cluster routing assigns shard ownership. One member is the primary and serves all Bucket commands. Standby members
+replicate from the primary and can be promoted. Each shard also has a status that controls traffic: `READWRITE`,
+`READONLY`, or `INOPERABLE`. You manage routing and status with the
 [admin command interface](admin/cluster/operations-guide.md).
 
-ZMap data is not sharded by Kronotop. It lives directly in FoundationDB, which partitions its own keyspace
+Kronotop does not shard ZMap data. ZMap data lives directly in FoundationDB, which partitions its own keyspace
 automatically.
 
 ## Replication
 
-Volume replication is asynchronous and primary-to-standby. Each shard's volume is replicated independently:
-standbys pull from the primary, first copying existing segment data in chunks until they reach the primary's
-current write position, then streaming incremental changes from a changelog maintained in FoundationDB.
-Replication progress is also persisted in FoundationDB, so a standby can restart and resume exactly where it
-left off.
+Volume replication is asynchronous and goes from the primary to the standbys. Each shard's volume replicates on
+its own. A standby pulls from the primary. It first copies the existing segment data in chunks until it reaches
+the primary's current write position. After that, it streams new changes from a changelog stored in FoundationDB.
+Replication progress is also stored in FoundationDB, so a standby can restart and continue from the point where it
+stopped.
 
-Replication starts automatically when a standby is assigned through cluster routing. Promoting a standby and
-reassigning shards are explicit operator actions. See [Volume replication](volume/index.md#replication) for the
-mechanics and the [operations guide](admin/cluster/operations-guide.md) for the commands.
+Replication starts automatically when cluster routing assigns a standby. An operator must promote a standby or
+reassign shards by hand. See [Volume replication](volume/index.md#replication) for how replication works and the
+[operations guide](admin/cluster/operations-guide.md) for the commands.
 
-## Cluster Coordination
+## Cluster coordination
 
-All coordination state goes through FoundationDB; there is no separate consensus layer or gossip protocol.
-Members do not talk to each other to agree on cluster state, they read and write it in FoundationDB.
+All coordination state lives in FoundationDB. Kronotop has no separate consensus layer or gossip protocol. Members
+do not talk to each other to agree on cluster state. They read and write it in FoundationDB.
 
-Failure detection works the same way. Each member periodically increments a heartbeat counter in FoundationDB,
-and other members expect that counter to keep advancing. A member whose counter stalls beyond a configured silent
-period is suspected dead. This is a local judgement made by each observer, not a cluster-wide consensus, and a
-suspected member drops off the list as soon as its heartbeats resume. See
-[health monitoring](admin/cluster/operations-guide.md#health-monitoring) for the details.
+Failure detection uses FoundationDB too. Each member increments a heartbeat counter in FoundationDB at regular
+intervals, and other members expect the counter to keep growing. If a member's counter stops for longer than the
+configured silent period, other members suspect that it is dead. Each member makes this decision by itself, with
+no cluster-wide agreement. A suspected member drops off the list as soon as its heartbeats start again. See
+[health monitoring](admin/cluster/operations-guide.md#health-monitoring) for details.

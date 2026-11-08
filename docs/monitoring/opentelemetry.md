@@ -3,8 +3,9 @@ title: "OpenTelemetry"
 description: "Export INFO metrics to an OpenTelemetry Collector over OTLP/HTTP and read them from Prometheus."
 ---
 
-Kronotop pushes the numeric `INFO` fields to an OpenTelemetry Collector over OTLP/HTTP as JSON. Only metrics are exported, 
-no traces and no logs. The export is disabled by default. A Docker Compose stack and Grafana dashboards are in 
+Kronotop pushes the numeric `INFO` fields to an OpenTelemetry Collector over OTLP/HTTP as JSON. Only metrics are
+exported,
+no traces and no logs. The export is disabled by default. A Docker Compose stack and Grafana dashboards are in
 [Ready-to-run stack](#ready-to-run-stack).
 
 ## Configuration
@@ -25,12 +26,12 @@ observability {
 }
 ```
 
-The endpoint is the base URL of the collector. Do not add `/v1/metrics` yourself. A failed push writes one `WARN` line 
+The endpoint is the base URL of the collector. Do not add `/v1/metrics` yourself. A failed push writes one `WARN` line
 to the log and the task tries again on the next interval. Kronotop keeps no queue of failed pushes.
 
 ## Collector
 
-The collector needs an OTLP/HTTP receiver and a Prometheus exporter. `resource_to_telemetry_conversion` must be enabled. 
+The collector needs an OTLP/HTTP receiver and a Prometheus exporter. `resource_to_telemetry_conversion` must be enabled.
 Without it the resource attributes are not turned into Prometheus labels, and you cannot filter by cluster or member.
 
 ```yaml
@@ -52,23 +53,25 @@ exporters:
 service:
   pipelines:
     metrics:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [prometheus]
+      receivers: [ otlp ]
+      processors: [ batch ]
+      exporters: [ prometheus ]
 ```
 
 Point Prometheus at port 8889 of the collector.
 
 ## Ready-to-run stack
 
-[docker/observability](https://github.com/kronotop/kronotop/tree/main/docker/observability) starts a collector, Prometheus and Grafana with Docker Compose.
+[docker/observability](https://github.com/kronotop/kronotop/tree/main/docker/observability) starts a collector,
+Prometheus and Grafana with Docker Compose.
 
-[extras/observability](https://github.com/kronotop/kronotop/tree/main/extras/observability) holds the Grafana dashboards as JSON. Import them into your own Grafana. Ready for production
+[extras/observability](https://github.com/kronotop/kronotop/tree/main/extras/observability) holds the Grafana dashboards
+as JSON. Import them into your own Grafana. Ready for production
 use.
 
 ## Labels
 
-Every export carries four resource attributes. With `resource_to_telemetry_conversion` the collector adds them to every 
+Every export carries four resource attributes. With `resource_to_telemetry_conversion` the collector adds them to every
 metric as labels.
 
 | OTLP attribute          | Prometheus label        | Value              |
@@ -80,7 +83,8 @@ metric as labels.
 
 ## Metric naming
 
-Kronotop sends the `INFO` field name with the prefix `kronotop_`. Counters are sent as cumulative, monotonic sums. Gauges 
+Kronotop sends the `INFO` field name with the prefix `kronotop_`. Counters are sent as cumulative, monotonic sums.
+Gauges
 are sent as plain gauges. All values are integers. Byte-sized fields carry the unit `By`.
 
 The Prometheus exporter in the collector builds the final name from this:
@@ -89,7 +93,7 @@ The Prometheus exporter in the collector builds the final name from this:
 - Byte values get `_bytes` at the end, before `_total`. If the field name already contains `bytes`, nothing is added.
 - Fields with the value `-1`, text fields and `_human` fields are not sent.
 
-For example, `total_allocated_memory` becomes `kronotop_allocated_memory_bytes_total` and `transaction_bytes_read` 
+For example, `total_allocated_memory` becomes `kronotop_allocated_memory_bytes_total` and `transaction_bytes_read`
 becomes `kronotop_transaction_bytes_read_total`.
 
 ## Querying

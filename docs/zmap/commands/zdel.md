@@ -38,7 +38,8 @@ The command supports two transaction modes:
 - **Explicit transaction:** When a `BEGIN` has been issued, the delete is staged in the current transaction and only
   takes effect when `COMMIT` is called.
 
-All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in
+different namespaces refers to different entries.
 
 ## Errors
 

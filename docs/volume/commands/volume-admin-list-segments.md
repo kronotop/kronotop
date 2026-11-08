@@ -32,9 +32,9 @@ It is available on the management port (default 3320).
 
 Argument errors:
 
-| Error Code | Error message                  | Cause |
-|------------|--------------------------------|-------|
-| `ERR`      | `invalid number of arguments`  | -     |
+| Error Code | Error message                 | Cause |
+|------------|-------------------------------|-------|
+| `ERR`      | `invalid number of arguments` | -     |
 
 Volume errors:
 

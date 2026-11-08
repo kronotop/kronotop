@@ -165,15 +165,15 @@ This command does not require the cluster to be initialized.
 
 Argument errors:
 
-| Error Code | Error message                                                   | Cause                                              |
-|------------|-----------------------------------------------------------------|----------------------------------------------------|
-| `ERR`      | `unknown subcommand '<value>'. Try COMMAND HELP.`               | -                                                  |
-| `ERR`      | `wrong number of arguments for 'command\|<subcommand>' command` | Subcommand called with the wrong argument count    |
-| `ERR`      | `syntax error`                                                  | Bad `COMMAND LIST` filter                          |
-| `ERR`      | `Invalid command specified`                                     | `GETKEYS` with an unknown command                  |
-| `ERR`      | `The command has no key arguments`                              | `GETKEYS` with a command without key specs         |
-| `ERR`      | `Invalid number of arguments specified for command`             | `GETKEYS` argument count does not fit the arity    |
-| `ERR`      | `Invalid arguments specified for command`                       | `GETKEYS` key specs do not apply to the arguments  |
+| Error Code | Error message                                                   | Cause                                             |
+|------------|-----------------------------------------------------------------|---------------------------------------------------|
+| `ERR`      | `unknown subcommand '<value>'. Try COMMAND HELP.`               | -                                                 |
+| `ERR`      | `wrong number of arguments for 'command\|<subcommand>' command` | Subcommand called with the wrong argument count   |
+| `ERR`      | `syntax error`                                                  | Bad `COMMAND LIST` filter                         |
+| `ERR`      | `Invalid command specified`                                     | `GETKEYS` with an unknown command                 |
+| `ERR`      | `The command has no key arguments`                              | `GETKEYS` with a command without key specs        |
+| `ERR`      | `Invalid number of arguments specified for command`             | `GETKEYS` argument count does not fit the arity   |
+| `ERR`      | `Invalid arguments specified for command`                       | `GETKEYS` key specs do not apply to the arguments |
 
 ## Examples
 

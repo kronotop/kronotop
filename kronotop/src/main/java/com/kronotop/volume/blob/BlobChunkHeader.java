@@ -33,22 +33,6 @@ public record BlobChunkHeader(String name, long offset, int chunkCount) {
     private static final int FIXED_LENGTH = 4 + 4 + 8 + 4;
 
     /**
-     * Encodes this header to its wire form.
-     *
-     * @return the encoded header
-     */
-    public byte[] encode() {
-        int headerLength = FIXED_LENGTH + name.length();
-        ByteBuffer buffer = ByteBuffer.allocate(headerLength);
-        buffer.putInt(MAGIC);
-        buffer.putInt(headerLength);
-        buffer.putLong(offset);
-        buffer.putInt(chunkCount);
-        buffer.put(name.getBytes(StandardCharsets.US_ASCII));
-        return buffer.array();
-    }
-
-    /**
      * Reads a header from the start of the buffer and leaves the position at the first payload byte.
      *
      * @param buffer buffer that starts with an encoded header
@@ -75,5 +59,21 @@ public record BlobChunkHeader(String name, long offset, int chunkCount) {
         byte[] name = new byte[headerLength - FIXED_LENGTH];
         buffer.get(name);
         return new BlobChunkHeader(new String(name, StandardCharsets.US_ASCII), offset, chunkCount);
+    }
+
+    /**
+     * Encodes this header to its wire form.
+     *
+     * @return the encoded header
+     */
+    public byte[] encode() {
+        int headerLength = FIXED_LENGTH + name.length();
+        ByteBuffer buffer = ByteBuffer.allocate(headerLength);
+        buffer.putInt(MAGIC);
+        buffer.putInt(headerLength);
+        buffer.putLong(offset);
+        buffer.putInt(chunkCount);
+        buffer.put(name.getBytes(StandardCharsets.US_ASCII));
+        return buffer.array();
     }
 }

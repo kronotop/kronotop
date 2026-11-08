@@ -59,10 +59,10 @@ the pending token. After an expiry error, the operator must request a new token 
 
 Argument errors:
 
-| Error Code | Error message                  | Cause |
-|------------|--------------------------------|-------|
-| `ERR`      | `cluster name is required`     | -     |
-| `ERR`      | `invalid number of arguments`  | -     |
+| Error Code | Error message                 | Cause |
+|------------|-------------------------------|-------|
+| `ERR`      | `cluster name is required`    | -     |
+| `ERR`      | `invalid number of arguments` | -     |
 
 Cluster errors:
 

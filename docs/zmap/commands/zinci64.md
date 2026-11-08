@@ -48,7 +48,8 @@ The command supports two transaction modes:
 
 `ZINC.I64` is a write operation and does not support snapshot reads.
 
-All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in
+different namespaces refers to different entries.
 
 ## Errors
 

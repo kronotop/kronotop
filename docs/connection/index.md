@@ -36,8 +36,8 @@ RESP2 client receives instead.
 
 ## Authentication
 
-Authentication is disabled by default. When an `auth` block is present in the configuration, the connection must be 
- authenticated before doing anything else. Until then, every command except `AUTH` and `HELLO` is rejected:
+Authentication is disabled by default. When an `auth` block is present in the configuration, the connection must be
+authenticated before doing anything else. Until then, every command except `AUTH` and `HELLO` is rejected:
 
 ```kronotop
 > BUCKET.LIST
@@ -66,8 +66,9 @@ Pipelining is not a transaction. The commands stay independent, and commands fro
 them. When you need a group of commands to run as one unit, use a transaction instead. See
 [Transactions](../transactions/index.md).
 
-**Pipelining is not supported for Kronotop's own commands.** These commands carry session and transaction state, 
-so they expect a request and a reply in pairs: read the reply before you send the next command. Sending them in a pipeline
+**Pipelining is not supported for Kronotop's own commands.** These commands carry session and transaction state,
+so they expect a request and a reply in pairs: read the reply before you send the next command. Sending them in a
+pipeline
 is undefined behavior, and the results are not guaranteed.
 
 Transaction control is the clearest case. If you pipeline `BEGIN`, the writes, and `COMMIT` together, and `COMMIT` fails

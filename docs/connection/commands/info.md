@@ -52,23 +52,23 @@ These rules apply to all sections:
 
 ### Cluster
 
-| Field             | Description                                                                                                                                 |
-|-------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| `cluster_enabled` | Always `0`.                                                                                                                                 |
+| Field             | Description |
+|-------------------|-------------|
+| `cluster_enabled` | Always `0`. |
 
 ### Kronotop
 
-| Field            | Description                                                                 |
-|------------------|-----------------------------------------------------------------------------|
-| `cluster_name`   | Name of the cluster this member belongs to.                                 |
-| `member_id`      | Id of this member.                                                          |
-| `member_status`  | One of `RUNNING`, `UNAVAILABLE`, `STOPPED`, `UNKNOWN`.                      |
-| `bucket_shards`  | Number of Bucket shards in the cluster.                                     |
-| `stash_shards`   | Number of Stash shards. Present only when `stash.enabled` is true.          |
-| `known_members`  | Members this member has ever seen.                                          |
-| `alive_members`  | Members with a recent heartbeat.                                            |
-| `primary_shards` | Shards where this member is the primary.                                    |
-| `standby_shards` | Shards where this member is a standby.                                      |
+| Field            | Description                                                        |
+|------------------|--------------------------------------------------------------------|
+| `cluster_name`   | Name of the cluster this member belongs to.                        |
+| `member_id`      | Id of this member.                                                 |
+| `member_status`  | One of `RUNNING`, `UNAVAILABLE`, `STOPPED`, `UNKNOWN`.             |
+| `bucket_shards`  | Number of Bucket shards in the cluster.                            |
+| `stash_shards`   | Number of Stash shards. Present only when `stash.enabled` is true. |
+| `known_members`  | Members this member has ever seen.                                 |
+| `alive_members`  | Members with a recent heartbeat.                                   |
+| `primary_shards` | Shards where this member is the primary.                           |
+| `standby_shards` | Shards where this member is a standby.                             |
 
 ### Clients
 
@@ -159,10 +159,10 @@ the cluster port.
 
 ### Tasks
 
-| Field           | Description                                                     |
-|-----------------|-----------------------------------------------------------------|
-| `task_count`    | Background tasks registered on this member.                     |
-| `running_tasks` | Tasks that were running when `INFO` was called.                 |
+| Field           | Description                                     |
+|-----------------|-------------------------------------------------|
+| `task_count`    | Background tasks registered on this member.     |
+| `running_tasks` | Tasks that were running when `INFO` was called. |
 
 ### Volume
 
@@ -228,7 +228,8 @@ in the order above. Unknown names are ignored. If no name matches, the reply is 
 The command reads only in-memory state. It does not touch FoundationDB and does not require the cluster to be
 initialized.
 
-`server_mode` is always `standalone` and `cluster_enabled` is always `0`. Kronotop does not use slot-based routing at the
+`server_mode` is always `standalone` and `cluster_enabled` is always `0`. Kronotop does not use slot-based routing at
+the
 protocol level, so clients must connect in standalone mode.
 
 ## Errors

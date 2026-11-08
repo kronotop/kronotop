@@ -62,8 +62,8 @@ Type bracketing is **not** used in:
 
 ## Relationship with strict_types
 
-`strict_types` controls whether type mismatches during indexing produce errors or are silently skipped (
-see [strict-types.md](strict-types.md)). Type bracketing is orthogonal to this setting:
+`strict_types` controls whether type mismatches during indexing produce errors or are silently skipped
+(see [strict-types.md](strict-types.md)). Type bracketing is orthogonal to this setting:
 
 - **strict_types = true** (default): A type mismatch at index time causes an error. However, fields that are not indexed
   can still contain mixed types across documents. A full scan with `RESULTSORT` on such a field will encounter mixed

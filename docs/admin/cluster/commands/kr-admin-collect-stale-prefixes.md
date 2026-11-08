@@ -4,7 +4,8 @@ description: "Starts, stops, removes, or locates the stale prefix collection tas
 ---
 
 Starts, stops, removes, or locates the stale prefix collection task. A stale prefix is one whose pointer no longer
-references valid data. Stale prefixes are cleared and published to a prefix-invalidations journal for downstream cleanup.
+references valid data. Stale prefixes are cleared and published to a prefix-invalidations journal for downstream
+cleanup.
 
 ## Syntax
 
@@ -40,7 +41,8 @@ KR.ADMIN COLLECT-STALE-PREFIXES <operation>
 Prefix pointers in the global prefix registry can become stale, the pointer target may have been deleted,
 or the data it references may no longer match. This task provides a safe, batched way to identify and remove these stale
 entries, keeping the prefix registry clean. The task scans the global prefix registry in batches. For each prefix, it
-checks whether the pointer still references valid data. Stale prefixes are cleared and published to a prefix-invalidations
+checks whether the pointer still references valid data. Stale prefixes are cleared and published to a
+prefix-invalidations
 journal for downstream cleanup.
 
 Progress is tracked via a progress marker stored persistently, allowing the task to resume from where it left off if

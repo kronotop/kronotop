@@ -26,8 +26,8 @@ Source: https://huggingface.co/datasets/m-newhauser/senator-tweets
 
 **2. Generate the JSONL file**
 
-`uv` is the most practical way to run a Python script. Run from the `kronotop-benchmark/` directory
-(the script lives in `kronotop-benchmark/scripts/`):
+`uv` is the most practical way to run a Python script. Run from the `kronotop-benchmark/` directory (the script lives in
+`kronotop-benchmark/scripts/`):
 
 ```bash
 uv run --with pyarrow scripts/prepare_senator_tweets.py \

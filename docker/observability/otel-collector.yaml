@@ -20,6 +20,6 @@ exporters:
 service:
   pipelines:
     metrics:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [prometheus, debug]
+      receivers: [ otlp ]
+      processors: [ batch ]
+      exporters: [ prometheus, debug ]

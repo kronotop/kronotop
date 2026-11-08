@@ -44,11 +44,11 @@ public abstract class BaseVectorMaintainer<T> {
     private static final long DRAIN_LOG_INTERVAL_SECONDS = 10;
     protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
     protected final Context context;
-    protected BucketService service;
-    protected volatile boolean drainMode;
     private final ExecutorService executor;
     private final long drainTimeoutSeconds;
     private final String label;
+    protected BucketService service;
+    protected volatile boolean drainMode;
     private volatile boolean started;
 
     protected BaseVectorMaintainer(

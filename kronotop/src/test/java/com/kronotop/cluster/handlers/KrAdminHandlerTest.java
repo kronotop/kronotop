@@ -18,7 +18,6 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.DataModelKind;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.CollectStalePrefixesTask;
 import com.kronotop.cluster.MemberIdGenerator;

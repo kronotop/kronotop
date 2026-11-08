@@ -13,10 +13,10 @@ TICK <FRESH | CACHED>
 
 ## Arguments
 
-| Argument  | Description                                                                                          |
-|-----------|------------------------------------------------------------------------------------------------------|
-| `FRESH`   | Fetches the latest value from the cluster. One round trip per call.                                  |
-| `CACHED`  | Serves the value from a node-local cache that may be up to one second behind. No cluster round trip. |
+| Argument | Description                                                                                          |
+|----------|------------------------------------------------------------------------------------------------------|
+| `FRESH`  | Fetches the latest value from the cluster. One round trip per call.                                  |
+| `CACHED` | Serves the value from a node-local cache that may be up to one second behind. No cluster round trip. |
 
 The mode argument is mandatory and case-insensitive.
 

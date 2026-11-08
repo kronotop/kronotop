@@ -34,10 +34,10 @@ import java.util.Arrays;
  * <p>
  * The registry and the binding key point at each other:
  * <p>
- *   PREFIXES/<prefix>   -->  PrefixEntry(key, kind, pointer)
- *   PrefixEntry.key     -->  binding key, holds <prefix>
- *   PrefixEntry.kind    -->  DOCUMENT | VECTOR_INDEX
- *   PrefixEntry.pointer -->  bucket UUID (DOCUMENT) | index ObjectId (VECTOR_INDEX)
+ * PREFIXES/<prefix>   -->  PrefixEntry(key, kind, pointer)
+ * PrefixEntry.key     -->  binding key, holds <prefix>
+ * PrefixEntry.kind    -->  DOCUMENT | VECTOR_INDEX
+ * PrefixEntry.pointer -->  bucket UUID (DOCUMENT) | index ObjectId (VECTOR_INDEX)
  * <p>
  * When the binding key is gone the prefix is stale. inspectPrefix reports this through
  * PrefixInspection, and the stale prefix collector reclaims the data.

@@ -26,6 +26,7 @@ public record VectorFlushTask(VectorFlushKey key, long dueNanos) implements Dela
     public long getDelay(@NonNull TimeUnit unit) {
         return unit.convert(dueNanos - System.nanoTime(), TimeUnit.NANOSECONDS);
     }
+
     @Override
     public int compareTo(@NonNull Delayed o) {
         return Long.compare(dueNanos, ((VectorFlushTask) o).dueNanos);

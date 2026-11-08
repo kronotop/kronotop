@@ -20,10 +20,6 @@ import com.apple.foundationdb.tuple.Tuple;
 
 public record PrefixEntry(byte[] key, EntryKind kind, byte[] pointer) {
 
-    public byte[] encode() {
-        return Tuple.from(key, kind.getValue(), pointer).pack();
-    }
-
     public static PrefixEntry decode(byte[] input) {
         Tuple tuple = Tuple.fromBytes(input);
         return new PrefixEntry(
@@ -31,5 +27,9 @@ public record PrefixEntry(byte[] key, EntryKind kind, byte[] pointer) {
                 EntryKind.valueOf((byte) tuple.getLong(1)),
                 tuple.getBytes(2)
         );
+    }
+
+    public byte[] encode() {
+        return Tuple.from(key, kind.getValue(), pointer).pack();
     }
 }

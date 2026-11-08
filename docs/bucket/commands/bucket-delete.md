@@ -121,11 +121,11 @@ Namespace errors:
 
 Bucket errors:
 
-| Error Code           | Error message                        | Cause                                                                                                                            |
-|----------------------|--------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
-| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -                                                                                                                                |
-| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                                                                |
-| `REJECT`             | `<shardId> <host>:<port>`            | This member is not the primary of any of the bucket's shards. The message carries the primary's address.                         |
+| Error Code           | Error message                        | Cause                                                                                                    |
+|----------------------|--------------------------------------|----------------------------------------------------------------------------------------------------------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -                                                                                                        |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                                        |
+| `REJECT`             | `<shardId> <host>:<port>`            | This member is not the primary of any of the bucket's shards. The message carries the primary's address. |
 
 Index errors:
 

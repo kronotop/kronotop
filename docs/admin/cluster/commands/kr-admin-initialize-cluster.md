@@ -35,9 +35,9 @@ Operators must explicitly set shard status and assign routes before the cluster 
 
 Argument errors:
 
-| Error Code | Error message                  | Cause |
-|------------|--------------------------------|-------|
-| `ERR`      | `invalid number of arguments`  | -     |
+| Error Code | Error message                 | Cause |
+|------------|-------------------------------|-------|
+| `ERR`      | `invalid number of arguments` | -     |
 
 Cluster errors:
 

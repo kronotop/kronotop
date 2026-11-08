@@ -49,7 +49,8 @@ The command supports two transaction modes:
 Inside an explicit transaction a range with the begin key larger than the end key is accepted when the command runs,
 and the error is reported at `COMMIT`.
 
-All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same keys in different namespaces refer to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same keys in
+different namespaces refer to different entries.
 
 ## Errors
 

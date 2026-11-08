@@ -24,7 +24,6 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.DataModelKind;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.StaleBucketEvent;
 import com.kronotop.directory.KronotopDirectory;

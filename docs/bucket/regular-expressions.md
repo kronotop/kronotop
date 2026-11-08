@@ -82,7 +82,8 @@ with the same string-only semantics described above, and a list may mix regex li
 
 - `$in` matches when the field matches any element, literal or regex.
 - `$nin` excludes the document when the field matches any element.
-- `$all` requires every element, including each regex, to match. For an array field, each pattern must match some element.
+- `$all` requires every element, including each regex, to match. For an array field, each pattern must match some
+  element.
 
 Regex literals in arrays can be expressed only through BSON input, since JSON arrays have no regular expression literal
 syntax. The filter below matches documents whose `name` begins with `Al` or `Bo`:
