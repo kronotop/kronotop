@@ -305,10 +305,12 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     /**
-     * Creates the graph index group of a vector index. The group is ready at once if the index has no
-     * on-disk files, no synced graphs in Volume and no mutation log entries. Otherwise, a background task
-     * restores missing on-disk files from Volume, opens the on-disk indexes and replays the mutation log.
-     * The group becomes ready when that task ends.
+     * Creates the graph index group of a vector index and recovers its persisted state in the background
+     * when any exists.
+     *
+     * @param metadata    the metadata of the bucket that owns the index
+     * @param vectorIndex the vector index to bootstrap
+     * @return the group, which becomes ready once any background recovery completes
      */
     public VectorGraphIndexGroup bootstrapVectorGroup(BucketMetadata metadata, VectorIndex vectorIndex) {
         if (!hasOnDiskIndexes(metadata, vectorIndex) && !hasSyncedGraphs(vectorIndex) && !hasMutationLogEntries(vectorIndex)) {
@@ -349,6 +351,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                         pqTrainingThreshold,
                         pqSubspaceDivisor
                 );
+                VectorIndexSyncBacklog.enqueue(context, metadata, vectorIndex, bucketDataDir);
                 group.markReady();
             } catch (Exception e) {
                 LOGGER.error("Vector index bootstrap failed for bucket={}, indexId={}",

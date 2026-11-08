@@ -190,11 +190,17 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
     }
 
     /**
+     * Returns the {@code (GRAPH_SYNCED, id)} key that marks a flushed graph as written to Volume.
+     */
+    public static byte[] graphSyncedKey(DirectorySubspace indexSubspace, ObjectId id) {
+        return indexSubspace.pack(Tuple.from(IndexSubspaceMagic.GRAPH_SYNCED.getValue(), id.toByteArray()));
+    }
+
+    /**
      * Records that the flushed graph with the given id was written to Volume under {@code (GRAPH_SYNCED, id)}.
      */
     public static void markGraphSynced(Transaction tr, DirectorySubspace indexSubspace, ObjectId id) {
-        Tuple tuple = Tuple.from(IndexSubspaceMagic.GRAPH_SYNCED.getValue(), id.toByteArray());
-        tr.set(indexSubspace.pack(tuple), new byte[0]);
+        tr.set(graphSyncedKey(indexSubspace, id), new byte[0]);
     }
 
     /**
