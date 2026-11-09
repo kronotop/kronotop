@@ -426,7 +426,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldSetShardStatus() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setShardStatus("stash", 1, "READONLY").encode(buf);
+        cmd.setShardStatus("bucket", 1, "READONLY").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -438,7 +438,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldSetShardStatusForAllShards() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setShardStatus("stash", "READONLY").encode(buf);
+        cmd.setShardStatus("bucket", "READONLY").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -450,7 +450,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenSetShardStatusWithNegativeShardId() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setShardStatus("stash", -1, "READONLY").encode(buf);
+        cmd.setShardStatus("bucket", -1, "READONLY").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
@@ -462,7 +462,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenSetShardStatusWithShardIdBiggerThanNumberOfShards() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setShardStatus("stash", 1231253, "READONLY").encode(buf);
+        cmd.setShardStatus("bucket", 1231253, "READONLY").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
@@ -552,7 +552,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.describeShard("STASH", 1).encode(buf);
+        cmd.describeShard("BUCKET", 1).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);

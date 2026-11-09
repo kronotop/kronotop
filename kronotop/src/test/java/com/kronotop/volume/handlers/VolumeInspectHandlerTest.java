@@ -98,7 +98,7 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         VolumeInspectCommandBuilder<String, String> cmd = new VolumeInspectCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.cursor("stash-shard-1").encode(buf);
+        cmd.cursor("bucket-shard-1").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
@@ -132,7 +132,7 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnCursorForEmptyVolume() {
         VolumeInspectCommandBuilder<String, String> cmd = new VolumeInspectCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.cursor("stash-shard-1").encode(buf);
+        cmd.cursor("bucket-shard-1").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);

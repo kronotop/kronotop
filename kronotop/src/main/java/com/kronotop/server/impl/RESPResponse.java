@@ -71,17 +71,6 @@ public class RESPResponse implements Response {
     }
 
     /**
-     * Writes a "QUEUED" Redis response message to the client.
-     * <p>
-     * This method is used to write a "QUEUED" message to the client as part of a Redis transaction.
-     * It should be called after adding a request to the queued commands and before flushing the response.
-     */
-    @Override
-    public void writeQUEUED() {
-        ctx.write(new SimpleStringRedisMessage(Response.QUEUED));
-    }
-
-    /**
      * Writes a long integer value as a Redis response message to the client.
      *
      * @param value the long integer value to be written

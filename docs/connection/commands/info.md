@@ -64,7 +64,6 @@ These rules apply to all sections:
 | `member_id`      | Id of this member.                                                 |
 | `member_status`  | One of `RUNNING`, `UNAVAILABLE`, `STOPPED`, `UNKNOWN`.             |
 | `bucket_shards`  | Number of Bucket shards in the cluster.                            |
-| `stash_shards`   | Number of Stash shards. Present only when `stash.enabled` is true. |
 | `known_members`  | Members this member has ever seen.                                 |
 | `alive_members`  | Members with a recent heartbeat.                                   |
 | `primary_shards` | Shards where this member is the primary.                           |
@@ -78,7 +77,6 @@ These rules apply to all sections:
 |--------------------------|----------------------------------------------------------------------------------------------|
 | `connected_clients`      | All open connections on both listeners, client and internal.                                 |
 | `clients_in_transaction` | Sessions between `BEGIN` and `COMMIT` or `ROLLBACK`.                                         |
-| `clients_in_multi`       | Sessions between `MULTI` and `EXEC` or `DISCARD`. Present only when `stash.enabled` is true. |
 | `snapshot_read_clients`  | Sessions with `SNAPSHOTREAD ON`.                                                             |
 | `resp2_clients`          | Connections that negotiated RESP2.                                                           |
 | `resp3_clients`          | Connections that negotiated RESP3.                                                           |

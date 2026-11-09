@@ -28,9 +28,4 @@ public abstract class BaseVolumeHandler implements Handler {
         this.service = service;
         this.context = service.getContext();
     }
-
-    @Override
-    public boolean isRedisCompatible() {
-        return false;
-    }
 }

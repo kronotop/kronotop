@@ -24,7 +24,6 @@ RESP3 nested map with the following top-level keys:
 | `metadata_version` | string | Cluster metadata version (e.g. `"1.0.0"`)                                                                                                                                                                                                   |
 | `cluster_name`     | string | Name of the cluster (from configuration)                                                                                                                                                                                                    |
 | `bucket`           | map    | Per-shard details for all bucket shards, keyed by shard ID (integer)                                                                                                                                                                        |
-| `stash`            | map    | Per-shard details for all stash shards, keyed by shard ID (integer). Present only when the experimental stash subsystem is enabled (`stash.enabled = true`). See [Stash](../../../config.md#stash-optional) in the configuration reference. |
 
 Each shard entry contains:
 
@@ -38,8 +37,7 @@ Each shard entry contains:
 ## Behavior
 
 Returns the cluster name, metadata version, and per-shard details for every bucket shard: primary route, standbys,
-status, and linked volumes. Each shard entry uses the same structure as `DESCRIBE-SHARD`. When the experimental stash
-subsystem is enabled, a `stash` map with the same structure is also returned.
+status, and linked volumes. Each shard entry uses the same structure as `DESCRIBE-SHARD`.
 
 Requires cluster initialization.
 

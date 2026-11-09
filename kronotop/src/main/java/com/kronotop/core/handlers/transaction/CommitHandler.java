@@ -45,11 +45,6 @@ public class CommitHandler implements Handler {
     }
 
     @Override
-    public boolean isRedisCompatible() {
-        return false;
-    }
-
-    @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.COMMIT).set(new CommitMessage(request));
     }

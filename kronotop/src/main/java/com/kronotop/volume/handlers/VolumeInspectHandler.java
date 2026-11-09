@@ -39,11 +39,6 @@ public class VolumeInspectHandler extends BaseSubcommandHandler implements Handl
     }
 
     @Override
-    public boolean isRedisCompatible() {
-        return false;
-    }
-
-    @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.VOLUMEINSPECT).set(new VolumeInspectMessage(request));
     }

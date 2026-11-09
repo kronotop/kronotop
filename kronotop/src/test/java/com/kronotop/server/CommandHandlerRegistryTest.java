@@ -19,7 +19,6 @@ package com.kronotop.server;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -52,9 +51,9 @@ class CommandHandlerRegistryTest {
     @Test
     void shouldRetrieveByCommandString() {
         Handler handler = new TestHandler();
-        registry.register(CommandType.GET, handler, 1, 1, "Test");
+        registry.register(CommandType.ZGET, handler, 1, 1, "Test");
 
-        HandlerEntry entry = registry.get("GET");
+        HandlerEntry entry = registry.get("ZGET");
 
         assertNotNull(entry);
         assertSame(handler, entry.handler());
@@ -79,10 +78,10 @@ class CommandHandlerRegistryTest {
         Handler handler1 = new TestHandler();
         Handler handler2 = new TestHandler();
 
-        registry.register(CommandType.SET, handler1, 2, 2, "Test");
+        registry.register(CommandType.ZSET, handler1, 2, 2, "Test");
 
         assertThrows(CommandAlreadyRegisteredException.class,
-                () -> registry.register(CommandType.SET, handler2, 2, 2, "Test"));
+                () -> registry.register(CommandType.ZSET, handler2, 2, 2, "Test"));
     }
 
     // Behavior: Verifies that getting an unknown command throws CommandNotFoundException.
@@ -101,14 +100,14 @@ class CommandHandlerRegistryTest {
     @Test
     void shouldReturnAllRegisteredCommands() {
         registry.register(CommandType.PING, new TestHandler(), 0, 1, "Test");
-        registry.register(CommandType.GET, new TestHandler(), 1, 1, "Test");
+        registry.register(CommandType.ZGET, new TestHandler(), 1, 1, "Test");
         registry.register(CommandType.BUCKET_INSERT, new TestHandler(), 2, -1, "Test");
 
         Set<String> commands = registry.getCommands();
 
         assertEquals(3, commands.size());
         assertTrue(commands.contains("PING"));
-        assertTrue(commands.contains("GET"));
+        assertTrue(commands.contains("ZGET"));
         assertTrue(commands.contains("BUCKET.INSERT"));
     }
 
@@ -116,23 +115,23 @@ class CommandHandlerRegistryTest {
     @Test
     void shouldCorrectlyReportConstraintPresence() {
         registry.register(CommandType.PING, new TestHandler(), HandlerEntry.NO_CONSTRAINT, HandlerEntry.NO_CONSTRAINT, "Test");
-        registry.register(CommandType.GET, new TestHandler(), 1, HandlerEntry.NO_CONSTRAINT, "Test");
-        registry.register(CommandType.SET, new TestHandler(), HandlerEntry.NO_CONSTRAINT, 5, "Test");
-        registry.register(CommandType.DEL, new TestHandler(), 1, 10, "Test");
+        registry.register(CommandType.ZGET, new TestHandler(), 1, HandlerEntry.NO_CONSTRAINT, "Test");
+        registry.register(CommandType.ZSET, new TestHandler(), HandlerEntry.NO_CONSTRAINT, 5, "Test");
+        registry.register(CommandType.ZDEL, new TestHandler(), 1, 10, "Test");
 
         HandlerEntry pingEntry = registry.get(CommandType.PING);
         assertFalse(pingEntry.hasMinimumArgumentCount());
         assertFalse(pingEntry.hasMaximumArgumentCount());
 
-        HandlerEntry getEntry = registry.get(CommandType.GET);
+        HandlerEntry getEntry = registry.get(CommandType.ZGET);
         assertTrue(getEntry.hasMinimumArgumentCount());
         assertFalse(getEntry.hasMaximumArgumentCount());
 
-        HandlerEntry setEntry = registry.get(CommandType.SET);
+        HandlerEntry setEntry = registry.get(CommandType.ZSET);
         assertFalse(setEntry.hasMinimumArgumentCount());
         assertTrue(setEntry.hasMaximumArgumentCount());
 
-        HandlerEntry delEntry = registry.get(CommandType.DEL);
+        HandlerEntry delEntry = registry.get(CommandType.ZDEL);
         assertTrue(delEntry.hasMinimumArgumentCount());
         assertTrue(delEntry.hasMaximumArgumentCount());
     }
@@ -144,21 +143,6 @@ class CommandHandlerRegistryTest {
 
         @Override
         public void execute(Request request, Response response) {
-        }
-
-        @Override
-        public boolean isWatchable() {
-            return false;
-        }
-
-        @Override
-        public List<String> getKeys(Request request) {
-            return List.of();
-        }
-
-        @Override
-        public boolean isRedisCompatible() {
-            return false;
         }
 
         @Override

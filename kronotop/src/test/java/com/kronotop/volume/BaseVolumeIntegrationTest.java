@@ -30,7 +30,7 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
     protected Volume volume;
     protected VolumeService service;
     protected DirectorySubspace subspace;
-    protected Prefix stashVolumeSyncerPrefix;
+    protected final Prefix volumeTestPrefix = new Prefix("volume-test-prefix".getBytes());
 
     void setupVolumeTestEnv() throws IOException {
         // Creating the global prefixes subspace is required for volume integration tests.
@@ -44,16 +44,15 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
             tr.commit().join();
         }
 
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.STASH, 1);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.BUCKET, 1);
         VolumeConfig volumeConfig = generator.volumeConfig();
         service = context.getService(VolumeService.NAME);
         volume = service.newVolume(volumeConfig);
-        stashVolumeSyncerPrefix = new Prefix(context.getConfig().getString("stash.volume_syncer.prefix").getBytes());
     }
 
     @BeforeEach
     public void setupIntegrationTest() {
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.STASH, 1);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.BUCKET, 1);
         subspace = generator.createOrOpenVolumeSubspace();
 
         try {

@@ -26,22 +26,22 @@ docker run --rm -it --network kronotop \
 Bootstraps a new Kronotop cluster. It connects to the first primary node, initializes the cluster, waits for
 shard discovery, assigns primary and standby shard ownership, and enables the shards for read-write traffic.
 
-Shard assignments are given per shard kind. Valid shard kinds are `BUCKET` and `STASH`. Addresses use the
+Shard assignments are given per shard kind. The only shard kind is `BUCKET`. Addresses use the
 internal port (default 3320).
 
-Single-node cluster with BUCKET and STASH shards:
+Single-node cluster:
 
 ```bash
 kronotop-ctl bootstrap \
-  --primary BUCKET localhost:3320=0,1,2 STASH localhost:3320=0,1,2
+  --primary BUCKET localhost:3320=0,1,2
 ```
 
 Multi-node cluster with primary and standby assignments:
 
 ```bash
 kronotop-ctl bootstrap \
-  --primary BUCKET node1:3320=0,1,2 STASH node1:3320=0,1,2 \
-  --standby BUCKET node2:3320=0,1,2 STASH node2:3320=0,1,2
+  --primary BUCKET node1:3320=0,1,2 \
+  --standby BUCKET node2:3320=0,1,2
 ```
 
 ## Help

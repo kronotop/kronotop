@@ -102,18 +102,14 @@ OK
 Cursors are independent of transactions. A cursor created inside an explicit transaction survives `COMMIT` or `ROLLBACK`
 and can continue to be advanced afterward.
 
-Watched keys (`WATCH`) are also session-scoped. `SESSION.CLOSE` unwatches all keys, just as `DISCARD` does.
-
 ## Session Reset
 
 `SESSION.CLOSE` performs a full session reset without closing the network connection. The reset proceeds in order:
 
 1. **Clear all cursors**: read, delete, and update cursor pools are emptied
 2. **Roll back the active transaction**: the FoundationDB transaction is closed and all uncommitted changes are lost
-3. **Reset MULTI state**: queued commands are discarded and the MULTI flag is cleared
-4. **Unwatch all keys**: every key in the session's watch list is released
-5. **Reset the cursor ID counter**: the next cursor will start at 1 again
-6. **Restore session defaults**: the four configuration attributes revert to their configured defaults, the
+3. **Reset the cursor ID counter**: the next cursor will start at 1 again
+4. **Restore session defaults**: the four configuration attributes revert to their configured defaults, the
    snapshot read setting goes back to off, and the current namespace goes back to the default one
 
 After `SESSION.CLOSE` returns `OK`, the session is back to the state of a freshly opened connection. What survives

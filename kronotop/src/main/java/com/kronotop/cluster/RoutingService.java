@@ -288,11 +288,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                 // Bootstrapping...
                 if (currentRoute.primary().equals(context.getMember())) {
                     // Load the shard from local disk
-                    if (shardKind.equals(ShardKind.STASH)) {
-                        runHooks(RoutingEventKind.LOAD_STASH_SHARD, ShardKind.STASH, shardId);
-                    } else {
-                        runHooks(RoutingEventKind.INITIALIZE_BUCKET_SHARD, ShardKind.BUCKET, shardId);
-                    }
+                    runHooks(RoutingEventKind.INITIALIZE_BUCKET_SHARD, ShardKind.BUCKET, shardId);
                 }
             }
 

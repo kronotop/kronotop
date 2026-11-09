@@ -23,7 +23,6 @@ import com.kronotop.cluster.Member;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.commands.SnapshotReadArgs;
-import com.kronotop.commands.redis.RedisCommandBuilder;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
 import com.kronotop.server.RESPVersion;
@@ -235,21 +234,6 @@ class InfoHandlerTest extends BaseHandlerTest {
         runCommand(second, buf);
 
         int after = intField(runInfo(getChannel(), "clients"), "clients_in_transaction");
-        assertEquals(before + 1, after);
-    }
-
-    @Test
-    void shouldCountClientsInMulti() {
-        // Behavior: a session inside MULTI is counted in clients_in_multi
-        EmbeddedChannel second = newChannel();
-        int before = intField(runInfo(getChannel(), "clients"), "clients_in_multi");
-
-        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
-        ByteBuf buf = Unpooled.buffer();
-        cmd.multi().encode(buf);
-        runCommand(second, buf);
-
-        int after = intField(runInfo(getChannel(), "clients"), "clients_in_multi");
         assertEquals(before + 1, after);
     }
 
@@ -560,15 +544,13 @@ class InfoHandlerTest extends BaseHandlerTest {
         String info = runInfo(getChannel(), "kronotop");
 
         int bucketShards = context.getShardRegistry().getShardIds(ShardKind.BUCKET).size();
-        int stashShards = context.getShardRegistry().getShardIds(ShardKind.STASH).size();
         assertTrue(info.contains("cluster_name:" + context.getClusterName() + "\r\n"));
         assertTrue(info.contains("member_id:" + context.getMember().getId() + "\r\n"));
         assertTrue(info.contains("member_status:RUNNING\r\n"));
         assertTrue(info.contains("known_members:1\r\n"));
         assertTrue(info.contains("alive_members:1\r\n"));
         assertTrue(info.contains("bucket_shards:" + bucketShards + "\r\n"));
-        assertTrue(info.contains("stash_shards:" + stashShards + "\r\n"));
-        assertTrue(info.contains("primary_shards:" + (bucketShards + stashShards) + "\r\n"));
+        assertTrue(info.contains("primary_shards:" + bucketShards + "\r\n"));
         assertTrue(info.contains("standby_shards:0\r\n"));
     }
 

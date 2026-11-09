@@ -28,8 +28,6 @@ import com.kronotop.zmap.BaseZMapHandler;
 import com.kronotop.zmap.ZMapService;
 import com.kronotop.zmap.handlers.protocol.ZDelMessage;
 
-import java.util.Collections;
-import java.util.List;
 
 @Command(ZDelMessage.COMMAND)
 @MinimumArgumentCount(ZDelMessage.MINIMUM_ARGUMENT_COUNT)
@@ -40,18 +38,8 @@ public class ZDelHandler extends BaseZMapHandler implements Handler {
     }
 
     @Override
-    public boolean isWatchable() {
-        return true;
-    }
-
-    @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.ZDEL).set(new ZDelMessage(request));
-    }
-
-    @Override
-    public List<String> getKeys(Request request) {
-        return Collections.singletonList(new String(request.attr(MessageTypes.ZDEL).get().getKey()));
     }
 
     @Override

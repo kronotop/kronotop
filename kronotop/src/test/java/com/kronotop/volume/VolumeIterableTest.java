@@ -35,14 +35,14 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
         }
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             Iterable<VolumeEntry> iterable = volume.getRange(session);
 
             List<VolumeEntry> retrievedEntries = new ArrayList<>();
@@ -74,7 +74,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldReturnEmptyIteratorWhenNoEntries() {
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             Iterable<VolumeEntry> iterable = volume.getRange(session);
 
             List<VolumeEntry> retrievedEntries = new ArrayList<>();
@@ -92,7 +92,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
@@ -100,7 +100,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         int limit = 2;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             Iterable<VolumeEntry> iterable = volume.getRange(session, limit);
 
             List<VolumeEntry> retrievedEntries = new ArrayList<>();
@@ -123,14 +123,14 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
         }
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             Iterable<VolumeEntry> iterable = volume.getRange(session, true);
 
             List<VolumeEntry> retrievedEntries = new ArrayList<>();
@@ -153,7 +153,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
@@ -161,7 +161,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         // Filter to get entries at indices 1, 2 (index 1 to 3 exclusive)
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(versionstampedKeys[1]);
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(versionstampedKeys[3]);
             Iterable<VolumeEntry> iterable = volume.getRange(session, begin, end);
@@ -183,7 +183,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
@@ -191,7 +191,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         // firstGreaterThan excludes the begin key
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterThan(versionstampedKeys[1]);
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(versionstampedKeys[4]);
             Iterable<VolumeEntry> iterable = volume.getRange(session, begin, end);
@@ -217,14 +217,14 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
         }
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterThan(versionstampedKeys[1]);
             Iterable<VolumeEntry> iterable = volume.getRange(session, begin, null);
 
@@ -246,7 +246,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
@@ -254,7 +254,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         // Both firstGreaterThan: excludes begin, includes up to but not including end
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterThan(versionstampedKeys[0]);
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(versionstampedKeys[3]);
             Iterable<VolumeEntry> iterable = volume.getRange(session, begin, end);
@@ -277,14 +277,14 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(3);
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             result.getVersionstampedKeys();
         }
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             Iterable<VolumeEntry> iterable = volume.getRange(session);
 
             for (VolumeEntry volumeEntry : iterable) {
@@ -310,7 +310,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
@@ -318,7 +318,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         int limit = 2;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             Iterable<VolumeEntry> iterable = volume.getRange(session, limit, true);
 
             List<VolumeEntry> retrievedEntries = new ArrayList<>();
@@ -339,7 +339,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
@@ -348,7 +348,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
         // Range covers indices 1, 2, 3 but limit to 2
         int limit = 2;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(versionstampedKeys[1]);
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(versionstampedKeys[4]);
             Iterable<VolumeEntry> iterable = volume.getRange(session, begin, end, limit);

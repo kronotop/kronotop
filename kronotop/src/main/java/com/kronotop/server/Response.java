@@ -33,7 +33,6 @@ import java.util.Set;
 public interface Response {
     String PONG = "PONG";
     String OK = "OK";
-    String QUEUED = "QUEUED";
 
     /**
      * Writes a Redis message to the client.
@@ -46,14 +45,6 @@ public interface Response {
      * Writes an "OK" Redis response message to the client.
      */
     void writeOK();
-
-    /**
-     * Writes a "QUEUED" Redis response message to the client.
-     * <p>
-     * This method is used to write a "QUEUED" message to the client as part of a Redis transaction.
-     * It should be called after adding a request to the queued commands and before flushing the response.
-     */
-    void writeQUEUED();
 
     /**
      * Writes a long integer value as a Redis response message to the client.
@@ -204,8 +195,7 @@ public interface Response {
      * for processing. If there are no response messages to flush, it sends a null reply.
      * <p>
      * If the response messages are an array of Redis messages, it sends an ArrayRedisMessage. If the response messages
-     * are an "OK" Redis message, it sends a FullBulkStringRedisMessage with the value "OK". If the response messages are
-     * a "QUEUED" Redis message, it sends a FullBulkStringRedisMessage with the value "QUEUED".
+     * are an "OK" Redis message, it sends a FullBulkStringRedisMessage with the value "OK".
      */
     void flush();
 

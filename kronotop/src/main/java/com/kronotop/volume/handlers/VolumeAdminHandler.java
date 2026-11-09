@@ -45,11 +45,6 @@ public class VolumeAdminHandler extends BaseSubcommandHandler implements Handler
     }
 
     @Override
-    public boolean isRedisCompatible() {
-        return false;
-    }
-
-    @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.VOLUMEADMIN).set(new VolumeAdminMessage(request));
     }

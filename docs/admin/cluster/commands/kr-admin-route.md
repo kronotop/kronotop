@@ -17,12 +17,9 @@ KR.ADMIN ROUTE <operation-kind> <route-kind> <shard-kind> <shard-id> <member-id>
 |------------------|----------------|---------------------------------------------------------------------------------------------------------------------|
 | `operation-kind` | string         | `SET` or `UNSET`. Case-insensitive.                                                                                 |
 | `route-kind`     | string         | `PRIMARY` or `STANDBY`. Case-insensitive.                                                                           |
-| `shard-kind`     | string         | `STASH` or `BUCKET`. Case-insensitive.                                                                              |
+| `shard-kind`     | string         | `BUCKET`. Case-insensitive.                                                                                         |
 | `shard-id`       | integer or `*` | Zero-based shard index, or `*` to target all shards atomically.                                                     |
 | `member-id`      | string         | Full 40-character hex member ID or a 4-character prefix. A prefix is resolved against currently registered members. |
-
-> **Note:** `STASH` is an experimental shard kind, disabled by default. See [Stash](../../../config.md#stash-optional)
-> in the configuration reference.
 
 ## Return Value
 
@@ -78,7 +75,7 @@ Argument errors:
 | `ERR`      | `invalid number of arguments`       | -                                                                       |
 | `ERR`      | `Unknown operation kind: '<value>'` | The operation kind must be `SET` or `UNSET`.                            |
 | `ERR`      | `Unknown route kind: '<value>'`     | The route kind must be `PRIMARY` or `STANDBY`.                          |
-| `ERR`      | `Unknown shard kind: '<value>'`     | The shard kind must be `STASH` or `BUCKET`.                             |
+| `ERR`      | `Unknown shard kind: '<value>'`     | The shard kind must be `BUCKET`.                                        |
 | `ERR`      | `invalid shard id`                  | The shard ID is not a valid integer, or is out of the configured range. |
 | `ERR`      | `Invalid memberId: <value>`         | The value is neither a 40-character member ID nor a 4-character prefix. |
 

@@ -16,9 +16,6 @@
 
 package com.kronotop.server;
 
-import java.util.Collections;
-import java.util.List;
-
 /**
  * Represents a generic handler interface for processing Redis-like commands.
  * A Handler defines the methods to be implemented for executing commands and
@@ -33,34 +30,6 @@ public interface Handler {
      */
     default boolean requiresClusterInitialization() {
         return true;
-    }
-
-    /**
-     * Checks if the handler is watchable.
-     *
-     * @return true if the handler is watchable, false otherwise
-     */
-    default boolean isWatchable() {
-        return false;
-    }
-
-    /**
-     * Determines if the handler is compatible with Redis.
-     *
-     * @return true if the handler is compatible with Redis, false otherwise
-     */
-    default boolean isRedisCompatible() {
-        return true;
-    }
-
-    /**
-     * Retrieves the list of keys associated with a given request.
-     *
-     * @param request the Redis request object
-     * @return the list of keys associated with the request
-     */
-    default List<String> getKeys(Request request) {
-        return Collections.emptyList();
     }
 
     /**

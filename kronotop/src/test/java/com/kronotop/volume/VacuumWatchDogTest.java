@@ -88,7 +88,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldStartWorkerForSegmentAboveThreshold() throws Exception {
         // Behavior: WatchDog starts a worker for a sealed segment with garbage above threshold
-        long sealedSegmentId = fillAndSealSegmentWithGarbage(stashVolumeSyncerPrefix);
+        long sealedSegmentId = fillAndSealSegmentWithGarbage(volumeTestPrefix);
 
         BlockingEvacuator evacuator = new BlockingEvacuator();
         cleanupLatches.add(evacuator.proceedLatch);
@@ -119,7 +119,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
         long numIterations = 2 * (segmentSize / bufferSize);
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             for (int i = 1; i <= numIterations; i++) {
                 volume.append(session, randomBytes((int) bufferSize));
             }
@@ -153,14 +153,14 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
         // Behavior: WatchDog skips the writable segment even if it has garbage
         AppendResult appendResult;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             appendResult = volume.append(session, getEntries(10));
             tr.commit().join();
         }
         Versionstamp[] keys = appendResult.getVersionstampedKeys();
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             DeleteResult deleteResult = volume.delete(session, keys);
             tr.commit().join();
             deleteResult.complete();
@@ -190,7 +190,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldBlockUntilRunFinishesOnStop() throws Exception {
         // Behavior: stop() blocks until run() fully exits
-        fillAndSealSegmentWithGarbage(stashVolumeSyncerPrefix);
+        fillAndSealSegmentWithGarbage(volumeTestPrefix);
 
         BlockingEvacuator evacuator = new BlockingEvacuator();
         cleanupLatches.add(evacuator.proceedLatch);
@@ -226,7 +226,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldNotLeaveOrphanedWorkersAfterStop() throws Exception {
         // Behavior: after stop() returns, no unsupervised workers remain running
-        long sealedSegmentId = fillAndSealSegmentWithGarbage(stashVolumeSyncerPrefix);
+        long sealedSegmentId = fillAndSealSegmentWithGarbage(volumeTestPrefix);
 
         BlockingEvacuator evacuator = new BlockingEvacuator();
         cleanupLatches.add(evacuator.proceedLatch);
@@ -257,7 +257,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
         // prefix, so the evacuator throws StalePrefixException and the segment cannot reach COMPLETED.
         // The WatchDog starts exactly one worker for that segment, does not pick it again in the same
         // run, finishes the run on its own, and leaves the segment with status STOPPED and its file intact.
-        long sealedSegmentId = fillAndSealSegmentWithGarbage(stashVolumeSyncerPrefix);
+        long sealedSegmentId = fillAndSealSegmentWithGarbage(volumeTestPrefix);
 
         AtomicInteger evacuatorsCreated = new AtomicInteger();
         VacuumWatchDog watchDog = new VacuumWatchDog(context, volume, 0.001f, 2, () -> {
@@ -292,8 +292,8 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldLimitConcurrentWorkers() throws Exception {
         // Behavior: WatchDog runs at most maxWorkers workers concurrently
-        fillAndSealSegmentWithGarbage(stashVolumeSyncerPrefix);
-        fillAndSealSegmentWithGarbage(stashVolumeSyncerPrefix);
+        fillAndSealSegmentWithGarbage(volumeTestPrefix);
+        fillAndSealSegmentWithGarbage(volumeTestPrefix);
 
         BlockingEvacuator evacuator = new BlockingEvacuator();
         cleanupLatches.add(evacuator.proceedLatch);
@@ -317,7 +317,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldStartAndStopThroughVolumeApi() throws Exception {
         // Behavior: vacuumStart/vacuumStop manages the full watchdog lifecycle
-        fillAndSealSegmentWithGarbage(stashVolumeSyncerPrefix);
+        fillAndSealSegmentWithGarbage(volumeTestPrefix);
 
         BlockingEvacuator evacuator = new BlockingEvacuator();
         cleanupLatches.add(evacuator.proceedLatch);
@@ -351,7 +351,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldRejectDoubleStart() throws Exception {
         // Behavior: vacuumStart throws when vacuum is already running
-        fillAndSealSegmentWithGarbage(stashVolumeSyncerPrefix);
+        fillAndSealSegmentWithGarbage(volumeTestPrefix);
 
         BlockingEvacuator evacuator = new BlockingEvacuator();
         cleanupLatches.add(evacuator.proceedLatch);

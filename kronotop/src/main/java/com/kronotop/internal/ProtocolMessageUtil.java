@@ -86,7 +86,7 @@ public class ProtocolMessageUtil {
     /**
      * Parses a shard kind from the given ByteBuf.
      *
-     * @param shardKindBuf buffer containing the shard kind name (e.g., "STASH", "BUCKET")
+     * @param shardKindBuf buffer containing the shard kind name (e.g., "BUCKET")
      * @return the parsed ShardKind enum value
      * @throws IllegalCommandArgumentException if the value is not a valid shard kind
      */

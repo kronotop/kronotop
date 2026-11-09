@@ -62,7 +62,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         String standbyMemberId = secondInstance.getMember().getId();
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("set", "standby", "stash", SHARD_ID, standbyMemberId).encode(buf);
+        cmd.route("set", "standby", "bucket", SHARD_ID, standbyMemberId).encode(buf);
 
         Object msg = runCommand(channel, buf);
 
@@ -88,7 +88,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         ByteBuf buf = Unpooled.buffer();
         // Use "*" for all shards
-        cmd.route("set", "standby", "stash", standbyMemberId).encode(buf);
+        cmd.route("set", "standby", "bucket", standbyMemberId).encode(buf);
 
         Object msg = runCommand(channel, buf);
 
@@ -96,8 +96,8 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals(Response.OK, actualMessage.content());
 
-        // Verify standby was added to all Stash shards
-        int numberOfShards = context.getConfig().getInt("stash.shards");
+        // Verify standby was added to all Bucket shards
+        int numberOfShards = context.getConfig().getInt("bucket.shards");
         try (Transaction tr = database.createTransaction()) {
             for (int shardId = 0; shardId < numberOfShards; shardId++) {
                 DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(SHARD_KIND, shardId);
@@ -116,7 +116,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         String standbyMemberId = secondInstance.getMember().getId();
 
         ByteBuf setBuf = Unpooled.buffer();
-        cmd.route("set", "standby", "stash", SHARD_ID, standbyMemberId).encode(setBuf);
+        cmd.route("set", "standby", "bucket", SHARD_ID, standbyMemberId).encode(setBuf);
         Object setMsg = runCommand(channel, setBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, setMsg);
 
@@ -129,7 +129,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Now unset the standby
         ByteBuf unsetBuf = Unpooled.buffer();
-        cmd.route("unset", "standby", "stash", SHARD_ID, standbyMemberId).encode(unsetBuf);
+        cmd.route("unset", "standby", "bucket", SHARD_ID, standbyMemberId).encode(unsetBuf);
 
         Object msg = runCommand(channel, unsetBuf);
 
@@ -153,12 +153,12 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         String standbyMemberId = secondInstance.getMember().getId();
 
         ByteBuf setBuf = Unpooled.buffer();
-        cmd.route("set", "standby", "stash", standbyMemberId).encode(setBuf);
+        cmd.route("set", "standby", "bucket", standbyMemberId).encode(setBuf);
         Object setMsg = runCommand(channel, setBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, setMsg);
 
         // Verify standby was added to all shards
-        int numberOfShards = context.getConfig().getInt("stash.shards");
+        int numberOfShards = context.getConfig().getInt("bucket.shards");
         try (Transaction tr = database.createTransaction()) {
             for (int shardId = 0; shardId < numberOfShards; shardId++) {
                 DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(SHARD_KIND, shardId);
@@ -169,7 +169,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Now unset the standby for all shards
         ByteBuf unsetBuf = Unpooled.buffer();
-        cmd.route("unset", "standby", "stash", standbyMemberId).encode(unsetBuf);
+        cmd.route("unset", "standby", "bucket", standbyMemberId).encode(unsetBuf);
 
         Object msg = runCommand(channel, unsetBuf);
 
@@ -195,7 +195,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         String primaryMemberId = kronotopInstance.getMember().getId();
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("set", "standby", "stash", SHARD_ID, primaryMemberId).encode(buf);
+        cmd.route("set", "standby", "bucket", SHARD_ID, primaryMemberId).encode(buf);
 
         Object msg = runCommand(channel, buf);
 
@@ -213,13 +213,13 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         String standbyMemberId = secondInstance.getMember().getId();
 
         ByteBuf setBuf = Unpooled.buffer();
-        cmd.route("set", "standby", "stash", SHARD_ID, standbyMemberId).encode(setBuf);
+        cmd.route("set", "standby", "bucket", SHARD_ID, standbyMemberId).encode(setBuf);
         Object setMsg = runCommand(channel, setBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, setMsg);
 
         // Try to set the same member as standby again
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("set", "standby", "stash", SHARD_ID, standbyMemberId).encode(buf);
+        cmd.route("set", "standby", "bucket", SHARD_ID, standbyMemberId).encode(buf);
 
         Object msg = runCommand(channel, buf);
 
@@ -238,7 +238,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Try to unset a member that is not a standby
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("unset", "standby", "stash", SHARD_ID, memberId).encode(buf);
+        cmd.route("unset", "standby", "bucket", SHARD_ID, memberId).encode(buf);
 
         Object msg = runCommand(channel, buf);
 
@@ -254,7 +254,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         String primaryMemberId = kronotopInstance.getMember().getId();
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("unset", "primary", "stash", SHARD_ID, primaryMemberId).encode(buf);
+        cmd.route("unset", "primary", "bucket", SHARD_ID, primaryMemberId).encode(buf);
 
         Object msg = runCommand(channel, buf);
 
@@ -271,7 +271,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         String nonExistentMemberId = MemberIdGenerator.generateId();
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("set", "standby", "stash", SHARD_ID, nonExistentMemberId).encode(buf);
+        cmd.route("set", "standby", "bucket", SHARD_ID, nonExistentMemberId).encode(buf);
 
         Object msg = runCommand(channel, buf);
 
@@ -301,7 +301,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         String memberId = secondInstance.getMember().getId();
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("invalid", "standby", "stash", SHARD_ID, memberId).encode(buf);
+        cmd.route("invalid", "standby", "bucket", SHARD_ID, memberId).encode(buf);
 
         Object msg = runCommand(channel, buf);
 
@@ -318,7 +318,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         String memberId = secondInstance.getMember().getId();
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("set", "invalid", "stash", SHARD_ID, memberId).encode(buf);
+        cmd.route("set", "invalid", "bucket", SHARD_ID, memberId).encode(buf);
 
         Object msg = runCommand(channel, buf);
 

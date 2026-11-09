@@ -16,13 +16,11 @@
 
 package com.kronotop.core.handlers.session;
 
-import com.kronotop.Context;
 import com.kronotop.core.handlers.session.protocol.SessionCloseMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.server.annotation.MinimumArgumentCount;
-import com.kronotop.watcher.Watcher;
 
 /**
  * Handler for the SESSION.CLOSE command that wipes out session state while keeping the connection open.
@@ -31,34 +29,22 @@ import com.kronotop.watcher.Watcher;
  * <ul>
  *   <li>Clears all cursor maps (read, delete, update query contexts)</li>
  *   <li>Rolls back and closes any active FDB transaction</li>
- *   <li>Cleans up Redis MULTI transaction state</li>
- *   <li>Unwatches all watched keys</li>
  *   <li>Resets cursor ID counter to 1</li>
  *   <li>Restores the session defaults: configuration attributes, snapshot read, current namespace
  *       and open namespace cache</li>
  * </ul>
  * <p>
  * State that belongs to the connection rather than the session is kept: the negotiated RESP version,
- * the authentication flag, the readonly flag and the client attributes.
+ * the authentication flag and the client attributes.
  */
 @Command(SessionCloseMessage.COMMAND)
 @MaximumArgumentCount(SessionCloseMessage.MAXIMUM_ARGUMENT_COUNT)
 @MinimumArgumentCount(SessionCloseMessage.MINIMUM_ARGUMENT_COUNT)
 public class SessionCloseHandler implements Handler {
-    private final Watcher watcher;
-
-    public SessionCloseHandler(Context context) {
-        this.watcher = context.getService(Watcher.NAME);
-    }
 
     @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.SESSIONCLOSE).set(new SessionCloseMessage());
-    }
-
-    @Override
-    public boolean isRedisCompatible() {
-        return false;
     }
 
     @Override
@@ -76,16 +62,10 @@ public class SessionCloseHandler implements Handler {
         // 2. Rollback and close any active FDB transaction
         session.closeAndCleanupTransaction();
 
-        // 3. Reset Redis MULTI transaction state
-        session.resetRedisTransactionState();
-
-        // 4. Unwatch all watched keys
-        watcher.unwatchWatchedKeys(session);
-
-        // 5. Reset cursor ID counter to 1
+        // 3. Reset cursor ID counter to 1
         session.resetCursorId();
 
-        // 6. Restore all session defaults
+        // 4. Restore all session defaults
         session.restoreDefaults();
 
         response.writeOK();

@@ -33,7 +33,6 @@ public enum RESPError {
     NOSUCHBUCKET,
     BUCKETBEINGREMOVED,
     WRONGTYPE,
-    EXECABORT,
     MOVED,
     CROSSSLOT,
     NOPROTO,
@@ -49,7 +48,6 @@ public enum RESPError {
     public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_LONG = "value is not a long or out of range";
     public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER = "value is not an integer or out of range";
     public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT = "value is not a valid float";
-    public final static String EXECABORT_MESSAGE = "Transaction discarded because of previous errors.";
     public final static String PROTOCOL_VERSION_FORMAT_ERROR = "Protocol version is not an integer or out of range";
     public final static String CROSSSLOT_MESSAGE = "Keys in request don't hash to the same slot";
     public final static String UNSUPPORTED_PROTOCOL_VERSION = "unsupported protocol version";

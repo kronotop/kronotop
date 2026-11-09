@@ -40,7 +40,7 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(2);
         AppendResult appendResult;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             appendResult = volume.append(session, entries);
             tr.commit().join();
         }
@@ -48,7 +48,7 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
 
         List<VersionstampedEntry> versionstampedEntries = new ArrayList<>();
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             for (VolumeEntry volumeEntry : volume.getRange(session)) {
                 versionstampedEntries.add(new VersionstampedEntry(volumeEntry.key(), EntryMetadata.decode(volumeEntry.metadata())));
             }
@@ -58,13 +58,13 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
         VolumeFacade facade = new VolumeFacade(context);
         VolumeSubspace volumeSubspace = new VolumeSubspace(subspace);
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             facade.deleteByVersionstampedEntry(volumeSubspace, session, versionstampedEntries.toArray(new VersionstampedEntry[0]));
             tr.commit().join();
         }
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             for (Versionstamp versionstamp : versionstampedKeys) {
                 assertNull(volume.get(session, versionstamp));
             }
@@ -77,7 +77,7 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
         VolumeFacade facade = new VolumeFacade(context);
         VolumeSubspace volumeSubspace = new VolumeSubspace(subspace);
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             assertThrows(IllegalArgumentException.class,
                     () -> facade.deleteByVersionstampedEntry(volumeSubspace, session));
         }
@@ -89,14 +89,14 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
         // that segment analysis reflects the correct garbage bytes (4 entries × 10 bytes = 40).
         ByteBuffer[] entries = getEntries(10);
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             volume.append(session, entries);
             tr.commit().join();
         }
 
         List<VersionstampedEntry> versionstampedEntries = new ArrayList<>();
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             for (VolumeEntry volumeEntry : volume.getRange(session)) {
                 versionstampedEntries.add(new VersionstampedEntry(volumeEntry.key(), EntryMetadata.decode(volumeEntry.metadata())));
             }
@@ -108,7 +108,7 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
         VolumeFacade facade = new VolumeFacade(context);
         VolumeSubspace volumeSubspace = new VolumeSubspace(subspace);
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             facade.deleteByVersionstampedEntry(volumeSubspace, session, toDelete);
             tr.commit().join();
         }
@@ -130,7 +130,7 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(3);
         AppendResult appendResult;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             appendResult = volume.append(session, entries);
             tr.commit().join();
         }
@@ -138,7 +138,7 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
 
         List<VersionstampedEntry> versionstampedEntries = new ArrayList<>();
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             for (VolumeEntry volumeEntry : volume.getRange(session)) {
                 versionstampedEntries.add(new VersionstampedEntry(volumeEntry.key(), EntryMetadata.decode(volumeEntry.metadata())));
             }
@@ -150,7 +150,7 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
         VolumeFacade facade = new VolumeFacade(context);
         VolumeSubspace volumeSubspace = new VolumeSubspace(subspace);
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             facade.deleteByVersionstampedEntry(volumeSubspace, session, toDelete);
             tr.commit().join();
         }
@@ -192,7 +192,7 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
                 assertEquals(versionstampedKeys[deletedIndex], deleteEntry.getVersionstamp());
 
                 // Verify prefix
-                assertEquals(stashVolumeSyncerPrefix.asLong(), deleteEntry.getPrefix());
+                assertEquals(volumeTestPrefix.asLong(), deleteEntry.getPrefix());
             }
         }
     }

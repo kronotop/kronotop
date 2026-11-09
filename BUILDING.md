@@ -229,7 +229,7 @@ This initializes the cluster, waits for shard discovery, assigns shard `0` to th
 read/write traffic. Bootstrap is idempotent: if the cluster is already initialized, it skips and exits.
 
 The assignment syntax is `host:port=shard-ids`, where the port is the internal/admin port (`3320`) and shard ids are
-comma-separated. Valid shard kinds are `BUCKET` and `STASH`.
+comma-separated. The only shard kind is `BUCKET`.
 
 For a two-node primary/standby setup:
 

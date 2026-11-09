@@ -53,11 +53,6 @@
             "name": "bucket",
             "type": "pure-token",
             "token": "BUCKET"
-          },
-          {
-            "name": "stash",
-            "type": "pure-token",
-            "token": "STASH"
           }
         ]
       },

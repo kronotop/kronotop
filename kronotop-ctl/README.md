@@ -41,23 +41,23 @@ kronotop-ctl bootstrap [options]
 | `--standby <shard-kind> <host:port=shard-ids>` | Assign standby shards. Repeatable, accepts multiple pairs. |
 | `--shard-discovery-timeout <seconds>`          | Max seconds to wait for shard discovery. Default: 30       |
 
-**Shard kinds:** `BUCKET`, `STASH`
+**Shard kinds:** `BUCKET`
 
 **Examples:**
 
-Single-node cluster with BUCKET and STASH shards:
+Single-node cluster:
 
 ```bash
 kronotop-ctl bootstrap \
-  --primary BUCKET localhost:3320=0,1,2 STASH localhost:3320=0,1,2
+  --primary BUCKET localhost:3320=0,1,2
 ```
 
 Multi-node cluster with primary and standby assignments:
 
 ```bash
 kronotop-ctl bootstrap \
-  --primary BUCKET node1:3320=0,1,2 STASH node1:3320=0,1,2 \
-  --standby BUCKET node2:3320=0,1,2 STASH node2:3320=0,1,2
+  --primary BUCKET node1:3320=0,1,2 \
+  --standby BUCKET node2:3320=0,1,2
 ```
 
 **Bootstrap steps:**

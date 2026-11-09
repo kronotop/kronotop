@@ -61,7 +61,7 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
         // Append triggers the watcher
         ByteBuffer[] entries = getEntries(1);
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             volume.append(session, entries);
             tr.commit().join();
         }
@@ -105,7 +105,7 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
         // Trigger the watcher
         ByteBuffer[] entries = getEntries(1);
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             volume.append(session, entries);
             tr.commit().join();
         }
@@ -205,7 +205,7 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
         // Trigger the watcher with an append
         ByteBuffer[] entries = getEntries(1);
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             volume.append(session, entries);
             tr.commit().join();
         }

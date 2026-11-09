@@ -37,9 +37,9 @@ class CommandTypeTest {
     @Test
     void shouldParseSimpleCommands() {
         assertEquals(CommandType.PING, CommandType.parse("PING"));
-        assertEquals(CommandType.GET, CommandType.parse("GET"));
-        assertEquals(CommandType.SET, CommandType.parse("SET"));
-        assertEquals(CommandType.HGET, CommandType.parse("HGET"));
+        assertEquals(CommandType.ZGET, CommandType.parse("ZGET"));
+        assertEquals(CommandType.ZSET, CommandType.parse("ZSET"));
+        assertEquals(CommandType.BEGIN, CommandType.parse("BEGIN"));
     }
 
     // Behavior: Verifies commands with dot notation parse to their enum constants.

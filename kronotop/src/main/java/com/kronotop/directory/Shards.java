@@ -20,7 +20,7 @@ import java.util.List;
 
 /**
  * Represents the Shards directory node in the Kronotop directory structure.
- * This class provides access to Stash and Bucket directory nodes under the "shards"
+ * This class provides access to Bucket directory nodes under the "shards"
  * path of the directory layout.
  * <p>
  * The class extends KronotopDirectoryNode, inheriting basic operations such as
@@ -31,10 +31,6 @@ public class Shards extends KronotopDirectoryNode {
     public Shards(List<String> layout) {
         super(layout);
         layout.add("shards");
-    }
-
-    public Stash stash() {
-        return new Stash(layout);
     }
 
     public Bucket bucket() {

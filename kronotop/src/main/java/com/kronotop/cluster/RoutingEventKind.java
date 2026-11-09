@@ -25,12 +25,6 @@ package com.kronotop.cluster;
  */
 public enum RoutingEventKind {
     /**
-     * Triggered when this member becomes the primary owner of a Stash shard.
-     * Loads shard state from local storage to prepare for serving requests.
-     */
-    LOAD_STASH_SHARD,
-
-    /**
      * Triggered when this member becomes the primary owner of a Bucket shard.
      * Initializes data structures and loads configuration for document operations.
      */

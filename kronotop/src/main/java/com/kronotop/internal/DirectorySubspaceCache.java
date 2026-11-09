@@ -143,9 +143,7 @@ public final class DirectorySubspaceCache {
                     cluster(cluster).
                     metadata().
                     shards();
-            if (kind.equals(ShardKind.STASH)) {
-                return root.stash().shard(shardId).toList();
-            } else if (kind.equals(ShardKind.BUCKET)) {
+            if (kind.equals(ShardKind.BUCKET)) {
                 return root.bucket().shard(shardId).toList();
             }
             throw new RuntimeException("Unknown shard kind: " + kind);

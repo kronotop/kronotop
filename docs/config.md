@@ -273,7 +273,7 @@ TLS).
 
 ## Volume
 
-Global tuning parameters for the volume storage engine. These apply to all volume instances (bucket, stash, etc.).
+Global tuning parameters for the volume storage engine. These apply to all volume instances.
 
 ### Vacuum
 
@@ -355,30 +355,6 @@ Configuration for the vector index subsystem.
 | `bucket.vector.sync_chunk_size_bytes`             | int (bytes)         | `1048576` (1 MiB)     | Chunk size used when a flushed vector index file is written to Volume. Each chunk is one Volume entry. Small chunks keep inserts from waiting behind a long segment fsync.                                                   |
 | `bucket.vector.sync_write_chunks_per_transaction` | int                 | `50`                  | Number of chunks written in one transaction during vector index sync.                                                                                                                                                        |
 | `bucket.vector.sync_read_chunks_per_transaction`  | int                 | `200`                 | Number of chunks read in one transaction when a vector index is loaded from Volume. Reads do not write to FoundationDB, so this can be larger than the write value.                                                          |
-
----
-
-## Stash (Optional)
-
-The stash is an experimental key-value store with String and Hash data types. It persists data by syncing it to the
-volume storage engine. The stash is disabled by default; set `stash.enabled = true` to opt in.
-
-| Parameter                                     | Type         | Default              | Description                                         |
-|-----------------------------------------------|--------------|----------------------|-----------------------------------------------------|
-| `stash.enabled`                               | boolean      | `false`              | Enable or disable the stash subsystem.              |
-| `stash.shards`                                | int          | `1`                  | Number of shards for stash data.                    |
-| `stash.volume.segment_size`                   | long (bytes) | `4294967296` (4 GiB) | Maximum size of a single stash volume segment file. |
-| `stash.volume.segment_replication_chunk_size` | long (bytes) | `16777216` (16 MiB)  | Chunk size for stash segment replication.           |
-
-### Stash Volume Syncer
-
-The volume syncer runs background workers that keep stash volumes synchronized.
-
-| Parameter                     | Type               | Default                 | Description                                                                            |
-|-------------------------------|--------------------|-------------------------|----------------------------------------------------------------------------------------|
-| `stash.volume_syncer.prefix`  | string             | `"stash-volume-syncer"` | Prefix used to name volume syncer threads for identification in logs and thread dumps. |
-| `stash.volume_syncer.workers` | int                | `8`                     | Number of concurrent syncer worker threads.                                            |
-| `stash.volume_syncer.period`  | int (milliseconds) | `1000`                  | How often each syncer worker checks for pending sync work.                             |
 
 ---
 

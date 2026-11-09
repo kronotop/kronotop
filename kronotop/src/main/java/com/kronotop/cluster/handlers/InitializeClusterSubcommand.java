@@ -53,25 +53,6 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
         super(service);
     }
 
-    private void initializeStashSection(Transaction tr, DirectorySubspace subspace) {
-        int numberOfStashShards = membership.getContext().getConfig().getInt("stash.shards");
-        if (numberOfStashShards <= 0) {
-            throw new KronotopException("stash.shards must be greater than 0");
-        }
-        for (int shardId = 0; shardId < numberOfStashShards; shardId++) {
-            KronotopDirectoryNode directory = KronotopDirectory.
-                    kronotop().
-                    cluster(membership.getContext().getClusterName()).
-                    metadata().
-                    shards().
-                    stash().
-                    shard(shardId);
-            DirectorySubspace shardSubspace = subspace.create(tr, directory.excludeSubspace(subspace)).join();
-            ShardUtil.setShardStatus(tr, ShardStatus.INOPERABLE, shardSubspace);
-        }
-    }
-
-
     private void initializeIndexMetadata(Transaction tr, int shardId) {
         List<String> layout = KronotopDirectory.
                 kronotop().cluster(context.getClusterName()).metadata().
@@ -155,7 +136,6 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
 
             MetadataVersion.write(context, tr, MetadataVersion.CURRENT);
             initializeNamespaces(tr, clusterMetadataSubspace);
-            initializeStashSection(tr, clusterMetadataSubspace);
             initializeBucketSection(tr, clusterMetadataSubspace);
             setClusterInitializedTrue(tr, clusterMetadataSubspace);
             tr.commit().join();

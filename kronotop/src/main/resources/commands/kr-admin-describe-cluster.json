@@ -59,41 +59,6 @@
               }
             }
           }
-        },
-        "stash": {
-          "description": "Per-shard details for all stash shards, keyed by shard id. Present only when stash is enabled.",
-          "type": "object",
-          "additionalProperties": {
-            "description": "The details of one shard.",
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "primary": {
-                "description": "Member id of the primary route, or an empty string if unassigned.",
-                "type": "string"
-              },
-              "standbys": {
-                "description": "Member ids of the standby routes.",
-                "type": "array",
-                "items": {
-                  "description": "A member id.",
-                  "type": "string"
-                }
-              },
-              "status": {
-                "description": "READWRITE, READONLY or INOPERABLE.",
-                "type": "string"
-              },
-              "linked_volumes": {
-                "description": "Volume names in the format <kind>-shard-<id>.",
-                "type": "array",
-                "items": {
-                  "description": "A volume name.",
-                  "type": "string"
-                }
-              }
-            }
-          }
         }
       }
     }

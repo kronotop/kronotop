@@ -26,14 +26,7 @@ import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.metrics.NetworkMetrics;
 import com.kronotop.server.impl.RESPRequest;
 import com.kronotop.server.impl.RESPResponse;
-import com.kronotop.server.impl.TransactionResponse;
-import com.kronotop.stash.StashService;
-import com.kronotop.stash.handlers.transactions.protocol.DiscardMessage;
-import com.kronotop.stash.handlers.transactions.protocol.ExecMessage;
-import com.kronotop.stash.handlers.transactions.protocol.MultiMessage;
-import com.kronotop.stash.handlers.transactions.protocol.WatchMessage;
 import com.kronotop.transaction.TransactionUtil;
-import com.kronotop.watcher.Watcher;
 import com.kronotop.zmap.ZMapService;
 import com.typesafe.config.Config;
 import io.netty.buffer.ByteBuf;
@@ -49,25 +42,18 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.SSLHandshakeException;
 import java.net.SocketException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Serves RESP commands on a client channel. It checks authentication and argument counts, runs
- * the command handler, and converts exceptions to RESP errors. It also queues the commands sent
- * between MULTI and EXEC.
+ * the command handler, and converts exceptions to RESP errors.
  */
 public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(KronotopChannelDuplexHandler.class);
 
     private final Context context;
-    private final ReadWriteLock transactionLock = new ReentrantReadWriteLock(true);
-    private final Watcher watcher;
-    private final StashService stashService;
     private final ZMapService zmapService;
     private final CommandHandlerRegistry commands;
     private final ServerKind serverKind;
@@ -79,8 +65,6 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         this.context = context;
         this.commands = commands;
         this.serverKind = serverKind;
-        this.watcher = context.getService(Watcher.NAME);
-        this.stashService = context.getService(StashService.NAME);
         this.zmapService = context.getService(ZMapService.NAME);
 
         Config config = context.getConfig();
@@ -127,7 +111,6 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
         Session session = Session.extractSessionFromChannel(ctx.channel());
-        watcher.unwatchWatchedKeys(session);
         releaseZWatch(session);
         session.channelUnregistered();
         super.channelUnregistered(ctx);
@@ -199,29 +182,17 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         }
     }
 
-    private void execute(Handler handler, Request request, Response response) throws Exception {
-        handler.execute(request, response);
-
-        if (watcher.hasWatchers()) {
-            if (handler.isWatchable()) {
-                for (String key : handler.getKeys(request)) {
-                    watcher.increaseWatchedKeyVersion(key);
-                }
-            }
-        }
-    }
-
     private void executeCommand(Handler handler, Request request, Response response) {
         try {
             if (authEnabled) {
                 if (request.getSession().isAuthenticated()) {
                     // Already authenticated
-                    execute(handler, request, response);
+                    handler.execute(request, response);
                 } else {
                     // Not authenticated yet
                     if (request.getCommand().equals("AUTH") || request.getCommand().equals("HELLO")) {
                         // Execute AUTH command.
-                        execute(handler, request, response);
+                        handler.execute(request, response);
                     } else {
                         metrics.increaseCommandsFailed(serverKind);
                         response.writeError(RESPError.NOAUTH, "Authentication required.");
@@ -229,77 +200,10 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
                 }
             } else {
                 // Authentication disabled
-                execute(handler, request, response);
+                handler.execute(request, response);
             }
         } catch (Exception e) {
             exceptionToRespError(request, response, e);
-        }
-    }
-
-    private void executeRedisTransaction(Session session) {
-        Response response = new RESPResponse(session.getCtx(), session);
-        TransactionResponse transactionResponse = new TransactionResponse(session.getCtx(), session.getProtocolVersion());
-        transactionLock.writeLock().lock();
-        try {
-            Attribute<Boolean> redisMultiDiscarded = session.attr(SessionAttributes.MULTI_DISCARDED);
-            if (redisMultiDiscarded.get()) {
-                throw new ExecAbortException();
-            }
-
-            HashMap<String, Long> watchedKeys = session.attr(SessionAttributes.WATCHED_KEYS).get();
-            if (watchedKeys != null) {
-                for (String key : watchedKeys.keySet()) {
-                    Long version = watchedKeys.get(key);
-                    if (watcher.isModified(key, version)) {
-                        // If keys were modified between when they were WATCHed
-                        // and when the EXEC was received, the entire transaction
-                        // will be aborted instead.
-                        response.writeNULL();
-                        return;
-                    }
-                }
-            }
-
-            Attribute<List<Request>> queuedCommands = session.attr(SessionAttributes.QUEUED_COMMANDS);
-            for (Request request : queuedCommands.get()) {
-                HandlerEntry entry = commands.get(request.getCommand());
-                if (!entry.handler().isRedisCompatible()) {
-                    throw new KronotopException("Redis compatibility required");
-                }
-                executeCommand(entry.handler(), request, transactionResponse);
-            }
-            transactionResponse.flush();
-        } catch (ExecAbortException e) {
-            response.writeError(e.getPrefix(), e.getMessage());
-        } catch (Exception e) {
-            response.writeError(
-                    String.format("Unhandled exception during transaction handling: %s", e.getMessage())
-            );
-        } finally {
-            transactionLock.writeLock().unlock();
-        }
-    }
-
-    private void queueCommandsForRedisTransaction(Request request, Response response) {
-        transactionLock.readLock().lock();
-        try {
-            try {
-                HandlerEntry entry = commands.get(request.getCommand());
-                beforeExecute(entry, request);
-            } catch (Exception e) {
-                Attribute<Boolean> redisMultiDiscarded = request.getSession().attr(SessionAttributes.MULTI_DISCARDED);
-                redisMultiDiscarded.set(true);
-                exceptionToRespError(request, response, e);
-                return;
-            }
-
-            Attribute<List<Request>> queuedCommands = request.getSession().attr(SessionAttributes.QUEUED_COMMANDS);
-            ReferenceCountUtil.retain(request.getRedisMessage());
-            queuedCommands.get().add(request);
-            response.writeQUEUED();
-            response.flush();
-        } finally {
-            transactionLock.readLock().unlock();
         }
     }
 
@@ -317,70 +221,6 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
             command.add(argument);
         }
         return String.join(" ", command);
-    }
-
-    /**
-     * Handles a command received after MULTI.
-     *
-     * @param session  the session that owns the transaction
-     * @param request  the request that holds the command and its arguments
-     * @param response the response used to reply to the client
-     * @return false if the command is DISCARD, true otherwise
-     */
-    private boolean executeRedisCompatibleCommandInTransaction(Session session, Request request, Response response) {
-        switch (request.getCommand()) {
-            case MultiMessage.COMMAND:
-                response.writeError("MULTI calls can not be nested");
-                break;
-            case WatchMessage.COMMAND:
-                response.writeError("WATCH inside MULTI is not allowed");
-                break;
-            case ExecMessage.COMMAND:
-                try {
-                    executeRedisTransaction(session);
-                } finally {
-                    if (stashService != null) {
-                        stashService.cleanupRedisTransaction(request.getSession());
-                    }
-                }
-                break;
-            default:
-                if (request.getCommand().equals(DiscardMessage.COMMAND)) {
-                    return false; // discard the transaction
-                }
-                queueCommandsForRedisTransaction(request, response);
-        }
-        return true; // still in the transaction boundaries
-    }
-
-    /**
-     * Checks and runs a command under the read lock of the transaction lock.
-     *
-     * @param request  the request that holds the command and its arguments
-     * @param response the response used to reply to the client
-     * @param entry    the handler entry of the command
-     */
-    private void executeRedisCompatibleCommand(Request request, Response response, HandlerEntry entry) {
-        transactionLock.readLock().lock();
-        try {
-            beforeExecute(entry, request);
-            executeCommand(entry.handler(), request, response);
-        } finally {
-            transactionLock.readLock().unlock();
-        }
-    }
-
-    /**
-     * Checks and runs a command without taking the transaction lock.
-     *
-     * @param request  the request that holds the command and its arguments
-     * @param response the response used to reply to the client
-     * @param entry    the handler entry of the command
-     */
-    private void executeKronotopCommand(Request request, Response response, HandlerEntry entry) {
-        beforeExecute(entry, request);
-        request.getSession().startCommand(request.getCommand(), modelOf(entry.service()));
-        executeCommand(entry.handler(), request, response);
     }
 
     private void channelRead0(ChannelHandlerContext ctx, Object message) {
@@ -415,23 +255,14 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
             }
         }
 
-        Attribute<Boolean> multiAttr = session.attr(SessionAttributes.MULTI);
-        if (Boolean.TRUE.equals(multiAttr.get())) {
-            if (executeRedisCompatibleCommandInTransaction(session, request, response)) {
-                return;
-            }
-        }
-
         try {
             if (serverKind == ServerKind.EXTERNAL) {
                 context.getInFlight().enter();
             }
             HandlerEntry entry = commands.get(request.getCommand());
-            if (entry.handler().isRedisCompatible()) {
-                executeRedisCompatibleCommand(request, response, entry);
-            } else {
-                executeKronotopCommand(request, response, entry);
-            }
+            beforeExecute(entry, request);
+            session.startCommand(request.getCommand(), modelOf(entry.service()));
+            executeCommand(entry.handler(), request, response);
         } catch (Exception e) {
             exceptionToRespError(request, response, e);
         } finally {

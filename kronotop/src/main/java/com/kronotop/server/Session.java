@@ -38,8 +38,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * A session is primarily used to interact with a client's connection and maintain its state
  * throughout the lifecycle of the connection.
  * <p>
- * The session is responsible for initializing and managing attributes such as client ID,
- * Redis transaction tracking, and other context-specific settings. It also provides methods
+ * The session is responsible for initializing and managing attributes such as client ID
+ * and other context-specific settings. It also provides methods
  * for cleanup and resource management, such as handling transaction closure and session
  * post-commit processing.
  */
@@ -130,15 +130,11 @@ public class Session {
         Long clientId = ClientIDGenerator.getAndIncrement();
         channel.attr(SessionAttributes.CLIENT_ID).set(clientId);
         channel.attr(SessionAttributes.AUTH).set(false);
-        channel.attr(SessionAttributes.READONLY).set(false);
         channel.attr(SessionAttributes.OPEN_NAMESPACES).set(new ConcurrentHashMap<>());
         channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).set(new HashMap<>());
         channel.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).set(new HashMap<>());
         channel.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).set(new HashMap<>());
         channel.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).set(new HashMap<>());
-        channel.attr(SessionAttributes.QUEUED_COMMANDS).set(new ArrayList<>());
-        channel.attr(SessionAttributes.MULTI).set(false);
-        channel.attr(SessionAttributes.MULTI_DISCARDED).set(false);
         channel.attr(SessionAttributes.POST_COMMIT_HOOKS).set(new ArrayList<>());
 
         restoreDefaults();
@@ -377,14 +373,5 @@ public class Session {
         channel.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get().clear();
         channel.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get().clear();
         channel.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get().clear();
-    }
-
-    /**
-     * Resets Redis MULTI transaction state.
-     */
-    public void resetRedisTransactionState() {
-        channel.attr(SessionAttributes.MULTI).set(false);
-        channel.attr(SessionAttributes.MULTI_DISCARDED).set(false);
-        channel.attr(SessionAttributes.QUEUED_COMMANDS).set(new ArrayList<>());
     }
 }

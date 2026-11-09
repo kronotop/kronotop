@@ -40,14 +40,6 @@ public class ReplicationUtil {
 
     private static KronotopDirectoryNode standbyDirectoryNode(Context context, ShardKind shardKind, String volume, String standbyId) {
         return switch (shardKind) {
-            case STASH -> KronotopDirectory.
-                    kronotop().
-                    cluster(context.getClusterName()).
-                    metadata().
-                    volumes().
-                    stash().
-                    volume(volume).
-                    standby(standbyId);
             case BUCKET -> KronotopDirectory.
                     kronotop().
                     cluster(context.getClusterName()).

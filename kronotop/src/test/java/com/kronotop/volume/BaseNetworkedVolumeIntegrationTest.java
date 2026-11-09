@@ -40,7 +40,7 @@ public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPSe
     protected final BaseVolumeTestWrapper baseVolumeTestWrapper = new BaseVolumeTestWrapper();
 
     protected final int SHARD_ID = 1;
-    protected final ShardKind SHARD_KIND = ShardKind.STASH;
+    protected final ShardKind SHARD_KIND = ShardKind.BUCKET;
     protected Context context;
     protected Database database;
     protected KronotopTestInstance kronotopInstance;
