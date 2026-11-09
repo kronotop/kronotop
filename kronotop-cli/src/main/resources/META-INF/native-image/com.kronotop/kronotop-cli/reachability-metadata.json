@@ -1,0 +1,414 @@
+{
+  "reflection": [
+    {
+      "type": "com.kronotop.cli.KronotopCLI",
+      "fields": [
+        {
+          "name": "cacert"
+        },
+        {
+          "name": "cacertdir"
+        },
+        {
+          "name": "command"
+        },
+        {
+          "name": "csv"
+        },
+        {
+          "name": "delimiter"
+        },
+        {
+          "name": "helpRequested"
+        },
+        {
+          "name": "host"
+        },
+        {
+          "name": "inputType"
+        },
+        {
+          "name": "insecure"
+        },
+        {
+          "name": "interval"
+        },
+        {
+          "name": "json"
+        },
+        {
+          "name": "noColor"
+        },
+        {
+          "name": "noRaw"
+        },
+        {
+          "name": "objectIdFormat"
+        },
+        {
+          "name": "port"
+        },
+        {
+          "name": "quotedInput"
+        },
+        {
+          "name": "quotedJson"
+        },
+        {
+          "name": "raw"
+        },
+        {
+          "name": "repeat"
+        },
+        {
+          "name": "replyType"
+        },
+        {
+          "name": "resp2"
+        },
+        {
+          "name": "resp3"
+        },
+        {
+          "name": "responseDelimiter"
+        },
+        {
+          "name": "scriptFile"
+        },
+        {
+          "name": "silent"
+        },
+        {
+          "name": "sni"
+        },
+        {
+          "name": "timeout"
+        },
+        {
+          "name": "tls"
+        },
+        {
+          "name": "tlsCiphers"
+        },
+        {
+          "name": "tlsCiphersuites"
+        },
+        {
+          "name": "versionRequested"
+        }
+      ]
+    },
+    {
+      "type": "com.kronotop.cli.VersionProvider",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "groovy.lang.Closure"
+    },
+    {
+      "type": "java.io.Console",
+      "methods": [
+        {
+          "name": "isTerminal",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Boolean",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "getBoolean",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Object"
+    },
+    {
+      "type": "java.lang.System",
+      "methods": [
+        {
+          "name": "console",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.nio.file.Path"
+    },
+    {
+      "type": "java.nio.file.Paths"
+    },
+    {
+      "type": "java.sql.Connection"
+    },
+    {
+      "type": "java.sql.Driver"
+    },
+    {
+      "type": "java.sql.DriverManager"
+    },
+    {
+      "type": "java.sql.Time"
+    },
+    {
+      "type": "java.sql.Timestamp"
+    },
+    {
+      "type": "java.time.Duration"
+    },
+    {
+      "type": "java.time.Instant"
+    },
+    {
+      "type": "java.time.LocalDate"
+    },
+    {
+      "type": "java.time.LocalDateTime"
+    },
+    {
+      "type": "java.time.LocalTime"
+    },
+    {
+      "type": "java.time.MonthDay"
+    },
+    {
+      "type": "java.time.OffsetDateTime"
+    },
+    {
+      "type": "java.time.OffsetTime"
+    },
+    {
+      "type": "java.time.Period"
+    },
+    {
+      "type": "java.time.Year"
+    },
+    {
+      "type": "java.time.YearMonth"
+    },
+    {
+      "type": "java.time.ZoneId"
+    },
+    {
+      "type": "java.time.ZoneOffset"
+    },
+    {
+      "type": "java.time.ZonedDateTime"
+    },
+    {
+      "type": "org.jline.nativ.CLibrary",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "TCSADRAIN"
+        },
+        {
+          "name": "TCSAFLUSH"
+        },
+        {
+          "name": "TCSANOW"
+        },
+        {
+          "name": "TIOCGWINSZ"
+        },
+        {
+          "name": "TIOCSWINSZ"
+        }
+      ]
+    },
+    {
+      "type": "org.jline.nativ.CLibrary$Termios",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "SIZEOF"
+        },
+        {
+          "name": "c_cc"
+        },
+        {
+          "name": "c_cflag"
+        },
+        {
+          "name": "c_iflag"
+        },
+        {
+          "name": "c_ispeed"
+        },
+        {
+          "name": "c_lflag"
+        },
+        {
+          "name": "c_oflag"
+        },
+        {
+          "name": "c_ospeed"
+        }
+      ]
+    },
+    {
+      "type": "org.jline.nativ.CLibrary$WinSize",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "SIZEOF"
+        },
+        {
+          "name": "ws_col"
+        },
+        {
+          "name": "ws_row"
+        },
+        {
+          "name": "ws_xpixel"
+        },
+        {
+          "name": "ws_ypixel"
+        }
+      ]
+    },
+    {
+      "type": "org.jline.terminal.impl.exec.ExecTerminalProvider",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.jline.terminal.impl.ffm.FfmTerminalProvider",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.jline.terminal.impl.jansi.JansiTerminalProvider",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.jline.terminal.impl.jna.JnaTerminalProvider",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.jline.terminal.impl.jni.JniTerminalProvider",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.misc.Signal",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "handle",
+          "parameterTypes": [
+            "sun.misc.Signal",
+            "sun.misc.SignalHandler"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.misc.SignalHandler",
+      "fields": [
+        {
+          "name": "SIG_DFL"
+        }
+      ]
+    },
+    {
+      "type": "sun.text.resources.BreakIteratorInfo"
+    },
+    {
+      "type": "sun.text.resources.BreakIteratorResources"
+    },
+    {
+      "type": "sun.text.resources.BreakIteratorResources_en"
+    },
+    {
+      "type": "sun.text.resources.cldr.FormatData"
+    },
+    {
+      "type": "sun.text.resources.cldr.FormatData_en"
+    },
+    {
+      "type": {
+        "proxy": [
+          "sun.misc.SignalHandler"
+        ]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "glob": "META-INF/maven/org.jline/jline-native/pom.properties"
+    },
+    {
+      "glob": "META-INF/services/java.nio.charset.spi.CharsetProvider"
+    },
+    {
+      "glob": "META-INF/services/org/jline/terminal/provider/exec"
+    },
+    {
+      "glob": "META-INF/services/org/jline/terminal/provider/ffm"
+    },
+    {
+      "glob": "META-INF/services/org/jline/terminal/provider/jansi"
+    },
+    {
+      "glob": "META-INF/services/org/jline/terminal/provider/jna"
+    },
+    {
+      "glob": "META-INF/services/org/jline/terminal/provider/jni"
+    },
+    {
+      "glob": "application.properties"
+    },
+    {
+      "glob": "org/jline/nativ/*/*/libjlinenative.*"
+    },
+    {
+      "glob": "org/jline/utils/capabilities.txt"
+    },
+    {
+      "glob": "org/jline/utils/xterm-256color.caps"
+    },
+    {
+      "module": "java.base",
+      "glob": "sun/text/resources/LineBreakIteratorData"
+    }
+  ]
+}

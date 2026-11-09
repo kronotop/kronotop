@@ -19,7 +19,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <picocli.version>4.7.6</picocli.version>
         <jline.version>3.26.3</jline.version>
-        <native.maven.plugin.version>0.10.3</native.maven.plugin.version>
     </properties>
 
     <dependencies>
@@ -89,6 +88,17 @@
             <id>native</id>
             <build>
                 <plugins>
+                    <!-- native-image gets every dependency jar on its classpath, so the fat jar would add each class twice. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default</id>
+                                <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
                     <plugin>
                         <groupId>org.graalvm.buildtools</groupId>
                         <artifactId>native-maven-plugin</artifactId>
@@ -106,13 +116,9 @@
                         <configuration>
                             <imageName>kronotop-cli</imageName>
                             <mainClass>com.kronotop.cli.KronotopCLI</mainClass>
-                            <buildArgs>
-                                <buildArg>--no-fallback</buildArg>
-                                <buildArg>-Djava.awt.headless=true</buildArg>
-                                <buildArg>-H:+ReportExceptionStackTraces</buildArg>
-                                <buildArg>--initialize-at-run-time=org.jline</buildArg>
-                                <buildArg>--enable-native-access=ALL-UNNAMED</buildArg>
-                            </buildArgs>
+                            <metadataRepository>
+                                <enabled>false</enabled>
+                            </metadataRepository>
                         </configuration>
                     </plugin>
                 </plugins>

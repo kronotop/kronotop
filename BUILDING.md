@@ -147,6 +147,20 @@ The build produces three runnable jars:
 | `kronotop-cli/target/kronotop-cli-2026.11-1.jar` | Interactive command-line client    |
 | `kronotop-ctl/target/kronotop-ctl-2026.11-1.jar` | Cluster control and bootstrap tool |
 
+### Native Binaries
+
+`kronotop-cli`, `kronotop-ctl` and `kronotop-benchmark` can be built as native binaries with GraalVM 25. The server
+runs only on the JVM.
+
+Set `JAVA_HOME` to a GraalVM 25 installation and build with the `native` profile:
+
+```
+./mvnw clean package -Pnative -pl kronotop-cli -am -DskipTests
+```
+
+Replace `kronotop-cli` with `kronotop-ctl` or `kronotop-benchmark` to build the other tools. The binary is written to
+the module's `target` directory, for example `kronotop-cli/target/kronotop-cli`.
+
 ### Running Tests
 
 Run the tests for the core module:
