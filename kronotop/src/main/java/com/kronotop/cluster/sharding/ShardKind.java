@@ -17,6 +17,5 @@
 package com.kronotop.cluster.sharding;
 
 public enum ShardKind {
-    STASH,
     BUCKET
 }

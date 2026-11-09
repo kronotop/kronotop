@@ -24,22 +24,9 @@ import static org.junit.jupiter.api.Assertions.*;
 class VolumeNamesTest {
 
     @Test
-    void shouldFormatRedisVolumeName() {
-        String name = VolumeNames.format(ShardKind.STASH, 0);
-        assertEquals("stash-shard-0", name);
-    }
-
-    @Test
     void shouldFormatBucketVolumeName() {
         String name = VolumeNames.format(ShardKind.BUCKET, 5);
         assertEquals("bucket-shard-5", name);
-    }
-
-    @Test
-    void shouldParseRedisVolumeName() {
-        VolumeNames.Parsed parsed = VolumeNames.parse("stash-shard-0");
-        assertEquals(ShardKind.STASH, parsed.shardKind());
-        assertEquals(0, parsed.shardId());
     }
 
     @Test
@@ -89,7 +76,7 @@ class VolumeNamesTest {
     void shouldThrowWhenParsingInvalidShardId() {
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> VolumeNames.parse("stash-shard-abc")
+                () -> VolumeNames.parse("bucket-shard-abc")
         );
         assertTrue(exception.getMessage().contains("invalid shard id: abc"));
     }

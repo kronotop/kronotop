@@ -188,7 +188,7 @@ class VacuumSubcommandTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenStartVacuumWithNonNumericGarbageThreshold() {
         // Behavior: A non-numeric garbage threshold is rejected with a descriptive error.
         ByteBuf buf = Unpooled.buffer();
-        buf.writeBytes("*5\r\n$12\r\nVOLUME.ADMIN\r\n$6\r\nVACUUM\r\n$5\r\nSTART\r\n$13\r\nstash-shard-1\r\n$3\r\nabc\r\n".getBytes());
+        buf.writeBytes("*5\r\n$12\r\nVOLUME.ADMIN\r\n$6\r\nVACUUM\r\n$5\r\nSTART\r\n$14\r\nbucket-shard-1\r\n$3\r\nabc\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
 

@@ -38,11 +38,6 @@ public class ZDelRangeHandler extends BaseZMapHandler implements Handler {
     }
 
     @Override
-    public boolean isWatchable() {
-        return true;
-    }
-
-    @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.ZDELRANGE).set(new ZDelRangeMessage(request));
     }

@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Service-specific context interface for managing shard-level state within a Kronotop service.
- * Each service (e.g., BucketService, StashService) implements this interface to maintain
+ * Each service (e.g., BucketService) implements this interface to maintain
  * isolated, shard-partitioned state while retaining access to the root application context.
  *
  * @param <T> the type of shard-specific state managed by this service context

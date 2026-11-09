@@ -27,18 +27,8 @@ public class Volumes extends KronotopDirectoryNode {
         layout.add("volumes");
     }
 
-    public Stash stash() {
-        return new Stash(layout);
-    }
-
     public Bucket bucket() {
         return new Bucket(layout);
-    }
-
-    public static class Stash extends ShardKindCommon {
-        public Stash(List<String> layout) {
-            super(layout, ShardKind.STASH);
-        }
     }
 
     public static class Bucket extends ShardKindCommon {

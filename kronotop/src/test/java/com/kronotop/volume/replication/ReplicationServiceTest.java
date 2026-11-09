@@ -167,7 +167,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(ShardKind.STASH);
+            List<Integer> shardIds = activeReplications.get(ShardKind.BUCKET);
             if (shardIds != null && shardIds.size() == 1) {
                 return shardIds.getFirst() == 1;
             }
@@ -209,7 +209,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(ShardKind.STASH);
+            List<Integer> shardIds = activeReplications.get(ShardKind.BUCKET);
             if (shardIds != null && shardIds.size() == 1) {
                 return shardIds.getFirst() == 1;
             }
@@ -252,7 +252,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(ShardKind.STASH);
+            List<Integer> shardIds = activeReplications.get(ShardKind.BUCKET);
             if (shardIds != null && shardIds.size() == 1) {
                 return shardIds.getFirst() == 1;
             }

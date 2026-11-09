@@ -15,12 +15,9 @@ KR.ADMIN SET-SHARD-STATUS <shard-kind> <shard-id> <shard-status>
 
 | Argument       | Type           | Description                                                     |
 |----------------|----------------|-----------------------------------------------------------------|
-| `shard-kind`   | string         | `STASH` or `BUCKET`. Case-insensitive.                          |
+| `shard-kind`   | string         | `BUCKET`. Case-insensitive.                                     |
 | `shard-id`     | integer or `*` | Zero-based shard index, or `*` to target all shards atomically. |
 | `shard-status` | string         | `READWRITE`, `READONLY`, or `INOPERABLE`. Case-insensitive.     |
-
-> **Note:** `STASH` is an experimental shard kind, disabled by default. See [Stash](../../../config.md#stash-optional)
-> in the configuration reference.
 
 ## Return Value
 
@@ -53,7 +50,7 @@ Argument errors:
 | Error Code | Error message                     | Cause                                                                   |
 |------------|-----------------------------------|-------------------------------------------------------------------------|
 | `ERR`      | `invalid number of arguments`     | -                                                                       |
-| `ERR`      | `Unknown shard kind: '<value>'`   | The shard kind must be `STASH` or `BUCKET`.                             |
+| `ERR`      | `Unknown shard kind: '<value>'`   | The shard kind must be `BUCKET`.                                        |
 | `ERR`      | `invalid shard id`                | The shard ID is not a valid integer, or is out of the configured range. |
 | `ERR`      | `Unknown shard status: '<value>'` | The status must be `READWRITE`, `READONLY`, or `INOPERABLE`.            |
 

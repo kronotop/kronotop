@@ -27,7 +27,6 @@ import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
-import com.kronotop.stash.StashService;
 import com.typesafe.config.Config;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -98,31 +97,17 @@ abstract class BaseBucketMultiNodeTest extends BaseClusterTest {
             setRoute(node1, ShardKind.BUCKET, shardId, node2Id);
         }
 
-        // Assign STASH shards 0-3 to node1, shards 4-6 to node2
-        for (int shardId = 0; shardId < 4; shardId++) {
-            setRoute(node1, ShardKind.STASH, shardId, node1Id);
-        }
-        for (int shardId = 4; shardId < 7; shardId++) {
-            setRoute(node1, ShardKind.STASH, shardId, node2Id);
-        }
-
         // Wait for owned shards to become operable
         await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsOperable(node1, BucketService.NAME, List.of(0, 1, 2, 3)));
         await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsOperable(node2, BucketService.NAME, List.of(4, 5, 6)));
-        await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsOperable(node1, StashService.NAME, List.of(0, 1, 2, 3)));
-        await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsOperable(node2, StashService.NAME, List.of(4, 5, 6)));
 
         // Set all shards to READWRITE
         setAllShardsReadWrite(node1, ShardKind.BUCKET);
-        setAllShardsReadWrite(node1, ShardKind.STASH);
 
         List<Integer> bucketShardIds = node1.getContext().getShardRegistry().getShardIds(ShardKind.BUCKET);
-        List<Integer> stashShardIds = node1.getContext().getShardRegistry().getShardIds(ShardKind.STASH);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsWritable(node1, ShardKind.BUCKET, bucketShardIds));
-        await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsWritable(node1, ShardKind.STASH, stashShardIds));
         await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsWritable(node2, ShardKind.BUCKET, bucketShardIds));
-        await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsWritable(node2, ShardKind.STASH, stashShardIds));
     }
 
     @Override

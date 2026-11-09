@@ -182,9 +182,6 @@ public class InfoReport {
             if (Boolean.TRUE.equals(session.attr(SessionAttributes.BEGIN).get())) {
                 counters.inTransaction++;
             }
-            if (Boolean.TRUE.equals(session.attr(SessionAttributes.MULTI).get())) {
-                counters.inMulti++;
-            }
             if (TransactionUtil.isSnapshotRead(session)) {
                 counters.snapshotRead++;
             }
@@ -196,9 +193,6 @@ public class InfoReport {
         });
         collector.put(CLIENTS_SECTION, "connected_clients", counters.connected);
         collector.put(CLIENTS_SECTION, "clients_in_transaction", counters.inTransaction);
-        if (context.getShardRegistry().getShardKinds().contains(ShardKind.STASH)) {
-            collector.put(CLIENTS_SECTION, "clients_in_multi", counters.inMulti);
-        }
         collector.put(CLIENTS_SECTION, "snapshot_read_clients", counters.snapshotRead);
         collector.put(CLIENTS_SECTION, "resp2_clients", counters.resp2);
         collector.put(CLIENTS_SECTION, "resp3_clients", counters.resp3);
@@ -298,9 +292,6 @@ public class InfoReport {
         collector.put(KRONOTOP_SECTION, "member_id", member.getId());
         collector.put(KRONOTOP_SECTION, "member_status", member.getStatus());
         collector.put(KRONOTOP_SECTION, "bucket_shards", context.getShardRegistry().getShardIds(ShardKind.BUCKET).size());
-        if (context.getShardRegistry().getShardKinds().contains(ShardKind.STASH)) {
-            collector.put(KRONOTOP_SECTION, "stash_shards", context.getShardRegistry().getShardIds(ShardKind.STASH).size());
-        }
     }
 
     private void collectTraffic(InfoCollector collector) {
@@ -368,7 +359,6 @@ public class InfoReport {
     private static final class ClientCounters {
         int connected;
         int inTransaction;
-        int inMulti;
         int snapshotRead;
         int resp2;
         int resp3;

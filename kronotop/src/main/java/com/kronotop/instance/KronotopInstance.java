@@ -44,12 +44,9 @@ import com.kronotop.namespace.NamespaceService;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.network.Address;
 import com.kronotop.network.NetworkConfigUtil;
-import com.kronotop.stash.StashContext;
-import com.kronotop.stash.StashService;
 import com.kronotop.task.TaskService;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.replication.ReplicationService;
-import com.kronotop.watcher.Watcher;
 import com.kronotop.zmap.ZMapService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -119,9 +116,6 @@ public class KronotopInstance {
         JournalService journal = new JournalService(context);
         context.registerService(JournalService.NAME, journal);
 
-        Watcher watcher = new Watcher();
-        context.registerService(Watcher.NAME, watcher);
-
         CoreService coreService = new CoreService(context);
         context.registerService(CoreService.NAME, coreService);
 
@@ -146,13 +140,6 @@ public class KronotopInstance {
         ReplicationService replicationService = new ReplicationService(context);
         context.registerService(ReplicationService.NAME, replicationService);
 
-        StashService stashService = null;
-        boolean stashServiceEnabled = config.getBoolean("stash.enabled");
-        if (stashServiceEnabled) {
-            stashService = new StashService(context);
-            context.registerService(StashService.NAME, stashService);
-        }
-
         BucketService bucketService = new BucketService(context);
         context.registerService(BucketService.NAME, bucketService);
 
@@ -161,9 +148,6 @@ public class KronotopInstance {
         routingService.start();
         volumeService.start();
         replicationService.start();
-        if (stashServiceEnabled) {
-            stashService.start();
-        }
         bucketService.start();
     }
 
@@ -233,7 +217,7 @@ public class KronotopInstance {
 
     /**
      * Initializes the context by creating a new instance of ContextImpl using the provided config,
-     * member, and database. It then registers the StashContext as a child context in the main context.
+     * member, and database. It then registers the BucketContext as a child context in the main context.
      */
     private void initializeContext() {
         context = new ContextImpl(config, member, database);
@@ -245,10 +229,6 @@ public class KronotopInstance {
         status.set(KronotopInstanceStatus.INITIALIZING);
 
         // Register child contexts here.
-
-        // StashContext
-        StashContext stashContext = new StashContext(context);
-        context.registerServiceContext(StashService.NAME, stashContext);
 
         // BucketContext
         BucketContext bucketContext = new BucketContext(context);

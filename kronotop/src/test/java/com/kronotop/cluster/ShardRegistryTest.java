@@ -20,52 +20,16 @@ import com.kronotop.cluster.sharding.ShardKind;
 import com.typesafe.config.ConfigFactory;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShardRegistryTest {
 
     @Test
-    void shouldReturnOnlyBucketWhenStashDisabled() {
-        // Behavior: getShardKinds() excludes STASH when stash.enabled is false.
-        ShardRegistry registry = new ShardRegistry(
-                ConfigFactory.parseMap(Map.of("stash.enabled", false, "stash.shards", 1)),
-                "test-cluster"
-        );
+    void shouldReturnOnlyBucketShardKind() {
+        // Behavior: a new ShardRegistry reports BUCKET as the only shard kind.
+        ShardRegistry registry = new ShardRegistry(ConfigFactory.empty(), "test-cluster");
         assertEquals(Set.of(ShardKind.BUCKET), registry.getShardKinds());
-    }
-
-    @Test
-    void shouldReturnBothKindsWhenStashEnabled() {
-        // Behavior: getShardKinds() includes both STASH and BUCKET when stash.enabled is true.
-        ShardRegistry registry = new ShardRegistry(
-                ConfigFactory.parseMap(Map.of("stash.enabled", true, "stash.shards", 3)),
-                "test-cluster"
-        );
-        assertEquals(Set.of(ShardKind.STASH, ShardKind.BUCKET), registry.getShardKinds());
-    }
-
-    @Test
-    void shouldReturnEmptyStashShardIdsWhenDisabled() {
-        // Behavior: getShardIds(STASH) returns empty list when stash is disabled.
-        ShardRegistry registry = new ShardRegistry(
-                ConfigFactory.parseMap(Map.of("stash.enabled", false, "stash.shards", 1)),
-                "test-cluster"
-        );
-        assertTrue(registry.getShardIds(ShardKind.STASH).isEmpty());
-    }
-
-    @Test
-    void shouldReturnContiguousStashShardIdsWhenEnabled() {
-        // Behavior: getShardIds(STASH) returns contiguous 0..N-1 shard IDs when stash is enabled.
-        ShardRegistry registry = new ShardRegistry(
-                ConfigFactory.parseMap(Map.of("stash.enabled", true, "stash.shards", 3)),
-                "test-cluster"
-        );
-        assertEquals(List.of(0, 1, 2), registry.getShardIds(ShardKind.STASH));
     }
 }

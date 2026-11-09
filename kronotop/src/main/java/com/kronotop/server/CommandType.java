@@ -24,84 +24,15 @@ public enum CommandType {
     // Connection commands
     PING,
     ECHO,
-    SELECT,
     HELLO,
     AUTH,
     TIME,
 
-    // String commands
-    GET,
-    SET,
-    MGET,
-    MSET,
-    MSETNX,
-    GETSET,
-    APPEND,
-    STRLEN,
-    INCR,
-    INCRBY,
-    INCRBYFLOAT,
-    DECR,
-    DECRBY,
-    GETRANGE,
-    SETRANGE,
-    SETEX,
-    SETNX,
-    GETDEL,
-    SUBSTR,
-
-    // Hash commands
-    HGET,
-    HSET,
-    HMGET,
-    HMSET,
-    HDEL,
-    HEXISTS,
-    HLEN,
-    HSTRLEN,
-    HGETALL,
-    HKEYS,
-    HVALS,
-    HINCRBY,
-    HINCRBYFLOAT,
-    HSETNX,
-    HRANDFIELD,
-
-    // Generic commands
-    DEL,
-    EXISTS,
-    TYPE,
-    RENAME,
-    RENAMENX,
-    EXPIRE,
-    EXPIREAT,
-    PEXPIRE,
-    PEXPIREAT,
-    TTL,
-    PTTL,
-    PERSIST,
-    RANDOMKEY,
-    SCAN,
-
-    // Transaction commands
-    MULTI,
-    EXEC,
-    DISCARD,
-    WATCH,
-    UNWATCH,
-
     // Server commands
     COMMAND,
-    FLUSHDB,
-    FLUSHALL,
     INFO,
 
-    // Connection mode commands
-    READONLY,
-    READWRITE,
-
     // Cluster commands
-    CLUSTER,
     KR_ADMIN("KR.ADMIN"),
 
     // Client commands
@@ -198,84 +129,15 @@ public enum CommandType {
             // Connection commands
             case "PING" -> PING;
             case "ECHO" -> ECHO;
-            case "SELECT" -> SELECT;
             case "HELLO" -> HELLO;
             case "AUTH" -> AUTH;
             case "TIME" -> TIME;
 
-            // String commands
-            case "GET" -> GET;
-            case "SET" -> SET;
-            case "MGET" -> MGET;
-            case "MSET" -> MSET;
-            case "MSETNX" -> MSETNX;
-            case "GETSET" -> GETSET;
-            case "APPEND" -> APPEND;
-            case "STRLEN" -> STRLEN;
-            case "INCR" -> INCR;
-            case "INCRBY" -> INCRBY;
-            case "INCRBYFLOAT" -> INCRBYFLOAT;
-            case "DECR" -> DECR;
-            case "DECRBY" -> DECRBY;
-            case "GETRANGE" -> GETRANGE;
-            case "SETRANGE" -> SETRANGE;
-            case "SETEX" -> SETEX;
-            case "SETNX" -> SETNX;
-            case "GETDEL" -> GETDEL;
-            case "SUBSTR" -> SUBSTR;
-
-            // Hash commands
-            case "HGET" -> HGET;
-            case "HSET" -> HSET;
-            case "HMGET" -> HMGET;
-            case "HMSET" -> HMSET;
-            case "HDEL" -> HDEL;
-            case "HEXISTS" -> HEXISTS;
-            case "HLEN" -> HLEN;
-            case "HSTRLEN" -> HSTRLEN;
-            case "HGETALL" -> HGETALL;
-            case "HKEYS" -> HKEYS;
-            case "HVALS" -> HVALS;
-            case "HINCRBY" -> HINCRBY;
-            case "HINCRBYFLOAT" -> HINCRBYFLOAT;
-            case "HSETNX" -> HSETNX;
-            case "HRANDFIELD" -> HRANDFIELD;
-
-            // Generic commands
-            case "DEL" -> DEL;
-            case "EXISTS" -> EXISTS;
-            case "TYPE" -> TYPE;
-            case "RENAME" -> RENAME;
-            case "RENAMENX" -> RENAMENX;
-            case "EXPIRE" -> EXPIRE;
-            case "EXPIREAT" -> EXPIREAT;
-            case "PEXPIRE" -> PEXPIRE;
-            case "PEXPIREAT" -> PEXPIREAT;
-            case "TTL" -> TTL;
-            case "PTTL" -> PTTL;
-            case "PERSIST" -> PERSIST;
-            case "RANDOMKEY" -> RANDOMKEY;
-            case "SCAN" -> SCAN;
-
-            // Transaction commands
-            case "MULTI" -> MULTI;
-            case "EXEC" -> EXEC;
-            case "DISCARD" -> DISCARD;
-            case "WATCH" -> WATCH;
-            case "UNWATCH" -> UNWATCH;
-
             // Server commands
             case "COMMAND" -> COMMAND;
-            case "FLUSHDB" -> FLUSHDB;
-            case "FLUSHALL" -> FLUSHALL;
             case "INFO" -> INFO;
 
-            // Connection mode commands
-            case "READONLY" -> READONLY;
-            case "READWRITE" -> READWRITE;
-
             // Cluster commands
-            case "CLUSTER" -> CLUSTER;
             case "KR.ADMIN" -> KR_ADMIN;
 
             // Client commands

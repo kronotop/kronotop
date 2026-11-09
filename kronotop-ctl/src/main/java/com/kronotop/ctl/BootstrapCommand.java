@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 public class BootstrapCommand implements Callable<Integer> {
 
     private static final Logger logger = LoggerFactory.getLogger(BootstrapCommand.class);
-    private static final Set<String> VALID_SHARD_KINDS = Set.of("BUCKET", "STASH");
+    private static final Set<String> VALID_SHARD_KINDS = Set.of("BUCKET");
     @Option(names = "--primary", arity = "2..*", paramLabel = "<shard-kind host:port=shard-ids>",
             description = "Assign primary shards (repeatable). Example: --primary BUCKET node1:3320=0,1,2")
     private List<String> primaries;

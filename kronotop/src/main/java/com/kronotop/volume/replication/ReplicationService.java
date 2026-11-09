@@ -63,9 +63,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
     public ReplicationService(Context context) {
         super(context, NAME);
         this.routing = context.getService(RoutingService.NAME);
-        this.replications.put(ShardKind.STASH, new HashMap<>());
         this.replications.put(ShardKind.BUCKET, new HashMap<>());
-        this.suppressionFlag.put(ShardKind.STASH, new HashMap<>());
         this.suppressionFlag.put(ShardKind.BUCKET, new HashMap<>());
         ThreadFactory factory = new ThreadFactoryBuilder()
                 .setNameFormat("kr.volume-replication-%d")
@@ -106,7 +104,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
     /**
      * Starts replication for a shard if this node is a standby.
      *
-     * @param shardKind the shard kind (STASH or BUCKET)
+     * @param shardKind the shard kind (BUCKET)
      * @param shardId   the shard identifier
      * @param explicit  if true, clears the suppression flag; if false, respects existing suppression
      * @throws NoRouteFoundException             if no route exists for the shard

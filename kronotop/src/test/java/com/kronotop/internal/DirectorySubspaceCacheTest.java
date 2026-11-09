@@ -47,7 +47,7 @@ public class DirectorySubspaceCacheTest extends BaseClusterTest {
                 instance.getContext().getTransactionManager(),
                 instance.getContext().getDirectoryLayer()
         );
-        DirectorySubspace subspace = assertDoesNotThrow(() -> cache.get(ShardKind.STASH, 1));
+        DirectorySubspace subspace = assertDoesNotThrow(() -> cache.get(ShardKind.BUCKET, 1));
         assertNotNull(subspace);
     }
 }

@@ -28,8 +28,6 @@ import com.kronotop.zmap.BaseZMapHandler;
 import com.kronotop.zmap.ZMapService;
 import com.kronotop.zmap.handlers.protocol.ZMutateMessage;
 
-import java.util.Collections;
-import java.util.List;
 
 @Command(ZMutateMessage.COMMAND)
 @MinimumArgumentCount(ZMutateMessage.MINIMUM_ARGUMENT_COUNT)
@@ -37,16 +35,6 @@ import java.util.List;
 public class ZMutateHandler extends BaseZMapHandler implements Handler {
     public ZMutateHandler(ZMapService service) {
         super(service);
-    }
-
-    @Override
-    public boolean isWatchable() {
-        return true;
-    }
-
-    @Override
-    public List<String> getKeys(Request request) {
-        return Collections.singletonList(new String(request.attr(MessageTypes.ZMUTATE).get().getKey()));
     }
 
     @Override

@@ -86,14 +86,6 @@ public abstract class AbstractBucketHandler implements Handler {
     }
 
     /**
-     * Bucket handlers are not Redis-compatible as they use Kronotop-specific protocol extensions.
-     */
-    @Override
-    public boolean isRedisCompatible() {
-        return false;
-    }
-
-    /**
      * Returns the input type of the request's session.
      *
      * @param request the current request

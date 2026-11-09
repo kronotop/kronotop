@@ -15,11 +15,8 @@ KR.ADMIN DESCRIBE-SHARD <shard-kind> <shard-id>
 
 | Argument     | Type    | Description                            |
 |--------------|---------|----------------------------------------|
-| `shard-kind` | string  | `STASH` or `BUCKET`. Case-insensitive. |
+| `shard-kind` | string  | `BUCKET`. Case-insensitive.            |
 | `shard-id`   | integer | Zero-based shard index.                |
-
-> **Note:** `STASH` is an experimental shard kind, disabled by default. See [Stash](../../../config.md#stash-optional)
-> in the configuration reference.
 
 ## Return Value
 
@@ -46,7 +43,7 @@ Argument errors:
 | Error Code | Error message                   | Cause                                                                   |
 |------------|---------------------------------|-------------------------------------------------------------------------|
 | `ERR`      | `invalid number of arguments`   | -                                                                       |
-| `ERR`      | `Unknown shard kind: '<value>'` | The shard kind must be `STASH` or `BUCKET`.                             |
+| `ERR`      | `Unknown shard kind: '<value>'` | The shard kind must be `BUCKET`.                                        |
 | `ERR`      | `invalid shard id`              | The shard ID is not a valid integer, or is out of the configured range. |
 
 Cluster errors:

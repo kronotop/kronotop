@@ -51,11 +51,6 @@ public class SessionAttributeHandler implements Handler {
     }
 
     @Override
-    public boolean isRedisCompatible() {
-        return false;
-    }
-
-    @Override
     public boolean requiresClusterInitialization() {
         return false;
     }

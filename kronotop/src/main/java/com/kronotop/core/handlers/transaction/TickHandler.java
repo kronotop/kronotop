@@ -41,11 +41,6 @@ public class TickHandler implements Handler {
     }
 
     @Override
-    public boolean isRedisCompatible() {
-        return false;
-    }
-
-    @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.TICK).set(new TickMessage(request));
     }

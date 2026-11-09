@@ -38,7 +38,7 @@ class CommandMetadataLoaderTest {
         // Behavior: every file under the directory is parsed and keyed by uppercase command name
         Map<String, CommandMetadata> commands = CommandMetadataLoader.load("test-commands").get(ServerKind.EXTERNAL);
 
-        assertEquals(List.of("CLIENT", "PING", "SET"), List.copyOf(commands.keySet()));
+        assertEquals(List.of("CLIENT", "PING", "ZSET"), List.copyOf(commands.keySet()));
 
         CommandMetadata ping = commands.get("PING");
         assertEquals("Returns the server's liveliness response", ping.summary());
@@ -56,16 +56,16 @@ class CommandMetadataLoaderTest {
     @Test
     void shouldParseKeySpecsAndArgumentFlags() {
         // Behavior: key specs, display, multiple_token and nested arguments are read, function fields are ignored
-        CommandMetadata set = CommandMetadataLoader.load("test-commands").get(ServerKind.EXTERNAL).get("SET");
+        CommandMetadata zset = CommandMetadataLoader.load("test-commands").get(ServerKind.EXTERNAL).get("ZSET");
 
-        assertEquals(1, set.keySpecs().size());
-        KeySpec keySpec = set.keySpecs().getFirst();
+        assertEquals(1, zset.keySpecs().size());
+        KeySpec keySpec = zset.keySpecs().getFirst();
         assertEquals(List.of(KeySpecFlag.RW, KeySpecFlag.ACCESS, KeySpecFlag.UPDATE, KeySpecFlag.VARIABLE_FLAGS), keySpec.flags());
         assertEquals(1, keySpec.beginSearch().index().pos());
         assertEquals(0, keySpec.findKeys().range().lastkey());
         assertEquals(1, keySpec.findKeys().range().step());
 
-        List<Argument> arguments = set.arguments();
+        List<Argument> arguments = zset.arguments();
         assertEquals(4, arguments.size());
         assertEquals(0, arguments.get(0).keySpecIndex());
         assertEquals("val", arguments.get(1).display());
@@ -74,7 +74,7 @@ class CommandMetadataLoaderTest {
         assertEquals("NX", arguments.get(2).arguments().getFirst().token());
         assertTrue(arguments.get(3).multiple());
         assertTrue(arguments.get(3).multipleToken());
-        assertEquals(List.of(List.of("2026.06-1", "Initial version.")), set.history());
+        assertEquals(List.of(List.of("2026.06-1", "Initial version.")), zset.history());
     }
 
     @Test
@@ -82,7 +82,7 @@ class CommandMetadataLoaderTest {
         // Behavior: reply_schema is read as a nested map in definition order; a command without one has an empty map
         Map<String, CommandMetadata> commands = CommandMetadataLoader.load("test-commands").get(ServerKind.EXTERNAL);
 
-        assertEquals(Map.of("type", "string"), commands.get("SET").replySchema());
+        assertEquals(Map.of("type", "string"), commands.get("ZSET").replySchema());
         assertTrue(commands.get("PING").replySchema().isEmpty());
 
         Map<String, Object> query = CommandMetadataLoader.load().get(ServerKind.EXTERNAL).get("BUCKET.QUERY").replySchema();
@@ -122,7 +122,7 @@ class CommandMetadataLoaderTest {
         // Behavior: a command is placed under every server kind it lists, and under no other
         Map<ServerKind, Map<String, CommandMetadata>> commands = CommandMetadataLoader.load("test-commands");
 
-        assertEquals(List.of("CLIENT", "PING", "SET"), List.copyOf(commands.get(ServerKind.EXTERNAL).keySet()));
+        assertEquals(List.of("CLIENT", "PING", "ZSET"), List.copyOf(commands.get(ServerKind.EXTERNAL).keySet()));
         assertEquals(List.of("PING"), List.copyOf(commands.get(ServerKind.INTERNAL).keySet()));
         assertSame(commands.get(ServerKind.EXTERNAL).get("PING"), commands.get(ServerKind.INTERNAL).get("PING"));
         assertEquals(List.of(ServerKind.EXTERNAL, ServerKind.INTERNAL), commands.get(ServerKind.INTERNAL).get("PING").servers());
@@ -217,17 +217,17 @@ class CommandMetadataLoaderTest {
     @Test
     void shouldLoadKeywordAndKeynumKeySpecs() {
         // Behavior: keyword begin_search and keynum find_keys are read with their fields
-        CommandMetadata scan = CommandMetadataLoader.load("test-commands-keyspecs").get(ServerKind.EXTERNAL).get("SCAN");
+        CommandMetadata zgetrange = CommandMetadataLoader.load("test-commands-keyspecs").get(ServerKind.EXTERNAL).get("ZGETRANGE");
 
-        assertEquals(2, scan.keySpecs().size());
-        KeySpec keyword = scan.keySpecs().get(0);
+        assertEquals(2, zgetrange.keySpecs().size());
+        KeySpec keyword = zgetrange.keySpecs().get(0);
         assertEquals(BeginSearch.Type.KEYWORD, keyword.beginSearch().type());
         assertEquals("KEYS", keyword.beginSearch().keyword().keyword());
         assertEquals(-2, keyword.beginSearch().keyword().startfrom());
         assertEquals(FindKeys.Type.RANGE, keyword.findKeys().type());
         assertEquals(-1, keyword.findKeys().range().lastkey());
 
-        KeySpec keynum = scan.keySpecs().get(1);
+        KeySpec keynum = zgetrange.keySpecs().get(1);
         assertEquals(BeginSearch.Type.INDEX, keynum.beginSearch().type());
         assertEquals(FindKeys.Type.KEYNUM, keynum.findKeys().type());
         assertEquals(0, keynum.findKeys().keynum().keynumidx());
@@ -238,9 +238,9 @@ class CommandMetadataLoaderTest {
     @Test
     void shouldLoadUnknownKeySpec() {
         // Behavior: "unknown": null for begin_search or find_keys gives the unknown type
-        CommandMetadata hkeys = CommandMetadataLoader.load("test-commands-keyspecs").get(ServerKind.EXTERNAL).get("HKEYS");
+        CommandMetadata zgetkey = CommandMetadataLoader.load("test-commands-keyspecs").get(ServerKind.EXTERNAL).get("ZGETKEY");
 
-        KeySpec keySpec = hkeys.keySpecs().getFirst();
+        KeySpec keySpec = zgetkey.keySpecs().getFirst();
         assertEquals(BeginSearch.Type.UNKNOWN, keySpec.beginSearch().type());
         assertEquals(FindKeys.Type.UNKNOWN, keySpec.findKeys().type());
     }

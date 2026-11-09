@@ -129,26 +129,20 @@ See [INFO](../connection/commands/info.md) for what each field means.
 
 ### Kronotop
 
-`stash_shards` is sent only when `stash.enabled` is true.
-
 | INFO field       | Prometheus name           | Type  |
 |------------------|---------------------------|-------|
 | `known_members`  | `kronotop_known_members`  | gauge |
 | `alive_members`  | `kronotop_alive_members`  | gauge |
 | `bucket_shards`  | `kronotop_bucket_shards`  | gauge |
-| `stash_shards`   | `kronotop_stash_shards`   | gauge |
 | `primary_shards` | `kronotop_primary_shards` | gauge |
 | `standby_shards` | `kronotop_standby_shards` | gauge |
 
 ### Clients
 
-`clients_in_multi` is sent only when `stash.enabled` is true.
-
 | INFO field               | Prometheus name                   | Type  |
 |--------------------------|-----------------------------------|-------|
 | `connected_clients`      | `kronotop_connected_clients`      | gauge |
 | `clients_in_transaction` | `kronotop_clients_in_transaction` | gauge |
-| `clients_in_multi`       | `kronotop_clients_in_multi`       | gauge |
 | `snapshot_read_clients`  | `kronotop_snapshot_read_clients`  | gauge |
 | `resp2_clients`          | `kronotop_resp2_clients`          | gauge |
 | `resp3_clients`          | `kronotop_resp3_clients`          | gauge |

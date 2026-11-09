@@ -59,7 +59,7 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         KronotopTestInstance secondInstance = addNewInstance();
         // SEGMEN.TINSERT requires an already opened volume to run.
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(secondInstance.getContext(), ShardKind.STASH, 1);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(secondInstance.getContext(), ShardKind.BUCKET, 1);
         VolumeService volumeService = secondInstance.getContext().getService(VolumeService.NAME);
         Volume secondVolume = volumeService.newVolume(generator.volumeConfig());
 

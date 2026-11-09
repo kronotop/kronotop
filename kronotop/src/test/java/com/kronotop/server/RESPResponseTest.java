@@ -59,19 +59,6 @@ class RESPResponseTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldWriteQUEUED() {
-        // Behavior: writeQUEUED buffers the QUEUED simple string, the client sees it after a flush.
-        RESPResponse response = newResponse(RESPVersion.RESP3);
-        response.writeQUEUED();
-        response.flush();
-
-        RedisMessage redisMessage = readOutbound();
-        assertInstanceOf(SimpleStringRedisMessage.class, redisMessage);
-        SimpleStringRedisMessage simpleStringRedisMessage = (SimpleStringRedisMessage) redisMessage;
-        assertEquals(Response.QUEUED, simpleStringRedisMessage.content());
-    }
-
-    @Test
     void shouldWriteInteger() {
         // Behavior: writeInteger sends the value as the RESP integer type.
         RESPResponse response = newResponse(RESPVersion.RESP3);

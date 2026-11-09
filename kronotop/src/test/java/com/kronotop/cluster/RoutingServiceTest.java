@@ -45,22 +45,9 @@ class RoutingServiceTest extends BaseClusterTestWithTCPServer {
 
         // Use a shard ID that doesn't exist (beyond configured shards)
         int nonExistentShardId = 9999;
-        Route route = routing.findRoute(ShardKind.STASH, nonExistentShardId);
+        Route route = routing.findRoute(ShardKind.BUCKET, nonExistentShardId);
 
         assertNull(route);
-    }
-
-    @Test
-    void shouldFindRouteForStashShard() {
-        KronotopTestInstance instance = getInstances().getFirst();
-        RoutingService routing = instance.getContext().getService(RoutingService.NAME);
-
-        Route route = routing.findRoute(ShardKind.STASH, 0);
-
-        assertNotNull(route);
-        assertEquals(instance.getMember(), route.primary());
-        assertNotNull(route.shardStatus());
-        assertNotNull(route.standbys());
     }
 
     @Test
@@ -90,7 +77,7 @@ class RoutingServiceTest extends BaseClusterTestWithTCPServer {
         // Assign standby via primary's channel
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("SET", "STANDBY", "STASH", 0, standby.getMember().getId()).encode(buf);
+        cmd.route("SET", "STANDBY", "BUCKET", 0, standby.getMember().getId()).encode(buf);
 
         Object msg = runCommand(primary.getChannel(), buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -119,7 +106,7 @@ class RoutingServiceTest extends BaseClusterTestWithTCPServer {
         // Assign standby via primary's channel
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("SET", "STANDBY", "STASH", 0, standby.getMember().getId()).encode(buf);
+        cmd.route("SET", "STANDBY", "BUCKET", 0, standby.getMember().getId()).encode(buf);
 
         Object msg = runCommand(primary.getChannel(), buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -150,7 +137,7 @@ class RoutingServiceTest extends BaseClusterTestWithTCPServer {
         // Assign standby via the primary channel
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("SET", "STANDBY", "STASH", 0, standby.getMember().getId()).encode(buf);
+        cmd.route("SET", "STANDBY", "BUCKET", 0, standby.getMember().getId()).encode(buf);
 
         Object msg = runCommand(primary.getChannel(), buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -170,7 +157,7 @@ class RoutingServiceTest extends BaseClusterTestWithTCPServer {
         RoutingService standbyRouting = standby.getContext().getService(RoutingService.NAME);
 
         standbyRouting.registerHook(RoutingEventKind.START_REPLICATION, (shardKind, shardId) -> {
-            assertEquals(ShardKind.STASH, shardKind);
+            assertEquals(ShardKind.BUCKET, shardKind);
             assertEquals(targetShardId, shardId);
             latch.countDown();
         });
@@ -178,7 +165,7 @@ class RoutingServiceTest extends BaseClusterTestWithTCPServer {
         // Assign standby
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("SET", "STANDBY", "STASH", targetShardId, standby.getMember().getId()).encode(buf);
+        cmd.route("SET", "STANDBY", "BUCKET", targetShardId, standby.getMember().getId()).encode(buf);
 
         Object msg = runCommand(primary.getChannel(), buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -202,7 +189,7 @@ class RoutingServiceTest extends BaseClusterTestWithTCPServer {
         });
 
         standbyRouting.registerHook(RoutingEventKind.STOP_REPLICATION, (shardKind, shardId) -> {
-            assertEquals(ShardKind.STASH, shardKind);
+            assertEquals(ShardKind.BUCKET, shardKind);
             assertEquals(targetShardId, shardId);
             stopLatch.countDown();
         });
@@ -211,7 +198,7 @@ class RoutingServiceTest extends BaseClusterTestWithTCPServer {
 
         // First, assign standby
         ByteBuf setBuf = Unpooled.buffer();
-        cmd.route("SET", "STANDBY", "STASH", targetShardId, standby.getMember().getId()).encode(setBuf);
+        cmd.route("SET", "STANDBY", "BUCKET", targetShardId, standby.getMember().getId()).encode(setBuf);
         Object setMsg = runCommand(primary.getChannel(), setBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, setMsg);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) setMsg).content());
@@ -220,7 +207,7 @@ class RoutingServiceTest extends BaseClusterTestWithTCPServer {
 
         // Now, remove standby
         ByteBuf unsetBuf = Unpooled.buffer();
-        cmd.route("UNSET", "STANDBY", "STASH", targetShardId, standby.getMember().getId()).encode(unsetBuf);
+        cmd.route("UNSET", "STANDBY", "BUCKET", targetShardId, standby.getMember().getId()).encode(unsetBuf);
         Object unsetMsg = runCommand(primary.getChannel(), unsetBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, unsetMsg);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) unsetMsg).content());
@@ -238,7 +225,7 @@ class RoutingServiceTest extends BaseClusterTestWithTCPServer {
         // Assign standby
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("SET", "STANDBY", "STASH", targetShardId, standby.getMember().getId()).encode(buf);
+        cmd.route("SET", "STANDBY", "BUCKET", targetShardId, standby.getMember().getId()).encode(buf);
         Object msg = runCommand(primary.getChannel(), buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) msg).content());
@@ -246,11 +233,11 @@ class RoutingServiceTest extends BaseClusterTestWithTCPServer {
         // Wait for the routing table to be updated on primary
         RoutingService primaryRouting = primary.getContext().getService(RoutingService.NAME);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            Route route = primaryRouting.findRoute(ShardKind.STASH, targetShardId);
+            Route route = primaryRouting.findRoute(ShardKind.BUCKET, targetShardId);
             return route != null && route.standbys().contains(standby.getMember());
         });
 
-        Route route = primaryRouting.findRoute(ShardKind.STASH, targetShardId);
+        Route route = primaryRouting.findRoute(ShardKind.BUCKET, targetShardId);
         assertNotNull(route);
         assertEquals(primary.getMember(), route.primary());
         assertTrue(route.standbys().contains(standby.getMember()));
@@ -264,25 +251,25 @@ class RoutingServiceTest extends BaseClusterTestWithTCPServer {
         int targetShardId = 0;
 
         // Initially shards are READWRITE
-        Route initialRoute = routing.findRoute(ShardKind.STASH, targetShardId);
+        Route initialRoute = routing.findRoute(ShardKind.BUCKET, targetShardId);
         assertNotNull(initialRoute);
         assertEquals(ShardStatus.READWRITE, initialRoute.shardStatus());
 
         // Change shard status to READONLY
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setShardStatus("STASH", targetShardId, ShardStatus.READONLY.name()).encode(buf);
+        cmd.setShardStatus("BUCKET", targetShardId, ShardStatus.READONLY.name()).encode(buf);
         Object msg = runCommand(instance.getChannel(), buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) msg).content());
 
         // Wait for routing table to be updated
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            Route route = routing.findRoute(ShardKind.STASH, targetShardId);
+            Route route = routing.findRoute(ShardKind.BUCKET, targetShardId);
             return route != null && route.shardStatus() == ShardStatus.READONLY;
         });
 
-        Route updatedRoute = routing.findRoute(ShardKind.STASH, targetShardId);
+        Route updatedRoute = routing.findRoute(ShardKind.BUCKET, targetShardId);
         assertNotNull(updatedRoute);
         assertEquals(ShardStatus.READONLY, updatedRoute.shardStatus());
     }
@@ -298,12 +285,6 @@ class RoutingServiceTest extends BaseClusterTestWithTCPServer {
         assertTrue(clusterInitialized);
 
         // Verify routing table is loaded with routes for all configured shards
-        for (int shardId : instance.getContext().getShardRegistry().getShardIds(ShardKind.STASH)) {
-            Route route = routing.findRoute(ShardKind.STASH, shardId);
-            assertNotNull(route, "Route should be loaded for Stash shard " + shardId);
-            assertEquals(instance.getMember(), route.primary());
-        }
-
         for (int shardId : instance.getContext().getShardRegistry().getShardIds(ShardKind.BUCKET)) {
             Route route = routing.findRoute(ShardKind.BUCKET, shardId);
             assertNotNull(route, "Route should be loaded for Bucket shard " + shardId);

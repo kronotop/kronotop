@@ -58,7 +58,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldCollectSinglePrefixAndPersistVacuumMetadata() throws IOException {
         // Behavior: vacuum collects prefixes from SEGMENT_STATS and writes vacuum metadata to FDB
-        long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
+        long sealedSegmentId = fillAndSealSegment(volumeTestPrefix);
         VacuumContext ctx = new VacuumContext();
         MockEntryEvacuator evacuator = new MockEntryEvacuator(ctx);
         volume.vacuum(ctx, sealedSegmentId, evacuator);
@@ -72,7 +72,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
             assertTrue(metadata.startedAt() > 0);
             assertTrue(metadata.startedAt() <= System.currentTimeMillis());
 
-            byte[] prefixKey = volumeSubspace.packVacuumSegmentMetadataPrefixCardinalityKey(sealedSegmentId, stashVolumeSyncerPrefix);
+            byte[] prefixKey = volumeSubspace.packVacuumSegmentMetadataPrefixCardinalityKey(sealedSegmentId, volumeTestPrefix);
             byte[] prefixValue = tr.get(prefixKey).join();
             assertNotNull(prefixValue);
 
@@ -205,7 +205,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldMatchCardinalityWithSegmentStats() throws IOException {
         // Behavior: vacuum metadata cardinality exactly matches SEGMENT_STATS cardinality
-        long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
+        long sealedSegmentId = fillAndSealSegment(volumeTestPrefix);
 
         VacuumContext ctx = new VacuumContext();
         MockEntryEvacuator evacuator = new MockEntryEvacuator(ctx);
@@ -216,13 +216,13 @@ class VacuumTest extends BaseVolumeIntegrationTest {
 
             // Read cardinality from SEGMENT_STATS
             byte[] statsKey = volumeSubspace.packSegmentStatsKey(
-                    sealedSegmentId, stashVolumeSyncerPrefix, SegmentStatsSubspaces.CARDINALITY);
+                    sealedSegmentId, volumeTestPrefix, SegmentStatsSubspaces.CARDINALITY);
             byte[] statsValue = tr.get(statsKey).join();
             assertNotNull(statsValue);
             int statsCardinality = ByteBuffer.wrap(statsValue).order(ByteOrder.LITTLE_ENDIAN).getInt();
 
             // Read cardinality from VACUUM_METADATA
-            byte[] vacuumKey = volumeSubspace.packVacuumSegmentMetadataPrefixCardinalityKey(sealedSegmentId, stashVolumeSyncerPrefix);
+            byte[] vacuumKey = volumeSubspace.packVacuumSegmentMetadataPrefixCardinalityKey(sealedSegmentId, volumeTestPrefix);
             byte[] vacuumValue = tr.get(vacuumKey).join();
             assertNotNull(vacuumValue);
             int vacuumCardinality = ByteBuffer.wrap(vacuumValue).order(ByteOrder.LITTLE_ENDIAN).getInt();
@@ -234,7 +234,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldPersistVacuumMetadataAcrossVolumeReopen() throws IOException {
         // Behavior: vacuum metadata survives volume close and reopen
-        long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
+        long sealedSegmentId = fillAndSealSegment(volumeTestPrefix);
 
         VacuumContext ctx = new VacuumContext();
         MockEntryEvacuator evacuator = new MockEntryEvacuator(ctx);
@@ -252,7 +252,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
             assertEquals(VacuumMetadataStatus.EVACUATING, metadata.status());
             assertTrue(metadata.startedAt() > 0);
 
-            byte[] prefixKey = volumeSubspace.packVacuumSegmentMetadataPrefixCardinalityKey(sealedSegmentId, stashVolumeSyncerPrefix);
+            byte[] prefixKey = volumeSubspace.packVacuumSegmentMetadataPrefixCardinalityKey(sealedSegmentId, volumeTestPrefix);
             byte[] prefixValue = tr.get(prefixKey).join();
             assertNotNull(prefixValue);
 
@@ -264,7 +264,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldCleanupSegmentAfterSuccessfulVacuum() throws IOException {
         // Behavior: after vacuum evacuates all entries, segment metadata, file, and registry are cleaned up
-        long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
+        long sealedSegmentId = fillAndSealSegment(volumeTestPrefix);
 
         VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -297,7 +297,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldNotCleanupSegmentWhenVacuumStopped() throws IOException {
         // Behavior: stopped vacuum leaves segment intact
-        long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
+        long sealedSegmentId = fillAndSealSegment(volumeTestPrefix);
 
         VacuumContext ctx = new VacuumContext();
         ctx.stop();
@@ -317,11 +317,11 @@ class VacuumTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldContinueServingOtherSegmentsAfterCleanup() throws IOException {
         // Behavior: cleaning up one segment does not affect reads from other segments
-        long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
+        long sealedSegmentId = fillAndSealSegment(volumeTestPrefix);
 
         AppendResult appendResult;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             appendResult = volume.append(session, getEntries(5));
             tr.commit().join();
         }
@@ -331,7 +331,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         EvacuatingEvacuator evacuator = new EvacuatingEvacuator(volume);
         volume.vacuum(ctx, sealedSegmentId, evacuator);
 
-        VolumeSession readSession = new VolumeSession(stashVolumeSyncerPrefix);
+        VolumeSession readSession = new VolumeSession(volumeTestPrefix);
         for (Versionstamp key : writableKeys) {
             ByteBuffer data = volume.get(readSession, key);
             assertNotNull(data);
@@ -341,7 +341,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldRefuseToCleanupSegmentWithRemainingEntries() throws IOException {
         // Behavior: cleanupSegment throws when the segment still has entries
-        long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
+        long sealedSegmentId = fillAndSealSegment(volumeTestPrefix);
         assertThrows(IllegalStateException.class, () -> volume.destroyStaleSegment(sealedSegmentId));
     }
 

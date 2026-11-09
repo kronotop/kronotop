@@ -244,25 +244,6 @@ class SessionCloseHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void shouldKeepReadonlyFlagAfterClose() {
-        // Behavior: SESSION.CLOSE keeps the readonly flag set by the READONLY command. The flag belongs
-        // to the connection, so only READWRITE clears it.
-        {
-            // READONLY has no command builder method, so send the raw RESP frame.
-            ByteBuf buf = Unpooled.buffer();
-            buf.writeBytes("*1\r\n$8\r\nREADONLY\r\n".getBytes(StandardCharsets.US_ASCII));
-            Object response = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
-        }
-        assertTrue(channel.attr(SessionAttributes.READONLY).get());
-
-        closeSession();
-
-        assertTrue(channel.attr(SessionAttributes.READONLY).get());
-    }
-
-    @Test
     void shouldResetCurrentNamespaceAfterClose() {
         // Behavior: SESSION.CLOSE switches the session back to the default namespace.
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);

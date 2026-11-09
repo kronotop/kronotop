@@ -199,7 +199,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
         private final boolean allShards;
 
         RouteArguments(ArrayList<ByteBuf> args) {
-            // kr.admin route set primary stash * 12b3cf60
+            // kr.admin route set primary bucket * 12b3cf60
             if (args.size() != 6) {
                 throw new InvalidNumberOfArgumentsException();
             }

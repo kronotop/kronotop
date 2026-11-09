@@ -37,11 +37,6 @@ public class TransactionHandler implements Handler {
     }
 
     @Override
-    public boolean isRedisCompatible() {
-        return false;
-    }
-
-    @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.TRANSACTION).set(new TransactionMessage(request));
     }

@@ -38,11 +38,6 @@ public abstract class BaseZMapHandler implements Handler {
         this.context = service.getContext();
     }
 
-    @Override
-    public boolean isRedisCompatible() {
-        return false;
-    }
-
     /**
      * Opens the ZMap subspace of the given namespace, or of the session's current namespace
      * when the namespace is null.

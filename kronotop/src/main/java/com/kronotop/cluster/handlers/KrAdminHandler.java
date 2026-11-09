@@ -58,11 +58,6 @@ public class KrAdminHandler implements Handler {
     }
 
     @Override
-    public boolean isRedisCompatible() {
-        return false;
-    }
-
-    @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.KRADMIN).set(new KrAdminMessage(request));
     }

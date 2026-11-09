@@ -43,11 +43,6 @@ public class VolumeStatsHandler extends BaseSubcommandHandler implements Handler
     }
 
     @Override
-    public boolean isRedisCompatible() {
-        return false;
-    }
-
-    @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.VOLUMESTATS).set(new VolumeStatsMessage(request));
     }

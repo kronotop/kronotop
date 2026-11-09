@@ -95,21 +95,12 @@ public class VolumeReplication implements ReplicationTask {
      */
     private long getSegmentSize() {
         return switch (shardKind) {
-            case STASH -> context.getConfig().getLong("stash.volume.segment_size");
             case BUCKET -> context.getConfig().getLong("bucket.volume.segment_size");
         };
     }
 
     DirectorySubspace createOrOpenStandbySubspace() {
         KronotopDirectoryNode node = switch (shardKind) {
-            case STASH -> KronotopDirectory.
-                    kronotop().
-                    cluster(context.getClusterName()).
-                    metadata().
-                    volumes().
-                    stash().
-                    volume(volume).
-                    standby(context.getMember().getId());
             case BUCKET -> KronotopDirectory.
                     kronotop().
                     cluster(context.getClusterName()).
@@ -131,7 +122,6 @@ public class VolumeReplication implements ReplicationTask {
     private long getChunkSize() {
         return switch (shardKind) {
             case BUCKET -> context.getConfig().getLong("bucket.volume.segment_replication_chunk_size");
-            case STASH -> context.getConfig().getLong("stash.volume.segment_replication_chunk_size");
         };
     }
 

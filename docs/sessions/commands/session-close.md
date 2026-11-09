@@ -23,10 +23,8 @@ The command performs a full session reset without closing the underlying network
 
 1. **Cursors**: All active cursors (read, delete, update query contexts) are cleared
 2. **FDB Transaction**: Any active FoundationDB transaction is rolled back and closed
-3. **MULTI State**: `MULTI` transaction state (queued commands, the MULTI flag) is reset
-4. **Watched Keys**: All keys being watched via `WATCH` are unwatched
-5. **Cursor ID Counter**: Reset to 1
-6. **Session Defaults**: the configuration attributes (`reply_type`, `input_type`, `batch`, `object_id_format`) are
+3. **Cursor ID Counter**: Reset to 1
+4. **Session Defaults**: the configuration attributes (`reply_type`, `input_type`, `batch`, `object_id_format`) are
    reset to their defaults, snapshot read goes back to off, and the current namespace goes back to the default one
 
 Everything that belongs to the connection rather than the session is kept: the negotiated RESP version, the

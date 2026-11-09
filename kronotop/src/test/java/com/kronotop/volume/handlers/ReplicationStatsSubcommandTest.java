@@ -57,8 +57,6 @@ class ReplicationStatsSubcommandTest extends BaseNetworkedVolumeIntegrationTest 
         String volumeName = VolumeNames.format(SHARD_KIND, SHARD_ID);
         String standbyId = context.getMember().getId();
         KronotopDirectoryNode node = switch (SHARD_KIND) {
-            case STASH ->
-                    KronotopDirectory.kronotop().cluster(context.getClusterName()).metadata().volumes().stash().volume(volumeName).standby(standbyId);
             case BUCKET ->
                     KronotopDirectory.kronotop().cluster(context.getClusterName()).metadata().volumes().bucket().volume(volumeName).standby(standbyId);
         };

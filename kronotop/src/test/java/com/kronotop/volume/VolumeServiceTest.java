@@ -37,7 +37,7 @@ public class VolumeServiceTest extends BaseVolumeTest {
 
     @BeforeEach
     public void setUp() {
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.STASH, 1);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.BUCKET, 1);
         volumeConfig = generator.volumeConfig();
         service = context.getService(VolumeService.NAME);
     }

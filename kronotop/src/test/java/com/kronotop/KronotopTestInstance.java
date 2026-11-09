@@ -41,8 +41,6 @@ import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.network.Address;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
-import com.kronotop.stash.StashService;
-import com.kronotop.stash.handlers.cluster.protocol.ClusterMessage;
 import com.kronotop.transaction.TransactionUtil;
 import com.typesafe.config.Config;
 import io.lettuce.core.codec.StringCodec;
@@ -71,7 +69,6 @@ public class KronotopTestInstance extends KronotopInstance {
             ClientMessage.COMMAND,
             PingMessage.COMMAND,
             CommandMessage.COMMAND,
-            ClusterMessage.COMMAND,
             InfoMessage.COMMAND,
             HelloMessage.COMMAND,
             EchoMessage.COMMAND,
@@ -266,23 +263,8 @@ public class KronotopTestInstance extends KronotopInstance {
             return clusterInitialized.get() != null && clusterInitialized.get();
         });
 
-        boolean stashEnabled = context.getShardRegistry().getShardKinds().contains(ShardKind.STASH);
-
-        if (stashEnabled) {
-            setPrimaryOwnersOfShards(cmd, ShardKind.STASH);
-            await().atMost(5, TimeUnit.SECONDS).until(() -> areAllOwnedShardsOperable(ShardKind.STASH, StashService.NAME));
-        }
-
         setPrimaryOwnersOfShards(cmd, ShardKind.BUCKET);
         await().atMost(5, TimeUnit.SECONDS).until(() -> areAllOwnedShardsOperable(ShardKind.BUCKET, BucketService.NAME));
-
-        if (stashEnabled) {
-            setShardsReadWrite(cmd, ShardKind.STASH);
-            await().atMost(5, TimeUnit.SECONDS).until(() -> {
-                List<Integer> shardIds = context.getShardRegistry().getShardIds(ShardKind.STASH);
-                return areAllShardsWritable(ShardKind.STASH, shardIds);
-            });
-        }
 
         setShardsReadWrite(cmd, ShardKind.BUCKET);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {

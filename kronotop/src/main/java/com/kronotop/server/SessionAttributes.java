@@ -48,14 +48,6 @@ public class SessionAttributes {
 
     public static final AttributeKey<Map<String, Namespace>> OPEN_NAMESPACES = AttributeKey.valueOf("open_namespaces");
 
-    public static final AttributeKey<List<Request>> QUEUED_COMMANDS = AttributeKey.valueOf("queued_commands");
-
-    public static final AttributeKey<Boolean> MULTI = AttributeKey.valueOf("multi");
-
-    public static final AttributeKey<Boolean> MULTI_DISCARDED = AttributeKey.valueOf("multi_discarded");
-
-    public static final AttributeKey<HashMap<String, Long>> WATCHED_KEYS = AttributeKey.valueOf("watched_keys");
-
     public static final AttributeKey<byte[]> ZWATCH_KEY = AttributeKey.valueOf("zwatch_key");
 
     public static final AttributeKey<Long> CLIENT_ID = AttributeKey.valueOf("client_id");
@@ -63,8 +55,6 @@ public class SessionAttributes {
     public static final AttributeKey<Session> SESSION = AttributeKey.valueOf("session");
 
     public static final AttributeKey<HashMap<String, Object>> CLIENT_ATTRIBUTES = AttributeKey.valueOf("client_attributes");
-
-    public static final AttributeKey<Boolean> READONLY = AttributeKey.valueOf("readonly");
 
     public static final AttributeKey<AtomicInteger> USER_VERSION_COUNTER = AttributeKey.valueOf("user_version_counter");
 
