@@ -1,14 +1,16 @@
 # Security scanning
 
-Trivy scans the Maven dependencies and the Docker image. Results go to Security > Code scanning under the
-`trivy-fs` and `trivy-image` categories. Findings do not fail the build.
+Trivy scans the Maven dependencies, the Docker image built from `main` and the published Docker image. Results go
+to Security > Code scanning under the `trivy-fs`, `trivy-image` and `trivy-image-published` categories. Findings
+do not fail the build.
 
 ## Workflows
 
 - `trivy-db-update.yaml`: downloads the Trivy DBs and saves them to the Actions cache as
   `cache-trivy-YYYY-MM-DD`. Runs daily at 08:00 UTC and on demand.
 - `trivy.yaml`: runs `trivy fs .` and `trivy image` on push and pull requests to `main`, daily at 09:00 UTC,
-  and on demand. It reads the DBs from the cache and never downloads them.
+  and on demand. It scans `ghcr.io/kronotop/kronotop:latest` only on the daily run and on demand. It reads the
+  DBs from the cache and never downloads them.
 
 ## First-time setup
 

@@ -62,7 +62,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          java-version: '26'
+          java-version: '25'
           distribution: 'corretto'
           cache: maven
 
@@ -93,3 +93,27 @@ jobs:
         with:
           sarif_file: trivy-image.sarif
           category: trivy-image
+
+  # The published image does not change with a push or a PR.
+  published:
+    name: Published image
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan the published image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ghcr.io/kronotop/kronotop:latest
+          format: sarif
+          output: trivy-published.sarif
+          exit-code: 0
+
+      - name: Upload results to the Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-published.sarif
+          category: trivy-image-published
