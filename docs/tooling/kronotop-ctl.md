@@ -47,32 +47,31 @@ kronotop-ctl bootstrap \
 ## Help
 
 ```
-Usage: kronotop-ctl [-hV] [COMMAND]
+Usage: kronotop-ctl [-hv] [COMMAND]
 Control tool for Kronotop clusters.
-  -h, --help      Show this help message and exit.
-  -V, --version   Print version information and exit.
+  -h, --help      Show help.
+  -v, --version   Print version information and quit.
 Commands:
   bootstrap  Bootstrap a Kronotop cluster.
 ```
 
 ```
-Usage: kronotop-ctl bootstrap [-hV] [--shard-discovery-timeout <seconds>]
+Usage: kronotop-ctl bootstrap [-h] [--shard-discovery-timeout <seconds>]
                               [--primary <shard-kind host:port=shard-ids>
                               <shard-kind host:port=shard-ids>...]...
                               [--standby <shard-kind host:port=shard-ids>
                               <shard-kind host:port=shard-ids>...]...
 Bootstrap a Kronotop cluster.
-  -h, --help      Show this help message and exit.
+  -h, --help   Show help.
       --primary <shard-kind host:port=shard-ids> <shard-kind host:
         port=shard-ids>...
-                  Assign primary shards (repeatable). Example: --primary BUCKET
-                    node1:3320=0,1,2
+               Assign primary shards (repeatable). Example: --primary BUCKET
+                 node1:3320=0,1,2
       --shard-discovery-timeout <seconds>
-                  Max seconds to wait for shard discovery after cluster
-                    initialization. Default: 30
+               Max seconds to wait for shard discovery after cluster
+                 initialization. Default: 30
       --standby <shard-kind host:port=shard-ids> <shard-kind host:
         port=shard-ids>...
-                  Assign standby shards (repeatable). Example: --standby BUCKET
-                    node2:3320=0,1,2
-  -V, --version   Print version information and exit.
+               Assign standby shards (repeatable). Example: --standby BUCKET
+                 node2:3320=0,1,2
 ```

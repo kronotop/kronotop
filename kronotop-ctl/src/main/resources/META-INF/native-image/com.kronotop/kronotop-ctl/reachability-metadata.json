@@ -25,6 +25,9 @@
       "type": "com.kronotop.ctl.BootstrapCommand",
       "fields": [
         {
+          "name": "helpRequested"
+        },
+        {
           "name": "primaries"
         },
         {
@@ -42,7 +45,15 @@
       ]
     },
     {
-      "type": "com.kronotop.ctl.KronotopCTL"
+      "type": "com.kronotop.ctl.KronotopCTL",
+      "fields": [
+        {
+          "name": "helpRequested"
+        },
+        {
+          "name": "versionRequested"
+        }
+      ]
     },
     {
       "type": "com.kronotop.ctl.VersionProvider",
@@ -142,17 +153,6 @@
     },
     {
       "type": "java.time.ZonedDateTime"
-    },
-    {
-      "type": "picocli.CommandLine$AutoHelpMixin",
-      "fields": [
-        {
-          "name": "helpRequested"
-        },
-        {
-          "name": "versionRequested"
-        }
-      ]
     },
     {
       "type": "sun.text.resources.BreakIteratorInfo"

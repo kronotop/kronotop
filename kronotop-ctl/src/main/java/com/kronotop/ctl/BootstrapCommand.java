@@ -32,7 +32,6 @@ import java.util.stream.Collectors;
 @Command(
         name = "bootstrap",
         description = "Bootstrap a Kronotop cluster.",
-        mixinStandardHelpOptions = true,
         separator = " "
 )
 public class BootstrapCommand implements Callable<Integer> {
@@ -48,6 +47,8 @@ public class BootstrapCommand implements Callable<Integer> {
     @Option(names = "--shard-discovery-timeout", paramLabel = "<seconds>", defaultValue = "30",
             description = "Max seconds to wait for shard discovery after cluster initialization. Default: ${DEFAULT-VALUE}")
     private int shardDiscoveryTimeout;
+    @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show help.")
+    private boolean helpRequested;
 
     @Override
     public Integer call() {

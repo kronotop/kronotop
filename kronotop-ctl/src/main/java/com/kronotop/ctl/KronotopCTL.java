@@ -23,15 +23,21 @@ import ch.qos.logback.core.ConsoleAppender;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 @Command(
         name = "kronotop-ctl",
         description = "Control tool for Kronotop clusters.",
         subcommands = {BootstrapCommand.class},
-        mixinStandardHelpOptions = true,
         versionProvider = VersionProvider.class
 )
 public class KronotopCTL implements Runnable {
+
+    @Option(names = {"-v", "--version"}, versionHelp = true, description = "Print version information and quit.")
+    private boolean versionRequested;
+
+    @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show help.")
+    private boolean helpRequested;
 
     public static void main(String[] args) {
         configureLogging();
