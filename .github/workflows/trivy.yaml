@@ -1,0 +1,61 @@
+name: Trivy scan
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '0 9 * * *' # daily at 09:00 UTC, 12:00 TSI
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  dependencies:
+    name: Java dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The action keeps the vulnerability DB in the Actions cache (cache: true is the default).
+      - name: Scan Maven dependencies
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          format: sarif
+          output: trivy-fs.sarif
+          cache: true
+
+      - name: Upload results to the Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+  image:
+    name: Published Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan ghcr.io/kronotop/kronotop:latest
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ghcr.io/kronotop/kronotop:latest
+          format: sarif
+          output: trivy-image.sarif
+          cache: true
+
+      - name: Upload results to the Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image
