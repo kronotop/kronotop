@@ -1,0 +1,95 @@
+name: Trivy scan
+
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore: &paths-ignore
+      - '**.md'
+      - '**.svg'
+      - '**.png'
+      - 'docs/**'
+      - 'internals/**'
+      - 'recipes/**'
+      - 'development/**'
+      - 'extras/**'
+      - 'benchmarks/**'
+      - 'LICENSE'
+  pull_request:
+    branches: [ "main" ]
+    paths-ignore: *paths-ignore
+  schedule:
+    - cron: '0 9 * * *' # Daily at 09:00 UTC (12:00 GMT+3), after the DB cache update
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+# The DBs come from the cache filled by trivy-db-update.yaml.
+env:
+  TRIVY_SKIP_DB_UPDATE: true
+  TRIVY_SKIP_JAVA_DB_UPDATE: true
+
+jobs:
+  fs:
+    name: Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan the repository
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          exit-code: 0
+
+      - name: Upload results to the Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+  image:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '26'
+          distribution: 'corretto'
+          cache: maven
+
+      - name: Package (skip tests)
+        run: ./mvnw -B -DskipTests clean package
+
+      - name: Copy jars to the Docker build context
+        run: |
+          cp kronotop/target/kronotop-[0-9]*.jar docker/kronotop.jar
+          cp kronotop-cli/target/kronotop-cli-[0-9]*.jar docker/kronotop-cli.jar
+          cp kronotop-ctl/target/kronotop-ctl-[0-9]*.jar docker/kronotop-ctl.jar
+
+      - name: Build the image
+        run: docker build -t kronotop:scan docker/
+
+      - name: Scan the image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: kronotop:scan
+          format: sarif
+          output: trivy-image.sarif
+          exit-code: 0
+
+      - name: Upload results to the Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image
