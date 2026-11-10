@@ -70,7 +70,7 @@ Argument errors:
 | `ERR`      | `invalid volume name: <name>` | The name does not match the `shard-<id>` format.                        |
 | `ERR`      | `invalid shard id: <value>`   | The part after `shard-` in the volume name is not an integer.           |
 | `ERR`      | `invalid shard id`            | The volume name points to a shard that does not exist.                  |
-| `ERR`      | `Invalid memberId: <id>`      | The value is neither a 40-character member ID nor a 4-character prefix. |
+| `ERR`      | `Invalid member id: <id>`     | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 Volume errors:
 

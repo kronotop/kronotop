@@ -75,7 +75,7 @@ Argument errors:
 | `ERR`      | `Unknown operation kind: '<value>'` | The operation kind must be `SET` or `UNSET`.                            |
 | `ERR`      | `Unknown route kind: '<value>'`     | The route kind must be `PRIMARY` or `STANDBY`.                          |
 | `ERR`      | `invalid shard id`                  | The shard ID is not a valid integer, or is out of the configured range. |
-| `ERR`      | `Invalid memberId: <value>`         | The value is neither a 40-character member ID nor a 4-character prefix. |
+| `ERR`      | `Invalid member id: <value>`        | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 Cluster errors:
 

@@ -234,7 +234,7 @@ public class ProtocolMessageUtil {
         if (MemberIdGenerator.validateId(memberId)) {
             return memberId;
         } else {
-            throw new KronotopException("Invalid memberId: " + memberId);
+            throw new KronotopException("Invalid member id: " + memberId);
         }
     }
 

@@ -36,7 +36,7 @@ Argument errors:
 |------------|------------------------------------|-------------------------------------------------------------------------|
 | `ERR`      | `invalid number of arguments`      | -                                                                       |
 | `ERR`      | `Unknown member status: '<value>'` | -                                                                       |
-| `ERR`      | `Invalid memberId: <id>`           | The value is neither a 40-character member ID nor a 4-character prefix. |
+| `ERR`      | `Invalid member id: <id>`          | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 Cluster errors:
 

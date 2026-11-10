@@ -51,7 +51,7 @@ Argument errors:
 |------------|-------------------------------|-------------------------------------------------------------------------|
 | `ERR`      | `invalid number of arguments` | -                                                                       |
 | `ERR`      | `invalid volume name: <name>` | The name does not match the `shard-<id>` format.                        |
-| `ERR`      | `Invalid memberId: <id>`      | The value is neither a 40-character member ID nor a 4-character prefix. |
+| `ERR`      | `Invalid member id: <id>`     | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 ## Examples
 
