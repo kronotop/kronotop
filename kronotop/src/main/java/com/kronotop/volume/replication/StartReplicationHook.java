@@ -17,7 +17,6 @@
 package com.kronotop.volume.replication;
 
 import com.kronotop.cluster.RoutingEventHook;
-import com.kronotop.cluster.sharding.ShardKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,16 +29,16 @@ public class StartReplicationHook implements RoutingEventHook {
     }
 
     @Override
-    public void run(ShardKind shardKind, int shardId) {
+    public void run(int shardId) {
         try {
-            service.startReplication(shardKind, shardId, false);
+            service.startReplication(shardId, false);
             LOGGER.info(
-                    "Initializing volume replication: ShardKind={}, ShardId={}",
-                    shardKind, shardId
+                    "Initializing volume replication: ShardId={}",
+                    shardId
             );
         } catch (ReplicationAlreadyExistsException | NoRouteFoundException exp) {
-            LOGGER.trace("Skipping replication initialization for {}-{}: {}",
-                    shardKind, shardId, exp.getMessage());
+            LOGGER.trace("Skipping replication initialization for shard {}: {}",
+                    shardId, exp.getMessage());
         }
     }
 }

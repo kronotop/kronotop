@@ -34,7 +34,7 @@
           "type": "string"
         },
         "linked_volumes": {
-          "description": "Volume names in the format <kind>-shard-<id>.",
+          "description": "Volume names in the format shard-<id>.",
           "type": "array",
           "items": {
             "description": "A volume name.",
@@ -44,18 +44,6 @@
       }
     },
     "arguments": [
-      {
-        "name": "shard-kind",
-        "type": "oneof",
-        "summary": "The kind of the shard. Case-insensitive.",
-        "arguments": [
-          {
-            "name": "bucket",
-            "type": "pure-token",
-            "token": "BUCKET"
-          }
-        ]
-      },
       {
         "name": "shard-id",
         "type": "integer",

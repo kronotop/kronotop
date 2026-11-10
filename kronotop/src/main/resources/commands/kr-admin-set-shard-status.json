@@ -1,7 +1,7 @@
 {
   "SET-SHARD-STATUS": {
     "summary": "Changes the operational status of a shard.",
-    "complexity": "O(1) for a single shard. O(S) for *, where S is the number of shards of the given kind.",
+    "complexity": "O(1) for a single shard. O(S) for *, where S is the number of shards.",
     "group": "cluster",
     "since": "2026.06-1",
     "arity": 5,
@@ -17,21 +17,9 @@
     },
     "arguments": [
       {
-        "name": "shard-kind",
-        "type": "oneof",
-        "summary": "The kind of the shard. Case-insensitive.",
-        "arguments": [
-          {
-            "name": "bucket",
-            "type": "pure-token",
-            "token": "BUCKET"
-          }
-        ]
-      },
-      {
         "name": "shard-id",
         "type": "string",
-        "summary": "Zero-based shard index, or * to target all shards of the given kind atomically."
+        "summary": "Zero-based shard index, or * to target all shards atomically."
       },
       {
         "name": "shard-status",

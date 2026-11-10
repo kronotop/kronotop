@@ -32,7 +32,6 @@ import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.statistics.HistogramBucket;
 import com.kronotop.bucket.index.statistics.HistogramCodec;
 import com.kronotop.bucket.index.statistics.IndexStatsBuilder;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.internal.task.TaskStorage;
 import com.kronotop.server.RESPVersion;
@@ -212,7 +211,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
         await().atMost(Duration.ofSeconds(30)).until(() -> {
             AtomicInteger counter = new AtomicInteger();
             try (Transaction tr = context.getTransactionManager().create()) {
-                for (int shardId : context.getShardRegistry().getShardIds(ShardKind.BUCKET)) {
+                for (int shardId : context.getShardRegistry().getShardIds()) {
                     DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
                     TaskStorage.tasks(tr, taskSubspace, (ignored) -> {
                         counter.getAndIncrement();
@@ -343,7 +342,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             // All tasks must be dropped after this point
             AtomicInteger tasks = new AtomicInteger();
             try (Transaction tr = context.getTransactionManager().create()) {
-                List<Integer> shards = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
+                List<Integer> shards = context.getShardRegistry().getShardIds();
                 for (int shardId : shards) {
                     DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
                     TaskStorage.tasks(tr, taskSubspace, (ignored) -> {
@@ -430,7 +429,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
                 // All build & drop tasks are killed and removed
                 AtomicInteger counter = new AtomicInteger();
                 try (Transaction tr = context.getTransactionManager().create()) {
-                    List<Integer> shards = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
+                    List<Integer> shards = context.getShardRegistry().getShardIds();
                     for (int shardId : shards) {
                         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
                         TaskStorage.tasks(tr, taskSubspace, (ignored) -> {
@@ -482,7 +481,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             // All build & drop tasks are killed and removed
             AtomicInteger counter = new AtomicInteger();
             try (Transaction tr = context.getTransactionManager().create()) {
-                List<Integer> shards = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
+                List<Integer> shards = context.getShardRegistry().getShardIds();
                 for (int shardId : shards) {
                     DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
                     TaskStorage.tasks(tr, taskSubspace, (ignored) -> {
@@ -687,7 +686,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             // All tasks must be cleaned up
             AtomicInteger tasks = new AtomicInteger();
             try (Transaction tr = context.getTransactionManager().create()) {
-                List<Integer> shards = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
+                List<Integer> shards = context.getShardRegistry().getShardIds();
                 for (int shardId : shards) {
                     DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
                     TaskStorage.tasks(tr, taskSubspace, (ignored) -> {

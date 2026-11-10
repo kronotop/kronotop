@@ -16,10 +16,8 @@
 
 package com.kronotop.volume;
 
-import com.kronotop.cluster.sharding.ShardKind;
 import io.netty.util.AttributeKey;
 
 public class VolumeAttributes {
-    public static final AttributeKey<ShardKind> SHARD_KIND = AttributeKey.valueOf("shard_kind");
     public static final AttributeKey<Integer> SHARD_ID = AttributeKey.valueOf("shard_id");
 }

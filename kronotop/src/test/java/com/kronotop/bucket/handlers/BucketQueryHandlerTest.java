@@ -30,7 +30,6 @@ import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commands.*;
 import com.kronotop.server.RESPVersion;
@@ -2368,7 +2367,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         Member primary = createMemberWithEphemeralPort();
         Member standby = context.getMember();
         RoutingService routing = context.getService(RoutingService.NAME);
-        setRoute(routing, ShardKind.BUCKET, TEST_SHARD_ID, new Route(primary, Set.of(standby), ShardStatus.READWRITE));
+        setRoute(routing, TEST_SHARD_ID, new Route(primary, Set.of(standby), ShardStatus.READWRITE));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         ByteBuf buf = Unpooled.buffer();
@@ -2388,7 +2387,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         Member primary = createMemberWithEphemeralPort();
         RoutingService routing = context.getService(RoutingService.NAME);
-        setRoute(routing, ShardKind.BUCKET, TEST_SHARD_ID, new Route(primary, Set.of(), ShardStatus.READWRITE));
+        setRoute(routing, TEST_SHARD_ID, new Route(primary, Set.of(), ShardStatus.READWRITE));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         ByteBuf buf = Unpooled.buffer();

@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Builds a vector index on the existing documents of one bucket shard in the background.
+ * Builds a vector index on the existing documents of one shard in the background.
  *
  * <p>Each batch writes the index entries to FoundationDB and adds the vectors to the on-heap
  * graph of the current generation in the {@link VectorGraphIndexGroup}. When the on-heap graph

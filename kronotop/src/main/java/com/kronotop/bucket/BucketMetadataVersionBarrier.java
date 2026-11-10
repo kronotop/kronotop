@@ -23,7 +23,6 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.BarrierNotSatisfiedException;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import io.github.resilience4j.core.functions.CheckedRunnable;
@@ -80,7 +79,6 @@ public class BucketMetadataVersionBarrier {
                 cluster(context.getClusterName()).
                 metadata().
                 shards().
-                bucket().
                 shard(shardId).
                 lastSeenVersions();
         return subspaces.computeIfAbsent(shardId,
@@ -108,7 +106,7 @@ public class BucketMetadataVersionBarrier {
                 .retryExceptions(BarrierNotSatisfiedException.class)
                 .build();
         final Retry retry = Retry.of("versionBarrier", config);
-        List<Integer> shardIds = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
+        List<Integer> shardIds = context.getShardRegistry().getShardIds();
         int shards = shardIds.size();
 
         AtomicInteger attempts = new AtomicInteger();

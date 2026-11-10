@@ -318,7 +318,7 @@ class CommandHandlerTest extends BaseHandlerTest {
         Map<String, RedisMessage> docs = docs(internal, "kr.admin|route");
         Map<String, RedisMessage> route = asMap(docs.get("kr.admin|route"));
         assertEquals("cluster", text(route.get("group")));
-        assertEquals(5, ((ArrayRedisMessage) route.get("arguments")).children().size());
+        assertEquals(4, ((ArrayRedisMessage) route.get("arguments")).children().size());
     }
 
     @Test

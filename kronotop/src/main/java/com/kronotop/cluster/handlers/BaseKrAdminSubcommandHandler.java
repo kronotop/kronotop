@@ -20,11 +20,11 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.cluster.*;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
+import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
@@ -36,11 +36,20 @@ import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+/**
+ * Base class of the KR.ADMIN subcommand handlers. It holds the shared services and the helpers
+ * that read command arguments and build replies.
+ */
 public class BaseKrAdminSubcommandHandler {
     protected final Context context;
     protected final MembershipService membership;
     protected final RoutingService routing;
 
+    /**
+     * Creates the handler with the services it shares with its subclasses.
+     *
+     * @param service the routing service
+     */
     public BaseKrAdminSubcommandHandler(RoutingService service) {
         this.context = service.getContext();
         this.routing = service;
@@ -53,19 +62,14 @@ public class BaseKrAdminSubcommandHandler {
     }
 
     /**
-     * Describes the metadata and status of a specific shard.
-     * Retrieves information about the primary member, standby members,
-     * and the status of the shard based on its type and ID.
+     * Returns the primary, standbys, status and linked volumes of a shard as reply fields.
      *
-     * @param tr        The transaction object used for accessing the database.
-     * @param shardKind The kind of shard, represented as a {@link ShardKind}.
-     * @param shardId   The ID of the shard to describe.
-     * @return A map where the keys are {@link RedisMessage} instances representing metadata
-     * descriptors (e.g., "primary", "standbys", "status") and the
-     * values are {@link RedisMessage} instances containing the respective information.
+     * @param tr      the transaction to read with
+     * @param shardId the shard ID
+     * @return the reply fields in output order
      */
-    protected Map<RedisMessage, RedisMessage> describeShard(Transaction tr, ShardKind shardKind, int shardId) {
-        DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardKind, shardId);
+    protected Map<RedisMessage, RedisMessage> describeShard(Transaction tr, int shardId) {
+        DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardId);
         Map<RedisMessage, RedisMessage> shard = new LinkedHashMap<>();
 
         String primaryRouteMemberId = MembershipUtil.loadPrimaryMemberId(tr, shardSubspace);
@@ -89,50 +93,48 @@ public class BaseKrAdminSubcommandHandler {
         // TODO: This is not sufficient but it works for now.
         // Ideally, we should get this info from FDB, re-generating the volume name is not good.
         List<RedisMessage> linkedVolumes = new ArrayList<>();
-        linkedVolumes.add(bulkString(VolumeNames.format(shardKind, shardId)));
+        linkedVolumes.add(bulkString(VolumeNames.format(shardId)));
         shard.put(bulkString("linked_volumes"), new ArrayRedisMessage(linkedVolumes));
 
         return shard;
     }
 
     /**
-     * Returns the list of shard IDs for the given kind from the ShardRegistry.
+     * Returns the shard IDs of the cluster.
      *
-     * @param kind the shard kind
-     * @return sorted list of shard IDs
+     * @return the sorted shard IDs
      */
-    protected List<Integer> getShardIds(ShardKind kind) {
-        return context.getShardRegistry().getShardIds(kind);
+    protected List<Integer> getShardIds() {
+        return context.getShardRegistry().getShardIds();
     }
 
     /**
-     * Reads the shard status from the provided ByteBuf and converts it into a ShardStatus enum value.
+     * Reads a shard status from a command argument.
      *
-     * @param shardStatusBuf the ByteBuf containing the raw bytes of the shard status
-     * @return the corresponding ShardStatus enum value
-     * @throws IllegalCommandArgumentException if the shard status is invalid
+     * @param shardStatusBuf the raw bytes of the argument
+     * @return the shard status
+     * @throws IllegalCommandArgumentException if the shard status is unknown
      */
     protected ShardStatus readShardStatus(ByteBuf shardStatusBuf) {
         return ProtocolMessageUtil.readEnum(ShardStatus.class, shardStatusBuf, "shard status");
     }
 
     /**
-     * Reads the member status from the provided ByteBuf.
+     * Reads a member status from a command argument.
      *
-     * @param memberStatusBuf the ByteBuf containing the raw bytes of the member status
-     * @return the corresponding MemberStatus enum value
-     * @throws IllegalCommandArgumentException if the member status is invalid
+     * @param memberStatusBuf the raw bytes of the argument
+     * @return the member status
+     * @throws IllegalCommandArgumentException if the member status is unknown
      */
     protected MemberStatus readMemberStatus(ByteBuf memberStatusBuf) {
         return ProtocolMessageUtil.readEnum(MemberStatus.class, memberStatusBuf, "member status");
     }
 
     /**
-     * Converts a {@link Member} object into a series of key-value pairs represented as {@link RedisMessage}
-     * instances, and populates the provided map with these pairs.
+     * Adds the status, process ID, advertise addresses and latest heartbeat of a member to a reply.
      *
-     * @param member  The {@link Member} object whose details are to be converted into Redis message key-value pairs.
-     * @param current The map to store the converted key-value pairs, where both keys and values are of type {@link RedisMessage}.
+     * @param member  the member to describe
+     * @param current the reply fields to add to
      */
     protected void memberToRedisMessage(Member member, Map<RedisMessage, RedisMessage> current) {
         current.put(bulkString("status"), bulkString(member.getStatus().toString()));
@@ -147,10 +149,6 @@ public class BaseKrAdminSubcommandHandler {
         current.put(bulkString("latest_heartbeat"), new IntegerRedisMessage(latestHeartbeat));
     }
 
-    /**
-     * Renders an advertise list as an array of host:port strings. The list is ordered and its first
-     * entry is the preferred one.
-     */
     private ArrayRedisMessage advertiseToRedisMessage(List<Address> addresses) {
         List<RedisMessage> children = new ArrayList<>(addresses.size());
         for (Address address : addresses) {

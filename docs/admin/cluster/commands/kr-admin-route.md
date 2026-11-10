@@ -8,7 +8,7 @@ Manages shard-to-member routing for primary and standby assignments.
 ## Syntax
 
 ```kronotop
-KR.ADMIN ROUTE <operation-kind> <route-kind> <shard-kind> <shard-id> <member-id>
+KR.ADMIN ROUTE <operation-kind> <route-kind> <shard-id> <member-id>
 ```
 
 ## Arguments
@@ -17,7 +17,6 @@ KR.ADMIN ROUTE <operation-kind> <route-kind> <shard-kind> <shard-id> <member-id>
 |------------------|----------------|---------------------------------------------------------------------------------------------------------------------|
 | `operation-kind` | string         | `SET` or `UNSET`. Case-insensitive.                                                                                 |
 | `route-kind`     | string         | `PRIMARY` or `STANDBY`. Case-insensitive.                                                                           |
-| `shard-kind`     | string         | `BUCKET`. Case-insensitive.                                                                                         |
 | `shard-id`       | integer or `*` | Zero-based shard index, or `*` to target all shards atomically.                                                     |
 | `member-id`      | string         | Full 40-character hex member ID or a 4-character prefix. A prefix is resolved against currently registered members. |
 
@@ -59,7 +58,7 @@ Not supported. Always returns an error.
 
 ### Wildcard shard-id
 
-When `shard-id` is `*`, the operation applies to every shard of the specified kind within a single FoundationDB
+When `shard-id` is `*`, the operation applies to every shard within a single FoundationDB
 transaction. If any shard fails a pre-condition, the entire transaction is rolled back.
 
 ### Topology notification
@@ -75,7 +74,6 @@ Argument errors:
 | `ERR`      | `invalid number of arguments`       | -                                                                       |
 | `ERR`      | `Unknown operation kind: '<value>'` | The operation kind must be `SET` or `UNSET`.                            |
 | `ERR`      | `Unknown route kind: '<value>'`     | The route kind must be `PRIMARY` or `STANDBY`.                          |
-| `ERR`      | `Unknown shard kind: '<value>'`     | The shard kind must be `BUCKET`.                                        |
 | `ERR`      | `invalid shard id`                  | The shard ID is not a valid integer, or is out of the configured range. |
 | `ERR`      | `Invalid memberId: <value>`         | The value is neither a 40-character member ID nor a 4-character prefix. |
 
@@ -104,41 +102,41 @@ Cluster errors:
 **Assign a primary to a shard:**
 
 ```kronotop
-127.0.0.1:3320> KR.ADMIN ROUTE SET PRIMARY BUCKET 0 006cdc459c59e600c76494e8388857fc3cba2fa8
+127.0.0.1:3320> KR.ADMIN ROUTE SET PRIMARY 0 006cdc459c59e600c76494e8388857fc3cba2fa8
 OK
 ```
 
 **Add a standby to a shard:**
 
 ```kronotop
-127.0.0.1:3320> KR.ADMIN ROUTE SET STANDBY BUCKET 0 a3f18b2e74d9c5601f82e4a7b390d612c8f7e149
+127.0.0.1:3320> KR.ADMIN ROUTE SET STANDBY 0 a3f18b2e74d9c5601f82e4a7b390d612c8f7e149
 OK
 ```
 
-**Assign a standby to all bucket shards:**
+**Assign a standby to all shards:**
 
 ```kronotop
-127.0.0.1:3320> KR.ADMIN ROUTE SET STANDBY BUCKET * a3f18b2e74d9c5601f82e4a7b390d612c8f7e149
+127.0.0.1:3320> KR.ADMIN ROUTE SET STANDBY * a3f18b2e74d9c5601f82e4a7b390d612c8f7e149
 OK
 ```
 
 **Remove a standby from a shard:**
 
 ```kronotop
-127.0.0.1:3320> KR.ADMIN ROUTE UNSET STANDBY BUCKET 0 a3f18b2e74d9c5601f82e4a7b390d612c8f7e149
+127.0.0.1:3320> KR.ADMIN ROUTE UNSET STANDBY 0 a3f18b2e74d9c5601f82e4a7b390d612c8f7e149
 OK
 ```
 
 **Error: assigning standby without a primary**
 
 ```kronotop
-127.0.0.1:3320> KR.ADMIN ROUTE SET STANDBY BUCKET 0 a3f18b2e74d9c5601f82e4a7b390d612c8f7e149
+127.0.0.1:3320> KR.ADMIN ROUTE SET STANDBY 0 a3f18b2e74d9c5601f82e4a7b390d612c8f7e149
 (error) ERR no primary member assigned yet
 ```
 
 **Error: unsetting primary**
 
 ```kronotop
-127.0.0.1:3320> KR.ADMIN ROUTE UNSET PRIMARY BUCKET 0 006cdc459c59e600c76494e8388857fc3cba2fa8
+127.0.0.1:3320> KR.ADMIN ROUTE UNSET PRIMARY 0 006cdc459c59e600c76494e8388857fc3cba2fa8
 (error) ERR UNSET PRIMARY is not supported
 ```

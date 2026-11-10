@@ -25,7 +25,7 @@ services:
       KRONOTOP_INIT_FDB: "1"
       KRONOTOP_EXTERNAL_ADVERTISE: "127.0.0.1:5484,kronotop:5484"
       KRONOTOP_INTERNAL_ADVERTISE: "kronotop:3320"
-      KRONOTOP_BOOTSTRAP: "--primary BUCKET kronotop:3320=0"
+      KRONOTOP_BOOTSTRAP: "--primary kronotop:3320=0"
     platform: "linux/amd64"
 
 volumes:

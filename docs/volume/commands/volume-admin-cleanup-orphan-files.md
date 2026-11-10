@@ -13,9 +13,9 @@ VOLUME.ADMIN CLEANUP-ORPHAN-FILES <volume-name>
 
 ## Arguments
 
-| Argument      | Type   | Description                                            |
-|---------------|--------|--------------------------------------------------------|
-| `volume-name` | string | Name of the volume to clean up (e.g. `bucket-shard-0`) |
+| Argument      | Type   | Description                                     |
+|---------------|--------|-------------------------------------------------|
+| `volume-name` | string | Name of the volume to clean up (e.g. `shard-0`) |
 
 ## Return Value
 
@@ -53,15 +53,15 @@ Volume errors:
 **Orphan files found and deleted:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN CLEANUP-ORPHAN-FILES bucket-shard-0
-1) "/var/kronotop/data/bucket-shard-0/segments/00000a.seg"
-2) "/var/kronotop/data/bucket-shard-0/segments/00000b.seg"
+127.0.0.1:3320> VOLUME.ADMIN CLEANUP-ORPHAN-FILES shard-0
+1) "/var/kronotop/data/shard-0/segments/00000a.seg"
+2) "/var/kronotop/data/shard-0/segments/00000b.seg"
 ```
 
 **No orphan files:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN CLEANUP-ORPHAN-FILES bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN CLEANUP-ORPHAN-FILES shard-0
 (empty array)
 ```
 

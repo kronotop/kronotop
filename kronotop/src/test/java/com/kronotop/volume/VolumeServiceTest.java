@@ -17,7 +17,6 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.journal.JournalName;
 import com.kronotop.journal.JournalService;
 import org.junit.jupiter.api.AfterEach;
@@ -37,7 +36,7 @@ public class VolumeServiceTest extends BaseVolumeTest {
 
     @BeforeEach
     public void setUp() {
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.BUCKET, 1);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, 1);
         volumeConfig = generator.volumeConfig();
         service = context.getService(VolumeService.NAME);
     }
@@ -134,7 +133,7 @@ public class VolumeServiceTest extends BaseVolumeTest {
 
     @Test
     public void shouldThrowWhenOpenSubspaceWithNoSuchVolume() {
-        String name = VolumeNames.format(ShardKind.BUCKET, Integer.MAX_VALUE);
+        String name = VolumeNames.format(Integer.MAX_VALUE);
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> service.openSubspace(name)

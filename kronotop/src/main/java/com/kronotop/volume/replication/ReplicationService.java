@@ -23,7 +23,6 @@ import com.kronotop.KronotopService;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.VolumeConfigGenerator;
@@ -41,14 +40,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 
 /**
- * Manages volume replication for standby nodes in a Kronotop cluster.
- *
- * <p>This service coordinates replication watchdogs that stream data from primary nodes
- * to standbys. It responds to routing events (slot creation, primary changes, stop requests)
- * and manages the lifecycle of each shard's replication process.</p>
- *
- * <p>Replication is automatically started when a node becomes a standby for a shard,
- * and can be suppressed or explicitly restarted as needed.</p>
+ * Manages volume replication on standby members. It runs one replication watchdog per shard and
+ * reacts to the routing events that start, stop or reconnect a replication.
  */
 public class ReplicationService extends BaseKronotopService implements KronotopService {
     public static final String NAME = "Replication";
@@ -57,14 +50,17 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
     private final ExecutorService executor;
 
     private final ReentrantReadWriteLock rwlock = new ReentrantReadWriteLock();
-    private final EnumMap<ShardKind, Map<Integer, ReplicationWatchDog>> replications = new EnumMap<>(ShardKind.class);
-    private final EnumMap<ShardKind, Map<Integer, Boolean>> suppressionFlag = new EnumMap<>(ShardKind.class);
+    private final Map<Integer, ReplicationWatchDog> replications = new HashMap<>();
+    private final Map<Integer, Boolean> suppressionFlag = new HashMap<>();
 
+    /**
+     * Creates the service and registers its routing event hooks.
+     *
+     * @param context the context of the member
+     */
     public ReplicationService(Context context) {
         super(context, NAME);
         this.routing = context.getService(RoutingService.NAME);
-        this.replications.put(ShardKind.BUCKET, new HashMap<>());
-        this.suppressionFlag.put(ShardKind.BUCKET, new HashMap<>());
         ThreadFactory factory = new ThreadFactoryBuilder()
                 .setNameFormat("kr.volume-replication-%d")
                 .build();
@@ -76,68 +72,59 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
     }
 
     /**
-     * Returns a snapshot of currently running replications grouped by shard kind.
+     * Returns the IDs of the shards that have a running replication.
      *
-     * @return map of shard kinds to lists of active shard IDs
+     * @return the shard IDs, empty if no replication is running
      */
-    public EnumMap<ShardKind, List<Integer>> listActiveReplicationsByShard() {
-        EnumMap<ShardKind, List<Integer>> snapshot = new EnumMap<>(ShardKind.class);
-
+    public List<Integer> listActiveReplications() {
         rwlock.readLock().lock();
         try {
-            for (var e : replications.entrySet()) {
-                List<Integer> active = e.getValue().entrySet().stream()
-                        .filter(it -> it.getValue().isRunning())
-                        .map(Map.Entry::getKey)
-                        .toList();
-
-                if (!active.isEmpty()) {
-                    snapshot.put(e.getKey(), active);
-                }
-            }
+            return replications.entrySet().stream()
+                    .filter(it -> it.getValue().isRunning())
+                    .map(Map.Entry::getKey)
+                    .toList();
         } finally {
             rwlock.readLock().unlock();
         }
-        return snapshot;
     }
 
     /**
-     * Starts replication for a shard if this node is a standby.
+     * Starts the replication of a shard if this member is a standby of it.
      *
-     * @param shardKind the shard kind (BUCKET)
-     * @param shardId   the shard identifier
-     * @param explicit  if true, clears the suppression flag; if false, respects existing suppression
-     * @throws NoRouteFoundException             if no route exists for the shard
-     * @throws ReplicationAlreadyExistsException if replication is already running for the shard
+     * @param shardId  the shard ID
+     * @param explicit true to clear the suppression flag, false to skip the start when the
+     *                 replication is suppressed
+     * @throws NoRouteFoundException             if the shard has no route
+     * @throws ReplicationAlreadyExistsException if the shard already has a replication
      */
-    public void startReplication(ShardKind shardKind, int shardId, boolean explicit) {
-        Route route = routing.findRoute(shardKind, shardId);
+    public void startReplication(int shardId, boolean explicit) {
+        Route route = routing.findRoute(shardId);
         if (route == null) {
             throw new NoRouteFoundException(
-                    "No route found for " + shardKind + "-" + shardId
+                    "No route found for shard " + shardId
             );
         }
         if (route.standbys().contains(context.getMember())) {
             rwlock.writeLock().lock();
             try {
                 if (!explicit) {
-                    Boolean suppressed = suppressionFlag.get(shardKind).get(shardId);
+                    Boolean suppressed = suppressionFlag.get(shardId);
                     if (Objects.requireNonNullElse(suppressed, false)) {
                         return;
                     }
                 } else {
-                    suppressionFlag.get(shardKind).remove(shardId);
+                    suppressionFlag.remove(shardId);
                 }
-                ReplicationWatchDog watchDog = replications.get(shardKind).get(shardId);
+                ReplicationWatchDog watchDog = replications.get(shardId);
                 if (watchDog != null) {
                     throw new ReplicationAlreadyExistsException(
-                            "A replication watchdog is already registered for " + shardKind + "-" + shardId
+                            "A replication watchdog is already registered for shard " + shardId
                     );
                 }
-                VolumeConfig config = new VolumeConfigGenerator(context, shardKind, shardId).volumeConfig();
-                Supplier<ReplicationTask> factory = () -> new VolumeReplication(context, shardKind, shardId, config.dataDir());
-                watchDog = new ReplicationWatchDog(shardKind, shardId, factory);
-                replications.get(shardKind).put(shardId, watchDog);
+                VolumeConfig config = new VolumeConfigGenerator(context, shardId).volumeConfig();
+                Supplier<ReplicationTask> factory = () -> new VolumeReplication(context, shardId, config.dataDir());
+                watchDog = new ReplicationWatchDog(shardId, factory);
+                replications.put(shardId, watchDog);
                 executor.submit(watchDog);
             } finally {
                 rwlock.writeLock().unlock();
@@ -150,11 +137,11 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
     // a ReplicationWatchDog instance with a mock ReplicationTask, which requires
     // controlled registration here. Not part of the service's public surface and
     // not intended for production use.
-    void registerReplicationWatchDog(ShardKind shardKind, int shardId, ReplicationWatchDog watchDog) {
+    void registerReplicationWatchDog(int shardId, ReplicationWatchDog watchDog) {
         // TODO: Unused in production
         rwlock.writeLock().lock();
         try {
-            replications.get(shardKind).put(shardId, watchDog);
+            replications.put(shardId, watchDog);
         } finally {
             rwlock.writeLock().unlock();
         }
@@ -162,66 +149,62 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
 
     @Override
     public void start() {
-        for (ShardKind shardKind : context.getShardRegistry().getShardKinds()) {
-            List<Integer> shardIds = context.getShardRegistry().getShardIds(shardKind);
-            for (int shardId : shardIds) {
-                try {
-                    // Launch replication workers
-                    startReplication(shardKind, shardId, false);
-                } catch (ReplicationAlreadyExistsException | NoRouteFoundException exp) {
-                    LOGGER.trace("Skipping replication initialization for {}-{}: {}",
-                            shardKind, shardId, exp.getMessage());
-                }
+        for (int shardId : context.getShardRegistry().getShardIds()) {
+            try {
+                // Launch replication workers
+                startReplication(shardId, false);
+            } catch (ReplicationAlreadyExistsException | NoRouteFoundException exp) {
+                LOGGER.trace("Skipping replication initialization for shard {}: {}",
+                        shardId, exp.getMessage());
             }
         }
     }
 
     /**
-     * Triggers reconnection for an active replication watchdog after a topology change.
+     * Reconnects the replication of a shard after a topology change. Does nothing if the shard
+     * has no replication.
      *
-     * @param shardKind the shard kind
-     * @param shardId   the shard identifier
+     * @param shardId the shard ID
      */
-    public void reconnect(ShardKind shardKind, int shardId) {
+    public void reconnect(int shardId) {
         ReplicationWatchDog watchdog;
 
         rwlock.readLock().lock();
         try {
-            watchdog = replications.get(shardKind).get(shardId);
+            watchdog = replications.get(shardId);
         } finally {
             rwlock.readLock().unlock();
         }
 
         if (watchdog != null) {
-            LOGGER.info("Topology change detected for shard {}-{}; reconnecting replication watchdog", shardKind, shardId);
+            LOGGER.info("Topology change detected for shard {}; reconnecting replication watchdog", shardId);
             try {
                 watchdog.reconnect();
             } catch (Throwable t) {
-                LOGGER.error("Replication watchdog reconnect failed for shard {}-{}", shardKind, shardId, t);
+                LOGGER.error("Replication watchdog reconnect failed for shard {}", shardId, t);
             }
         } else {
-            LOGGER.warn("Topology change detected for shard {}-{}, but no replication watchdog found; reconnect skipped", shardKind, shardId);
+            LOGGER.warn("Topology change detected for shard {}, but no replication watchdog found; reconnect skipped", shardId);
         }
     }
 
     /**
-     * Stops replication for a shard and optionally suppresses automatic restart.
+     * Stops the replication of a shard.
      *
-     * @param shardKind  the shard kind
-     * @param shardId    the shard identifier
-     * @param suppressed if true, prevents automatic restart until explicitly started
-     * @throws NoReplicationFoundException if no replication is running for the shard
+     * @param shardId    the shard ID
+     * @param suppressed true to block automatic restart until an explicit start
+     * @throws NoReplicationFoundException if the shard has no replication
      */
-    public void stopReplication(ShardKind shardKind, int shardId, boolean suppressed) {
+    public void stopReplication(int shardId, boolean suppressed) {
         ReplicationWatchDog watchdog;
 
         rwlock.writeLock().lock();
         try {
-            watchdog = replications.get(shardKind).remove(shardId);
+            watchdog = replications.remove(shardId);
             if (watchdog == null) {
-                throw new NoReplicationFoundException(String.format("No replication found for for %s-%d", shardKind, shardId));
+                throw new NoReplicationFoundException(String.format("No replication found for shard %d", shardId));
             }
-            suppressionFlag.get(shardKind).put(shardId, suppressed);
+            suppressionFlag.put(shardId, suppressed);
         } finally {
             rwlock.writeLock().unlock();
         }
@@ -229,23 +212,18 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
         try {
             watchdog.stop();
         } catch (Exception exp) {
-            LOGGER.error("Failed to gracefully stop replication for {}-{}",
-                    shardKind, shardId, exp);
+            LOGGER.error("Failed to gracefully stop replication for shard {}",
+                    shardId, exp);
             throw exp;
         }
     }
 
-    /**
-     * Removes a watchdog from the registry when it has terminated on its own.
-     *
-     * <p>Unlike {@link #stopReplication}, this does not invoke {@code stop()} on the watchdog:
-     * the task has already finished, so there is nothing to shut down. The entry is removed only
-     * if it still maps to the given watchdog, keeping it safe against a concurrent restart.</p>
-     */
-    private void deregister(ShardKind shardKind, int shardId, ReplicationWatchDog watchDog) {
+    // Called when a watchdog ends on its own, so there is nothing to stop. The entry is removed
+    // only if it still maps to the given watchdog, which keeps a concurrent restart safe.
+    private void deregister(int shardId, ReplicationWatchDog watchDog) {
         rwlock.writeLock().lock();
         try {
-            replications.get(shardKind).remove(shardId, watchDog);
+            replications.remove(shardId, watchDog);
         } finally {
             rwlock.writeLock().unlock();
         }
@@ -257,11 +235,8 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
 
         rwlock.writeLock().lock();
         try {
-            watchdogs = new ArrayList<>();
-            for (var shardMap : replications.values()) {
-                watchdogs.addAll(shardMap.values());
-                shardMap.clear();
-            }
+            watchdogs = new ArrayList<>(replications.values());
+            replications.clear();
         } finally {
             rwlock.writeLock().unlock();
         }
@@ -270,8 +245,8 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
             try {
                 watchdog.stop();
             } catch (Exception e) {
-                LOGGER.error("Failed to stop replication watchdog {}-{}",
-                        watchdog.getShardKind(), watchdog.getShardId(), e);
+                LOGGER.error("Failed to stop replication watchdog for shard {}",
+                        watchdog.getShardId(), e);
             }
         }
 
@@ -281,34 +256,25 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
     }
 
     /**
-     * Monitors and manages a single shard's replication task with retry logic.
-     *
-     * <p>The watchdog runs the replication task and retries on failure up to a configured
-     * maximum. If failures occur faster than the reset threshold, the retry counter
-     * increments; otherwise it resets, allowing recovery from transient issues.</p>
+     * Runs the replication task of a shard and retries it on failure. It stops the replication
+     * when the task fails faster than the reset threshold more times than the retry limit.
      */
     protected class ReplicationWatchDog implements Runnable {
         private final int MAX_RETRIES;
         private final long RETRY_INTERVAL;
         private final long RESET_THRESHOLD_NANOS;
-        private final ShardKind shardKind;
         private final int shardId;
         private final Supplier<ReplicationTask> taskFactory;
         private volatile ReplicationTask currentTask;
         private volatile boolean running;
         private volatile boolean stopped;
 
-        ReplicationWatchDog(ShardKind shardKind, int shardId, Supplier<ReplicationTask> taskFactory) {
-            this.shardKind = shardKind;
+        ReplicationWatchDog(int shardId, Supplier<ReplicationTask> taskFactory) {
             this.shardId = shardId;
             this.taskFactory = taskFactory;
             this.MAX_RETRIES = context.getConfig().getInt("volume.replication.max_retries");
             this.RETRY_INTERVAL = context.getConfig().getInt("volume.replication.retry_interval");
             this.RESET_THRESHOLD_NANOS = TimeUnit.SECONDS.toNanos(context.getConfig().getInt("volume.replication.reset_threshold"));
-        }
-
-        public ShardKind getShardKind() {
-            return shardKind;
         }
 
         public int getShardId() {
@@ -317,17 +283,17 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
 
         @Override
         public void run() {
-            String volumeName = VolumeNames.format(shardKind, shardId);
+            String volumeName = VolumeNames.format(shardId);
             LOGGER.info("Starting replication on Volume={}", volumeName);
             int retry = 0;
             long startedAt = 0;
             while (!stopped) {
                 ReplicationTask task = null;
                 try {
-                    Route route = routing.findRoute(shardKind, shardId);
+                    Route route = routing.findRoute(shardId);
                     if (route == null || !route.standbys().contains(context.getMember())) {
                         try {
-                            stopReplication(shardKind, shardId, false);
+                            stopReplication(shardId, false);
                         } catch (NoReplicationFoundException ignored) {
                         }
                         break;
@@ -346,7 +312,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
                         return;
                     }
                     task.start();
-                    deregister(shardKind, shardId, this);
+                    deregister(shardId, this);
                     return;
                 } catch (Throwable t) {
                     if (stopped) {
@@ -371,7 +337,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
                         LOGGER.error("Replication permanently failed on Volume={} after {} rapid attempts",
                                 volumeName, retry, t);
                         try {
-                            stopReplication(shardKind, shardId, false);
+                            stopReplication(shardId, false);
                         } catch (NoReplicationFoundException ignored) {
                         }
                         return;
@@ -403,7 +369,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
             if (task != null) {
                 task.shutdown();
             }
-            LOGGER.info("Stopped replication on Volume={}", VolumeNames.format(shardKind, shardId));
+            LOGGER.info("Stopped replication on Volume={}", VolumeNames.format(shardId));
         }
     }
 }

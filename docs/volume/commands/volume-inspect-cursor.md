@@ -14,9 +14,9 @@ VOLUME.INSPECT CURSOR <volume-name>
 
 ## Arguments
 
-| Argument      | Type   | Description                                                                          |
-|---------------|--------|--------------------------------------------------------------------------------------|
-| `volume-name` | string | Name of the volume to inspect, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
+| Argument      | Type   | Description                                                            |
+|---------------|--------|------------------------------------------------------------------------|
+| `volume-name` | string | Name of the volume to inspect, in `shard-<id>` format (e.g. `shard-0`) |
 
 ## Return Value
 
@@ -40,17 +40,17 @@ It is available on the management port (default 3320).
 
 Argument errors:
 
-| Error Code | Error message                 | Cause                                                   |
-|------------|-------------------------------|---------------------------------------------------------|
-| `ERR`      | `invalid number of arguments` | -                                                       |
-| `ERR`      | `invalid volume name: <name>` | The name does not match the `<kind>-shard-<id>` format. |
+| Error Code | Error message                 | Cause                                            |
+|------------|-------------------------------|--------------------------------------------------|
+| `ERR`      | `invalid number of arguments` | -                                                |
+| `ERR`      | `invalid volume name: <name>` | The name does not match the `shard-<id>` format. |
 
 ## Examples
 
 **Volume with data:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.INSPECT CURSOR bucket-shard-0
+127.0.0.1:3320> VOLUME.INSPECT CURSOR shard-0
 1# "active_segment_id" => (integer) 0
 2# "versionstamp" => "A1B2C3D4E5F6G7H8I9J0"
 3# "next_position" => (integer) 10240
@@ -60,7 +60,7 @@ Argument errors:
 **Empty volume:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.INSPECT CURSOR bucket-shard-0
+127.0.0.1:3320> VOLUME.INSPECT CURSOR shard-0
 1# "active_segment_id" => (integer) 0
 2# "versionstamp" => ""
 3# "next_position" => (integer) 0

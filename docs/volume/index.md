@@ -59,7 +59,7 @@ Each segment tracks space accounting metrics:
 Use `VOLUME.ADMIN DESCRIBE` to inspect per-segment statistics:
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN DESCRIBE bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN DESCRIBE shard-0
 ```
 
 ---
@@ -78,7 +78,7 @@ Set a volume to `READONLY` for planned maintenance or before decommissioning a n
 underlying storage has failed or the volume must be taken fully offline.
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN SET-STATUS bucket-shard-0 READONLY
+127.0.0.1:3320> VOLUME.ADMIN SET-STATUS shard-0 READONLY
 OK
 ```
 
@@ -105,9 +105,9 @@ Replication starts automatically when a standby is assigned via cluster routing.
 manually for maintenance:
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN REPLICATION STOP bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN REPLICATION STOP shard-0
 OK
-127.0.0.1:3320> VOLUME.ADMIN REPLICATION START bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN REPLICATION START shard-0
 OK
 ```
 
@@ -135,11 +135,11 @@ The operator workflow is:
 3. **Clean up**: After completion, `DROP` removes the vacuum metadata.
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN VACUUM START bucket-shard-0 30
+127.0.0.1:3320> VOLUME.ADMIN VACUUM START shard-0 30
 OK
-127.0.0.1:3320> VOLUME.ADMIN VACUUM STATUS bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN VACUUM STATUS shard-0
 ...
-127.0.0.1:3320> VOLUME.ADMIN VACUUM DROP bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN VACUUM DROP shard-0
 OK
 ```
 
@@ -157,7 +157,7 @@ For the full vacuum command reference, see
 ## Volumes, Shards, and Buckets
 
 Each shard owns exactly one volume. A bucket spans one or more shards, so a bucket's documents are distributed across
-one or more volumes. Volumes are named after their shard: `bucket-shard-0`, `bucket-shard-1`, and so on.
+one or more volumes. Volumes are named after their shard: `shard-0`, `shard-1`, and so on.
 
 Within a volume, each bucket's data is isolated by a prefix. When a bucket is deleted via
 [BUCKET.REMOVE](../bucket/commands/bucket-remove.md) and [BUCKET.PURGE](../bucket/commands/bucket-purge.md), its prefix

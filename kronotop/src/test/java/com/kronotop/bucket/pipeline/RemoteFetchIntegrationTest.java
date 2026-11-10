@@ -38,7 +38,6 @@ import com.kronotop.bucket.planner.physical.PhysicalPlanner;
 import com.kronotop.bucket.planner.physical.PlannerContext;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
@@ -107,7 +106,7 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
 
         // Verify shard is remote from the second node's perspective
         RoutingService routing = secondContext.getService(RoutingService.NAME);
-        Route route = routing.findRoute(ShardKind.BUCKET, SHARD_ID);
+        Route route = routing.findRoute(SHARD_ID);
         assertNotEquals(secondContext.getMember(), route.primary(),
                 "Shard should be owned by primary, not second instance");
 

@@ -26,22 +26,21 @@ docker run --rm -it --network kronotop \
 Bootstraps a new Kronotop cluster. It connects to the first primary node, initializes the cluster, waits for
 shard discovery, assigns primary and standby shard ownership, and enables the shards for read-write traffic.
 
-Shard assignments are given per shard kind. The only shard kind is `BUCKET`. Addresses use the
-internal port (default 3320).
+Addresses use the internal port (default 3320).
 
 Single-node cluster:
 
 ```bash
 kronotop-ctl bootstrap \
-  --primary BUCKET localhost:3320=0,1,2
+  --primary localhost:3320=0,1,2
 ```
 
 Multi-node cluster with primary and standby assignments:
 
 ```bash
 kronotop-ctl bootstrap \
-  --primary BUCKET node1:3320=0,1,2 \
-  --standby BUCKET node2:3320=0,1,2
+  --primary node1:3320=0,1,2 \
+  --standby node2:3320=0,1,2
 ```
 
 ## Help
@@ -57,21 +56,17 @@ Commands:
 
 ```
 Usage: kronotop-ctl bootstrap [-h] [--shard-discovery-timeout <seconds>]
-                              [--primary <shard-kind host:port=shard-ids>
-                              <shard-kind host:port=shard-ids>...]...
-                              [--standby <shard-kind host:port=shard-ids>
-                              <shard-kind host:port=shard-ids>...]...
+                              [--primary <host:port=shard-ids>...]...
+                              [--standby <host:port=shard-ids>...]...
 Bootstrap a Kronotop cluster.
   -h, --help   Show help.
-      --primary <shard-kind host:port=shard-ids> <shard-kind host:
-        port=shard-ids>...
-               Assign primary shards (repeatable). Example: --primary BUCKET
-                 node1:3320=0,1,2
+      --primary <host:port=shard-ids>...
+               Assign primary shards (repeatable). Example: --primary node1:
+                 3320=0,1,2
       --shard-discovery-timeout <seconds>
                Max seconds to wait for shard discovery after cluster
                  initialization. Default: 30
-      --standby <shard-kind host:port=shard-ids> <shard-kind host:
-        port=shard-ids>...
-               Assign standby shards (repeatable). Example: --standby BUCKET
-                 node2:3320=0,1,2
+      --standby <host:port=shard-ids>...
+               Assign standby shards (repeatable). Example: --standby node2:
+                 3320=0,1,2
 ```

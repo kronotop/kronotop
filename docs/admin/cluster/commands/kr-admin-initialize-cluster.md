@@ -26,7 +26,7 @@ be executed **exactly once** on the management interface (port 3320 by default).
 
 `INITIALIZE-CLUSTER` is the only `KR.ADMIN` subcommand that does not require a pre-initialized cluster.
 
-The command creates bucket shards (count defined by `bucket.shards`). All shards start as `INOPERABLE`.
+The command creates the shards (count defined by `bucket.shards`). All shards start as `INOPERABLE`.
 
 Operators must explicitly set shard status and assign routes before the cluster can accept data.
 

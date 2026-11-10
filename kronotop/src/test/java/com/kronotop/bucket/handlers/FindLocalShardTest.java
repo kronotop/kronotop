@@ -22,7 +22,6 @@ import com.kronotop.bucket.BucketShard;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.server.RejectException;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,7 +60,7 @@ class FindLocalShardTest extends BaseBucketHandlerTest {
         Member standby = context.getMember();
 
         RoutingService routing = context.getService(RoutingService.NAME);
-        setRoute(routing, ShardKind.BUCKET, TEST_SHARD_ID, new Route(primary, Set.of(standby), ShardStatus.READWRITE));
+        setRoute(routing, TEST_SHARD_ID, new Route(primary, Set.of(standby), ShardStatus.READWRITE));
 
         // primary changed by setRoute method
         RejectException exception = assertThrows(RejectException.class, () -> handler.findLocalShard(metadata));

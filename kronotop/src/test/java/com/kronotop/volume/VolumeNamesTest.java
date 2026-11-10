@@ -16,7 +16,6 @@
 
 package com.kronotop.volume;
 
-import com.kronotop.cluster.sharding.ShardKind;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -24,20 +23,22 @@ import static org.junit.jupiter.api.Assertions.*;
 class VolumeNamesTest {
 
     @Test
-    void shouldFormatBucketVolumeName() {
-        String name = VolumeNames.format(ShardKind.BUCKET, 5);
-        assertEquals("bucket-shard-5", name);
+    void shouldFormatVolumeName() {
+        // Behavior: formatting shard id 5 returns the volume name "shard-5".
+        String name = VolumeNames.format(5);
+        assertEquals("shard-5", name);
     }
 
     @Test
-    void shouldParseBucketVolumeName() {
-        VolumeNames.Parsed parsed = VolumeNames.parse("bucket-shard-10");
-        assertEquals(ShardKind.BUCKET, parsed.shardKind());
-        assertEquals(10, parsed.shardId());
+    void shouldParseVolumeName() {
+        // Behavior: parsing the volume name "shard-10" returns shard id 10.
+        int shardId = VolumeNames.parse("shard-10");
+        assertEquals(10, shardId);
     }
 
     @Test
     void shouldThrowWhenParsingNull() {
+        // Behavior: parsing a null name throws IllegalArgumentException with "name cannot be null".
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> VolumeNames.parse(null)
@@ -46,48 +47,31 @@ class VolumeNamesTest {
     }
 
     @Test
-    void shouldThrowWhenParsingInvalidFormat() {
+    void shouldThrowWhenParsingNameWithoutShardPrefix() {
+        // Behavior: parsing a name that does not start with "shard-" throws IllegalArgumentException
+        // with "invalid volume name: <name>".
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> VolumeNames.parse("invalid-name")
+                () -> VolumeNames.parse("volume-0")
         );
-        assertEquals("invalid volume name: invalid-name", exception.getMessage());
-    }
-
-    @Test
-    void shouldThrowWhenParsingMissingShardKeyword() {
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> VolumeNames.parse("redis-volume-0")
-        );
-        assertEquals("invalid volume name: redis-volume-0", exception.getMessage());
-    }
-
-    @Test
-    void shouldThrowWhenParsingInvalidShardKind() {
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> VolumeNames.parse("unknown-shard-0")
-        );
-        assertTrue(exception.getMessage().contains("invalid shard kind: unknown"));
+        assertEquals("invalid volume name: volume-0", exception.getMessage());
     }
 
     @Test
     void shouldThrowWhenParsingInvalidShardId() {
+        // Behavior: parsing "shard-abc", where the shard id is not an integer, throws
+        // IllegalArgumentException with "invalid shard id: abc".
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> VolumeNames.parse("bucket-shard-abc")
+                () -> VolumeNames.parse("shard-abc")
         );
-        assertTrue(exception.getMessage().contains("invalid shard id: abc"));
+        assertEquals("invalid shard id: abc", exception.getMessage());
     }
 
     @Test
     void shouldRoundTripFormatAndParse() {
-        for (ShardKind kind : ShardKind.values()) {
-            String name = VolumeNames.format(kind, 42);
-            VolumeNames.Parsed parsed = VolumeNames.parse(name);
-            assertEquals(kind, parsed.shardKind());
-            assertEquals(42, parsed.shardId());
-        }
+        // Behavior: parsing the name formatted for shard id 42 returns shard id 42.
+        int shardId = VolumeNames.parse(VolumeNames.format(42));
+        assertEquals(42, shardId);
     }
 }

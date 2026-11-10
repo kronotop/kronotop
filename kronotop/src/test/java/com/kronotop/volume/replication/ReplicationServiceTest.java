@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.commands.VolumeAdminCommandBuilder;
 import com.kronotop.instance.KronotopInstance;
@@ -41,7 +40,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.EnumMap;
 import java.util.List;
 
 import static com.kronotop.cluster.sharding.ShardStatus.READONLY;
@@ -66,7 +64,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("SET", "STANDBY", SHARD_KIND.name(), SHARD_ID, standby.getMember().getId()).encode(buf);
+        cmd.route("SET", "STANDBY", SHARD_ID, standby.getMember().getId()).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -75,7 +73,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         RoutingService routing = standby.getContext().getService(RoutingService.NAME);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            Route route = routing.findRoute(SHARD_KIND, SHARD_ID);
+            Route route = routing.findRoute(SHARD_ID);
             if (route == null) {
                 return false;
             }
@@ -87,7 +85,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("UNSET", "STANDBY", SHARD_KIND.name(), SHARD_ID, standby.getMember().getId()).encode(buf);
+        cmd.route("UNSET", "STANDBY", SHARD_ID, standby.getMember().getId()).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -96,7 +94,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         RoutingService routing = standby.getContext().getService(RoutingService.NAME);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            Route route = routing.findRoute(SHARD_KIND, SHARD_ID);
+            Route route = routing.findRoute(SHARD_ID);
             if (route == null) {
                 return false;
             }
@@ -109,7 +107,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.setShardStatus(SHARD_KIND.name(), SHARD_ID, READONLY.name()).encode(buf);
+            cmd.setShardStatus(SHARD_ID, READONLY.name()).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
@@ -120,7 +118,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
             VolumeAdminCommandBuilder<String, String> cmd2 = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
 
             ByteBuf buf = Unpooled.buffer();
-            cmd2.setStatus(VolumeNames.format(SHARD_KIND, SHARD_ID), READONLY.name()).encode(buf);
+            cmd2.setStatus(VolumeNames.format(SHARD_ID), READONLY.name()).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
@@ -129,7 +127,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             ByteBuf buf = Unpooled.buffer();
-            cmd.route("SET", "PRIMARY", SHARD_KIND.name(), SHARD_ID, standby.getMember().getId()).encode(buf);
+            cmd.route("SET", "PRIMARY", SHARD_ID, standby.getMember().getId()).encode(buf);
 
             Object msg = runCommand(channel, buf);
             if (msg instanceof SimpleStringRedisMessage actualMessage) {
@@ -144,7 +142,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         RoutingService routing = standby.getContext().getService(RoutingService.NAME);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            Route route = routing.findRoute(SHARD_KIND, SHARD_ID);
+            Route route = routing.findRoute(SHARD_ID);
             if (route == null) {
                 return false;
             }
@@ -166,9 +164,8 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
         replicationService.start();
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(ShardKind.BUCKET);
-            if (shardIds != null && shardIds.size() == 1) {
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            if (shardIds.size() == 1) {
                 return shardIds.getFirst() == 1;
             }
             return false;
@@ -184,16 +181,15 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
         replicationService.start();
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(SHARD_KIND);
-            if (shardIds != null && shardIds.size() == 1) {
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            if (shardIds.size() == 1) {
                 return shardIds.getFirst() == 1;
             }
             return false;
         });
 
-        assertDoesNotThrow(() -> replicationService.stopReplication(SHARD_KIND, SHARD_ID, false));
-        assertTrue(replicationService.listActiveReplicationsByShard().isEmpty());
+        assertDoesNotThrow(() -> replicationService.stopReplication(SHARD_ID, false));
+        assertTrue(replicationService.listActiveReplications().isEmpty());
     }
 
     @Test
@@ -208,9 +204,8 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(ShardKind.BUCKET);
-            if (shardIds != null && shardIds.size() == 1) {
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            if (shardIds.size() == 1) {
                 return shardIds.getFirst() == 1;
             }
             return false;
@@ -225,9 +220,8 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(SHARD_KIND);
-            if (shardIds != null && shardIds.size() == 1) {
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            if (shardIds.size() == 1) {
                 return shardIds.getFirst() == 1;
             }
             return false;
@@ -235,7 +229,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         unsetStandbyMember(standby);
 
-        await().atMost(Duration.ofSeconds(15)).until(() -> replicationService.listActiveReplicationsByShard().isEmpty());
+        await().atMost(Duration.ofSeconds(15)).until(() -> replicationService.listActiveReplications().isEmpty());
     }
 
     @Test
@@ -251,16 +245,15 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(ShardKind.BUCKET);
-            if (shardIds != null && shardIds.size() == 1) {
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            if (shardIds.size() == 1) {
                 return shardIds.getFirst() == 1;
             }
             return false;
         });
 
         setPrimaryOwner(standby);
-        await().atMost(Duration.ofSeconds(15)).until(() -> replicationService.listActiveReplicationsByShard().isEmpty());
+        await().atMost(Duration.ofSeconds(15)).until(() -> replicationService.listActiveReplications().isEmpty());
     }
 
     @Test
@@ -276,9 +269,8 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         ReplicationService replicationService1 = standby1.getContext().getService(ReplicationService.NAME);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService1.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(SHARD_KIND);
-            return shardIds != null && shardIds.contains(SHARD_ID);
+            List<Integer> shardIds = replicationService1.listActiveReplications();
+            return shardIds.contains(SHARD_ID);
         });
 
         // S2: second standby
@@ -287,9 +279,8 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         ReplicationService replicationService2 = standby2.getContext().getService(ReplicationService.NAME);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService2.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(SHARD_KIND);
-            return shardIds != null && shardIds.contains(SHARD_ID);
+            List<Integer> shardIds = replicationService2.listActiveReplications();
+            return shardIds.contains(SHARD_ID);
         });
 
         // Promote S2 to primary
@@ -297,14 +288,13 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         // S2 should stop replication (it's now the primary)
         await().atMost(Duration.ofSeconds(15)).until(() ->
-                replicationService2.listActiveReplicationsByShard().isEmpty()
+                replicationService2.listActiveReplications().isEmpty()
         );
 
         // S1 should reconnect and still have active replication
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService1.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(SHARD_KIND);
-            return shardIds != null && shardIds.contains(SHARD_ID);
+            List<Integer> shardIds = replicationService1.listActiveReplications();
+            return shardIds.contains(SHARD_ID);
         });
     }
 
@@ -317,21 +307,20 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Wait for replication to start automatically via CreateReplicationSlotHook
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(SHARD_KIND);
-            return shardIds != null && shardIds.contains(SHARD_ID);
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            return shardIds.contains(SHARD_ID);
         });
 
         // Stop replication with suppression enabled
-        replicationService.stopReplication(SHARD_KIND, SHARD_ID, true);
-        assertTrue(replicationService.listActiveReplicationsByShard().isEmpty());
+        replicationService.stopReplication(SHARD_ID, true);
+        assertTrue(replicationService.listActiveReplications().isEmpty());
 
         // Attempt to auto-start replication (non-explicit) - should be blocked by suppression
         // This should return early without starting replication
-        assertDoesNotThrow(() -> replicationService.startReplication(SHARD_KIND, SHARD_ID, false));
+        assertDoesNotThrow(() -> replicationService.startReplication(SHARD_ID, false));
 
         // Verify replication is still not running due to suppression
-        assertTrue(replicationService.listActiveReplicationsByShard().isEmpty());
+        assertTrue(replicationService.listActiveReplications().isEmpty());
     }
 
     @Test
@@ -343,23 +332,21 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Wait for replication to start automatically via CreateReplicationSlotHook
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(SHARD_KIND);
-            return shardIds != null && shardIds.contains(SHARD_ID);
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            return shardIds.contains(SHARD_ID);
         });
 
         // Stop replication with suppression enabled
-        replicationService.stopReplication(SHARD_KIND, SHARD_ID, true);
-        assertTrue(replicationService.listActiveReplicationsByShard().isEmpty());
+        replicationService.stopReplication(SHARD_ID, true);
+        assertTrue(replicationService.listActiveReplications().isEmpty());
 
         // Explicit start should clear suppression and restart replication
-        assertDoesNotThrow(() -> replicationService.startReplication(SHARD_KIND, SHARD_ID, true));
+        assertDoesNotThrow(() -> replicationService.startReplication(SHARD_ID, true));
 
         // Verify replication is running again
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(SHARD_KIND);
-            return shardIds != null && shardIds.contains(SHARD_ID);
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            return shardIds.contains(SHARD_ID);
         });
     }
 
@@ -372,23 +359,21 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Wait for replication to start automatically via CreateReplicationSlotHook
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(SHARD_KIND);
-            return shardIds != null && shardIds.contains(SHARD_ID);
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            return shardIds.contains(SHARD_ID);
         });
 
         // Stop replication without suppression
-        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
-        assertTrue(replicationService.listActiveReplicationsByShard().isEmpty());
+        replicationService.stopReplication(SHARD_ID, false);
+        assertTrue(replicationService.listActiveReplications().isEmpty());
 
         // Non-explicit start should work since suppression is not enabled
-        assertDoesNotThrow(() -> replicationService.startReplication(SHARD_KIND, SHARD_ID, false));
+        assertDoesNotThrow(() -> replicationService.startReplication(SHARD_ID, false));
 
         // Verify replication is running again
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(SHARD_KIND);
-            return shardIds != null && shardIds.contains(SHARD_ID);
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            return shardIds.contains(SHARD_ID);
         });
     }
 
@@ -407,17 +392,16 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Wait for replication to start
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(SHARD_KIND);
-            return shardIds != null && shardIds.contains(SHARD_ID);
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            return shardIds.contains(SHARD_ID);
         });
 
         // Wait until stage is set (either SEGMENT_REPLICATION or CHANGE_DATA_CAPTURE)
-        String volumeName = VolumeNames.format(SHARD_KIND, SHARD_ID);
+        String volumeName = VolumeNames.format(SHARD_ID);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             try (Transaction tr = standby.getContext().getFoundationDB().createTransaction()) {
                 DirectorySubspace standbySubspace = ReplicationUtil.openStandbySubspace(
-                        standby.getContext(), tr, SHARD_KIND, volumeName, standby.getMember().getId());
+                        standby.getContext(), tr, volumeName, standby.getMember().getId());
                 ReplicationStatusInfo status = ReplicationUtil.readReplicationStatusInfo(tr, standbySubspace);
                 return status.stage() != null;
             }
@@ -426,7 +410,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
         // Verify status info fields are populated
         try (Transaction tr = standby.getContext().getFoundationDB().createTransaction()) {
             DirectorySubspace standbySubspace = ReplicationUtil.openStandbySubspace(
-                    standby.getContext(), tr, SHARD_KIND, volumeName, standby.getMember().getId());
+                    standby.getContext(), tr, volumeName, standby.getMember().getId());
             ReplicationStatusInfo status = ReplicationUtil.readReplicationStatusInfo(tr, standbySubspace);
 
             assertNotNull(status.stage());

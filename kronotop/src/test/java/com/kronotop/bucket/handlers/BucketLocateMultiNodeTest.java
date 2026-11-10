@@ -20,7 +20,6 @@ import com.kronotop.cluster.Member;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RouteKind;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.BucketCreateArgs;
 import com.kronotop.commands.KrAdminCommandBuilder;
@@ -72,11 +71,11 @@ class BucketLocateMultiNodeTest extends BaseBucketMultiNodeTest {
         Member node1Member = node1.getContext().getMember();
         Member node2Member = node2.getContext().getMember();
 
-        // Set node2 as a STANDBY for BUCKET shard 0 (owned by node1 as primary)
+        // Set node2 as a STANDBY for shard 0 (owned by node1 as primary)
         KrAdminCommandBuilder<String, String> adminCmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
-            adminCmd.route("SET", RouteKind.STANDBY.name(), ShardKind.BUCKET.name(), 0, node2Member.getId()).encode(buf);
+            adminCmd.route("SET", RouteKind.STANDBY.name(), 0, node2Member.getId()).encode(buf);
             Object raw = runCommand(node1.getChannel(), buf);
             if (raw instanceof ErrorRedisMessage err) {
                 fail(err.content());
@@ -88,7 +87,7 @@ class BucketLocateMultiNodeTest extends BaseBucketMultiNodeTest {
         // Wait for node1's routing table to reflect the standby
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             RoutingService routing = node1.getContext().getService(RoutingService.NAME);
-            Route route = routing.findRoute(ShardKind.BUCKET, 0);
+            Route route = routing.findRoute(0);
             return route != null && !route.standbys().isEmpty();
         });
 

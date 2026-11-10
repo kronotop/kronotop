@@ -158,7 +158,7 @@ Bucket errors:
 |-----------------------|----------------------------------------------|------------------------------------------------------------------------------------------|
 | `BUCKETALREADYEXISTS` | `Bucket already exists: <bucket>`            | A bucket with the same name already exists. Suppressed when `IF-NOT-EXISTS` is given.    |
 | `BUCKETBEINGREMOVED`  | `Bucket '<bucket>' is being removed`         | The bucket was removed but not yet purged. `IF-NOT-EXISTS` does not suppress this error. |
-| `ERR`                 | `No route found for Bucket shard: <shardId>` | -                                                                                        |
+| `ERR`                 | `No route found for shard: <shardId>`        | -                                                                                        |
 
 Index errors:
 

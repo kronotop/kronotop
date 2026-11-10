@@ -37,7 +37,6 @@ import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.core.InfoCollector;
 import com.kronotop.internal.DirectoryUtil;
 import com.kronotop.internal.ExecutorServiceUtil;
@@ -93,7 +92,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private final int maxScanCandidates;
     private final float defaultOverquery;
     private final int syncReadChunksPerTransaction;
-    private final Path bucketDataDir;
+    private final Path dataDir;
 
     public BucketService(Context context) {
         super(context, NAME);
@@ -104,7 +103,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         this.maxScanCandidates = context.getConfig().getInt("bucket.vector.max_scan_candidates");
         this.defaultOverquery = (float) context.getConfig().getDouble("bucket.vector.default_overquery");
         this.syncReadChunksPerTransaction = context.getConfig().getInt("bucket.vector.sync_read_chunks_per_transaction");
-        this.bucketDataDir = context.getDataDir().resolve("bucket");
+        this.dataDir = context.getDataDir();
 
         context.setBucketMetadataCache(new BucketMetadataCache(context));
 
@@ -125,7 +124,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         handlerMethod(ServerKind.EXTERNAL, new BucketVectorHandler(this));
 
         routing.registerHook(RoutingEventKind.HAND_OVER_SHARD_OWNERSHIP, new HandOverShardOwnershipHook());
-        routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
+        routing.registerHook(RoutingEventKind.INITIALIZE_SHARD, new InitializeBucketShardHook());
 
         this.bucketEventsWatcher = new BucketEventsWatcher(context, planCache);
         this.planner = new Planner(planCache, metrics);
@@ -210,7 +209,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     public Route findRoute(int shardId) {
-        return routing.findRoute(ShardKind.BUCKET, shardId);
+        return routing.findRoute(shardId);
     }
 
     public QueryExecutor getQueryExecutor() {
@@ -271,8 +270,8 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         return defaultOverquery;
     }
 
-    public Path getBucketDataDir() {
-        return bucketDataDir;
+    public Path getDataDir() {
+        return dataDir;
     }
 
     /**
@@ -287,14 +286,14 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     /**
-     * Initializes the bucket shard for the specified shard ID if the current member is
+     * Initializes the shard for the specified shard ID if the current member is
      * either the primary or one of the standby members for the shard. The initialized
      * shard is added to the service context's shard map.
      *
      * @param shardId the unique identifier of the shard to be initialized
      */
     private void initializeBucketShardsIfOwned(int shardId) {
-        Route route = routing.findRoute(ShardKind.BUCKET, shardId);
+        Route route = routing.findRoute(shardId);
         if (route == null) {
             return;
         }
@@ -329,14 +328,14 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                         context,
                         metadata,
                         vectorIndex,
-                        bucketDataDir,
+                        dataDir,
                         syncReadChunksPerTransaction
                 );
 
                 List<OnDiskVectorGraphIndex> onDiskIndexes = VectorGraphIndexGroup.openOnDiskIndexes(
                         context,
                         vectorIndex.subspace(),
-                        group.resolveIndexDir(bucketDataDir),
+                        group.resolveIndexDir(dataDir),
                         OnHeapVectorGraphIndex.toSimilarityFunction(definition.distance())
                 );
                 for (OnDiskVectorGraphIndex onDisk : onDiskIndexes) {
@@ -353,7 +352,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                         pqTrainingThreshold,
                         pqSubspaceDivisor
                 );
-                VectorIndexSyncBacklog.enqueue(context, metadata, vectorIndex, bucketDataDir);
+                VectorIndexSyncBacklog.enqueue(context, metadata, vectorIndex, dataDir);
                 group.markReady();
             } catch (Exception e) {
                 LOGGER.error("Vector index bootstrap failed for bucket={}, indexId={}",
@@ -366,7 +365,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     private boolean hasOnDiskIndexes(BucketMetadata metadata, VectorIndex vectorIndex) {
-        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(bucketDataDir, metadata, vectorIndex.definition().id());
+        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(dataDir, metadata, vectorIndex.definition().id());
         if (!Files.isDirectory(indexDir)) {
             return false;
         }
@@ -385,7 +384,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
      */
     public void deleteVectorIndexFiles(UUID bucketId, Long indexId) {
         for (int shardId : getServiceContext().shards().keySet()) {
-            Path dir = VectorGraphIndexGroup.resolveVectorDir(bucketDataDir, shardId).resolve(bucketId.toString());
+            Path dir = VectorGraphIndexGroup.resolveVectorDir(dataDir, shardId).resolve(bucketId.toString());
             if (indexId != null) {
                 dir = dir.resolve(Long.toString(indexId));
             }
@@ -420,7 +419,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
     @Override
     public void start() {
-        for (int shardId : context.getShardRegistry().getShardIds(ShardKind.BUCKET)) {
+        for (int shardId : context.getShardRegistry().getShardIds()) {
             initializeBucketShardsIfOwned(shardId);
         }
 
@@ -491,30 +490,22 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     /**
-     * Routing hook that initializes a bucket shard when this member becomes its primary or standby.
-     * Ignores events for other shard kinds.
+     * Routing hook that initializes a shard when this member becomes its primary or standby.
      */
     private class InitializeBucketShardHook implements RoutingEventHook {
         @Override
-        public void run(ShardKind shardKind, int shardId) {
-            if (shardKind != ShardKind.BUCKET) {
-                return;
-            }
+        public void run(int shardId) {
             initializeBucketShardsIfOwned(shardId);
         }
     }
 
     /**
-     * Routing hook that relinquishes a bucket shard when ownership moves away from this member. It
-     * marks the shard inoperable, closes it, and drops it from the shard selector. Ignores events for
-     * other shard kinds.
+     * Routing hook that relinquishes a shard when ownership moves away from this member. It
+     * marks the shard inoperable, closes it, and drops it from the shard selector.
      */
     private class HandOverShardOwnershipHook implements RoutingEventHook {
         @Override
-        public void run(ShardKind shardKind, int shardId) {
-            if (shardKind != ShardKind.BUCKET) {
-                return;
-            }
+        public void run(int shardId) {
             BucketShard shard = getShard(shardId);
             shard.setOperable(false);
             shard.close();

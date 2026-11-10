@@ -80,8 +80,8 @@ public abstract class AbstractInternalAsyncCommands<K, V> implements InternalAsy
     }
 
     @Override
-    public RedisFuture<VolumeInspectReplicationResponse> volumeInspectReplication(String shardKind, int shardId, String standbyId) {
-        return dispatch(commandBuilder.volumeInspectReplication(shardKind, shardId, standbyId));
+    public RedisFuture<VolumeInspectReplicationResponse> volumeInspectReplication(String volume, String standbyId) {
+        return dispatch(commandBuilder.volumeInspectReplication(volume, standbyId));
     }
 
     private <T> AsyncCommand<K, V, T> dispatch(RedisCommand<K, V, T> cmd) {

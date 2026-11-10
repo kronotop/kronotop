@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.commands.SnapshotReadArgs;
 import com.kronotop.internal.VersionstampUtil;
@@ -438,7 +437,7 @@ class InfoHandlerTest extends BaseHandlerTest {
         String info = runInfo(getChannel(), "volume");
 
         int count = intField(info, "volume_count");
-        int bucketShards = context.getShardRegistry().getShardIds(ShardKind.BUCKET).size();
+        int bucketShards = context.getShardRegistry().getShardIds().size();
         assertTrue(count >= bucketShards);
 
         String line = fieldValue(info, "volume0");
@@ -543,13 +542,13 @@ class InfoHandlerTest extends BaseHandlerTest {
         // shard counts for a single-member cluster
         String info = runInfo(getChannel(), "kronotop");
 
-        int bucketShards = context.getShardRegistry().getShardIds(ShardKind.BUCKET).size();
+        int bucketShards = context.getShardRegistry().getShardIds().size();
         assertTrue(info.contains("cluster_name:" + context.getClusterName() + "\r\n"));
         assertTrue(info.contains("member_id:" + context.getMember().getId() + "\r\n"));
         assertTrue(info.contains("member_status:RUNNING\r\n"));
         assertTrue(info.contains("known_members:1\r\n"));
         assertTrue(info.contains("alive_members:1\r\n"));
-        assertTrue(info.contains("bucket_shards:" + bucketShards + "\r\n"));
+        assertTrue(info.contains("shards:" + bucketShards + "\r\n"));
         assertTrue(info.contains("primary_shards:" + bucketShards + "\r\n"));
         assertTrue(info.contains("standby_shards:0\r\n"));
     }

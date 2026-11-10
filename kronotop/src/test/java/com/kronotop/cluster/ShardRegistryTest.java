@@ -16,20 +16,22 @@
 
 package com.kronotop.cluster;
 
-import com.kronotop.cluster.sharding.ShardKind;
 import com.typesafe.config.ConfigFactory;
 import org.junit.jupiter.api.Test;
 
-import java.util.Set;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class ShardRegistryTest {
 
     @Test
-    void shouldReturnOnlyBucketShardKind() {
-        // Behavior: a new ShardRegistry reports BUCKET as the only shard kind.
+    void shouldReturnNoShardIdsBeforeRefresh() {
+        // Behavior: a new ShardRegistry that has not been refreshed yet reports an empty shard id list
+        // and rejects shard id 0 as invalid.
         ShardRegistry registry = new ShardRegistry(ConfigFactory.empty(), "test-cluster");
-        assertEquals(Set.of(ShardKind.BUCKET), registry.getShardKinds());
+        assertEquals(List.of(), registry.getShardIds());
+        assertFalse(registry.isValidShardId(0));
     }
 }

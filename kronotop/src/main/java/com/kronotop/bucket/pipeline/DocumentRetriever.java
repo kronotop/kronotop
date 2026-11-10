@@ -29,7 +29,6 @@ import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.client.protocol.SegmentRange;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.EntryMetadata;
 import com.kronotop.volume.VolumeNames;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -177,7 +176,7 @@ public class DocumentRetriever {
             int shardId = shardEntry.getIntKey();
             var bySegment = shardEntry.getValue();
 
-            Route route = routing.findRoute(ShardKind.BUCKET, shardId);
+            Route route = routing.findRoute(shardId);
             Member primary = route.primary();
             boolean isLocal = primary.equals(context.getMember());
 
@@ -292,7 +291,7 @@ public class DocumentRetriever {
             Group group,
             ByteBuffer[] result
     ) {
-        String volumeName = VolumeNames.format(ShardKind.BUCKET, group.shardId);
+        String volumeName = VolumeNames.format(group.shardId);
 
         // Build segment ranges for this group
         List<SegmentRange> ranges = new ArrayList<>(group.indices.size);

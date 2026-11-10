@@ -38,7 +38,7 @@
       {
         "name": "volume-name",
         "type": "string",
-        "summary": "The name of the volume, in the format <kind>-shard-<id>."
+        "summary": "The name of the volume, in the format shard-<id>."
       }
     ]
   }

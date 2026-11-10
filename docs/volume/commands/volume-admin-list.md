@@ -17,7 +17,7 @@ None.
 
 ## Return Value
 
-RESP array of bulk strings. Each element is a volume name in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`). Returns
+RESP array of bulk strings. Each element is a volume name in `shard-<id>` format (e.g. `shard-0`). Returns
 an empty array if no volumes are open.
 
 ## Behavior
@@ -35,9 +35,9 @@ No command-specific errors.
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN LIST
-1) "bucket-shard-0"
-2) "bucket-shard-1"
-3) "bucket-shard-2"
+1) "shard-0"
+2) "shard-1"
+3) "shard-2"
 ```
 
 **No volumes open:**

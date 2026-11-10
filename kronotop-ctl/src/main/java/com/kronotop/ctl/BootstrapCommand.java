@@ -37,12 +37,11 @@ import java.util.stream.Collectors;
 public class BootstrapCommand implements Callable<Integer> {
 
     private static final Logger logger = LoggerFactory.getLogger(BootstrapCommand.class);
-    private static final Set<String> VALID_SHARD_KINDS = Set.of("BUCKET");
-    @Option(names = "--primary", arity = "2..*", paramLabel = "<shard-kind host:port=shard-ids>",
-            description = "Assign primary shards (repeatable). Example: --primary BUCKET node1:3320=0,1,2")
+    @Option(names = "--primary", arity = "1..*", paramLabel = "<host:port=shard-ids>",
+            description = "Assign primary shards (repeatable). Example: --primary node1:3320=0,1,2")
     private List<String> primaries;
-    @Option(names = "--standby", arity = "2..*", paramLabel = "<shard-kind host:port=shard-ids>",
-            description = "Assign standby shards (repeatable). Example: --standby BUCKET node2:3320=0,1,2")
+    @Option(names = "--standby", arity = "1..*", paramLabel = "<host:port=shard-ids>",
+            description = "Assign standby shards (repeatable). Example: --standby node2:3320=0,1,2")
     private List<String> standbys;
     @Option(names = "--shard-discovery-timeout", paramLabel = "<seconds>", defaultValue = "30",
             description = "Max seconds to wait for shard discovery after cluster initialization. Default: ${DEFAULT-VALUE}")
@@ -58,21 +57,13 @@ public class BootstrapCommand implements Callable<Integer> {
         }
 
         try {
-            if (primaries.size() % 2 != 0) {
-                throw new IllegalArgumentException(
-                        "--primary requires pairs of <shard-kind> <host:port=shard-ids>, but got " + primaries.size() + " arguments");
-            }
             List<RouteAssignment> assignments = new ArrayList<>();
-            for (int i = 0; i < primaries.size(); i += 2) {
-                assignments.add(parseAssignment("PRIMARY", primaries.get(i), primaries.get(i + 1)));
+            for (String primary : primaries) {
+                assignments.add(parseAssignment("PRIMARY", primary));
             }
             if (standbys != null) {
-                if (standbys.size() % 2 != 0) {
-                    throw new IllegalArgumentException(
-                            "--standby requires pairs of <shard-kind> <host:port=shard-ids>, but got " + standbys.size() + " arguments");
-                }
-                for (int i = 0; i < standbys.size(); i += 2) {
-                    assignments.add(parseAssignment("STANDBY", standbys.get(i), standbys.get(i + 1)));
+                for (String standby : standbys) {
+                    assignments.add(parseAssignment("STANDBY", standby));
                 }
             }
             String firstPrimaryAddress = assignments.stream()
@@ -163,33 +154,21 @@ public class BootstrapCommand implements Callable<Integer> {
     }
 
     private void waitForShards(RespConnection conn, List<RouteAssignment> assignments) throws IOException {
-        Map<String, Set<Integer>> required = new HashMap<>();
+        Set<Integer> required = new TreeSet<>();
         for (RouteAssignment a : assignments) {
-            required.computeIfAbsent(a.shardKind(), k -> new HashSet<>()).addAll(a.shardIds());
+            required.addAll(a.shardIds());
         }
 
         logger.info("Waiting for shard discovery (timeout: {}s)", shardDiscoveryTimeout);
         for (int attempt = 1; attempt <= shardDiscoveryTimeout; attempt++) {
-            Map<String, Set<Integer>> current = describeCluster(conn);
+            Set<Integer> available = describeCluster(conn);
 
-            boolean allDiscovered = true;
-            for (String kind : required.keySet()) {
-                Set<Integer> available = current.getOrDefault(kind, Set.of());
-                if (available.isEmpty()) {
-                    allDiscovered = false;
-                    break;
-                }
-            }
-
-            if (allDiscovered) {
-                for (Map.Entry<String, Set<Integer>> entry : required.entrySet()) {
-                    Set<Integer> available = current.get(entry.getKey());
-                    Set<Integer> invalid = new TreeSet<>(entry.getValue());
-                    invalid.removeAll(available);
-                    if (!invalid.isEmpty()) {
-                        throw new IOException("Invalid shard ids " + invalid + " for " + entry.getKey()
-                                + ". Available: " + new TreeSet<>(available));
-                    }
+            if (!available.isEmpty()) {
+                Set<Integer> invalid = new TreeSet<>(required);
+                invalid.removeAll(available);
+                if (!invalid.isEmpty()) {
+                    throw new IOException("Invalid shard ids " + invalid
+                            + ". Available: " + new TreeSet<>(available));
                 }
                 logger.info("All shards discovered");
                 return;
@@ -207,28 +186,28 @@ public class BootstrapCommand implements Callable<Integer> {
         throw new IOException("Timed out waiting for shards after " + shardDiscoveryTimeout + "s");
     }
 
-    private Map<String, Set<Integer>> describeCluster(RespConnection conn) throws IOException {
+    private Set<Integer> describeCluster(RespConnection conn) throws IOException {
         RespValue response = conn.execute(List.of("KR.ADMIN", "DESCRIBE-CLUSTER"));
 
         if (!(response instanceof RespValue.RespMap(Map<RespValue, RespValue> cluster))) {
             throw new IOException("Unexpected DESCRIBE-CLUSTER response: " + response);
         }
 
-        Map<String, Set<Integer>> shardsByKind = new HashMap<>();
+        Set<Integer> shardIds = new HashSet<>();
         for (Map.Entry<RespValue, RespValue> entry : cluster.entrySet()) {
-            String key = extractString(entry.getKey());
+            if (!extractString(entry.getKey()).equals("shards")) {
+                continue;
+            }
             if (!(entry.getValue() instanceof RespValue.RespMap(Map<RespValue, RespValue> shards))) {
                 continue;
             }
-            Set<Integer> shardIds = new HashSet<>();
             for (RespValue shardKey : shards.keySet()) {
                 if (shardKey instanceof RespValue.Number(long id)) {
                     shardIds.add((int) id);
                 }
             }
-            shardsByKind.put(key.toUpperCase(), shardIds);
         }
-        return shardsByKind;
+        return shardIds;
     }
 
     private void setRoutes(RespConnection conn, List<RouteAssignment> assignments,
@@ -237,12 +216,11 @@ public class BootstrapCommand implements Callable<Integer> {
         for (RouteAssignment a : assignments) {
             String memberId = addressToMemberId.get(a.address());
             for (int shardId : a.shardIds()) {
-                logger.info("Route {} {} shard {} -> member {} ({})",
-                        a.routeKind(), a.shardKind(), shardId, memberId, a.address());
+                logger.info("Route {} shard {} -> member {} ({})",
+                        a.routeKind(), shardId, memberId, a.address());
                 conn.execute(List.of(
                         "KR.ADMIN", "ROUTE", "SET",
                         a.routeKind(),
-                        a.shardKind(),
                         String.valueOf(shardId),
                         memberId
                 ));
@@ -253,19 +231,13 @@ public class BootstrapCommand implements Callable<Integer> {
     private void setShardStatuses(RespConnection conn, List<RouteAssignment> assignments) throws IOException {
         for (RouteAssignment a : assignments) {
             for (int shardId : a.shardIds()) {
-                logger.info("Setting shard status {} {} READWRITE", a.shardKind(), shardId);
-                conn.execute(List.of("KR.ADMIN", "SET-SHARD-STATUS", a.shardKind(), String.valueOf(shardId), "READWRITE"));
+                logger.info("Setting shard status {} READWRITE", shardId);
+                conn.execute(List.of("KR.ADMIN", "SET-SHARD-STATUS", String.valueOf(shardId), "READWRITE"));
             }
         }
     }
 
-    private RouteAssignment parseAssignment(String routeKind, String shardKindRaw, String spec) {
-        String shardKind = shardKindRaw.toUpperCase();
-        if (!VALID_SHARD_KINDS.contains(shardKind)) {
-            throw new IllegalArgumentException(
-                    "Invalid shard kind: " + shardKind + ". Valid kinds: " + VALID_SHARD_KINDS);
-        }
-
+    private RouteAssignment parseAssignment(String routeKind, String spec) {
         int eqIndex = spec.indexOf('=');
         if (eqIndex < 0) {
             throw new IllegalArgumentException(
@@ -280,7 +252,7 @@ public class BootstrapCommand implements Callable<Integer> {
                 .map(Integer::parseInt)
                 .toList();
 
-        return new RouteAssignment(routeKind, shardKind, address, shardIds);
+        return new RouteAssignment(routeKind, address, shardIds);
     }
 
     private String[] parseHostPort(String address) {
@@ -299,6 +271,6 @@ public class BootstrapCommand implements Callable<Integer> {
         };
     }
 
-    record RouteAssignment(String routeKind, String shardKind, String address, List<Integer> shardIds) {
+    record RouteAssignment(String routeKind, String address, List<Integer> shardIds) {
     }
 }

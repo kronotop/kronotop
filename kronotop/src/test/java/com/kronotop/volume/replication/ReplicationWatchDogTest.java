@@ -43,7 +43,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("SET", "STANDBY", SHARD_KIND.name(), SHARD_ID, standby.getMember().getId()).encode(buf);
+        cmd.route("SET", "STANDBY", SHARD_ID, standby.getMember().getId()).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -52,7 +52,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
 
         RoutingService routing = standby.getContext().getService(RoutingService.NAME);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            Route route = routing.findRoute(SHARD_KIND, SHARD_ID);
+            Route route = routing.findRoute(SHARD_ID);
             if (route == null) {
                 return false;
             }
@@ -68,17 +68,16 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
 
         // Stop the automatically started replication first
-        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
+        replicationService.stopReplication(SHARD_ID, false);
 
         MockReplicationTask mockTask = new MockReplicationTask();
         mockTask.setAlwaysFail(true, new RuntimeException("Simulated failure"));
 
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
-                SHARD_KIND,
                 SHARD_ID,
                 () -> mockTask
         );
-        replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
+        replicationService.registerReplicationWatchDog(SHARD_ID, watchDog);
 
         CountDownLatch latch = new CountDownLatch(1);
         Thread watchDogThread = new Thread(() -> {
@@ -109,7 +108,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
 
         // Stop the automatically started replication first
-        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
+        replicationService.stopReplication(SHARD_ID, false);
 
         AtomicInteger callCount = new AtomicInteger(0);
 
@@ -138,11 +137,10 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         };
 
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
-                SHARD_KIND,
                 SHARD_ID,
                 () -> mockTask
         );
-        replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
+        replicationService.registerReplicationWatchDog(SHARD_ID, watchDog);
 
         CountDownLatch latch = new CountDownLatch(1);
         Thread watchDogThread = new Thread(() -> {
@@ -171,7 +169,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
 
         // Stop the automatically started replication first
-        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
+        replicationService.stopReplication(SHARD_ID, false);
 
         AtomicInteger callCount = new AtomicInteger(0);
 
@@ -192,11 +190,10 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         };
 
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
-                SHARD_KIND,
                 SHARD_ID,
                 () -> mockTask
         );
-        replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
+        replicationService.registerReplicationWatchDog(SHARD_ID, watchDog);
 
         CountDownLatch latch = new CountDownLatch(1);
         Thread watchDogThread = new Thread(() -> {
@@ -226,7 +223,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
 
         // Stop the automatically started replication first
-        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
+        replicationService.stopReplication(SHARD_ID, false);
 
         ReplicationTask mockTask = new ReplicationTask() {
             @Override
@@ -244,11 +241,10 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         };
 
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
-                SHARD_KIND,
                 SHARD_ID,
                 () -> mockTask
         );
-        replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
+        replicationService.registerReplicationWatchDog(SHARD_ID, watchDog);
 
         CountDownLatch latch = new CountDownLatch(1);
         Thread watchDogThread = new Thread(() -> {
@@ -262,7 +258,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
 
         // The entry must be gone: stopping a non-existent replication throws NoReplicationFoundException.
         assertThrows(NoReplicationFoundException.class,
-                () -> replicationService.stopReplication(SHARD_KIND, SHARD_ID, false));
+                () -> replicationService.stopReplication(SHARD_ID, false));
     }
 
     @Test
@@ -273,7 +269,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
 
         // Stop the automatically started replication first
-        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
+        replicationService.stopReplication(SHARD_ID, false);
 
         AtomicInteger callCount = new AtomicInteger(0);
         CountDownLatch startedLatch = new CountDownLatch(1);
@@ -302,11 +298,10 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         };
 
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
-                SHARD_KIND,
                 SHARD_ID,
                 () -> mockTask
         );
-        replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
+        replicationService.registerReplicationWatchDog(SHARD_ID, watchDog);
 
         CountDownLatch latch = new CountDownLatch(1);
         Thread watchDogThread = new Thread(() -> {
@@ -340,7 +335,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
 
         // Stop the automatically started replication first
-        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
+        replicationService.stopReplication(SHARD_ID, false);
 
         AtomicInteger shutdownCount = new AtomicInteger(0);
 
@@ -361,11 +356,10 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         };
 
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
-                SHARD_KIND,
                 SHARD_ID,
                 () -> mockTask
         );
-        replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
+        replicationService.registerReplicationWatchDog(SHARD_ID, watchDog);
 
         CountDownLatch latch = new CountDownLatch(1);
         Thread watchDogThread = new Thread(() -> {
@@ -390,7 +384,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
 
         // Stop the automatically started replication first
-        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
+        replicationService.stopReplication(SHARD_ID, false);
 
         AtomicInteger callCount = new AtomicInteger(0);
         AtomicInteger shutdownCount = new AtomicInteger(0);
@@ -413,11 +407,10 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         };
 
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
-                SHARD_KIND,
                 SHARD_ID,
                 () -> mockTask
         );
-        replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
+        replicationService.registerReplicationWatchDog(SHARD_ID, watchDog);
 
         CountDownLatch latch = new CountDownLatch(1);
         Thread watchDogThread = new Thread(() -> {
@@ -445,25 +438,24 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
 
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
 
-        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
+        replicationService.stopReplication(SHARD_ID, false);
 
         // Unset the standby route so the watchdog sees it's no longer a standby
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("UNSET", "STANDBY", SHARD_KIND.name(), SHARD_ID, standby.getMember().getId()).encode(buf);
+        cmd.route("UNSET", "STANDBY", SHARD_ID, standby.getMember().getId()).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
 
         RoutingService standbyRouting = standby.getContext().getService(RoutingService.NAME);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            Route route = standbyRouting.findRoute(SHARD_KIND, SHARD_ID);
+            Route route = standbyRouting.findRoute(SHARD_ID);
             return route == null || !route.standbys().contains(standby.getMember());
         });
 
         MockReplicationTask mockTask = new MockReplicationTask();
 
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
-                SHARD_KIND,
                 SHARD_ID,
                 () -> mockTask
         );
@@ -494,19 +486,18 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
 
         // Stop the automatically started replication first
-        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
+        replicationService.stopReplication(SHARD_ID, false);
 
         AtomicInteger constructionAttempts = new AtomicInteger(0);
 
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
-                SHARD_KIND,
                 SHARD_ID,
                 () -> {
                     constructionAttempts.incrementAndGet();
                     throw new RuntimeException("Simulated construction failure");
                 }
         );
-        replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
+        replicationService.registerReplicationWatchDog(SHARD_ID, watchDog);
 
         CountDownLatch latch = new CountDownLatch(1);
         Thread watchDogThread = new Thread(() -> {
@@ -539,7 +530,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
 
         // Stop the automatically started replication first
-        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
+        replicationService.stopReplication(SHARD_ID, false);
 
         MockReplicationTask mockTask = new MockReplicationTask();
         AtomicReference<ReplicationService.ReplicationWatchDog> watchDogRef = new AtomicReference<>();
@@ -548,7 +539,6 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         // currentTask publish: it calls stop() (which sees currentTask still null, so it does not
         // shut the task down) before handing the task back to run().
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
-                SHARD_KIND,
                 SHARD_ID,
                 () -> {
                     watchDogRef.get().stop();
@@ -556,7 +546,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
                 }
         );
         watchDogRef.set(watchDog);
-        replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
+        replicationService.registerReplicationWatchDog(SHARD_ID, watchDog);
 
         CountDownLatch latch = new CountDownLatch(1);
         Thread watchDogThread = new Thread(() -> {

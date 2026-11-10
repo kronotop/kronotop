@@ -30,7 +30,6 @@ import com.kronotop.cluster.BaseBroadcastEvent;
 import com.kronotop.cluster.BroadcastEventKind;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.JSONUtil;
@@ -96,7 +95,6 @@ public class BucketEventsWatcher implements Runnable {
                 cluster(context.getClusterName()).
                 metadata().
                 shards().
-                bucket().
                 shard(shardId).
                 lastSeenVersions();
         return subspaces.computeIfAbsent(shardId,
@@ -105,10 +103,10 @@ public class BucketEventsWatcher implements Runnable {
     }
 
     private void updateLastSeenVersion(Transaction tr, UUID metadataId, byte[] value) {
-        for (int shardId : context.getShardRegistry().getShardIds(ShardKind.BUCKET)) {
-            Route route = routing.findRoute(ShardKind.BUCKET, shardId);
+        for (int shardId : context.getShardRegistry().getShardIds()) {
+            Route route = routing.findRoute(shardId);
             if (route == null) {
-                LOGGER.error("Bucket shard '{}' could not be found", shardId);
+                LOGGER.error("Shard '{}' could not be found", shardId);
                 continue;
             }
             if (route.primary().equals(context.getMember())) {

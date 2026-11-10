@@ -15,7 +15,7 @@ VOLUME.ADMIN SET-STATUS <volume-name> <status>
 
 | Argument      | Type   | Description                                                                         |
 |---------------|--------|-------------------------------------------------------------------------------------|
-| `volume-name` | string | Name of the volume to update, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
+| `volume-name` | string | Name of the volume to update, in `shard-<id>` format (e.g. `shard-0`)               |
 | `status`      | string | New operational status: `READWRITE`, `READONLY`, or `INOPERABLE` (case-insensitive) |
 
 ## Return Value
@@ -48,17 +48,17 @@ Volume errors:
 **Set a volume to read-only:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN SET-STATUS bucket-shard-0 READONLY
+127.0.0.1:3320> VOLUME.ADMIN SET-STATUS shard-0 READONLY
 OK
 ```
 
 **Verify via DESCRIBE:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN DESCRIBE bucket-shard-0
-1# "name" => "bucket-shard-0"
+127.0.0.1:3320> VOLUME.ADMIN DESCRIBE shard-0
+1# "name" => "shard-0"
 2# "status" => "READONLY"
-3# "data_dir" => "/tmp/kronotop/data/bucket-shard-0"
+3# "data_dir" => "/tmp/kronotop/data/shard-0"
 4# "segment_size" => (integer) 268435456
 5# "segments" =>
    1# (integer) 0 =>
@@ -72,7 +72,7 @@ OK
 **Invalid status value:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN SET-STATUS bucket-shard-0 INVALID
+127.0.0.1:3320> VOLUME.ADMIN SET-STATUS shard-0 INVALID
 (error) ERR Unknown volume status: 'INVALID'
 ```
 

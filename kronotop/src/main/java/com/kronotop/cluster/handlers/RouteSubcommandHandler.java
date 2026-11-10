@@ -21,7 +21,6 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.*;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
@@ -66,7 +65,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
         }
 
         // Check shard status first
-        ShardStatus shardStatus = ShardUtil.getShardStatus(context, tr, arguments.shardKind, shardId);
+        ShardStatus shardStatus = ShardUtil.getShardStatus(context, tr, shardId);
         if (shardStatus.equals(ShardStatus.READWRITE)) {
             throw new KronotopException("Shard status must not be " + ShardStatus.READWRITE);
         }
@@ -76,14 +75,14 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
             throw new KronotopException("Member id: " + nextPrimaryOwner.getId() + " is not a standby");
         }
 
-        VolumeConfigGenerator configGen = new VolumeConfigGenerator(context, arguments.shardKind, shardId);
+        VolumeConfigGenerator configGen = new VolumeConfigGenerator(context, shardId);
         VolumeSubspace subspace = new VolumeSubspace(configGen.openVolumeSubspace());
         VolumeStatus status = VolumeMetadataUtil.readVolumeStatus(tr, subspace);
         if (status != VolumeStatus.READONLY) {
             throw new KronotopException("Volume status must be " + VolumeStatus.READONLY);
         }
 
-        ReplicationUtil.assertStandbyCaughtUp(context, tr, nextPrimaryOwner, subspace.getDirectorySubspace(), arguments.shardKind, arguments.shardId);
+        ReplicationUtil.assertStandbyCaughtUp(context, tr, nextPrimaryOwner, subspace.getDirectorySubspace(), arguments.shardId);
 
         // Ready to assign a new primary
         byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_PRIMARY_MEMBER_KEY));
@@ -132,7 +131,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
     }
 
     private void setRouteForShard(Transaction tr, RouteArguments arguments, int shardId) {
-        DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(arguments.shardKind, shardId);
+        DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardId);
         if (arguments.routeKind.equals(RouteKind.PRIMARY)) {
             setPrimaryMemberId(tr, shardSubspace, arguments, shardId);
         } else if (arguments.routeKind.equals(RouteKind.STANDBY)) {
@@ -147,7 +146,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
         if (arguments.routeKind.equals(RouteKind.PRIMARY)) {
             throw new KronotopException("UNSET PRIMARY is not supported");
         }
-        DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(arguments.shardKind, shardId);
+        DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardId);
         removeStandbyMemberId(tr, shardSubspace, arguments);
     }
 
@@ -161,7 +160,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
                 }
                 if (arguments.operationKind.equals(OperationKind.SET)) {
                     if (arguments.allShards) {
-                        for (int shardId : getShardIds(arguments.shardKind)) {
+                        for (int shardId : getShardIds()) {
                             setRouteForShard(tr, arguments, shardId);
                         }
                     } else {
@@ -169,7 +168,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
                     }
                 } else if (arguments.operationKind.equals(OperationKind.UNSET)) {
                     if (arguments.allShards) {
-                        for (int shardId : getShardIds(arguments.shardKind)) {
+                        for (int shardId : getShardIds()) {
                             unsetRouteForShard(tr, arguments, shardId);
                         }
                     } else {
@@ -192,32 +191,29 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
     private class RouteArguments {
         private final OperationKind operationKind;
         private final RouteKind routeKind;
-        private final ShardKind shardKind;
         private final int shardId;
         private final String memberId;
 
         private final boolean allShards;
 
         RouteArguments(ArrayList<ByteBuf> args) {
-            // kr.admin route set primary bucket * 12b3cf60
-            if (args.size() != 6) {
+            // kr.admin route set primary * 12b3cf60
+            if (args.size() != 5) {
                 throw new InvalidNumberOfArgumentsException();
             }
 
             operationKind = ProtocolMessageUtil.readEnum(OperationKind.class, args.get(1), "operation kind");
             routeKind = ProtocolMessageUtil.readEnum(RouteKind.class, args.get(2), "route kind");
 
-            shardKind = ProtocolMessageUtil.readShardKind(args.get(3));
-
-            String rawShardId = ProtocolMessageUtil.readAsString(args.get(4));
+            String rawShardId = ProtocolMessageUtil.readAsString(args.get(3));
             allShards = rawShardId.equals("*");
             if (!allShards) {
-                shardId = ProtocolMessageUtil.readShardId(context.getShardRegistry(), shardKind, rawShardId);
+                shardId = ProtocolMessageUtil.readShardId(context.getShardRegistry(), rawShardId);
             } else {
                 shardId = -1; // dummy assignment due to final declaration
             }
 
-            memberId = ProtocolMessageUtil.readMemberId(context, args.get(5));
+            memberId = ProtocolMessageUtil.readMemberId(context, args.get(4));
         }
     }
 }

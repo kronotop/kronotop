@@ -13,9 +13,9 @@ VOLUME.STATS <volume-name> SEGMENTS
 
 ## Arguments
 
-| Argument      | Type   | Description                                                               |
-|---------------|--------|---------------------------------------------------------------------------|
-| `volume-name` | string | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
+| Argument      | Type   | Description                                                 |
+|---------------|--------|-------------------------------------------------------------|
+| `volume-name` | string | Name of the volume, in `shard-<id>` format (e.g. `shard-0`) |
 
 ## Return Value
 
@@ -64,7 +64,7 @@ Volume errors:
 **Volume with one segment after appends and deletes:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0 SEGMENTS
+127.0.0.1:3320> VOLUME.STATS shard-0 SEGMENTS
 1) 1# "segment_id" => (integer) 0
    2# "size_bytes" => (integer) 1048576
    3# "used_bytes" => (integer) 80
@@ -77,7 +77,7 @@ Volume errors:
 **Volume with multiple segments:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0 SEGMENTS
+127.0.0.1:3320> VOLUME.STATS shard-0 SEGMENTS
 1) 1# "segment_id" => (integer) 0
    2# "size_bytes" => (integer) 1048576
    3# "used_bytes" => (integer) 1048576
@@ -97,6 +97,6 @@ Volume errors:
 **Empty volume (no segments):**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0 SEGMENTS
+127.0.0.1:3320> VOLUME.STATS shard-0 SEGMENTS
 (empty array)
 ```

@@ -19,7 +19,6 @@ package com.kronotop.volume.replication;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,23 +31,23 @@ public class PrimaryOwnerChangedHook implements RoutingEventHook {
     }
 
     @Override
-    public void run(ShardKind shardKind, int shardId) {
+    public void run(int shardId) {
         LOGGER.info(
-                "Primary owner has changed for ShardKind={}, ShardId={}",
-                shardKind, shardId
+                "Primary owner has changed for ShardId={}",
+                shardId
         );
 
         RoutingService routing = service.getContext().getService(RoutingService.NAME);
-        Route route = routing.findRoute(shardKind, shardId);
+        Route route = routing.findRoute(shardId);
         if (route == null) {
             // this should never happen.
             return;
         }
         if (route.primary().equals(service.getContext().getMember())) {
             // This member is the new primary, stop the replication immediately.
-            service.stopReplication(shardKind, shardId, false);
+            service.stopReplication(shardId, false);
         } else {
-            service.reconnect(shardKind, shardId);
+            service.reconnect(shardId);
         }
     }
 }

@@ -55,18 +55,18 @@ public final class VectorIndexSyncBacklog {
      * @param context       the server context
      * @param metadata      the metadata of the bucket that owns the index
      * @param vectorIndex   the vector index
-     * @param bucketDataDir the root of the bucket data directory
+     * @param dataDir the data directory of the member
      * @return the number of sync tasks queued
      */
     public static int enqueue(
             Context context,
             BucketMetadata metadata,
             VectorIndex vectorIndex,
-            Path bucketDataDir
+            Path dataDir
     ) {
         BucketService service = context.getService(BucketService.NAME);
         long indexId = vectorIndex.definition().id();
-        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(bucketDataDir, metadata, indexId);
+        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(dataDir, metadata, indexId);
         DirectorySubspace indexSubspace = vectorIndex.subspace();
 
         byte[] flushedGraphsRange = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.GRAPH_FLUSHED.getValue()));

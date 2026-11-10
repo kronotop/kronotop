@@ -26,6 +26,7 @@ import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.VectorIndex;
 import com.kronotop.bucket.index.VectorIndexMaintainer;
 import com.kronotop.transaction.TransactionUtil;
+import com.kronotop.volume.VolumeConfigGenerator;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import io.github.resilience4j.retry.Retry;
 import org.bson.types.ObjectId;
@@ -98,10 +99,8 @@ public class VectorGraphIndexGroup {
     /**
      * Resolves the root directory for vector index files of the given shard.
      */
-    public static Path resolveVectorDir(Path bucketDataDir, int shardId) {
-        return bucketDataDir
-                .resolve("shards")
-                .resolve(Integer.toString(shardId))
+    public static Path resolveVectorDir(Path dataDir, int shardId) {
+        return VolumeConfigGenerator.shardDataDir(dataDir, shardId)
                 .resolve("derived-indexes")
                 .resolve("vector");
     }
@@ -113,8 +112,8 @@ public class VectorGraphIndexGroup {
         return metadata.shards().getFirst();
     }
 
-    public static Path resolveIndexDir(Path bucketDataDir, BucketMetadata metadata, long indexId) {
-        return resolveVectorDir(bucketDataDir, ownerShardId(metadata))
+    public static Path resolveIndexDir(Path dataDir, BucketMetadata metadata, long indexId) {
+        return resolveVectorDir(dataDir, ownerShardId(metadata))
                 .resolve(metadata.uuid().toString())
                 .resolve(Long.toString(indexId));
     }
@@ -526,11 +525,11 @@ public class VectorGraphIndexGroup {
     /**
      * Returns the directory that holds the on-disk files of this vector index.
      *
-     * @param bucketDataDir root data directory of the bucket service
+     * @param dataDir the data directory of the member
      * @return the index directory under the owner shard's vector directory
      */
-    public Path resolveIndexDir(Path bucketDataDir) {
-        return resolveIndexDir(bucketDataDir, metadata, vectorIndex.definition().id());
+    public Path resolveIndexDir(Path dataDir) {
+        return resolveIndexDir(dataDir, metadata, vectorIndex.definition().id());
     }
 
     /**
@@ -538,15 +537,15 @@ public class VectorGraphIndexGroup {
      * from the group. An empty index is skipped. On a write error or a FoundationDB error the
      * on-heap index stays in place, so the flush maintainer can try again.
      *
-     * @param bucketDataDir root data directory of the bucket service
+     * @param dataDir the data directory of the member
      * @param index         the on-heap index to flush
      * @return true if the index was written and replaced by an on-disk index, false if it was
      * empty or the flush failed
      */
-    public boolean flush(Path bucketDataDir, OnHeapVectorGraphIndex index) {
+    public boolean flush(Path dataDir, OnHeapVectorGraphIndex index) {
         if (index.size() == 0) return false;
 
-        Path indexDir = resolveIndexDir(bucketDataDir);
+        Path indexDir = resolveIndexDir(dataDir);
         Path indexPath;
         try {
             Files.createDirectories(indexDir);

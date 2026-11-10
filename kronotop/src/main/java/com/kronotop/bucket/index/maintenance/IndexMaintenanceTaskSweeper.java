@@ -27,7 +27,6 @@ import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.statistics.IndexAnalyzeTask;
 import com.kronotop.bucket.index.statistics.IndexAnalyzeTaskState;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 import io.github.resilience4j.retry.Retry;
@@ -328,10 +327,10 @@ public class IndexMaintenanceTaskSweeper {
     }
 
     /**
-     * Removes the task from every bucket shard subspace where its kind matches one of the
+     * Removes the task from every shard subspace where its kind matches one of the
      * given kinds.
      *
-     * <p>Scans all bucket shards and drops the task via {@link TaskStorage#drop}. Must run
+     * <p>Scans all shards and drops the task via {@link TaskStorage#drop}. Must run
      * within an active transaction.
      *
      * @param tr     transaction for task deletion
@@ -339,7 +338,7 @@ public class IndexMaintenanceTaskSweeper {
      * @param kinds  task kinds to delete (BUILD, DROP, BOUNDARY, ANALYZE)
      */
     private void dropIndexMaintenanceTask(Transaction tr, Versionstamp taskId, IndexMaintenanceTaskKind... kinds) {
-        List<Integer> shardIds = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
+        List<Integer> shardIds = context.getShardRegistry().getShardIds();
         for (int shardId : shardIds) {
             DirectorySubspace subspace = getOrOpenTaskSubspace(shardId);
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);

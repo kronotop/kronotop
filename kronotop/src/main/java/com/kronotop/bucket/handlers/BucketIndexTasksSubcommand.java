@@ -25,7 +25,6 @@ import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.index.maintenance.*;
 import com.kronotop.bucket.index.statistics.IndexAnalyzeTaskState;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.VersionstampUtil;
@@ -54,7 +53,7 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
 
     private Map<RedisMessage, RedisMessage> scanTaskId(Transaction tr, Versionstamp taskId) {
         Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-        for (int shardId : context.getShardRegistry().getShardIds(ShardKind.BUCKET)) {
+        for (int shardId : context.getShardRegistry().getShardIds()) {
             DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
             byte[] encodedTask = TaskStorage.getDefinition(tr, taskSubspace, taskId);
             if (encodedTask == null) {

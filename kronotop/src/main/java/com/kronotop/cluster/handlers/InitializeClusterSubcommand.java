@@ -56,7 +56,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
     private void initializeIndexMetadata(Transaction tr, int shardId) {
         List<String> layout = KronotopDirectory.
                 kronotop().cluster(context.getClusterName()).metadata().
-                shards().bucket().shard(shardId).maintenance().
+                shards().shard(shardId).maintenance().
                 index().tasks().toList();
         context.getDirectoryLayer().create(tr, layout).join();
     }
@@ -78,7 +78,6 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
                 cluster(context.getClusterName()).
                 metadata().
                 shards().
-                bucket().
                 shard(shardId).
                 lastSeenVersions();
         context.getDirectoryLayer().create(tr, directory.toList()).join();
@@ -101,7 +100,6 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
                     cluster(context.getClusterName()).
                     metadata().
                     shards().
-                    bucket().
                     shard(shardId);
             DirectorySubspace shardSubspace = subspace.create(tr, directory.excludeSubspace(subspace)).join();
             initializeIndexMetadata(tr, shardId);

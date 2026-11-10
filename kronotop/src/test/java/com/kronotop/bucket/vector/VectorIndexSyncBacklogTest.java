@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class VectorIndexSyncBacklogTest extends BaseVectorMaintainerTest {
 
     private int enqueue() {
-        return VectorIndexSyncBacklog.enqueue(context, metadata, vectorIndex, service.getBucketDataDir());
+        return VectorIndexSyncBacklog.enqueue(context, metadata, vectorIndex, service.getDataDir());
     }
 
     @Test

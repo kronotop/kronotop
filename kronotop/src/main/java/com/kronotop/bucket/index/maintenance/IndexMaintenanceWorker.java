@@ -63,7 +63,7 @@ public class IndexMaintenanceWorker implements Runnable {
      *
      * @param context        application context for service and FoundationDB access
      * @param subspace       directory subspace containing task data
-     * @param shardId        bucket shard ID for this worker
+     * @param shardId        shard ID for this worker
      * @param taskId         unique task identifier
      * @param completionHook callback invoked when a task reaches its terminal state
      * @throws IllegalStateException if the task kind is unrecognized

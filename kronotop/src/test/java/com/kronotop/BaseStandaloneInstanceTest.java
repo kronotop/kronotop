@@ -26,7 +26,6 @@ import com.kronotop.bucket.index.maintenance.IndexBuildingTask;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.RoutingTable;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.BucketCreateArgs;
 import com.kronotop.commands.KronotopCommandBuilder;
@@ -94,16 +93,16 @@ public class BaseStandaloneInstanceTest extends BaseTest {
     /**
      * Replaces a route in the live routing table. No routing event runs.
      */
-    protected void setRoute(RoutingService routing, ShardKind kind, int shardId, Route route) throws Exception {
+    protected void setRoute(RoutingService routing, int shardId, Route route) throws Exception {
         Field tableField = RoutingService.class.getDeclaredField("routingTable");
         tableField.setAccessible(true);
         @SuppressWarnings("unchecked")
         AtomicReference<RoutingTable> tableRef = (AtomicReference<RoutingTable>) tableField.get(routing);
         RoutingTable table = tableRef.get();
 
-        Method setMethod = RoutingTable.class.getDeclaredMethod("set", ShardKind.class, int.class, Route.class);
+        Method setMethod = RoutingTable.class.getDeclaredMethod("set", int.class, Route.class);
         setMethod.setAccessible(true);
-        setMethod.invoke(table, kind, shardId, route);
+        setMethod.invoke(table, shardId, route);
     }
 
     protected void createBucket(String bucket, List<Integer> shards, String indexes) {

@@ -48,7 +48,7 @@ class VectorIndexVolumeRestoreTest extends BaseVectorMaintainerTest {
     }
 
     private void restore() throws Exception {
-        VectorIndexVolumeRestore.restore(context, metadata, vectorIndex, service.getBucketDataDir(), READ_CHUNKS_PER_TRANSACTION);
+        VectorIndexVolumeRestore.restore(context, metadata, vectorIndex, service.getDataDir(), READ_CHUNKS_PER_TRANSACTION);
     }
 
     private Path file(ObjectId indexId, String extension) {

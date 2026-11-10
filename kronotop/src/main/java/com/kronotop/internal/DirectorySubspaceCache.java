@@ -26,10 +26,8 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.kronotop.KronotopException;
 import com.kronotop.NoSuchDirectorySubspaceException;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
-import com.kronotop.directory.Shards;
 import com.kronotop.transaction.TransactionManager;
 
 import javax.annotation.Nonnull;
@@ -42,7 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 /**
- * DirectorySubspaceCache provides caching for DirectorySubspace instances based on different keys and shard kinds.
+ * DirectorySubspaceCache provides caching for DirectorySubspace instances based on different keys and shard IDs.
  * It uses a LoadingCache to manage DirectorySubspace instances for a specific duration.
  */
 public final class DirectorySubspaceCache {
@@ -51,7 +49,7 @@ public final class DirectorySubspaceCache {
     private final DirectoryLayer directoryLayer;
 
     private final EnumMap<Key, List<String>> subpaths = new EnumMap<>(Key.class);
-    private final EnumMap<ShardKind, ConcurrentHashMap<Integer, List<String>>> shards = new EnumMap<>(ShardKind.class);
+    private final ConcurrentHashMap<Integer, List<String>> shards = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, List<String>>> buckets = new ConcurrentHashMap<>();
 
     private final LoadingCache<List<String>, DirectorySubspace> cache = CacheBuilder.newBuilder()
@@ -90,10 +88,6 @@ public final class DirectorySubspaceCache {
                 }
             }
         }
-
-        for (ShardKind shardKind : ShardKind.values()) {
-            shards.put(shardKind, new ConcurrentHashMap<>());
-        }
     }
 
     /**
@@ -129,25 +123,20 @@ public final class DirectorySubspaceCache {
     }
 
     /**
-     * Retrieves a DirectorySubspace instance based on the provided ShardKind and shard ID.
+     * Returns the DirectorySubspace of the given shard.
      *
-     * @param kind    the kind of shard to be fetched.
-     * @param shardId the identifier for the specific shard.
-     * @return the DirectorySubspace associated with the given ShardKind and shard ID.
-     * @throws RuntimeException if the provided ShardKind is unknown or an error occurs when accessing the cache.
+     * @param shardId the shard ID
+     * @return the DirectorySubspace of the shard
+     * @throws NoSuchDirectorySubspaceException if the shard has no directory
      */
-    public DirectorySubspace get(ShardKind kind, int shardId) {
-        List<String> subpath = shards.get(kind).computeIfAbsent(shardId, k -> {
-            Shards root = KronotopDirectory.
-                    kronotop().
-                    cluster(cluster).
-                    metadata().
-                    shards();
-            if (kind.equals(ShardKind.BUCKET)) {
-                return root.bucket().shard(shardId).toList();
-            }
-            throw new RuntimeException("Unknown shard kind: " + kind);
-        });
+    public DirectorySubspace get(int shardId) {
+        List<String> subpath = shards.computeIfAbsent(shardId, k -> KronotopDirectory.
+                kronotop().
+                cluster(cluster).
+                metadata().
+                shards().
+                shard(shardId).
+                toList());
 
         return get(subpath);
     }

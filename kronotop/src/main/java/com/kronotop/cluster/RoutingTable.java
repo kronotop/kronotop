@@ -16,45 +16,25 @@
 
 package com.kronotop.cluster;
 
-import com.kronotop.cluster.sharding.ShardKind;
-
-import java.util.EnumMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * The RoutingTable class is responsible for maintaining routing information
- * for different kinds of shards in a Kronotop cluster.
- * <p>
- * It uses an EnumMap to store routes based on shard kinds and shard IDs.
+ * Holds the route of every shard in the cluster, keyed by shard id.
  */
 public class RoutingTable {
-    private final EnumMap<ShardKind, ConcurrentHashMap<Integer, Route>> routes = new EnumMap<>(ShardKind.class);
-
-    public RoutingTable() {
-        for (ShardKind shardKind : ShardKind.values()) {
-            routes.put(shardKind, new ConcurrentHashMap<>());
-        }
-    }
+    private final ConcurrentHashMap<Integer, Route> routes = new ConcurrentHashMap<>();
 
     /**
-     * Retrieves the routing information for a specific shard based on its kind and ID.
+     * Returns the route of the given shard.
      *
-     * @param shardKind the kind of the shard, represented by an instance of ShardKind
-     * @param shardId   the ID of the shard for which to retrieve the route information
-     * @return the Route object containing the primary and standby members, or null if no route information is found
+     * @param shardId the shard id
+     * @return the route, or null if the shard has no route
      */
-    public Route get(ShardKind shardKind, int shardId) {
-        return routes.get(shardKind).get(shardId);
+    public Route get(int shardId) {
+        return routes.get(shardId);
     }
 
-    /**
-     * Sets the routing information for a specific shard based on its kind and ID.
-     *
-     * @param shardKind the kind of the shard, represented by an instance of ShardKind
-     * @param shardId   the ID of the shard for which to set the route information
-     * @param route     the Route object containing the primary and standby members
-     */
-    void set(ShardKind shardKind, int shardId, Route route) {
-        routes.get(shardKind).put(shardId, route);
+    void set(int shardId, Route route) {
+        routes.put(shardId, route);
     }
 }

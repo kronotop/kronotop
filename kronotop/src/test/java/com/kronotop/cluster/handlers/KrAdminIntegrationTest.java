@@ -19,7 +19,6 @@ package com.kronotop.cluster.handlers;
 import com.kronotop.BaseUninitializedKronotopInstanceTest;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.RouteKind;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -47,9 +46,9 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
         }
-        // Bucket shard ids are discovered from FoundationDB after the cluster is initialized.
+        // Shard ids are discovered from FoundationDB after the cluster is initialized.
         await().atMost(5, TimeUnit.SECONDS).until(() ->
-                kronotopInstance.getContext().getShardRegistry().isValidShardId(ShardKind.BUCKET, 1)
+                kronotopInstance.getContext().getShardRegistry().isValidShardId(1)
         );
     }
 
@@ -59,7 +58,7 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
 
         ByteBuf buf = Unpooled.buffer();
         // it can be any command that requires an initialized cluster.
-        cmd.route("SET", "STANDBY", "BUCKET", 1, MemberIdGenerator.generateId()).encode(buf);
+        cmd.route("SET", "STANDBY", 1, MemberIdGenerator.generateId()).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
@@ -73,7 +72,7 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
         initializeCluster(cmd);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("SET", "STANDBY", "BUCKET", 1, kronotopInstance.getMember().getId()).encode(buf);
+        cmd.route("SET", "STANDBY", 1, kronotopInstance.getMember().getId()).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
@@ -88,7 +87,7 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
 
         for (RouteKind routeKind : RouteKind.values()) {
             ByteBuf buf = Unpooled.buffer();
-            cmd.route("SET", routeKind.name(), "BUCKET", 1, MemberIdGenerator.generateId()).encode(buf);
+            cmd.route("SET", routeKind.name(), 1, MemberIdGenerator.generateId()).encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);

@@ -910,9 +910,9 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "kronotop_bucket_shards{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
-          "legendFormat": "bucket_shards {{instance}}",
-          "refId": "bucket_shards {{instance}}"
+          "expr": "kronotop_shards{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "shards {{instance}}",
+          "refId": "shards {{instance}}"
         },
         {
           "datasource": {

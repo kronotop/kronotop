@@ -108,7 +108,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         number += (number / 2);
         appendEntries(number, length);
         // We have 1 full segment and 1 half
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
         try {
             replicationStopTrigger(replication, standbySubspace);
@@ -155,7 +155,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         number += (number / 2);
         appendEntries(number, length);
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
         try {
             replicationStopTrigger(replication, standbySubspace);
@@ -205,7 +205,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         number += (number / 2);
         appendEntries(number, length);
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
         try {
             replicationStopTrigger(replication, standbySubspace);
@@ -249,7 +249,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         appendEntries(number, length);
 
         VolumeReplication replication =
-                new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+                new VolumeReplication(context, SHARD_ID, destination.toString());
 
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
@@ -329,7 +329,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         long fullSegmentId = fullSegment.segmentId();
 
         // First replication run - stop after the first segment is replicated
-        VolumeReplication replication1 = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication1 = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication1.createOrOpenStandbySubspace();
 
         CountDownLatch shutdownLatch = new CountDownLatch(1);
@@ -355,7 +355,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         assertTrue(positionAfterFirstRun > 0, "Position should be set after first run");
 
         // Second replication run - should resume from where it left off
-        VolumeReplication replication2 = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication2 = new VolumeReplication(context, SHARD_ID, destination.toString());
 
         // Insert additional entries concurrently during the second replication run
         CountDownLatch writesCompletedLatch = new CountDownLatch(1);
@@ -414,7 +414,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         assertEquals(1, initialItems.size(), "Fresh volume should have one default segment");
         assertEquals(0, initialItems.getFirst().cardinality(), "Default segment should have zero entries");
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
 
         // Write entries concurrently after replication starts
         CountDownLatch writesCompletedLatch = new CountDownLatch(1);
@@ -492,7 +492,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                 .orElseThrow();
         long fullSegmentId = fullSegment.segmentId();
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
         // Track stage transitions for the full segment
@@ -576,7 +576,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         assertEquals(1, initialItems.size(), "Should start with 1 partial segment");
         long initialSegmentId = initialItems.getFirst().segmentId();
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
         // Write enough data during CDC to create new segments
@@ -656,7 +656,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                 .toList();
         assertEquals(3, fullSegmentIds.size(), "Should have 3 full segments");
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
         // Track sequential completion of full segments
@@ -734,7 +734,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldHandleReplicationWithDeleteOperations(@TempDir Path destination) throws Exception {
-        ReplicationClient replicationClient = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
+        ReplicationClient replicationClient = new ReplicationClient(context, SHARD_ID);
         replicationClient.connect(getClientOptions());
 
         int length = 1024;
@@ -751,7 +751,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         }
         assertEquals(number, versionstampedKeys.length);
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
 
         CountDownLatch deletesCompletedLatch = new CountDownLatch(1);
 
@@ -820,7 +820,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         appendEntries(number, length);
 
         VolumeReplication replication =
-                new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+                new VolumeReplication(context, SHARD_ID, destination.toString());
 
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
@@ -886,14 +886,14 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldVerifyStandbyCaughtUpWithPrimary(@TempDir Path destination) throws Exception {
-        ReplicationClient replicationClient = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
+        ReplicationClient replicationClient = new ReplicationClient(context, SHARD_ID);
         replicationClient.connect(getClientOptions());
 
         int length = 1024;
         int number = 100;
         appendEntries(number, length);
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
         // Replication thread - runs in the background and waits for new events in CDC mode
@@ -957,7 +957,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         List<SegmentAnalysis> initialItems = volume.analyze();
         assertEquals(2, initialItems.size(), "Should start with segment 0 (full) and segment 1 (partial)");
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
         CountDownLatch writesCompleted = new CountDownLatch(1);
@@ -1057,7 +1057,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                     "INSERT versionstamp should be older than first appended key");
         }
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
         CountDownLatch mixedOpsCompletedLatch = new CountDownLatch(1);
@@ -1200,7 +1200,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         number += (number / 2);
         insertEntries(number, length);
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
         try {
             replicationStopTrigger(replication, standbySubspace);
@@ -1235,7 +1235,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         int number = 100;
         Versionstamp[] versionstampedKeys = insertEntries(number, length);
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
         Thread.ofVirtual().start(replication::start);
@@ -1300,7 +1300,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         number += (number / 2);
         appendEntries(number, length);
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
         CountDownLatch writesCompleted = new CountDownLatch(1);
@@ -1389,7 +1389,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         }
         assertEquals(3, versionstampedEntries.size());
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
         CountDownLatch deletesCompletedLatch = new CountDownLatch(1);
@@ -1495,7 +1495,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         }
         assertEquals(number, appendedKeys.length);
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
         CountDownLatch updatesCompletedLatch = new CountDownLatch(1);
@@ -1606,7 +1606,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         appendEntries(entriesPerSegment + (entriesPerSegment / 2), length);
 
         // 2. Start replication
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
         Thread.ofVirtual().start(replication::start);
 
@@ -1681,7 +1681,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         appendEntries(entriesPerSegment + (entriesPerSegment / 2), length);
 
         // 2. Start replication
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
         Thread.ofVirtual().start(replication::start);
 
@@ -1731,7 +1731,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             appendEntries(10, length);
 
             // 7. Wait for convergence via CDC sequence number and position
-            ReplicationClient replicationClient = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
+            ReplicationClient replicationClient = new ReplicationClient(context, SHARD_ID);
             replicationClient.connect(getClientOptions());
             try {
                 await().atMost(Duration.ofSeconds(30)).until(() -> {
@@ -1806,7 +1806,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         }
         assertEquals(3, versionstampedEntries.size());
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
         CountDownLatch deletesCompletedLatch = new CountDownLatch(1);
@@ -1920,8 +1920,8 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         // 1 full segment (0) + 1 partial segment (1)
         assertEquals(2, volume.analyze().size());
 
-        ReplicationClient client = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        ReplicationClient client = new ReplicationClient(context, SHARD_ID);
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         ChangeDataCapture cdc = null;
         try {
             client.connect(getClientOptions());
@@ -1945,7 +1945,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             long segmentSize = volume.getConfig().segmentSize();
             // chunkSize large enough that the batch is never split by chunk size, only by segment.
             ReplicationSession session = new ReplicationSession(
-                    volumeConfig.name(), SHARD_KIND, SHARD_ID, destination,
+                    volumeConfig.name(), SHARD_ID, destination,
                     0L, 0L, 16L * 1024 * 1024, segmentSize);
             // Constructing CDC opens segment 0's file on the standby (the file that must NOT
             // receive segment-1 bytes).
@@ -2013,8 +2013,8 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        ReplicationClient client = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        ReplicationClient client = new ReplicationClient(context, SHARD_ID);
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         ChangeDataCapture cdc = null;
         try {
             client.connect(getClientOptions());
@@ -2030,7 +2030,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
             DirectorySubspace subspace = replication.createOrOpenStandbySubspace();
             ReplicationSession session = new ReplicationSession(
-                    volumeConfig.name(), SHARD_KIND, SHARD_ID, destination,
+                    volumeConfig.name(), SHARD_ID, destination,
                     0L, 0L, 16L * 1024 * 1024, volume.getConfig().segmentSize());
             cdc = new ChangeDataCapture(context, subspace, client, session);
 
@@ -2076,8 +2076,8 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             keys = appendResult.getVersionstampedKeys();
         }
 
-        ReplicationClient client = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        ReplicationClient client = new ReplicationClient(context, SHARD_ID);
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         ChangeDataCapture cdc = null;
         try {
             client.connect(getClientOptions());
@@ -2106,7 +2106,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
             DirectorySubspace subspace = replication.createOrOpenStandbySubspace();
             ReplicationSession session = new ReplicationSession(
-                    volumeConfig.name(), SHARD_KIND, SHARD_ID, destination,
+                    volumeConfig.name(), SHARD_ID, destination,
                     0L, 0L, 16L * 1024 * 1024, volume.getConfig().segmentSize());
             cdc = new ChangeDataCapture(context, subspace, client, session);
 
@@ -2153,7 +2153,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldResumeWhenSegmentStatusIsFailed(@TempDir Path destination) {
         // Behavior: a FAILED segment resumes from its cursor instead of permanently stopping replication.
         VolumeReplication replication =
-                new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+                new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
         long segmentId = 1L;
@@ -2177,7 +2177,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldStopWhenSegmentStatusIsStopped(@TempDir Path destination) {
         // Behavior: a STOPPED segment is terminal and halts replication.
         VolumeReplication replication =
-                new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+                new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
         long segmentId = 1L;
@@ -2217,7 +2217,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
         try {
             Thread.ofVirtual().start(replication::start);
@@ -2240,12 +2240,12 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         // no-op and must never sync an already-closed file descriptor (the double-close TOCTOU that
         // previously surfaced as a SyncFailedException). started==false here, so the close is not
         // gated by the drain timeout.
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace subspace = replication.createOrOpenStandbySubspace();
-        ReplicationClient client = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
+        ReplicationClient client = new ReplicationClient(context, SHARD_ID);
         client.connect(getClientOptions());
         ReplicationSession session = new ReplicationSession(
-                volumeConfig.name(), SHARD_KIND, SHARD_ID, destination,
+                volumeConfig.name(), SHARD_ID, destination,
                 0L, 0L, 1024L, volume.getConfig().segmentSize());
         SegmentReplication stage = new SegmentReplication(context, subspace, client, session);
         try {
@@ -2268,15 +2268,15 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         // Behavior: the worker-loop teardown and the shutdown thread can close the same stage
         // concurrently. The fileLock-guarded one-shot close must prevent a sync on a closed
         // descriptor, so neither close() throws and the file ends closed. Looped to exercise the race.
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         DirectorySubspace subspace = replication.createOrOpenStandbySubspace();
-        ReplicationClient client = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
+        ReplicationClient client = new ReplicationClient(context, SHARD_ID);
         client.connect(getClientOptions());
         try {
             long segmentSize = volume.getConfig().segmentSize();
             for (int i = 0; i < 50; i++) {
                 ReplicationSession session = new ReplicationSession(
-                        volumeConfig.name(), SHARD_KIND, SHARD_ID, destination,
+                        volumeConfig.name(), SHARD_ID, destination,
                         0L, 0L, 1024L, segmentSize);
                 SegmentReplication stage = new SegmentReplication(context, subspace, client, session);
 
@@ -2314,14 +2314,14 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         // still be mid-rollover. It logs the warning and leaves the file open; the terminal close
         // happens on a later drained close().
         appendEntries(1, 1024); // keep the primary changelog endpoint live for the CDC client
-        ReplicationClient client = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        ReplicationClient client = new ReplicationClient(context, SHARD_ID);
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         ChangeDataCapture cdc = null;
         try {
             client.connect(getClientOptions());
             DirectorySubspace subspace = replication.createOrOpenStandbySubspace();
             ReplicationSession session = new ReplicationSession(
-                    volumeConfig.name(), SHARD_KIND, SHARD_ID, destination,
+                    volumeConfig.name(), SHARD_ID, destination,
                     0L, 0L, 1024L, volume.getConfig().segmentSize());
             cdc = new ChangeDataCapture(context, subspace, client, session);
 
@@ -2355,13 +2355,13 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         long backoffMillis = context.getConfig().getLong("volume.replication.reconnect_backoff");
 
         // A fresh client that was never connected: conn() throws ReplicationClientNotConnectedException.
-        ReplicationClient client = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
-        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        ReplicationClient client = new ReplicationClient(context, SHARD_ID);
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
         SegmentReplication stage = null;
         try {
             DirectorySubspace subspace = replication.createOrOpenStandbySubspace();
             ReplicationSession session = new ReplicationSession(
-                    volumeConfig.name(), SHARD_KIND, SHARD_ID, destination,
+                    volumeConfig.name(), SHARD_ID, destination,
                     0L, 0L, 1024L, volume.getConfig().segmentSize());
             stage = new SegmentReplication(context, subspace, client, session);
 

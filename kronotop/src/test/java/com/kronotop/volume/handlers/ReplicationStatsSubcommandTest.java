@@ -54,12 +54,9 @@ class ReplicationStatsSubcommandTest extends BaseNetworkedVolumeIntegrationTest 
     }
 
     private DirectorySubspace createStandbySubspace() {
-        String volumeName = VolumeNames.format(SHARD_KIND, SHARD_ID);
+        String volumeName = VolumeNames.format(SHARD_ID);
         String standbyId = context.getMember().getId();
-        KronotopDirectoryNode node = switch (SHARD_KIND) {
-            case BUCKET ->
-                    KronotopDirectory.kronotop().cluster(context.getClusterName()).metadata().volumes().bucket().volume(volumeName).standby(standbyId);
-        };
+        KronotopDirectoryNode node = KronotopDirectory.kronotop().cluster(context.getClusterName()).metadata().volumes().volume(volumeName).standby(standbyId);
         try (Transaction tr = database.createTransaction()) {
             DirectorySubspace subspace = context.getDirectoryLayer().createOrOpen(tr, node.toList()).join();
             tr.commit().join();
@@ -68,7 +65,7 @@ class ReplicationStatsSubcommandTest extends BaseNetworkedVolumeIntegrationTest 
     }
 
     private Map<String, Object> executeReplication() {
-        String volumeName = VolumeNames.format(SHARD_KIND, SHARD_ID);
+        String volumeName = VolumeNames.format(SHARD_ID);
         String standbyId = context.getMember().getId();
 
         VolumeStatsCommandBuilder<String, String> cmd = new VolumeStatsCommandBuilder<>(StringCodec.ASCII);

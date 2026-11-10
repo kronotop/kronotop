@@ -22,7 +22,6 @@ import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.client.protocol.InternalCommandBuilder;
 import com.kronotop.cluster.client.protocol.PackedEntry;
 import com.kronotop.cluster.client.protocol.ReplicationCommandType;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -59,7 +58,7 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         KronotopTestInstance secondInstance = addNewInstance();
         // SEGMEN.TINSERT requires an already opened volume to run.
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(secondInstance.getContext(), ShardKind.BUCKET, 1);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(secondInstance.getContext(), 1);
         VolumeService volumeService = secondInstance.getContext().getService(VolumeService.NAME);
         Volume secondVolume = volumeService.newVolume(generator.volumeConfig());
 

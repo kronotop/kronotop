@@ -30,7 +30,6 @@ import com.kronotop.bucket.index.*;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
@@ -421,17 +420,17 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
 
         // Replace the route so the current member is a standby, not the primary
         RoutingService routing = context.getService(RoutingService.NAME);
-        Route originalRoute = routing.findRoute(ShardKind.BUCKET, SHARD_ID);
+        Route originalRoute = routing.findRoute(SHARD_ID);
 
         Member fakePrimary = createMemberWithEphemeralPort();
         Route standbyRoute = new Route(fakePrimary, Set.of(context.getMember()), ShardStatus.READWRITE);
-        setRoute(routing, ShardKind.BUCKET, SHARD_ID, standbyRoute);
+        setRoute(routing, SHARD_ID, standbyRoute);
 
         try {
             watchdog.processTaskQueue();
             assertTrue(watchdog.getWorkers().isEmpty());
         } finally {
-            setRoute(routing, ShardKind.BUCKET, SHARD_ID, originalRoute);
+            setRoute(routing, SHARD_ID, originalRoute);
             watchdog.shutdown();
         }
     }

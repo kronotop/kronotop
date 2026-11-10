@@ -13,9 +13,9 @@ VOLUME.ADMIN DESCRIBE <volume-name>
 
 ## Arguments
 
-| Argument      | Type   | Description                                                                           |
-|---------------|--------|---------------------------------------------------------------------------------------|
-| `volume-name` | string | Name of the volume to describe, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
+| Argument      | Type   | Description                                                             |
+|---------------|--------|-------------------------------------------------------------------------|
+| `volume-name` | string | Name of the volume to describe, in `shard-<id>` format (e.g. `shard-0`) |
 
 ## Return Value
 
@@ -64,10 +64,10 @@ Volume errors:
 **Describe a volume with one segment:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN DESCRIBE bucket-shard-0
-1# "name" => "bucket-shard-0"
+127.0.0.1:3320> VOLUME.ADMIN DESCRIBE shard-0
+1# "name" => "shard-0"
 2# "status" => "READWRITE"
-3# "data_dir" => "/tmp/kronotop/data/bucket-shard-0"
+3# "data_dir" => "/tmp/kronotop/data/shard-0"
 4# "segment_size" => (integer) 268435456
 5# "segments" =>
    1# (integer) 0 =>

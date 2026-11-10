@@ -73,19 +73,19 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, new StringListOutput<>(codec), args);
     }
 
-    public Command<K, V, String> setShardStatus(String shardKind, int sharId, String status) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_SHARD_STATUS).add(shardKind).add(sharId).add(status);
+    public Command<K, V, String> setShardStatus(int shardId, String status) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_SHARD_STATUS).add(shardId).add(status);
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
-    public Command<K, V, String> setShardStatus(String shardKind, String status) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_SHARD_STATUS).add(shardKind).add("*").add(status);
+    public Command<K, V, String> setShardStatus(String status) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_SHARD_STATUS).add("*").add(status);
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public Command<K, V, Map<String, Object>> describeShard(String shardKind, int shardId) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.DESCRIBE_SHARD).add(shardKind).add(shardId);
+    public Command<K, V, Map<String, Object>> describeShard(int shardId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.DESCRIBE_SHARD).add(shardId);
         return createCommand(CommandType.KR_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
     }
 
@@ -95,21 +95,19 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
     }
 
-    public Command<K, V, String> route(String operationKind, String routeKind, String shardKind, int shardId, String memberId) {
+    public Command<K, V, String> route(String operationKind, String routeKind, int shardId, String memberId) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.ROUTE).
                 add(operationKind).
                 add(routeKind).
-                add(shardKind).
                 add(shardId).
                 add(memberId);
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
-    public Command<K, V, String> route(String operationKind, String routeKind, String shardKind, String memberId) {
+    public Command<K, V, String> route(String operationKind, String routeKind, String memberId) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.ROUTE).
                 add(operationKind).
                 add(routeKind).
-                add(shardKind).
                 add("*").
                 add(memberId);
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);

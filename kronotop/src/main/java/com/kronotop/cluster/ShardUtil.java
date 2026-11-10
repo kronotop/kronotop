@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 
 /**
@@ -42,18 +41,16 @@ public class ShardUtil {
      *
      * @param context     the context of the Kronotop instance, containing necessary utilities and configurations
      * @param tr          the transaction within which the shard status is being set
-     * @param shardKind   the kind of the shard being updated (e.g., BUCKET)
      * @param shardStatus the new status to be set for the shard (e.g., READONLY, READWRITE, INOPERABLE)
      * @param shardId     the identifier for the specific shard whose status is being updated
      */
     public static void setShardStatus(
             Context context,
             Transaction tr,
-            ShardKind shardKind,
             ShardStatus shardStatus,
             int shardId
     ) {
-        DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardKind, shardId);
+        DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardId);
         setShardStatus(tr, shardStatus, shardSubspace);
     }
 
@@ -79,7 +76,6 @@ public class ShardUtil {
      *
      * @param context   the context of the Kronotop instance, containing the necessary utilities and configurations.
      * @param tr        the transaction within which the shard status is being retrieved.
-     * @param shardKind the kind of shard to be retrieved (e.g., BUCKET).
      * @param shardId   the identifier for the specific shard whose status is being retrieved.
      * @return the status of the specified shard as a {@link ShardStatus} enum value.
      * @throws IllegalStateException if the shard status has not been set for the given shard.
@@ -87,10 +83,9 @@ public class ShardUtil {
     public static ShardStatus getShardStatus(
             Context context,
             Transaction tr,
-            ShardKind shardKind,
             int shardId
     ) {
-        DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardKind, shardId);
+        DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardId);
         return getShardStatus(tr, shardSubspace);
     }
 }

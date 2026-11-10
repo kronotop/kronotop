@@ -67,7 +67,7 @@ public class BucketCreateHandler extends AbstractBucketHandler implements Handle
                 for (int shardId : shards) {
                     Route route = service.findRoute(shardId);
                     if (route == null) {
-                        throw new KronotopException("No route found for Bucket shard: " + shardId);
+                        throw new KronotopException("No route found for shard: " + shardId);
                     }
                 }
 

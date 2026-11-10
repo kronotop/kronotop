@@ -251,7 +251,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
                 IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, subspace, taskId);
                 if (state.status() == IndexTaskStatus.COMPLETED) {
                     LOGGER.debug(
-                            "Background index builder for namespace={}, bucket={}, index={} on Bucket shard: {} has been completed",
+                            "Background index builder for namespace={}, bucket={}, index={} on shard: {} has been completed",
                             task.getNamespace(),
                             task.getBucket(),
                             task.getIndexId(),
@@ -271,7 +271,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
 
                 if (state.cursorVersionstamp() == null) {
                     LOGGER.debug(
-                            "Background index builder for namespace={}, bucket={}, index={} on Bucket shard: {} has been completed, no items found",
+                            "Background index builder for namespace={}, bucket={}, index={} on shard: {} has been completed, no items found",
                             task.getNamespace(),
                             task.getBucket(),
                             task.getIndexId(),
@@ -282,7 +282,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
                 }
                 if (state.cursorVersionstamp().equals(task.getUpper())) {
                     LOGGER.debug(
-                            "Background index builder for namespace={}, bucket={}, index={} on Bucket shard: {} has been completed",
+                            "Background index builder for namespace={}, bucket={}, index={} on shard: {} has been completed",
                             task.getNamespace(),
                             task.getBucket(),
                             task.getIndexId(),
@@ -302,7 +302,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
                     service.getMetrics().addIndexMaintenanceProcessedEntries(processedEntries);
                 }
             } catch (DuplicateKeyException exp) {
-                LOGGER.debug("TaskId: {} on Bucket shard: {} has failed due to duplicate key violation: '{}'",
+                LOGGER.debug("TaskId: {} on shard: {} has failed due to duplicate key violation: '{}'",
                         VersionstampUtil.base32HexEncode(taskId),
                         shardId,
                         exp.getMessage()
@@ -321,7 +321,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
                 break;
             } catch (NoSuchBucketException | BucketBeingRemovedException |
                      NamespaceBeingRemovedException exp) {
-                LOGGER.debug("TaskId: {} on Bucket shard: {} has failed due to bucket/namespace removal: '{}'",
+                LOGGER.debug("TaskId: {} on shard: {} has failed due to bucket/namespace removal: '{}'",
                         VersionstampUtil.base32HexEncode(taskId),
                         shardId,
                         exp.getMessage()
@@ -330,7 +330,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
                 stopped = true;
                 break;
             } catch (IndexMaintenanceRoutineException | IndexTypeMismatchException exp) {
-                LOGGER.error("TaskId: {} on Bucket shard: {} has failed due to an error: '{}'",
+                LOGGER.error("TaskId: {} on shard: {} has failed due to an error: '{}'",
                         VersionstampUtil.base32HexEncode(taskId),
                         shardId,
                         exp.getMessage()
@@ -359,7 +359,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
                     throw exp;
                 }
                 service.getMetrics().incrementIndexMaintenanceRetriedConflicts();
-                LOGGER.debug("Retrying index build batch for namespace={}, bucket={}, index={} on Bucket shard: {} after a retriable commit conflict (attempt {})",
+                LOGGER.debug("Retrying index build batch for namespace={}, bucket={}, index={} on shard: {} after a retriable commit conflict (attempt {})",
                         task.getNamespace(),
                         task.getBucket(),
                         task.getIndexId(),
@@ -377,7 +377,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
     public void start() {
         String routineName = getClass().getSimpleName();
         LOGGER.debug(
-                "Starting {} for namespace={}, bucket={}, index={} on Bucket shard={} at the background",
+                "Starting {} for namespace={}, bucket={}, index={} on shard={} at the background",
                 routineName,
                 task.getNamespace(),
                 task.getBucket(),
@@ -389,7 +389,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
         if (!stopped && !Thread.currentThread().isInterrupted()) {
             buildIndex();
         }
-        LOGGER.debug("{} for {}/{}/{} on Bucket shard={} has been completed",
+        LOGGER.debug("{} for {}/{}/{} on shard={} has been completed",
                 routineName, task.getNamespace(), task.getBucket(), task.getIndexId(), shardId
         );
     }

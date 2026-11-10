@@ -71,7 +71,7 @@ public class VectorFlushMaintainer extends BaseVectorMaintainer<VectorFlushTask>
         final VectorFlushKey key = task.key();
         group.forEachOnHeap(key.generationId(), (onHeap) -> {
             if (drainMode || System.currentTimeMillis() - onHeap.getLastMutation() >= idleMillis) {
-                boolean flushed = group.flush(service.getBucketDataDir(), onHeap);
+                boolean flushed = group.flush(service.getDataDir(), onHeap);
                 if (flushed) {
                     VectorSyncTask syncTask = new VectorSyncTask(
                             key.namespace(),

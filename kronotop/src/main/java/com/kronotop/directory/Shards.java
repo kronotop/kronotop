@@ -19,13 +19,7 @@ package com.kronotop.directory;
 import java.util.List;
 
 /**
- * Represents the Shards directory node in the Kronotop directory structure.
- * This class provides access to Bucket directory nodes under the "shards"
- * path of the directory layout.
- * <p>
- * The class extends KronotopDirectoryNode, inheriting basic operations such as
- * extending the directory path and converting the layout to an immutable list.
- * Upon instantiation, this class appends the "shards" identifier to the directory layout.
+ * Represents the "shards" node of the Kronotop directory layout. Each shard has a child node named after its id.
  */
 public class Shards extends KronotopDirectoryNode {
     public Shards(List<String> layout) {
@@ -33,7 +27,58 @@ public class Shards extends KronotopDirectoryNode {
         layout.add("shards");
     }
 
-    public Bucket bucket() {
-        return new Bucket(layout);
+    public Shard shard(int shardId) {
+        return new Shard(layout, shardId);
+    }
+
+    public static class Shard extends KronotopDirectoryNode {
+        public Shard(List<String> layout, int shardId) {
+            super(layout);
+            layout.add(Integer.toString(shardId));
+        }
+
+        public Maintenance maintenance() {
+            return new Maintenance(layout);
+        }
+
+        public LastSeenVersions lastSeenVersions() {
+            return new LastSeenVersions(layout);
+        }
+
+        public static class Maintenance extends KronotopDirectoryNode {
+            public Maintenance(List<String> layout) {
+                super(layout);
+                layout.add("maintenance");
+            }
+
+            public Index index() {
+                return new Index(layout);
+            }
+
+            public static class Index extends KronotopDirectoryNode {
+                public Index(List<String> layout) {
+                    super(layout);
+                    layout.add("index");
+                }
+
+                public Tasks tasks() {
+                    return new Tasks(layout);
+                }
+
+                public static class Tasks extends KronotopDirectoryNode {
+                    public Tasks(List<String> layout) {
+                        super(layout);
+                        layout.add("tasks");
+                    }
+                }
+            }
+        }
+
+        public static class LastSeenVersions extends KronotopDirectoryNode {
+            public LastSeenVersions(List<String> layout) {
+                super(layout);
+                layout.add("lastSeenVersions");
+            }
+        }
     }
 }

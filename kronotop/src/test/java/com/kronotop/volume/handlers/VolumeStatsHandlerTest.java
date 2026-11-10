@@ -449,7 +449,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     private void assertExtraArgumentRejected(String subcommand) {
         String command = String.format(
-                "*4\r\n$12\r\nVOLUME.STATS\r\n$14\r\nbucket-shard-0\r\n$%d\r\n%s\r\n$4\r\njunk\r\n",
+                "*4\r\n$12\r\nVOLUME.STATS\r\n$7\r\nshard-0\r\n$%d\r\n%s\r\n$4\r\njunk\r\n",
                 subcommand.length(), subcommand
         );
         ByteBuf buf = Unpooled.buffer();

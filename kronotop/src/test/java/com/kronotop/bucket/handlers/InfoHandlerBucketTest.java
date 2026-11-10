@@ -74,7 +74,7 @@ class InfoHandlerBucketTest extends BaseBucketHandlerTest {
         for (int i = 0; i < count; i++) {
             String line = fieldValue(info, "volume" + i);
             assertNotNull(line);
-            if (line.startsWith("name=bucket-shard-")) {
+            if (line.startsWith("name=shard-")) {
                 appends += attribute(line, "appends");
             }
         }
@@ -99,7 +99,7 @@ class InfoHandlerBucketTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldCountVolumeAppends() {
-        // Behavior: an insert is one append on the bucket shard volume that stores the document
+        // Behavior: an insert is one append on the shard volume that stores the document
         createBucket(TEST_BUCKET);
         long before = bucketVolumeAppends();
 

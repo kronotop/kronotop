@@ -16,12 +16,10 @@
 
 package com.kronotop.volume.replication;
 
-import com.kronotop.cluster.sharding.ShardKind;
 
 import java.nio.file.Path;
 
 public record ReplicationSession(String volume,
-                                 ShardKind shardKind,
                                  int shardId,
                                  Path destination,
                                  Long segmentId,

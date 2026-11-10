@@ -16,8 +16,6 @@
 
 package com.kronotop.directory;
 
-import com.kronotop.cluster.sharding.ShardKind;
-
 import java.util.List;
 
 public class Volumes extends KronotopDirectoryNode {
@@ -27,42 +25,25 @@ public class Volumes extends KronotopDirectoryNode {
         layout.add("volumes");
     }
 
-    public Bucket bucket() {
-        return new Bucket(layout);
+    public Volume volume(String name) {
+        return new Volume(layout, name);
     }
 
-    public static class Bucket extends ShardKindCommon {
-        public Bucket(List<String> layout) {
-            super(layout, ShardKind.BUCKET);
-        }
-    }
-
-    private static class ShardKindCommon extends KronotopDirectoryNode {
-        public ShardKindCommon(List<String> layout, ShardKind shardKind) {
+    public static class Volume extends KronotopDirectoryNode {
+        public Volume(List<String> layout, String name) {
             super(layout);
-            layout.add(shardKind.name());
+            layout.add(name);
         }
 
-        public Volume volume(String name) {
-            return new Volume(layout, name);
+        public Standby standby(String memberId) {
+            return new Standby(layout, memberId);
         }
 
-        public static class Volume extends KronotopDirectoryNode {
-            public Volume(List<String> layout, String name) {
+        public static class Standby extends KronotopDirectoryNode {
+            public Standby(List<String> layout, String memberId) {
                 super(layout);
-                layout.add(name);
-            }
-
-            public Standby standby(String memberId) {
-                return new Standby(layout, memberId);
-            }
-
-            public static class Standby extends KronotopDirectoryNode {
-                public Standby(List<String> layout, String memberId) {
-                    super(layout);
-                    layout.add("standby");
-                    layout.add(memberId);
-                }
+                layout.add("standby");
+                layout.add(memberId);
             }
         }
     }

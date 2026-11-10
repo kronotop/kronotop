@@ -15,7 +15,7 @@ VOLUME.ADMIN PRUNE-CHANGELOG <volume-name> <retention-period>
 
 | Argument           | Type    | Description                                                                |
 |--------------------|---------|----------------------------------------------------------------------------|
-| `volume-name`      | string  | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`)  |
+| `volume-name`      | string  | Name of the volume, in `shard-<id>` format (e.g. `shard-0`)                |
 | `retention-period` | integer | Number of hours of changelog history to retain. Must be greater than zero. |
 
 ## Return Value
@@ -33,25 +33,25 @@ It is available on the management port (default 3320).
 
 Argument errors:
 
-| Error Code | Error message                                | Cause                                                   |
-|------------|----------------------------------------------|---------------------------------------------------------|
-| `ERR`      | `invalid number of arguments`                | -                                                       |
-| `ERR`      | `retention period must be greater than zero` | -                                                       |
-| `ERR`      | `invalid volume name: <name>`                | The name does not match the `<kind>-shard-<id>` format. |
+| Error Code | Error message                                | Cause                                            |
+|------------|----------------------------------------------|--------------------------------------------------|
+| `ERR`      | `invalid number of arguments`                | -                                                |
+| `ERR`      | `retention period must be greater than zero` | -                                                |
+| `ERR`      | `invalid volume name: <name>`                | The name does not match the `shard-<id>` format. |
 
 ## Examples
 
 **Prune changelog entries older than 24 hours:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN PRUNE-CHANGELOG bucket-shard-0 24
+127.0.0.1:3320> VOLUME.ADMIN PRUNE-CHANGELOG shard-0 24
 OK
 ```
 
 **Retention period is zero:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN PRUNE-CHANGELOG bucket-shard-0 0
+127.0.0.1:3320> VOLUME.ADMIN PRUNE-CHANGELOG shard-0 0
 (error) ERR retention period must be greater than zero
 ```
 

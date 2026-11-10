@@ -29,7 +29,6 @@ import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.*;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
@@ -186,7 +185,7 @@ class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
 
         // Verify that from the second node's perspective, the shard is remote
         RoutingService routing = secondContext.getService(RoutingService.NAME);
-        Route route = routing.findRoute(ShardKind.BUCKET, SHARD_ID);
+        Route route = routing.findRoute(SHARD_ID);
         assertNotEquals(secondContext.getMember(), route.primary(),
                 "Shard should be owned by primary, not second instance");
 

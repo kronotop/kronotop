@@ -23,7 +23,7 @@ docker compose -f kronotop-quickstart.yaml up
 ```
 
 This starts a minimal cluster: one FoundationDB instance, one Kronotop primary node, and one standby node.
-The primary owns bucket shard 0, and the standby replicates it for failover.
+The primary owns shard 0, and the standby replicates it for failover.
 
 ## Connect
 
@@ -48,12 +48,12 @@ PONG
 kronotop-primary:3320> KR.ADMIN DESCRIBE-CLUSTER
 1# "metadata_version" => "1.0.0"
 2# "cluster_name" => "development"
-3# "bucket" =>
+3# "shards" =>
    1# (integer) 0 =>
       1# "primary" => "f627bf46f8627333a064de5c388d0316cc223a54"
       2# "standbys" => 1) "e159f73fb21cd6ac80639b2cc1e087e8330cd947"
       3# "status" => "READWRITE"
-      4# "linked_volumes" => 1) "bucket-shard-0"
+      4# "linked_volumes" => 1) "shard-0"
 ```
 
 ## Session setup

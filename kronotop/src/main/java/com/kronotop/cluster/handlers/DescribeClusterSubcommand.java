@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.MetadataVersion;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
@@ -48,14 +47,12 @@ class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements 
                 String version = MetadataVersion.read(context, tr);
                 result.put(bulkString("metadata_version"), bulkString(version));
                 result.put(bulkString("cluster_name"), bulkString(context.getClusterName()));
-                for (ShardKind kind : context.getShardRegistry().getShardKinds()) {
-                    Map<RedisMessage, RedisMessage> shardsByKind = new LinkedHashMap<>();
-                    for (int shardId : getShardIds(kind)) {
-                        Map<RedisMessage, RedisMessage> shard = describeShard(tr, kind, shardId);
-                        shardsByKind.put(new IntegerRedisMessage(shardId), new MapRedisMessage(shard));
-                    }
-                    result.put(bulkString(kind.toString().toLowerCase()), new MapRedisMessage(shardsByKind));
+                Map<RedisMessage, RedisMessage> shards = new LinkedHashMap<>();
+                for (int shardId : getShardIds()) {
+                    Map<RedisMessage, RedisMessage> shard = describeShard(tr, shardId);
+                    shards.put(new IntegerRedisMessage(shardId), new MapRedisMessage(shard));
                 }
+                result.put(bulkString("shards"), new MapRedisMessage(shards));
             }
             return result;
         }, response::writeMap);

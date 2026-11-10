@@ -26,7 +26,6 @@ import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.core.InfoCollector;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.JSONUtil;
@@ -239,8 +238,8 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
 
     public DirectorySubspace openSubspace(String volumeName) {
         return subspaceCache.computeIfAbsent(volumeName, ignored -> {
-            VolumeNames.Parsed parsed = VolumeNames.parse(volumeName);
-            VolumeConfigGenerator volumeConfigGenerator = new VolumeConfigGenerator(context, parsed.shardKind(), parsed.shardId());
+            int shardId = VolumeNames.parse(volumeName);
+            VolumeConfigGenerator volumeConfigGenerator = new VolumeConfigGenerator(context, shardId);
             return volumeConfigGenerator.openVolumeSubspace();
         });
     }
@@ -268,8 +267,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         if (shardId == null) {
             return false;
         }
-        ShardKind shardKind = volume.getAttribute(VolumeAttributes.SHARD_KIND);
-        Route route = routing.findRoute(shardKind, shardId);
+        Route route = routing.findRoute(shardId);
         return route.primary().equals(context.getMember());
     }
 

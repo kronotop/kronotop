@@ -85,8 +85,8 @@ points to content that is not on disk.
 
 ## Sharding
 
-Bucket data is split into shards. Each shard owns exactly one volume, named after the shard (`bucket-shard-0`,
-`bucket-shard-1`, and so on). A bucket spans one or more shards, so its documents are spread across one or more
+Bucket data is split into shards. Each shard owns exactly one volume, named after the shard (`shard-0`,
+`shard-1`, and so on). A bucket spans one or more shards, so its documents are spread across one or more
 volumes. Inside a volume, a prefix keeps each bucket's data separate.
 
 Cluster routing assigns shard ownership. One member is the primary and serves all Bucket commands. Standby members

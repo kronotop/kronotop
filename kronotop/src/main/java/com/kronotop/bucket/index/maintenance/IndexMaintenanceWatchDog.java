@@ -27,7 +27,6 @@ import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.statistics.IndexAnalyzeTaskState;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KrExecutors;
@@ -46,7 +45,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * Watches the task queue of one bucket shard and runs its index maintenance tasks.
+ * Watches the task queue of one shard and runs its index maintenance tasks.
  *
  * <p>The watchdog waits on a FoundationDB watch for new tasks, spawns {@link IndexMaintenanceWorker}
  * threads for pending tasks, and hands COMPLETED or STOPPED tasks to the
@@ -76,14 +75,14 @@ public class IndexMaintenanceWatchDog implements Runnable {
     private volatile CompletableFuture<Void> watcher;
 
     /**
-     * Creates a watchdog for the given bucket shard.
+     * Creates a watchdog for the given shard.
      *
      * <p>Opens the shard's task subspace, creates the sweeper, and sets up the bounded worker
      * executor (pool size from {@code bucket.index.maintenance.worker_pool_size}, CPU cores when 0)
      * and the single-threaded scheduler used for periodic maintenance.
      *
      * @param context the application context providing access to services and FoundationDB
-     * @param shard   the bucket shard this watchdog will monitor
+     * @param shard   the shard this watchdog will monitor
      */
     public IndexMaintenanceWatchDog(Context context, BucketShard shard) {
         this.context = context;
@@ -302,7 +301,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
 
         // Index maintenance runs only on the primary owner of this shard.
         RoutingService routing = context.getService(RoutingService.NAME);
-        Route route = routing.findRoute(ShardKind.BUCKET, shard.id());
+        Route route = routing.findRoute(shard.id());
         if (route == null || !route.primary().equals(context.getMember())) {
             return;
         }
@@ -372,7 +371,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
                 processTaskQueue();
             } catch (Exception exp) {
                 if (!(shard.isClosed() && exp instanceof CancellationException)) {
-                    LOGGER.error("Failed to run shard maintenance worker on Bucket shard: {}", shard.id(), exp);
+                    LOGGER.error("Failed to run shard maintenance worker on shard: {}", shard.id(), exp);
                     LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(1));
                 }
             }

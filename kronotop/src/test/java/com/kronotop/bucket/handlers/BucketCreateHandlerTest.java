@@ -330,7 +330,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         Object response = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) response;
-        assertEquals("ERR No route found for Bucket shard: 9999", errorMessage.content());
+        assertEquals("ERR No route found for shard: 9999", errorMessage.content());
     }
 
     @Test

@@ -75,11 +75,10 @@ public class InternalCommandBuilder<K, V> extends BaseInternalCommandBuilder<K, 
         return createCommand(VolumeInspectCommandType.VOLUME_INSPECT, new VolumeInspectCursorOutput<>(codec), args);
     }
 
-    public Command<K, V, VolumeInspectReplicationResponse> volumeInspectReplication(String shardKind, int shardId, String standbyId) {
+    public Command<K, V, VolumeInspectReplicationResponse> volumeInspectReplication(String volume, String standbyId) {
         CommandArgs<K, V> args = new CommandArgs<>(codec)
                 .add(VolumeInspectCommandType.REPLICATION)
-                .add(shardKind)
-                .add(shardId)
+                .add(volume)
                 .add(standbyId);
         return createCommand(VolumeInspectCommandType.VOLUME_INSPECT, new VolumeInspectReplicationOutput<>(codec), args);
     }

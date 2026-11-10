@@ -13,10 +13,10 @@ VOLUME.ADMIN REPLICATION <operation> <volume-name>
 
 ## Arguments
 
-| Argument      | Type   | Description                                                                          |
-|---------------|--------|--------------------------------------------------------------------------------------|
-| `operation`   | string | One of `START` or `STOP` (case-insensitive)                                          |
-| `volume-name` | string | Volume identifier (e.g. `bucket-shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
+| Argument      | Type   | Description                                                                   |
+|---------------|--------|-------------------------------------------------------------------------------|
+| `operation`   | string | One of `START` or `STOP` (case-insensitive)                                   |
+| `volume-name` | string | Volume identifier (e.g. `shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
 
 **Operations:**
 
@@ -44,11 +44,11 @@ This command must be run on the standby node. It is available on the management 
 
 Argument errors:
 
-| Error Code | Error message                       | Cause                                                   |
-|------------|-------------------------------------|---------------------------------------------------------|
-| `ERR`      | `invalid number of arguments`       | -                                                       |
-| `ERR`      | `invalid volume name: <name>`       | The name does not match the `<kind>-shard-<id>` format. |
-| `ERR`      | `unknown subcommand: '<operation>'` | -                                                       |
+| Error Code | Error message                       | Cause                                            |
+|------------|-------------------------------------|--------------------------------------------------|
+| `ERR`      | `invalid number of arguments`       | -                                                |
+| `ERR`      | `invalid volume name: <name>`       | The name does not match the `shard-<id>` format. |
+| `ERR`      | `unknown subcommand: '<operation>'` | -                                                |
 
 Volume errors:
 
@@ -62,22 +62,22 @@ Volume errors:
 **Start replication on a standby node:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN REPLICATION START bucket-shard-1
+127.0.0.1:3320> VOLUME.ADMIN REPLICATION START shard-1
 OK
 ```
 
 **Stop replication on a standby node:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN REPLICATION STOP bucket-shard-1
+127.0.0.1:3320> VOLUME.ADMIN REPLICATION STOP shard-1
 OK
 ```
 
 **Node is not a standby:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN REPLICATION START bucket-shard-1
-(error) ERR This node is not a standby for bucket-shard-1
+127.0.0.1:3320> VOLUME.ADMIN REPLICATION START shard-1
+(error) ERR This node is not a standby for shard-1
 ```
 
 **Missing arguments:**

@@ -58,7 +58,7 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
     public ChangeDataCapture(Context context, DirectorySubspace subspace, ReplicationClient client, ReplicationSession session) {
         super(context, subspace, client, session);
         try {
-            this.clientWithoutTimeout = new ReplicationClient(context, session.shardKind(), session.shardId());
+            this.clientWithoutTimeout = new ReplicationClient(context, session.shardId());
             ClientOptions options = ClientOptions.builder().
                     timeoutOptions(TimeoutOptions.create()).
                     protocolVersion(ProtocolVersion.RESP3).

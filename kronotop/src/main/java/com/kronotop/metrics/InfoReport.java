@@ -19,7 +19,6 @@ package com.kronotop.metrics;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.core.InfoCollector;
 import com.kronotop.instance.KronotopInstanceStarter;
 import com.kronotop.internal.VersionstampUtil;
@@ -291,7 +290,7 @@ public class InfoReport {
         collector.put(KRONOTOP_SECTION, "cluster_name", context.getClusterName());
         collector.put(KRONOTOP_SECTION, "member_id", member.getId());
         collector.put(KRONOTOP_SECTION, "member_status", member.getStatus());
-        collector.put(KRONOTOP_SECTION, "bucket_shards", context.getShardRegistry().getShardIds(ShardKind.BUCKET).size());
+        collector.put(KRONOTOP_SECTION, "shards", context.getShardRegistry().getShardIds().size());
     }
 
     private void collectTraffic(InfoCollector collector) {

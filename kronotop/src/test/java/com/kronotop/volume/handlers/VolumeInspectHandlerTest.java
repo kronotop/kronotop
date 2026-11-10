@@ -19,7 +19,6 @@ package com.kronotop.volume.handlers;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.commands.VolumeInspectCommandBuilder;
 import com.kronotop.instance.KronotopInstance;
@@ -41,7 +40,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.EnumMap;
 import java.util.List;
 
 import static org.awaitility.Awaitility.await;
@@ -70,7 +68,7 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("SET", "STANDBY", SHARD_KIND.name(), SHARD_ID, standby.getMember().getId()).encode(buf);
+        cmd.route("SET", "STANDBY", SHARD_ID, standby.getMember().getId()).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -79,7 +77,7 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         RoutingService routing = standby.getContext().getService(RoutingService.NAME);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            Route route = routing.findRoute(SHARD_KIND, SHARD_ID);
+            Route route = routing.findRoute(SHARD_ID);
             if (route == null) {
                 return false;
             }
@@ -98,7 +96,7 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         VolumeInspectCommandBuilder<String, String> cmd = new VolumeInspectCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.cursor("bucket-shard-1").encode(buf);
+        cmd.cursor("shard-1").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
@@ -132,7 +130,7 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnCursorForEmptyVolume() {
         VolumeInspectCommandBuilder<String, String> cmd = new VolumeInspectCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.cursor("bucket-shard-1").encode(buf);
+        cmd.cursor("shard-1").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
@@ -172,9 +170,8 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Wait for replication to start
         await().atMost(Duration.ofSeconds(30)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(SHARD_KIND);
-            return shardIds != null && shardIds.contains(SHARD_ID);
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            return shardIds.contains(SHARD_ID);
         });
 
         VolumeInspectCommandBuilder<String, String> cmd = new VolumeInspectCommandBuilder<>(StringCodec.ASCII);
@@ -182,7 +179,7 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Wait until stage is populated (replication state written to FDB)
         await().atMost(Duration.ofSeconds(30)).until(() -> {
             ByteBuf b = Unpooled.buffer();
-            cmd.replication(VolumeNames.format(SHARD_KIND, SHARD_ID), standby.getMember().getId()).encode(b);
+            cmd.replication(VolumeNames.format(SHARD_ID), standby.getMember().getId()).encode(b);
             Object m = runCommand(channel, b);
             if (m instanceof MapRedisMessage mapMsg) {
                 for (var entry : mapMsg.children().entrySet()) {
@@ -198,7 +195,7 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Query replication status
         ByteBuf buf = Unpooled.buffer();
-        cmd.replication(VolumeNames.format(SHARD_KIND, SHARD_ID), standby.getMember().getId()).encode(buf);
+        cmd.replication(VolumeNames.format(SHARD_ID), standby.getMember().getId()).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);

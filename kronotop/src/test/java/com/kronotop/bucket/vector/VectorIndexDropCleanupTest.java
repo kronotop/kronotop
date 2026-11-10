@@ -98,7 +98,7 @@ class VectorIndexDropCleanupTest extends BaseVectorHookIntegrationTest {
 
         // Create the disk directory to simulate the flushed state
         Path indexDir = VectorGraphIndexGroup.resolveVectorDir(
-                        getBucketService().getBucketDataDir(), VectorGraphIndexGroup.ownerShardId(metadata))
+                        getBucketService().getDataDir(), VectorGraphIndexGroup.ownerShardId(metadata))
                 .resolve(metadata.uuid().toString())
                 .resolve(Long.toString(indexId));
         try {
@@ -175,7 +175,7 @@ class VectorIndexDropCleanupTest extends BaseVectorHookIntegrationTest {
 
         // Verify no disk directory exists
         Path indexDir = VectorGraphIndexGroup.resolveVectorDir(
-                        getBucketService().getBucketDataDir(), VectorGraphIndexGroup.ownerShardId(metadata))
+                        getBucketService().getDataDir(), VectorGraphIndexGroup.ownerShardId(metadata))
                 .resolve(metadata.uuid().toString())
                 .resolve(Long.toString(indexId));
         assertFalse(Files.exists(indexDir));

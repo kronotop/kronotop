@@ -19,7 +19,6 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -39,22 +38,20 @@ class DescribeShardSubcommand extends BaseKrAdminSubcommandHandler implements Su
         DescribeShardArguments arguments = new DescribeShardArguments(request.getArguments());
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
-                return describeShard(tr, arguments.kind, arguments.shardId);
+                return describeShard(tr, arguments.shardId);
             }
         }, response::writeMap);
     }
 
     private class DescribeShardArguments {
-        private final ShardKind kind;
         private final int shardId;
 
         private DescribeShardArguments(ArrayList<ByteBuf> args) {
-            if (args.size() != 3) {
+            if (args.size() != 2) {
                 throw new InvalidNumberOfArgumentsException();
             }
 
-            kind = ProtocolMessageUtil.readShardKind(args.get(1));
-            shardId = ProtocolMessageUtil.readShardId(context.getShardRegistry(), kind, args.get(2));
+            shardId = ProtocolMessageUtil.readShardId(context.getShardRegistry(), args.get(1));
         }
     }
 }

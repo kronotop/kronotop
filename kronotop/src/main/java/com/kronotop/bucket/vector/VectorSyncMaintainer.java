@@ -133,7 +133,7 @@ public class VectorSyncMaintainer extends BaseVectorMaintainer<VectorSyncTask> {
             return;
         }
 
-        Path indexDir = group.resolveIndexDir(service.getBucketDataDir());
+        Path indexDir = group.resolveIndexDir(service.getDataDir());
 
         List<Path> files = listFiles(indexDir, task.onDiskIndexId());
         if (files.isEmpty()) {

@@ -16,47 +16,33 @@
 
 package com.kronotop.volume;
 
-import com.kronotop.cluster.sharding.ShardKind;
-
 public final class VolumeNames {
+    private static final String PREFIX = "shard-";
+
     private VolumeNames() {
     }
 
-    public static String format(ShardKind shardKind, int shardId) {
-        return String.format("%s-shard-%d", shardKind, shardId).toLowerCase();
+    public static String format(int shardId) {
+        return PREFIX + shardId;
     }
 
-    public static Parsed parse(String name) {
+    public static int parse(String name) {
         if (name == null) {
             throw new IllegalArgumentException("name cannot be null");
         }
 
-        String[] parts = name.split("-");
-        if (parts.length != 3) {
+        if (!name.startsWith(PREFIX)) {
             throw new IllegalArgumentException("invalid volume name: " + name);
         }
 
-        if (!parts[1].equals("shard")) {
-            throw new IllegalArgumentException("invalid volume name: " + name);
-        }
-
-        ShardKind kind;
-        try {
-            kind = ShardKind.valueOf(parts[0].toUpperCase());
-        } catch (Exception e) {
-            throw new IllegalArgumentException("invalid shard kind: " + parts[0], e);
-        }
-
+        String rawShardId = name.substring(PREFIX.length());
         int shardId;
         try {
-            shardId = Integer.parseInt(parts[2]);
+            shardId = Integer.parseInt(rawShardId);
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("invalid shard id: " + parts[2], e);
+            throw new IllegalArgumentException("invalid shard id: " + rawShardId, e);
         }
 
-        return new Parsed(kind, shardId);
-    }
-
-    public record Parsed(ShardKind shardKind, int shardId) {
+        return shardId;
     }
 }

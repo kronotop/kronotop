@@ -108,9 +108,8 @@ class InspectReplicationSubcommand extends BaseSubcommandHandler implements Subc
 
         supplyAsync(context, response, () -> {
             try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
-                VolumeNames.Parsed parsed = VolumeNames.parse(arguments.volumeName);
                 DirectorySubspace standbySubspace = ReplicationUtil.openStandbySubspace(
-                        context, tr, parsed.shardKind(), arguments.volumeName, arguments.standById
+                        context, tr, arguments.volumeName, arguments.standById
                 );
                 ReplicationStatusInfo info = ReplicationUtil.readReplicationStatusInfo(tr, standbySubspace);
                 return mapReplicationStatusInfo(info);

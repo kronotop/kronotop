@@ -13,10 +13,10 @@ VOLUME.STATS <volume-name> REPLICATION <standby-id>
 
 ## Arguments
 
-| Argument      | Type   | Description                                                               |
-|---------------|--------|---------------------------------------------------------------------------|
-| `volume-name` | string | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
-| `standby-id`  | string | Member ID of the standby to inspect                                       |
+| Argument      | Type   | Description                                                 |
+|---------------|--------|-------------------------------------------------------------|
+| `volume-name` | string | Name of the volume, in `shard-<id>` format (e.g. `shard-0`) |
+| `standby-id`  | string | Member ID of the standby to inspect                         |
 
 ## Return Value
 
@@ -50,7 +50,7 @@ Argument errors:
 | Error Code | Error message                 | Cause                                                                   |
 |------------|-------------------------------|-------------------------------------------------------------------------|
 | `ERR`      | `invalid number of arguments` | -                                                                       |
-| `ERR`      | `invalid volume name: <name>` | The name does not match the `<kind>-shard-<id>` format.                 |
+| `ERR`      | `invalid volume name: <name>` | The name does not match the `shard-<id>` format.                        |
 | `ERR`      | `Invalid memberId: <id>`      | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 ## Examples
@@ -58,7 +58,7 @@ Argument errors:
 **Replication in segment replication stage:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0 REPLICATION standby-member-1
+127.0.0.1:3320> VOLUME.STATS shard-0 REPLICATION standby-member-1
 1# "stage" => "SEGMENT_REPLICATION"
 2# "status" => "RUNNING"
 3# "error_message" => ""
@@ -71,7 +71,7 @@ Argument errors:
 **Replication in change data capture stage:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0 REPLICATION standby-member-1
+127.0.0.1:3320> VOLUME.STATS shard-0 REPLICATION standby-member-1
 1# "stage" => "CHANGE_DATA_CAPTURE"
 2# "status" => "RUNNING"
 3# "error_message" => ""
@@ -84,7 +84,7 @@ Argument errors:
 **Replication not yet started:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0 REPLICATION standby-member-1
+127.0.0.1:3320> VOLUME.STATS shard-0 REPLICATION standby-member-1
 1# "stage" => ""
 2# "status" => "WAITING"
 3# "error_message" => ""
@@ -97,7 +97,7 @@ Argument errors:
 **Failed replication:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0 REPLICATION standby-member-1
+127.0.0.1:3320> VOLUME.STATS shard-0 REPLICATION standby-member-1
 1# "stage" => "SEGMENT_REPLICATION"
 2# "status" => "FAILED"
 3# "error_message" => "Connection refused"

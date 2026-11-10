@@ -19,7 +19,6 @@ package com.kronotop.internal;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.BaseClusterTest;
 import com.kronotop.KronotopTestInstance;
-import com.kronotop.cluster.sharding.ShardKind;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -47,7 +46,7 @@ public class DirectorySubspaceCacheTest extends BaseClusterTest {
                 instance.getContext().getTransactionManager(),
                 instance.getContext().getDirectoryLayer()
         );
-        DirectorySubspace subspace = assertDoesNotThrow(() -> cache.get(ShardKind.BUCKET, 1));
+        DirectorySubspace subspace = assertDoesNotThrow(() -> cache.get(1));
         assertNotNull(subspace);
     }
 }

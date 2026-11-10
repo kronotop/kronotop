@@ -21,8 +21,6 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.client.StatefulInternalConnection;
-import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.server.Response;
 import com.kronotop.transaction.TransactionUtil;
@@ -58,7 +56,6 @@ public class VolumeReplication implements ReplicationTask {
     private static final Logger LOGGER = LoggerFactory.getLogger(VolumeReplication.class);
 
     private final Context context;
-    private final ShardKind shardKind;
     private final int shardId;
     private final Path destination;
     private final String volume;
@@ -72,9 +69,8 @@ public class VolumeReplication implements ReplicationTask {
     private volatile boolean started;
     private volatile boolean shutdown;
 
-    public VolumeReplication(Context context, ShardKind shardKind, int shardId, String destination) {
+    public VolumeReplication(Context context, int shardId, String destination) {
         this.context = context;
-        this.shardKind = shardKind;
         this.shardId = shardId;
         this.transactionWithRetry = TransactionUtil.retry(10, Duration.ofMillis(100));
 
@@ -85,44 +81,25 @@ public class VolumeReplication implements ReplicationTask {
         }
 
         this.segmentSize = getSegmentSize();
-        this.volume = VolumeNames.format(shardKind, shardId);
+        this.volume = VolumeNames.format(shardId);
         this.subspace = createOrOpenStandbySubspace();
-        this.client = new ReplicationClient(context, shardKind, shardId);
+        this.client = new ReplicationClient(context, shardId);
     }
 
-    /**
-     * Returns the configured segment size based on shard kind.
-     */
     private long getSegmentSize() {
-        return switch (shardKind) {
-            case BUCKET -> context.getConfig().getLong("bucket.volume.segment_size");
-        };
+        return context.getConfig().getLong("bucket.volume.segment_size");
     }
 
     DirectorySubspace createOrOpenStandbySubspace() {
-        KronotopDirectoryNode node = switch (shardKind) {
-            case BUCKET -> KronotopDirectory.
-                    kronotop().
-                    cluster(context.getClusterName()).
-                    metadata().
-                    volumes().
-                    bucket().
-                    volume(volume).
-                    standby(context.getMember().getId());
-        };
+        KronotopDirectoryNode node = ReplicationUtil.standbyDirectoryNode(context, volume, context.getMember().getId());
 
         return transactionWithRetry.executeSupplier(() -> TransactionUtil.executeThenCommit(context,
                 tr -> context.getDirectoryLayer().createOrOpen(tr, node.toList()).join()
         ));
     }
 
-    /**
-     * Returns the configured chunk size for segment transfers based on shard kind.
-     */
     private long getChunkSize() {
-        return switch (shardKind) {
-            case BUCKET -> context.getConfig().getLong("bucket.volume.segment_replication_chunk_size");
-        };
+        return context.getConfig().getLong("bucket.volume.segment_replication_chunk_size");
     }
 
     /**
@@ -186,7 +163,6 @@ public class VolumeReplication implements ReplicationTask {
     private ReplicationStage initializeSegmentReplicationStage(ReplicationStep step, long chunkSize) {
         ReplicationSession session = new ReplicationSession(
                 volume,
-                shardKind,
                 shardId,
                 destination,
                 step.segmentId(),
@@ -203,7 +179,6 @@ public class VolumeReplication implements ReplicationTask {
     private ReplicationStage initializeChangeDataCaptureStage(ReplicationStep step, long chunkSize) {
         ReplicationSession session = new ReplicationSession(
                 volume,
-                shardKind,
                 shardId,
                 destination,
                 step.segmentId(),
@@ -232,7 +207,7 @@ public class VolumeReplication implements ReplicationTask {
             throw new KronotopException("Replication client health check has failed");
         }
 
-        LOGGER.debug("Ready to start replication on ShardKind={}, ShardId={}", shardKind, shardId);
+        LOGGER.debug("Ready to start replication on ShardId={}", shardId);
 
         long chunkSize = getChunkSize();
 

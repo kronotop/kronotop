@@ -518,14 +518,14 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         VectorGraphIndexGroup flushed = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         OnHeapVectorGraphIndex onHeap = flushed.getOrCreateOnHeap(GENERATION_ID, DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 6);
         onHeap.addGraphNode(oid, versionstamp, SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
-        flushed.flush(service.getBucketDataDir(), onHeap);
+        flushed.flush(service.getDataDir(), onHeap);
         flushed.closeAll();
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         List<OnDiskVectorGraphIndex> onDiskIndexes = VectorGraphIndexGroup.openOnDiskIndexes(
                 context,
                 vectorIndex.subspace(),
-                VectorGraphIndexGroup.resolveIndexDir(service.getBucketDataDir(), metadata, vectorIndex.definition().id()),
+                VectorGraphIndexGroup.resolveIndexDir(service.getDataDir(), metadata, vectorIndex.definition().id()),
                 VectorSimilarityFunction.COSINE
         );
         assertEquals(1, onDiskIndexes.size());

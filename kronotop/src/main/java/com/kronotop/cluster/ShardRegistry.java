@@ -18,65 +18,69 @@ package com.kronotop.cluster;
 
 import com.apple.foundationdb.ReadTransaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.internal.KronotopDirectoryLayer;
 import com.typesafe.config.Config;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Cached registry of known shard IDs per {@link ShardKind}.
- *
- * <p>BUCKET shard IDs are discovered from FoundationDB's DirectoryLayer and may be non-contiguous.
+ * Caches the shard ids of the cluster. The ids are read from the FoundationDB directory layer and may be
+ * non-contiguous.
  */
 public class ShardRegistry {
-    private final String clusterName;
     private final DirectoryLayer directoryLayer;
+    private final List<String> shardsPath;
     private final ReentrantLock lock = new ReentrantLock();
-    private final Set<ShardKind> enabledKinds;
-    private volatile BucketShards bucketShards = new BucketShards(List.of(), Set.of());
+    private volatile ShardIds shardIds = new ShardIds(List.of(), Set.of());
 
     public ShardRegistry(Config config, String clusterName) {
-        this.clusterName = clusterName;
         this.directoryLayer = KronotopDirectoryLayer.fromConfig(config);
-
-        this.enabledKinds = Collections.unmodifiableSet(EnumSet.of(ShardKind.BUCKET));
+        this.shardsPath = KronotopDirectory.kronotop().cluster(clusterName).metadata().shards().toList();
     }
 
     /**
-     * Returns the set of shard kinds that are enabled in the current configuration.
-     */
-    public Set<ShardKind> getShardKinds() {
-        return enabledKinds;
-    }
-
-    /**
-     * Returns the sorted list of shard IDs for the given kind.
+     * Returns the shard ids of the cluster.
      *
-     * @param kind the shard kind
-     * @return sorted, unmodifiable list of shard IDs
+     * @return sorted, unmodifiable list of shard ids
      */
-    public List<Integer> getShardIds(ShardKind kind) {
-        return bucketShards.ids();
+    public List<Integer> getShardIds() {
+        return shardIds.ids();
     }
 
     /**
-     * Checks whether the given shard ID is valid for the specified kind.
+     * Checks whether a shard with the given id exists.
      *
-     * @param kind    the shard kind
-     * @param shardId the shard ID to validate
-     * @return true if the shard ID exists
+     * @param shardId the shard id to check
+     * @return true if the shard exists
      */
-    public boolean isValidShardId(ShardKind kind, int shardId) {
-        return bucketShards.idSet().contains(shardId);
+    public boolean isValidShardId(int shardId) {
+        return shardIds.idSet().contains(shardId);
     }
 
-    private List<Integer> refreshCommon(ReadTransaction tr, List<String> path) {
+    /**
+     * Reloads the shard ids from the FoundationDB directory layer.
+     *
+     * @param tr the read transaction used to list the directory
+     */
+    public void refresh(ReadTransaction tr) {
+        lock.lock();
+        try {
+            List<Integer> ids = listShardIds(tr);
+            this.shardIds = new ShardIds(Collections.unmodifiableList(ids), Set.copyOf(ids));
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private List<Integer> listShardIds(ReadTransaction tr) {
         List<String> children;
         try {
-            children = directoryLayer.list(tr, path).join();
+            children = directoryLayer.list(tr, shardsPath).join();
         } catch (Exception e) {
             // Directory may not exist yet (pre-initialization)
             return List.of();
@@ -90,38 +94,6 @@ public class ShardRegistry {
         return ids;
     }
 
-    private void refreshBucket(ReadTransaction tr) {
-        List<String> bucketDirPath = KronotopDirectory
-                .kronotop()
-                .cluster(clusterName)
-                .metadata()
-                .shards()
-                .bucket()
-                .toList();
-
-        List<Integer> ids = refreshCommon(tr, bucketDirPath);
-        this.bucketShards = new BucketShards(
-                Collections.unmodifiableList(ids),
-                Set.copyOf(ids)
-        );
-    }
-
-    /**
-     * Reloads the BUCKET shard list from FoundationDB's DirectoryLayer.
-     *
-     * @param tr a read transaction to use for directory listing
-     */
-    public void refresh(ReadTransaction tr, ShardKind shardKind) {
-        lock.lock();
-        try {
-            if (shardKind == ShardKind.BUCKET) {
-                refreshBucket(tr);
-            }
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    private record BucketShards(List<Integer> ids, Set<Integer> idSet) {
+    private record ShardIds(List<Integer> ids, Set<Integer> idSet) {
     }
 }

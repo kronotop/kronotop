@@ -25,8 +25,8 @@
           "description": "Name of the cluster.",
           "type": "string"
         },
-        "bucket": {
-          "description": "Per-shard details for all bucket shards, keyed by shard id.",
+        "shards": {
+          "description": "Per-shard details for all shards, keyed by shard id.",
           "type": "object",
           "additionalProperties": {
             "description": "The details of one shard.",
@@ -50,7 +50,7 @@
                 "type": "string"
               },
               "linked_volumes": {
-                "description": "Volume names in the format <kind>-shard-<id>.",
+                "description": "Volume names in the format shard-<id>.",
                 "type": "array",
                 "items": {
                   "description": "A volume name.",

@@ -224,7 +224,7 @@ public interface Context {
     InternalClientPool getInternalClientPool();
 
     /**
-     * Returns the shard registry for discovering shard IDs per shard kind.
+     * Returns the shard registry that holds the shard IDs of the cluster.
      *
      * @return the {@link ShardRegistry} instance
      */

@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.Context;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.transaction.TransactionUtil;
@@ -31,46 +30,33 @@ import java.time.Duration;
 import java.util.concurrent.CompletionException;
 
 /**
- * VolumeConfigGenerator is responsible for generating configuration settings for Volumes
- * within a Kronotop cluster. It interacts with the Kronotop and FoundationDB directory structure to
- * create or open directory subspaces for volume management.
+ * Builds the volume configuration of a shard. It resolves the local data directory of the shard
+ * and the FoundationDB directory subspace of its volume.
  */
 public class VolumeConfigGenerator {
     private final Context context;
-    private final ShardKind shardKind;
     private final int shardId;
 
-    public VolumeConfigGenerator(Context context, ShardKind shardKind, int shardId) {
+    /**
+     * Creates a generator for the volume of the given shard.
+     *
+     * @param context the context of the member
+     * @param shardId the shard ID
+     */
+    public VolumeConfigGenerator(Context context, int shardId) {
         this.context = context;
-        this.shardKind = shardKind;
         this.shardId = shardId;
     }
 
-    private KronotopDirectoryNode getBucketShardVolumeDirectory() {
+    private KronotopDirectoryNode getShardVolumeDirectory() {
         return KronotopDirectory.
                 kronotop().
                 cluster(context.getClusterName()).
                 metadata().
                 volumes().
-                bucket().
                 volume(Integer.toString(shardId));
     }
 
-    /**
-     * Creates or opens a DirectorySubspace for a specified directory within the Kronotop structure.
-     * This method attempts to create or retrieve the subspace for the given directory,
-     * optionally creating it if it does not exist, based on the provided flag.
-     * <p>
-     * If a FoundationDB transaction conflict is detected (error code 1020), the method will retry.
-     * Any other exceptions are propagated to the caller.
-     *
-     * @param directory        the KronotopDirectoryNode representing the directory path for the subspace.
-     * @param createIfNotExist a boolean flag indicating whether to create the DirectorySubspace if it doesn't exist.
-     *                         If false, the method attempts to open the subspace, failing if it does not exist.
-     * @return the created or opened DirectorySubspace associated with the specified Kronotop directory.
-     * @throws CompletionException if the creation or opening of the subspace fails for any reason other than a
-     *                             transaction conflict (which is retried automatically).
-     */
     private DirectorySubspace createOrOpenVolumeSubspace(KronotopDirectoryNode directory, boolean createIfNotExist) {
         Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
         return retry.executeSupplier(() -> {
@@ -92,77 +78,64 @@ public class VolumeConfigGenerator {
         });
     }
 
-    private VolumeConfig newBucketShardVolumeConfig(DirectorySubspace subspace, String dataDir) {
-        String name = VolumeNames.format(ShardKind.BUCKET, shardId);
+    private VolumeConfig newShardVolumeConfig(DirectorySubspace subspace, String dataDir) {
+        String name = VolumeNames.format(shardId);
         long segmentSize = context.getConfig().getLong("bucket.volume.segment_size");
         return new VolumeConfig(subspace, name, dataDir, segmentSize);
     }
 
     /**
-     * Constructs the directory path for storing shard-related data.
-     * <p>
-     * The path is built using the base data directory from the context, the
-     * lowercased name of the shard kind, a fixed folder name "shards", and the shard ID.
+     * Returns the local directory that holds the files of a shard.
      *
-     * @return the complete directory path as a String where shard data is to be stored.
+     * @param dataDir the data directory of the member
+     * @param shardId the shard ID
+     * @return the shard directory under the data directory
      */
-    public String getDataDir() {
-        return Path.of(
-                context.getDataDir().toString(),
-                shardKind.name().toLowerCase(),
-                "shards",
-                Integer.toString(shardId)
-        ).toString();
+    public static Path shardDataDir(Path dataDir, int shardId) {
+        return dataDir.resolve("shards").resolve(Integer.toString(shardId));
     }
 
+    public String getDataDir() {
+        return shardDataDir(context.getDataDir(), shardId).toString();
+    }
+
+    /**
+     * Returns the volume configuration of the shard with its default local directory.
+     *
+     * @return the configuration of the shard volume
+     */
     public VolumeConfig volumeConfig() {
         return volumeConfig(getDataDir());
     }
 
     /**
-     * Generates a volume configuration for a Bucket shard based on the provided data directory.
+     * Returns the volume configuration of the shard with the given local directory. Creates the
+     * directory subspace of the volume if it does not exist.
      *
-     * @param dataDir the directory where data for the volume will be stored
-     * @return a VolumeConfig object containing the configuration details for the Bucket shard volume
-     * @throws IllegalArgumentException if the shard kind is not recognized
+     * @param dataDir the local directory that stores the volume files
+     * @return the configuration of the shard volume
      */
     public VolumeConfig volumeConfig(String dataDir) {
-        if (shardKind.equals(ShardKind.BUCKET)) {
-            KronotopDirectoryNode directory = getBucketShardVolumeDirectory();
-            DirectorySubspace subspace = createOrOpenVolumeSubspace(directory, true);
-            return newBucketShardVolumeConfig(subspace, dataDir);
-        } else {
-            throw new IllegalArgumentException("Unknown shard kind: " + shardKind);
-        }
+        DirectorySubspace subspace = createOrOpenVolumeSubspace(getShardVolumeDirectory(), true);
+        return newShardVolumeConfig(subspace, dataDir);
     }
 
     /**
-     * Creates or opens the DirectorySubspace for the volume of a Bucket shard.
+     * Opens the directory subspace of the shard volume. Creates it if it does not exist.
      *
-     * @return the DirectorySubspace corresponding to the volume associated with the Bucket shard
-     * @throws IllegalArgumentException if the shard kind is not recognized
+     * @return the directory subspace of the shard volume
      */
     public DirectorySubspace createOrOpenVolumeSubspace() {
-        if (shardKind.equals(ShardKind.BUCKET)) {
-            KronotopDirectoryNode directory = getBucketShardVolumeDirectory();
-            return createOrOpenVolumeSubspace(directory, true);
-        } else {
-            throw new IllegalArgumentException("Unknown shard kind: " + shardKind);
-        }
+        return createOrOpenVolumeSubspace(getShardVolumeDirectory(), true);
     }
 
     /**
-     * Opens the DirectorySubspace associated with a volume's configuration.
+     * Opens the directory subspace of the shard volume.
      *
-     * @return the DirectorySubspace corresponding to the volume configuration of the Bucket shard
-     * @throws IllegalArgumentException if the shard kind is unrecognized
+     * @return the directory subspace of the shard volume
+     * @throws IllegalArgumentException if the volume does not exist
      */
     public DirectorySubspace openVolumeSubspace() {
-        if (shardKind.equals(ShardKind.BUCKET)) {
-            KronotopDirectoryNode directory = getBucketShardVolumeDirectory();
-            return createOrOpenVolumeSubspace(directory, false);
-        } else {
-            throw new IllegalArgumentException("Unknown shard kind: " + shardKind);
-        }
+        return createOrOpenVolumeSubspace(getShardVolumeDirectory(), false);
     }
 }

@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.commands.VolumeAdminCommandBuilder;
 import com.kronotop.server.RESPVersion;
@@ -41,7 +40,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.EnumMap;
 import java.util.List;
 
 import static org.awaitility.Awaitility.await;
@@ -49,7 +47,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
-    private final String volumeName = VolumeNames.format(SHARD_KIND, SHARD_ID);
+    private final String volumeName = VolumeNames.format(SHARD_ID);
 
     @BeforeEach
     void useRESP3() {
@@ -86,7 +84,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.describe("bucket-shard-1").encode(buf);
+        cmd.describe("shard-1").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
@@ -95,7 +93,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             String key = ((FullBulkStringRedisMessage) k).content().toString(StandardCharsets.UTF_8);
             switch (key) {
                 case "name":
-                    assertEquals("bucket-shard-1", ((FullBulkStringRedisMessage) v).content().toString(StandardCharsets.UTF_8));
+                    assertEquals("shard-1", ((FullBulkStringRedisMessage) v).content().toString(StandardCharsets.UTF_8));
                     break;
                 case "status":
                     assertEquals(VolumeStatus.READWRITE.name(), ((FullBulkStringRedisMessage) v).content().toString(StandardCharsets.UTF_8));
@@ -163,7 +161,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldListSegmentsEmptyVolume() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.listSegments("bucket-shard-1").encode(buf);
+        cmd.listSegments("shard-1").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -177,7 +175,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         injectTestData();
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.listSegments("bucket-shard-1").encode(buf);
+        cmd.listSegments("shard-1").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -194,7 +192,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.setStatus("bucket-shard-1", "READONLY").encode(buf);
+            cmd.setStatus("shard-1", "READONLY").encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -204,7 +202,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.describe("bucket-shard-1").encode(buf);
+            cmd.describe("shard-1").encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -222,7 +220,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenSetStatusWithInvalidNumberOfArguments() {
         // Send command without status argument
         ByteBuf buf = Unpooled.buffer();
-        buf.writeBytes("*3\r\n$12\r\nVOLUME.ADMIN\r\n$10\r\nSET-STATUS\r\n$14\r\nbucket-shard-1\r\n".getBytes());
+        buf.writeBytes("*3\r\n$12\r\nVOLUME.ADMIN\r\n$10\r\nSET-STATUS\r\n$7\r\nshard-1\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
 
@@ -248,7 +246,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenSetStatusWithInvalidStatus() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setStatus("bucket-shard-1", "INVALID").encode(buf);
+        cmd.setStatus("shard-1", "INVALID").encode(buf);
 
         Object msg = runCommand(channel, buf);
 
@@ -262,7 +260,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(3, 10);
 
         VolumeService service = context.getService(VolumeService.NAME);
-        Volume shard = service.findVolume("bucket-shard-1");
+        Volume shard = service.findVolume("shard-1");
         try (Transaction tr = database.createTransaction()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             shard.append(session, entries);
@@ -273,7 +271,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.cleanupOrphanFiles("bucket-shard-1").encode(buf);
+        cmd.cleanupOrphanFiles("shard-1").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -290,7 +288,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("SET", "STANDBY", SHARD_KIND.name(), SHARD_ID, standby.getMember().getId()).encode(buf);
+        cmd.route("SET", "STANDBY", SHARD_ID, standby.getMember().getId()).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -299,7 +297,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         RoutingService routing = standby.getContext().getService(RoutingService.NAME);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            Route route = routing.findRoute(SHARD_KIND, SHARD_ID);
+            Route route = routing.findRoute(SHARD_ID);
             if (route == null) {
                 return false;
             }
@@ -309,7 +307,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     private void stopReplication(KronotopTestInstance standby) {
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
-        replicationService.stopReplication(SHARD_KIND, SHARD_ID, true);
+        replicationService.stopReplication(SHARD_ID, true);
     }
 
     @Test
@@ -320,15 +318,14 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Stop the auto-started replication first
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
-            EnumMap<ShardKind, List<Integer>> active = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = active.get(SHARD_KIND);
-            return shardIds != null && shardIds.contains(SHARD_ID);
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            return shardIds.contains(SHARD_ID);
         });
         stopReplication(standby);
 
         // Verify replication is stopped
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
-        assertTrue(replicationService.listActiveReplicationsByShard().isEmpty());
+        assertTrue(replicationService.listActiveReplications().isEmpty());
 
         // Start replication via command
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
@@ -343,9 +340,8 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Verify replication has started
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> active = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = active.get(SHARD_KIND);
-            return shardIds != null && shardIds.contains(SHARD_ID);
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            return shardIds.contains(SHARD_ID);
         });
     }
 
@@ -362,7 +358,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR This node is not a standby for bucket-shard-1", actualMessage.content());
+        assertEquals("ERR This node is not a standby for shard-1", actualMessage.content());
     }
 
     @Test
@@ -376,7 +372,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR This node is not a standby for bucket-shard-1", actualMessage.content());
+        assertEquals("ERR This node is not a standby for shard-1", actualMessage.content());
     }
 
     @Test
@@ -400,9 +396,8 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Wait for replication to start
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            EnumMap<ShardKind, List<Integer>> active = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = active.get(SHARD_KIND);
-            return shardIds != null && shardIds.contains(SHARD_ID);
+            List<Integer> shardIds = replicationService.listActiveReplications();
+            return shardIds.contains(SHARD_ID);
         });
 
         // Stop replication via command
@@ -417,7 +412,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertEquals(Response.OK, actualMessage.content());
 
         // Verify replication has stopped
-        assertTrue(replicationService.listActiveReplicationsByShard().isEmpty());
+        assertTrue(replicationService.listActiveReplications().isEmpty());
     }
 
     @Test
@@ -433,7 +428,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR This node is not a standby for bucket-shard-1", actualMessage.content());
+        assertEquals("ERR This node is not a standby for shard-1", actualMessage.content());
     }
 
     @Test
@@ -447,7 +442,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR This node is not a standby for bucket-shard-1", actualMessage.content());
+        assertEquals("ERR This node is not a standby for shard-1", actualMessage.content());
     }
 
     @Test
@@ -467,7 +462,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldPruneChangelogSuccessfully() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.pruneChangelog("bucket-shard-1", 24).encode(buf);
+        cmd.pruneChangelog("shard-1", 24).encode(buf);
 
         Object msg = runCommand(channel, buf);
 
@@ -480,7 +475,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenPruneChangelogRetentionPeriodIsZero() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.pruneChangelog("bucket-shard-1", 0).encode(buf);
+        cmd.pruneChangelog("shard-1", 0).encode(buf);
 
         Object msg = runCommand(channel, buf);
 
@@ -493,7 +488,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenPruneChangelogRetentionPeriodIsNegative() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.pruneChangelog("bucket-shard-1", -1).encode(buf);
+        cmd.pruneChangelog("shard-1", -1).encode(buf);
 
         Object msg = runCommand(channel, buf);
 

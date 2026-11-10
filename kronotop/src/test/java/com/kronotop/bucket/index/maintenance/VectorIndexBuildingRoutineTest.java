@@ -369,7 +369,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         assertNotNull(group, "VectorGraphIndexGroup should be registered");
 
         // Flush every on-heap graph to disk, the same call the flush maintainer makes.
-        group.forEachOnHeap(onHeap -> group.flush(bucketService.getBucketDataDir(), onHeap));
+        group.forEachOnHeap(onHeap -> group.flush(bucketService.getDataDir(), onHeap));
 
         AtomicInteger onHeapLeft = new AtomicInteger();
         group.forEachOnHeap(ignored -> onHeapLeft.incrementAndGet());

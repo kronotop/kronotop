@@ -54,7 +54,7 @@ public class IndexTaskUtil {
         // Task subspace has already been created during initialization
         List<String> layout = KronotopDirectory.
                 kronotop().cluster(context.getClusterName()).metadata().
-                shards().bucket().shard(shardId).maintenance().
+                shards().shard(shardId).maintenance().
                 index().tasks().toList();
         return context.getDirectorySubspaceCache().get(layout);
     }

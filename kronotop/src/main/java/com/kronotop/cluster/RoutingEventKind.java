@@ -25,10 +25,10 @@ package com.kronotop.cluster;
  */
 public enum RoutingEventKind {
     /**
-     * Triggered when this member becomes the primary owner of a Bucket shard.
+     * Triggered when this member becomes the primary owner of a shard.
      * Initializes data structures and loads configuration for document operations.
      */
-    INITIALIZE_BUCKET_SHARD,
+    INITIALIZE_SHARD,
 
     /**
      * Triggered when this member is assigned as a standby for a shard.

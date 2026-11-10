@@ -20,21 +20,18 @@ import com.kronotop.Context;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.Shard;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.volume.VolumeService;
 
 public abstract class AbstractShard implements Shard {
     protected final Context context;
     protected final int id;
-    protected final ShardKind shardKind;
     protected final VolumeService volumeService;
     protected final RoutingService routingService;
     private volatile boolean operable = true;
 
-    public AbstractShard(Context context, ShardKind shardKind, int id) {
+    public AbstractShard(Context context, int id) {
         this.context = context;
-        this.shardKind = shardKind;
         this.id = id;
         this.volumeService = context.getService(VolumeService.NAME);
         this.routingService = context.getService(RoutingService.NAME);
@@ -42,7 +39,7 @@ public abstract class AbstractShard implements Shard {
 
     @Override
     public ShardStatus status() {
-        Route route = routingService.findRoute(shardKind, id);
+        Route route = routingService.findRoute(id);
         if (route == null) {
             return ShardStatus.INOPERABLE;
         }
@@ -52,11 +49,6 @@ public abstract class AbstractShard implements Shard {
     @Override
     public Integer id() {
         return id;
-    }
-
-    @Override
-    public ShardKind kind() {
-        return shardKind;
     }
 
     @Override

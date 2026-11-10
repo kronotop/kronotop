@@ -60,7 +60,7 @@ public final class VectorIndexVolumeRestore {
      * @param context                  server context
      * @param metadata                 metadata of the bucket that owns the index
      * @param vectorIndex              the vector index
-     * @param bucketDataDir            root of the bucket data directory
+     * @param dataDir            the data directory of the member
      * @param readChunksPerTransaction number of chunks read in one transaction
      * @throws IOException if the index directory cannot be created or a file cannot be written
      */
@@ -68,12 +68,12 @@ public final class VectorIndexVolumeRestore {
             Context context,
             BucketMetadata metadata,
             VectorIndex vectorIndex,
-            Path bucketDataDir,
+            Path dataDir,
             int readChunksPerTransaction
     ) throws IOException {
         BucketService service = context.getService(BucketService.NAME);
         int shardId = VectorGraphIndexGroup.ownerShardId(metadata);
-        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(bucketDataDir, metadata, vectorIndex.definition().id());
+        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(dataDir, metadata, vectorIndex.definition().id());
         DirectorySubspace indexSubspace = vectorIndex.subspace();
 
         // (GRAPH_SYNCED, graphId) keys, one per graph that is fully written to Volume.

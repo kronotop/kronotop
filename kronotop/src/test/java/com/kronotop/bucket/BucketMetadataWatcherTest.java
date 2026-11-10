@@ -21,7 +21,6 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,7 +48,6 @@ class BucketMetadataWatcherTest extends BaseBucketHandlerTest {
                 cluster(context.getClusterName()).
                 metadata().
                 shards().
-                bucket().
                 shard(shardId).
                 lastSeenVersions();
         return subspaces.computeIfAbsent(shardId,
@@ -70,7 +68,7 @@ class BucketMetadataWatcherTest extends BaseBucketHandlerTest {
 
         final Map<Integer, DirectorySubspace> subspaces = new HashMap<>();
 
-        List<Integer> shardIds = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
+        List<Integer> shardIds = context.getShardRegistry().getShardIds();
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             int total = 0;
             try (Transaction tr = context.getTransactionManager().create()) {

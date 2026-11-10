@@ -75,10 +75,10 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
         StartArguments arguments = new StartArguments(request.getArguments());
         runAsync(context, response, () -> {
             Volume volume = service.findVolume(arguments.volumeName);
-            VolumeNames.Parsed parsed = VolumeNames.parse(arguments.volumeName);
+            int shardId = VolumeNames.parse(arguments.volumeName);
             volume.vacuumStart(
                     arguments.garbageThreshold,
-                    () -> new BucketEntryEvacuator(volume, parsed.shardId())
+                    () -> new BucketEntryEvacuator(volume, shardId)
             );
         }, response::writeOK);
     }

@@ -236,21 +236,21 @@ control tool, bootstraps the cluster in one step.
 Run it from the built jar:
 
 ```
-java -jar kronotop-ctl/target/kronotop-ctl-2026.11-1.jar bootstrap --primary BUCKET 127.0.0.1:3320=0
+java -jar kronotop-ctl/target/kronotop-ctl-2026.11-1.jar bootstrap --primary 127.0.0.1:3320=0
 ```
 
 This initializes the cluster, waits for shard discovery, assigns shard `0` to the node as primary, and opens it for
 read/write traffic. Bootstrap is idempotent: if the cluster is already initialized, it skips and exits.
 
 The assignment syntax is `host:port=shard-ids`, where the port is the internal/admin port (`3320`) and shard ids are
-comma-separated. The only shard kind is `BUCKET`.
+comma-separated.
 
 For a two-node primary/standby setup:
 
 ```
 java -jar kronotop-ctl/target/kronotop-ctl-2026.11-1.jar bootstrap \
-  --primary BUCKET 127.0.0.1:3320=0 \
-  --standby BUCKET 127.0.0.1:3322=0
+  --primary 127.0.0.1:3320=0 \
+  --standby 127.0.0.1:3322=0
 ```
 
 To drive the steps by hand with `KR.ADMIN` commands (initialize, list members, assign routes, set shard status),
@@ -318,8 +318,8 @@ Then bootstrap with both nodes:
 
 ```
 java -jar kronotop-ctl/target/kronotop-ctl-2026.11-1.jar bootstrap \
-  --primary BUCKET 127.0.0.1:3320=0 \
-  --standby BUCKET 127.0.0.1:3322=0
+  --primary 127.0.0.1:3320=0 \
+  --standby 127.0.0.1:3322=0
 ```
 
 ## Configuration Overrides

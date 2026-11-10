@@ -93,25 +93,25 @@ high-garbage segments into the current writable segment, and the emptied segment
 1. **Start vacuum** on a volume, specifying a garbage threshold. Only segments whose garbage percentage exceeds this
    value will be processed:
    ```kronotop
-   127.0.0.1:3320> VOLUME.ADMIN VACUUM START bucket-shard-0 30
+   127.0.0.1:3320> VOLUME.ADMIN VACUUM START shard-0 30
    OK
    ```
 
 2. **Monitor progress.** Vacuum auto-completes when all eligible segments are processed:
    ```kronotop
-   127.0.0.1:3320> VOLUME.ADMIN VACUUM STATUS bucket-shard-0
+   127.0.0.1:3320> VOLUME.ADMIN VACUUM STATUS shard-0
    ```
 
 3. **Drop metadata** after the run finishes. This is required before starting a new vacuum on the same volume:
    ```kronotop
-   127.0.0.1:3320> VOLUME.ADMIN VACUUM DROP bucket-shard-0
+   127.0.0.1:3320> VOLUME.ADMIN VACUUM DROP shard-0
    OK
    ```
 
 **Stopping early (if needed):**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN VACUUM STOP bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN VACUUM STOP shard-0
 OK
 ```
 
@@ -139,38 +139,38 @@ Follow this checklist after namespace purges or periodic maintenance:
 2. **List all volumes**
    ```kronotop
    127.0.0.1:3320> VOLUME.ADMIN LIST
-   1) bucket-shard-0
-   2) bucket-shard-1
+   1) shard-0
+   2) shard-1
    ...
    ```
 
 3. **Inspect each volume**
    ```kronotop
-   127.0.0.1:3320> VOLUME.ADMIN DESCRIBE bucket-shard-0
+   127.0.0.1:3320> VOLUME.ADMIN DESCRIBE shard-0
    ```
    Check `garbage_percentage` values per segment.
 
 4. **Vacuum high-garbage volumes**
    ```kronotop
-   127.0.0.1:3320> VOLUME.ADMIN VACUUM START bucket-shard-0 30
+   127.0.0.1:3320> VOLUME.ADMIN VACUUM START shard-0 30
    OK
    ```
    Run this for each volume where `garbage_percentage` exceeds your chosen threshold. Wait for completion, then drop
    the metadata:
    ```kronotop
-   127.0.0.1:3320> VOLUME.ADMIN VACUUM DROP bucket-shard-0
+   127.0.0.1:3320> VOLUME.ADMIN VACUUM DROP shard-0
    OK
    ```
 
 5. **Re-inspect volumes**
    ```kronotop
-   127.0.0.1:3320> VOLUME.ADMIN DESCRIBE bucket-shard-0
+   127.0.0.1:3320> VOLUME.ADMIN DESCRIBE shard-0
    ```
    Confirm that the stale segment has been evacuated and deleted.
 
 6. **Clean up orphan files (optional)**
    ```kronotop
-   127.0.0.1:3320> VOLUME.ADMIN CLEANUP-ORPHAN-FILES bucket-shard-0
+   127.0.0.1:3320> VOLUME.ADMIN CLEANUP-ORPHAN-FILES shard-0
    ```
    Run this if you suspect leftover files from crashes or interrupted operations.
 

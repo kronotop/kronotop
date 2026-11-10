@@ -91,7 +91,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
     private void cleanupVectorIndexDir() {
         Path vectorDir = VectorGraphIndexGroup.resolveVectorDir(
-                context.getDataDir().resolve("bucket"),
+                context.getDataDir(),
                 VectorGraphIndexGroup.ownerShardId(metadata)
         );
         if (Files.isDirectory(vectorDir)) {
@@ -331,7 +331,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         List<OnDiskVectorGraphIndex> result = VectorGraphIndexGroup.openOnDiskIndexes(
                 context,
                 vectorIndex.subspace(),
-                VectorGraphIndexGroup.resolveIndexDir(context.getDataDir().resolve("bucket"), metadata, vectorIndex.definition().id()),
+                VectorGraphIndexGroup.resolveIndexDir(context.getDataDir(), metadata, vectorIndex.definition().id()),
                 VectorSimilarityFunction.COSINE);
         assertTrue(result.isEmpty());
     }
@@ -339,12 +339,12 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldReturnEmptyListWhenDirectoryIsEmpty() throws IOException {
         // Behavior: openOnDiskIndexes returns an empty list when the directory exists but contains no complete index sets.
-        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(context.getDataDir().resolve("bucket"), metadata, vectorIndex.definition().id());
+        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(context.getDataDir(), metadata, vectorIndex.definition().id());
         Files.createDirectories(indexDir);
         List<OnDiskVectorGraphIndex> result = VectorGraphIndexGroup.openOnDiskIndexes(
                 context,
                 vectorIndex.subspace(),
-                VectorGraphIndexGroup.resolveIndexDir(context.getDataDir().resolve("bucket"), metadata, vectorIndex.definition().id()),
+                VectorGraphIndexGroup.resolveIndexDir(context.getDataDir(), metadata, vectorIndex.definition().id()),
                 VectorSimilarityFunction.COSINE);
         assertTrue(result.isEmpty());
     }
@@ -357,7 +357,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
         heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
-        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(context.getDataDir().resolve("bucket"), metadata, vectorIndex.definition().id());
+        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(context.getDataDir(), metadata, vectorIndex.definition().id());
         Files.createDirectories(indexDir);
         heapIndex.flush(indexDir);
         heapIndex.close();
@@ -365,7 +365,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         List<OnDiskVectorGraphIndex> result = VectorGraphIndexGroup.openOnDiskIndexes(
                 context,
                 vectorIndex.subspace(),
-                VectorGraphIndexGroup.resolveIndexDir(context.getDataDir().resolve("bucket"), metadata, vectorIndex.definition().id()),
+                VectorGraphIndexGroup.resolveIndexDir(context.getDataDir(), metadata, vectorIndex.definition().id()),
                 VectorSimilarityFunction.COSINE);
         assertEquals(1, result.size());
 
@@ -382,7 +382,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldLoadMultipleOnDiskIndexes() throws IOException {
         // Behavior: openOnDiskIndexes loads all complete index sets in the directory as separate on-disk indexes.
-        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(context.getDataDir().resolve("bucket"), metadata, vectorIndex.definition().id());
+        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(context.getDataDir(), metadata, vectorIndex.definition().id());
         Files.createDirectories(indexDir);
 
         OnHeapVectorGraphIndex heapA = newIndex();
@@ -400,7 +400,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         List<OnDiskVectorGraphIndex> result = VectorGraphIndexGroup.openOnDiskIndexes(
                 context,
                 vectorIndex.subspace(),
-                VectorGraphIndexGroup.resolveIndexDir(context.getDataDir().resolve("bucket"), metadata, vectorIndex.definition().id()),
+                VectorGraphIndexGroup.resolveIndexDir(context.getDataDir(), metadata, vectorIndex.definition().id()),
                 VectorSimilarityFunction.COSINE);
         assertEquals(2, result.size());
 
@@ -776,7 +776,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         }
         assertTrue(index.isPqTrained());
 
-        Path bucketDir = context.getDataDir().resolve("bucket");
+        Path bucketDir = context.getDataDir();
         group.flush(bucketDir, index);
 
         Path indexDir = VectorGraphIndexGroup.resolveIndexDir(bucketDir, metadata, vectorIndex.definition().id());
@@ -917,7 +917,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     void shouldSkipAndDeleteOrphanedFilesWithoutCompleteSentinel() throws IOException {
         // Behavior: openOnDiskIndexes returns an empty list and deletes orphaned .index/.vmeta files
         // that lack a corresponding .complete sentinel.
-        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(context.getDataDir().resolve("bucket"), metadata, vectorIndex.definition().id());
+        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(context.getDataDir(), metadata, vectorIndex.definition().id());
         Files.createDirectories(indexDir);
 
         String fakeId = new ObjectId().toHexString();
@@ -927,7 +927,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         List<OnDiskVectorGraphIndex> result = VectorGraphIndexGroup.openOnDiskIndexes(
                 context,
                 vectorIndex.subspace(),
-                VectorGraphIndexGroup.resolveIndexDir(context.getDataDir().resolve("bucket"), metadata, vectorIndex.definition().id()),
+                VectorGraphIndexGroup.resolveIndexDir(context.getDataDir(), metadata, vectorIndex.definition().id()),
                 VectorSimilarityFunction.COSINE);
         assertTrue(result.isEmpty());
 
@@ -940,7 +940,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     void shouldBootstrapFastPathWhenOnlyOrphanedIndexFilesExist() throws IOException {
         // Behavior: bootstrapVectorGroup takes the fast-path (immediately ready) when .index files
         // exist on disk but lack a .complete sentinel, since they are not recognized as valid data.
-        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(context.getDataDir().resolve("bucket"), metadata, vectorIndex.definition().id());
+        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(context.getDataDir(), metadata, vectorIndex.definition().id());
         Files.createDirectories(indexDir);
 
         String fakeId = new ObjectId().toHexString();
@@ -963,7 +963,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
         heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
-        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(context.getDataDir().resolve("bucket"), metadata, vectorIndex.definition().id());
+        Path indexDir = VectorGraphIndexGroup.resolveIndexDir(context.getDataDir(), metadata, vectorIndex.definition().id());
         Files.createDirectories(indexDir);
         heapIndex.flush(indexDir);
         heapIndex.close();
@@ -977,7 +977,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         List<OnDiskVectorGraphIndex> result = VectorGraphIndexGroup.openOnDiskIndexes(
                 context,
                 vectorIndex.subspace(),
-                VectorGraphIndexGroup.resolveIndexDir(context.getDataDir().resolve("bucket"), metadata, vectorIndex.definition().id()),
+                VectorGraphIndexGroup.resolveIndexDir(context.getDataDir(), metadata, vectorIndex.definition().id()),
                 VectorSimilarityFunction.COSINE);
         assertEquals(1, result.size());
 
@@ -1245,7 +1245,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         ObjectId objectId = new ObjectId();
         heapIndex.addGraphNode(objectId, versionstamp(1), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
         heapIndex.addGraphNode(new ObjectId(), versionstamp(1), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-        group.flush(service.getBucketDataDir(), heapIndex);
+        group.flush(service.getDataDir(), heapIndex);
 
         OnDiskVectorGraphIndex flushed = group.getOnDiskIndexes().getFirst();
         int ordinal = flushed.getMetadata().findNodeRef(objectId).ordinal();
@@ -1259,7 +1259,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         List<OnDiskVectorGraphIndex> reopened = VectorGraphIndexGroup.openOnDiskIndexes(
                 context,
                 vectorIndex.subspace(),
-                VectorGraphIndexGroup.resolveIndexDir(service.getBucketDataDir(), metadata, vectorIndex.definition().id()),
+                VectorGraphIndexGroup.resolveIndexDir(service.getDataDir(), metadata, vectorIndex.definition().id()),
                 VectorSimilarityFunction.COSINE);
         assertEquals(1, reopened.size());
         OnDiskVectorGraphIndex onDisk = reopened.getFirst();
@@ -1280,10 +1280,10 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         ObjectId objectIdB = new ObjectId();
         OnHeapVectorGraphIndex heapA = group.getOrCreateOnHeap(GEN, DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
         heapA.addGraphNode(objectIdA, versionstamp(1), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        group.flush(service.getBucketDataDir(), heapA);
+        group.flush(service.getDataDir(), heapA);
         OnHeapVectorGraphIndex heapB = group.getOrCreateOnHeap(GEN, DIMENSIONS, VectorSimilarityFunction.COSINE, 0, 0);
         heapB.addGraphNode(objectIdB, versionstamp(1), 0, newEntryMetadata(2), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
-        group.flush(service.getBucketDataDir(), heapB);
+        group.flush(service.getDataDir(), heapB);
 
         List<OnDiskVectorGraphIndex> flushed = new ArrayList<>(group.getOnDiskIndexes());
         assertEquals(2, flushed.size());
@@ -1304,7 +1304,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         List<OnDiskVectorGraphIndex> reopened = VectorGraphIndexGroup.openOnDiskIndexes(
                 context,
                 vectorIndex.subspace(),
-                VectorGraphIndexGroup.resolveIndexDir(service.getBucketDataDir(), metadata, vectorIndex.definition().id()),
+                VectorGraphIndexGroup.resolveIndexDir(service.getDataDir(), metadata, vectorIndex.definition().id()),
                 VectorSimilarityFunction.COSINE);
         assertEquals(2, reopened.size());
         for (OnDiskVectorGraphIndex index : reopened) {
@@ -1331,7 +1331,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
             adds.add(heapIndex.addGraphNode(new ObjectId(), versionstamp(1), 0, newEntryMetadata(i + 1), vector, executor));
         }
         adds.forEach(CompletableFuture::join);
-        group.flush(service.getBucketDataDir(), heapIndex);
+        group.flush(service.getDataDir(), heapIndex);
 
         OnDiskVectorGraphIndex flushed = group.getOnDiskIndexes().getFirst();
         assertEquals(total, flushed.size());
@@ -1347,7 +1347,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         List<OnDiskVectorGraphIndex> reopened = VectorGraphIndexGroup.openOnDiskIndexes(
                 context,
                 vectorIndex.subspace(),
-                VectorGraphIndexGroup.resolveIndexDir(service.getBucketDataDir(), metadata, vectorIndex.definition().id()),
+                VectorGraphIndexGroup.resolveIndexDir(service.getDataDir(), metadata, vectorIndex.definition().id()),
                 VectorSimilarityFunction.COSINE);
         assertEquals(1, reopened.size());
         OnDiskVectorGraphIndex onDisk = reopened.getFirst();

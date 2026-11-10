@@ -1,6 +1,6 @@
 # Running Kronotop with more than one shard
 
-`multi-shard-cluster.yaml` in this folder starts a two node cluster with two bucket shards. This
+`multi-shard-cluster.yaml` in this folder starts a two node cluster with two shards. This
 file explains what that compose file does, so you can change it for your own setup.
 
 `docker-compose.yaml` is the simple case: one shard, one primary, one standby. Read this file when
@@ -69,10 +69,10 @@ Both variables are needed on every node. A node without them fails at startup.
 The layout is passed to the cluster once, at bootstrap time:
 
 ```yaml
-KRONOTOP_BOOTSTRAP: "--primary BUCKET kronotop-node1:3320=0 --primary BUCKET kronotop-node2:3320=1 --standby BUCKET kronotop-node2:3320=0 --standby BUCKET kronotop-node1:3320=1"
+KRONOTOP_BOOTSTRAP: "--primary kronotop-node1:3320=0 --primary kronotop-node2:3320=1 --standby kronotop-node2:3320=0 --standby kronotop-node1:3320=1"
 ```
 
-Each part is `<shard kind> <host>:<port>=<shard ids>`. The port is the internal port, 3320 by
+Each part is `<host>:<port>=<shard ids>`. The port is the internal port, 3320 by
 default. For the full flag syntax, see `docs/tooling/kronotop-ctl.md`.
 
 Two environment variables control this, both read by `start.sh`:

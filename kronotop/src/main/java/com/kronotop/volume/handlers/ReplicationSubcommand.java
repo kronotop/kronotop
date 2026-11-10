@@ -60,8 +60,8 @@ class ReplicationSubcommand extends BaseSubcommandHandler implements SubcommandH
         ReplicationService replications = service.getContext().getService(ReplicationService.NAME);
 
         runAsync(context, response, () -> {
-            VolumeNames.Parsed parsed = VolumeNames.parse(arguments.volumeName);
-            Route route = routing.findRoute(parsed.shardKind(), parsed.shardId());
+            int shardId = VolumeNames.parse(arguments.volumeName);
+            Route route = routing.findRoute(shardId);
             if (route == null) {
                 throw new KronotopException(
                         String.format("No route found for %s", arguments.volumeName)
@@ -72,7 +72,7 @@ class ReplicationSubcommand extends BaseSubcommandHandler implements SubcommandH
                         String.format("This node is not a standby for %s", arguments.volumeName)
                 );
             }
-            replications.startReplication(parsed.shardKind(), parsed.shardId(), true);
+            replications.startReplication(shardId, true);
         }, response::writeOK);
     }
 
@@ -82,8 +82,8 @@ class ReplicationSubcommand extends BaseSubcommandHandler implements SubcommandH
         ReplicationService replications = service.getContext().getService(ReplicationService.NAME);
 
         runAsync(context, response, () -> {
-            VolumeNames.Parsed parsed = VolumeNames.parse(arguments.volumeName);
-            Route route = routing.findRoute(parsed.shardKind(), parsed.shardId());
+            int shardId = VolumeNames.parse(arguments.volumeName);
+            Route route = routing.findRoute(shardId);
             if (route == null) {
                 throw new KronotopException(
                         String.format("No route found for %s", arguments.volumeName)
@@ -94,7 +94,7 @@ class ReplicationSubcommand extends BaseSubcommandHandler implements SubcommandH
                         String.format("This node is not a standby for %s", arguments.volumeName)
                 );
             }
-            replications.stopReplication(parsed.shardKind(), parsed.shardId(), true);
+            replications.stopReplication(shardId, true);
         }, response::writeOK);
     }
 

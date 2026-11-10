@@ -14,10 +14,10 @@ VOLUME.INSPECT REPLICATION <volume-name> <standby-id>
 
 ## Arguments
 
-| Argument      | Type   | Description                                                                          |
-|---------------|--------|--------------------------------------------------------------------------------------|
-| `volume-name` | string | Volume identifier (e.g. `bucket-shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
-| `standby-id`  | string | Full member ID of the standby, or a unique 4-character prefix                        |
+| Argument      | Type   | Description                                                                   |
+|---------------|--------|-------------------------------------------------------------------------------|
+| `volume-name` | string | Volume identifier (e.g. `shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
+| `standby-id`  | string | Full member ID of the standby, or a unique 4-character prefix                 |
 
 ## Return Value
 
@@ -67,7 +67,7 @@ Argument errors:
 | Error Code | Error message                 | Cause                                                                   |
 |------------|-------------------------------|-------------------------------------------------------------------------|
 | `ERR`      | `invalid number of arguments` | -                                                                       |
-| `ERR`      | `invalid volume name: <name>` | The name does not match the `<kind>-shard-<id>` format.                 |
+| `ERR`      | `invalid volume name: <name>` | The name does not match the `shard-<id>` format.                        |
 | `ERR`      | `Invalid memberId: <id>`      | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 Volume errors:
@@ -82,7 +82,7 @@ Volume errors:
 **Active replication (running):**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.INSPECT REPLICATION bucket-shard-0 ab12
+127.0.0.1:3320> VOLUME.INSPECT REPLICATION shard-0 ab12
 1# "stage" => "CHANGE_DATA_CAPTURE"
 2# "cursor" => 1# "segment_id" => (integer) 2
                 2# "position" => (integer) 8192
@@ -97,7 +97,7 @@ Volume errors:
 **Replication not yet started:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.INSPECT REPLICATION bucket-shard-0 ab12
+127.0.0.1:3320> VOLUME.INSPECT REPLICATION shard-0 ab12
 1# "stage" => ""
 2# "cursor" => 1# "segment_id" => (integer) 0
                 2# "position" => (integer) 0

@@ -21,7 +21,6 @@ import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RouteKind;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.Shard;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.commands.redis.RedisCommandBuilder;
@@ -212,9 +211,9 @@ public class KronotopTestInstance extends KronotopInstance {
         return false;
     }
 
-    private void setPrimaryOwnersOfShards(KrAdminCommandBuilder<String, String> cmd, ShardKind shardKind) {
+    private void setPrimaryOwnersOfShards(KrAdminCommandBuilder<String, String> cmd) {
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("SET", RouteKind.PRIMARY.name(), shardKind.name(), context.getMember().getId()).encode(buf);
+        cmd.route("SET", RouteKind.PRIMARY.name(), context.getMember().getId()).encode(buf);
 
         Object raw = BaseTest.runCommand(channel, buf);
         if (raw instanceof SimpleStringRedisMessage message) {
@@ -224,9 +223,9 @@ public class KronotopTestInstance extends KronotopInstance {
         }
     }
 
-    private void setShardsReadWrite(KrAdminCommandBuilder<String, String> cmd, ShardKind shardKind) {
+    private void setShardsReadWrite(KrAdminCommandBuilder<String, String> cmd) {
         ByteBuf buf = Unpooled.buffer();
-        cmd.setShardStatus(shardKind.name(), "READWRITE").encode(buf);
+        cmd.setShardStatus("READWRITE").encode(buf);
 
         Object raw = BaseTest.runCommand(channel, buf);
         if (raw instanceof SimpleStringRedisMessage message) {
@@ -263,27 +262,26 @@ public class KronotopTestInstance extends KronotopInstance {
             return clusterInitialized.get() != null && clusterInitialized.get();
         });
 
-        setPrimaryOwnersOfShards(cmd, ShardKind.BUCKET);
-        await().atMost(5, TimeUnit.SECONDS).until(() -> areAllOwnedShardsOperable(ShardKind.BUCKET, BucketService.NAME));
+        setPrimaryOwnersOfShards(cmd);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> areAllOwnedShardsOperable(BucketService.NAME));
 
-        setShardsReadWrite(cmd, ShardKind.BUCKET);
+        setShardsReadWrite(cmd);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
-            List<Integer> shardIds = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
-            return areAllShardsWritable(ShardKind.BUCKET, shardIds);
+            List<Integer> shardIds = context.getShardRegistry().getShardIds();
+            return areAllShardsWritable(shardIds);
         });
     }
 
     /**
-     * Determines if all shards of the specified kind are in a writable state.
+     * Determines if all the given shards are in a writable state.
      *
-     * @param shardKind the type of shard to check, represented by the {@code ShardKind} enum.
-     * @param shardIds  the list of shard IDs to examine.
+     * @param shardIds the list of shard IDs to examine.
      * @return {@code true} if all shards are in the writable state; otherwise {@code false}.
      */
-    private boolean areAllShardsWritable(ShardKind shardKind, List<Integer> shardIds) {
+    private boolean areAllShardsWritable(List<Integer> shardIds) {
         RoutingService routing = context.getService(RoutingService.NAME);
         for (int shardId : shardIds) {
-            Route route = routing.findRoute(shardKind, shardId);
+            Route route = routing.findRoute(shardId);
             if (route == null) {
                 return false;
             }
@@ -298,16 +296,15 @@ public class KronotopTestInstance extends KronotopInstance {
      * Checks if all shards owned by the current member for a specified service are operable.
      * A shard is considered operable if it is assigned to the current member and is in a valid operational state.
      *
-     * @param shardKind   the kind of shards owned by the service.
      * @param serviceName the name of the service whose owned shard operability status is to be checked.
      * @return {@code true} if all owned shards are operable; {@code false} otherwise.
      */
-    private boolean areAllOwnedShardsOperable(ShardKind shardKind, String serviceName) {
+    private boolean areAllOwnedShardsOperable(String serviceName) {
         RoutingService routing = context.getService(RoutingService.NAME);
         ShardOwnerService<Shard> service = context.getService(serviceName);
         assert service != null;
-        for (int shardId : context.getShardRegistry().getShardIds(shardKind)) {
-            Route route = routing.findRoute(shardKind, shardId);
+        for (int shardId : context.getShardRegistry().getShardIds()) {
+            Route route = routing.findRoute(shardId);
             if (route == null) {
                 return false;
             }

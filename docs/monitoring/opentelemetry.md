@@ -133,7 +133,7 @@ See [INFO](../connection/commands/info.md) for what each field means.
 |------------------|---------------------------|-------|
 | `known_members`  | `kronotop_known_members`  | gauge |
 | `alive_members`  | `kronotop_alive_members`  | gauge |
-| `bucket_shards`  | `kronotop_bucket_shards`  | gauge |
+| `shards`         | `kronotop_shards`         | gauge |
 | `primary_shards` | `kronotop_primary_shards` | gauge |
 | `standby_shards` | `kronotop_standby_shards` | gauge |
 

@@ -8,14 +8,13 @@ Changes the operational status of a shard.
 ## Syntax
 
 ```kronotop
-KR.ADMIN SET-SHARD-STATUS <shard-kind> <shard-id> <shard-status>
+KR.ADMIN SET-SHARD-STATUS <shard-id> <shard-status>
 ```
 
 ## Arguments
 
 | Argument       | Type           | Description                                                     |
 |----------------|----------------|-----------------------------------------------------------------|
-| `shard-kind`   | string         | `BUCKET`. Case-insensitive.                                     |
 | `shard-id`     | integer or `*` | Zero-based shard index, or `*` to target all shards atomically. |
 | `shard-status` | string         | `READWRITE`, `READONLY`, or `INOPERABLE`. Case-insensitive.     |
 
@@ -34,7 +33,7 @@ access-control layer and does not alter replication roles or volume state.
 - `READONLY`: the shard accepts reads but rejects writes.
 - `INOPERABLE`: the shard is unavailable and all access is rejected.
 
-When `*` is passed as the shard ID, the status is applied to every shard of the specified kind atomically.
+When `*` is passed as the shard ID, the status is applied to every shard atomically.
 
 Changes propagate to other cluster members automatically.
 
@@ -50,7 +49,6 @@ Argument errors:
 | Error Code | Error message                     | Cause                                                                   |
 |------------|-----------------------------------|-------------------------------------------------------------------------|
 | `ERR`      | `invalid number of arguments`     | -                                                                       |
-| `ERR`      | `Unknown shard kind: '<value>'`   | The shard kind must be `BUCKET`.                                        |
 | `ERR`      | `invalid shard id`                | The shard ID is not a valid integer, or is out of the configured range. |
 | `ERR`      | `Unknown shard status: '<value>'` | The status must be `READWRITE`, `READONLY`, or `INOPERABLE`.            |
 
@@ -62,37 +60,37 @@ Cluster errors:
 
 ## Examples
 
-**Set all bucket shards to READWRITE:**
+**Set all shards to READWRITE:**
 
 ```kronotop
-127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS BUCKET * READWRITE
+127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS * READWRITE
 OK
 ```
 
-**Set a specific bucket shard to READONLY:**
+**Set a specific shard to READONLY:**
 
 ```kronotop
-127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS BUCKET 2 READONLY
+127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS 2 READONLY
 OK
 ```
 
 **Set a shard to INOPERABLE:**
 
 ```kronotop
-127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS BUCKET 0 INOPERABLE
+127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS 0 INOPERABLE
 OK
 ```
 
 **Invalid shard status:**
 
 ```kronotop
-127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS BUCKET 0 DISABLED
+127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS 0 DISABLED
 (error) ERR Unknown shard status: 'DISABLED'
 ```
 
 **Shard ID out of range:**
 
 ```kronotop
-127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS BUCKET 999999 READONLY
+127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS 999999 READONLY
 (error) ERR invalid shard id
 ```

@@ -138,7 +138,7 @@ public class OtlpExportTask implements Runnable {
             "zmap_watch_waiters",
             "known_members",
             "alive_members",
-            "bucket_shards",
+            "shards",
             "primary_shards",
             "standby_shards",
             "task_count",

@@ -26,7 +26,6 @@ import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.MemberAttributes;
 import com.kronotop.cluster.handlers.KrAdminHandler;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.core.InfoCollector;
 import com.kronotop.directory.KronotopDirectory;
@@ -149,12 +148,11 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
     /**
      * Returns the route of the given shard.
      *
-     * @param kind    the shard kind
      * @param shardId the shard id
      * @return the route with the primary and standby members, or null if the shard has no route yet
      */
-    public Route findRoute(ShardKind kind, int shardId) {
-        return routingTable.get().get(kind, shardId);
+    public Route findRoute(int shardId) {
+        return routingTable.get().get(shardId);
     }
 
     @Override
@@ -162,17 +160,15 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         Member member = context.getMember();
         int primary = 0;
         int standby = 0;
-        for (ShardKind kind : context.getShardRegistry().getShardKinds()) {
-            for (int shardId : context.getShardRegistry().getShardIds(kind)) {
-                Route route = findRoute(kind, shardId);
-                if (route == null) {
-                    continue;
-                }
-                if (member.equals(route.primary())) {
-                    primary++;
-                } else if (route.standbys().contains(member)) {
-                    standby++;
-                }
+        for (int shardId : context.getShardRegistry().getShardIds()) {
+            Route route = findRoute(shardId);
+            if (route == null) {
+                continue;
+            }
+            if (member.equals(route.primary())) {
+                primary++;
+            } else if (route.standbys().contains(member)) {
+                standby++;
             }
         }
         collector.put(InfoReport.KRONOTOP_SECTION, "primary_shards", primary);
@@ -224,12 +220,12 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         return null;
     }
 
-    private void loadRoute(Transaction tr, RoutingTable table, ShardKind shardKind, List<Integer> shardIds) {
+    private void loadRoute(Transaction tr, RoutingTable table, List<Integer> shardIds) {
         for (int shardId : shardIds) {
-            DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardKind, shardId);
+            DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardId);
             Route route = loadRoute(tr, shardSubspace);
             if (route != null) {
-                table.set(shardKind, shardId, route);
+                table.set(shardId, route);
             }
         }
     }
@@ -244,51 +240,46 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
 
         RoutingTable table = new RoutingTable();
         try (Transaction tr = context.getTransactionManager().create()) {
-            for (ShardKind shardKind : shardRegistry.getShardKinds()) {
-                shardRegistry.refresh(tr, shardKind);
-                List<Integer> shardIds = shardRegistry.getShardIds(shardKind);
-                loadRoute(tr, table, shardKind, shardIds);
-            }
+            shardRegistry.refresh(tr);
+            loadRoute(tr, table, shardRegistry.getShardIds());
         }
         RoutingTable previous = routingTable.getAndSet(table);
         if (!firstRun) {
-            for (ShardKind shardKind : shardRegistry.getShardKinds()) {
-                changesBetweenRoutingTables(previous, shardKind);
-            }
+            changesBetweenRoutingTables(previous);
         }
     }
 
-    private void runHooks(RoutingEventKind routingEventKind, ShardKind shardKind, int shardId) {
+    private void runHooks(RoutingEventKind routingEventKind, int shardId) {
         List<RoutingEventHook> hooks = hooksByKind.get(routingEventKind);
         if (hooks == null) {
             return;
         }
         for (RoutingEventHook hook : hooks) {
             try {
-                hook.run(shardKind, shardId);
+                hook.run(shardId);
             } catch (Exception e) {
-                LOGGER.error("Error while running hook for ShardKind: {}, ShardId:{}", shardKind, shardId, e);
+                LOGGER.error("Error while running hook for ShardId: {}", shardId, e);
             }
         }
     }
 
-    private void changesBetweenRoutingTables(RoutingTable previous, ShardKind shardKind) {
-        List<Integer> shardIds = context.getShardRegistry().getShardIds(shardKind);
+    private void changesBetweenRoutingTables(RoutingTable previous) {
+        List<Integer> shardIds = context.getShardRegistry().getShardIds();
         RoutingTable current = routingTable.get();
 
         for (int shardId : shardIds) {
-            Route currentRoute = current.get(shardKind, shardId);
+            Route currentRoute = current.get(shardId);
             if (currentRoute == null) {
                 // Not assigned yet
                 continue;
             }
 
-            Route previousRoute = previous.get(shardKind, shardId);
+            Route previousRoute = previous.get(shardId);
             if (previousRoute == null) {
                 // Bootstrapping...
                 if (currentRoute.primary().equals(context.getMember())) {
                     // Load the shard from local disk
-                    runHooks(RoutingEventKind.INITIALIZE_BUCKET_SHARD, ShardKind.BUCKET, shardId);
+                    runHooks(RoutingEventKind.INITIALIZE_SHARD, shardId);
                 }
             }
 
@@ -297,14 +288,14 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                     if (currentRoute.standbys().contains(context.getMember())) {
                         // New assignment
                         if (!previousRoute.standbys().contains(context.getMember())) {
-                            runHooks(RoutingEventKind.START_REPLICATION, shardKind, shardId);
+                            runHooks(RoutingEventKind.START_REPLICATION, shardId);
                         }
                     }
                 } else {
                     // No previous root exists
                     if (currentRoute.standbys().contains(context.getMember())) {
                         // New assignment
-                        runHooks(RoutingEventKind.START_REPLICATION, shardKind, shardId);
+                        runHooks(RoutingEventKind.START_REPLICATION, shardId);
                     }
                 }
             }
@@ -313,12 +304,12 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                 if (!previousRoute.primary().equals(currentRoute.primary())) {
                     // Primary owner has changed
                     if (previousRoute.primary().equals(context.getMember())) {
-                        runHooks(RoutingEventKind.HAND_OVER_SHARD_OWNERSHIP, shardKind, shardId);
+                        runHooks(RoutingEventKind.HAND_OVER_SHARD_OWNERSHIP, shardId);
                     }
 
                     // Standbys should connect to the new primary owner
                     if (previousRoute.standbys().contains(context.getMember())) {
-                        runHooks(RoutingEventKind.PRIMARY_OWNER_CHANGED, shardKind, shardId);
+                        runHooks(RoutingEventKind.PRIMARY_OWNER_CHANGED, shardId);
                     }
                 }
             }
@@ -327,7 +318,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                 if (previousRoute.standbys().contains(context.getMember())) {
                     if (!currentRoute.standbys().contains(context.getMember())) {
                         // Stop replication
-                        runHooks(RoutingEventKind.STOP_REPLICATION, shardKind, shardId);
+                        runHooks(RoutingEventKind.STOP_REPLICATION, shardId);
                     }
                 }
             }

@@ -170,7 +170,7 @@ class VectorIndexNamespaceRemoveCleanupTest extends BaseBucketHandlerTest {
 
         // Create disk directory to simulate flushed state
         Path bucketVectorDir = VectorGraphIndexGroup.resolveVectorDir(
-                getBucketService().getBucketDataDir(),
+                getBucketService().getDataDir(),
                 VectorGraphIndexGroup.ownerShardId(metadata)
         ).resolve(metadata.uuid().toString());
         try {

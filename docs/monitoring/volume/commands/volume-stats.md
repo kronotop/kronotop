@@ -13,9 +13,9 @@ VOLUME.STATS <volume-name>
 
 ## Arguments
 
-| Argument      | Type   | Description                                                               |
-|---------------|--------|---------------------------------------------------------------------------|
-| `volume-name` | string | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
+| Argument      | Type   | Description                                                 |
+|---------------|--------|-------------------------------------------------------------|
+| `volume-name` | string | Name of the volume, in `shard-<id>` format (e.g. `shard-0`) |
 
 ## Return Value
 
@@ -76,7 +76,7 @@ Volume errors:
 **Overview of a volume with one segment:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0
+127.0.0.1:3320> VOLUME.STATS shard-0
 1# "status" => "READWRITE"
 2# "segment_count" => (integer) 1
 3# "total_size_bytes" => (integer) 1048576
@@ -91,7 +91,7 @@ Volume errors:
 **Empty volume (no segments):**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0
+127.0.0.1:3320> VOLUME.STATS shard-0
 1# "status" => "READWRITE"
 2# "segment_count" => (integer) 0
 3# "total_size_bytes" => (integer) 0

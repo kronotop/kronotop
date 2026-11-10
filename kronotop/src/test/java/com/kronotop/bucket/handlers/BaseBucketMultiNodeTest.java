@@ -22,7 +22,6 @@ import com.kronotop.bucket.BucketService;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RouteKind;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.server.Response;
@@ -83,18 +82,18 @@ abstract class BaseBucketMultiNodeTest extends BaseClusterTest {
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             Attribute<Boolean> attr = node1.getContext().getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
             return attr.get() != null && attr.get()
-                    && !node1.getContext().getShardRegistry().getShardIds(ShardKind.BUCKET).isEmpty();
+                    && !node1.getContext().getShardRegistry().getShardIds().isEmpty();
         });
 
         String node1Id = node1.getContext().getMember().getId();
         String node2Id = node2.getContext().getMember().getId();
 
-        // Assign BUCKET shards 0-3 to node1, shards 4-6 to node2
+        // Assign shards 0-3 to node1, shards 4-6 to node2
         for (int shardId = 0; shardId < 4; shardId++) {
-            setRoute(node1, ShardKind.BUCKET, shardId, node1Id);
+            setRoute(node1, shardId, node1Id);
         }
         for (int shardId = 4; shardId < 7; shardId++) {
-            setRoute(node1, ShardKind.BUCKET, shardId, node2Id);
+            setRoute(node1, shardId, node2Id);
         }
 
         // Wait for owned shards to become operable
@@ -102,12 +101,12 @@ abstract class BaseBucketMultiNodeTest extends BaseClusterTest {
         await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsOperable(node2, BucketService.NAME, List.of(4, 5, 6)));
 
         // Set all shards to READWRITE
-        setAllShardsReadWrite(node1, ShardKind.BUCKET);
+        setAllShardsReadWrite(node1);
 
-        List<Integer> bucketShardIds = node1.getContext().getShardRegistry().getShardIds(ShardKind.BUCKET);
+        List<Integer> bucketShardIds = node1.getContext().getShardRegistry().getShardIds();
 
-        await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsWritable(node1, ShardKind.BUCKET, bucketShardIds));
-        await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsWritable(node2, ShardKind.BUCKET, bucketShardIds));
+        await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsWritable(node1, bucketShardIds));
+        await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsWritable(node2, bucketShardIds));
     }
 
     @Override
@@ -131,10 +130,10 @@ abstract class BaseBucketMultiNodeTest extends BaseClusterTest {
         return instance;
     }
 
-    protected void setRoute(KronotopTestInstance instance, ShardKind shardKind, int shardId, String memberId) {
+    protected void setRoute(KronotopTestInstance instance, int shardId, String memberId) {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("SET", RouteKind.PRIMARY.name(), shardKind.name(), shardId, memberId).encode(buf);
+        cmd.route("SET", RouteKind.PRIMARY.name(), shardId, memberId).encode(buf);
 
         Object raw = runCommand(instance.getChannel(), buf);
         if (raw instanceof ErrorRedisMessage err) {
@@ -143,10 +142,10 @@ abstract class BaseBucketMultiNodeTest extends BaseClusterTest {
         assertInstanceOf(SimpleStringRedisMessage.class, raw);
     }
 
-    protected void setAllShardsReadWrite(KronotopTestInstance instance, ShardKind shardKind) {
+    protected void setAllShardsReadWrite(KronotopTestInstance instance) {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setShardStatus(shardKind.name(), "READWRITE").encode(buf);
+        cmd.setShardStatus("READWRITE").encode(buf);
 
         Object raw = runCommand(instance.getChannel(), buf);
         if (raw instanceof ErrorRedisMessage err) {
@@ -166,10 +165,10 @@ abstract class BaseBucketMultiNodeTest extends BaseClusterTest {
         return true;
     }
 
-    protected boolean areShardsWritable(KronotopTestInstance instance, ShardKind shardKind, List<Integer> shardIds) {
+    protected boolean areShardsWritable(KronotopTestInstance instance, List<Integer> shardIds) {
         RoutingService routing = instance.getContext().getService(RoutingService.NAME);
         for (int shardId : shardIds) {
-            Route route = routing.findRoute(shardKind, shardId);
+            Route route = routing.findRoute(shardId);
             if (route == null) {
                 return false;
             }

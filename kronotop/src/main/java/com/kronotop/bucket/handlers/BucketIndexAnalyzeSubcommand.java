@@ -32,7 +32,6 @@ import com.kronotop.bucket.index.SingleFieldIndexUtil;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceTask;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskKind;
 import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.task.TaskStorage;
@@ -53,7 +52,7 @@ public class BucketIndexAnalyzeSubcommand implements SubcommandHandler {
     }
 
     private boolean isAnalyzeTask(Transaction tr, Versionstamp taskId) {
-        for (int shardId : context.getShardRegistry().getShardIds(ShardKind.BUCKET)) {
+        for (int shardId : context.getShardRegistry().getShardIds()) {
             DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
             byte[] base = TaskStorage.getDefinition(tr, taskSubspace, taskId);
             if (base == null) {

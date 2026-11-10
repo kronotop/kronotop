@@ -83,7 +83,7 @@ abstract class BaseVectorMaintainerTest extends BaseStandaloneInstanceTest {
 
     private void cleanupVectorIndexDir() {
         Path vectorDir = VectorGraphIndexGroup.resolveVectorDir(
-                context.getDataDir().resolve("bucket"),
+                context.getDataDir(),
                 VectorGraphIndexGroup.ownerShardId(metadata)
         );
         DirectoryUtil.deleteRecursively(vectorDir);
@@ -120,7 +120,7 @@ abstract class BaseVectorMaintainerTest extends BaseStandaloneInstanceTest {
     }
 
     protected Path indexDir() {
-        return VectorGraphIndexGroup.resolveIndexDir(context.getDataDir().resolve("bucket"), metadata, vectorIndex.definition().id());
+        return VectorGraphIndexGroup.resolveIndexDir(context.getDataDir(), metadata, vectorIndex.definition().id());
     }
 
     protected Volume volume() {
@@ -141,7 +141,7 @@ abstract class BaseVectorMaintainerTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex onHeap = addOneVector(new ObjectId());
         service.getVectorFlushQueue().clear();
         service.getVectorSyncQueue().clear();
-        group.flush(service.getBucketDataDir(), onHeap);
+        group.flush(service.getDataDir(), onHeap);
         return onHeap;
     }
 

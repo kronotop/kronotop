@@ -60,20 +60,20 @@ writes.
 3. **Assign a primary** to each shard. A four-character member ID prefix is accepted in place of the
    full forty-character ID.
    ```kronotop
-   127.0.0.1:3320> KR.ADMIN ROUTE SET PRIMARY BUCKET 0 006cdc459c59e600c76494e8388857fc3cba2fa8
+   127.0.0.1:3320> KR.ADMIN ROUTE SET PRIMARY 0 006cdc459c59e600c76494e8388857fc3cba2fa8
    OK
    ```
 
 4. **Add standbys** (optional). A primary must already be assigned to the shard.
    ```kronotop
-   127.0.0.1:3320> KR.ADMIN ROUTE SET STANDBY BUCKET 0 a3f18b2e74d9c5601f82e4a7b390d612c8f7e149
+   127.0.0.1:3320> KR.ADMIN ROUTE SET STANDBY 0 a3f18b2e74d9c5601f82e4a7b390d612c8f7e149
    OK
    ```
 
 5. **Open the shards** for traffic. Passing `*` as the shard ID applies the status to every bucket
    shard in a single transaction.
    ```kronotop
-   127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS BUCKET * READWRITE
+   127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS * READWRITE
    OK
    ```
 
@@ -82,18 +82,18 @@ writes.
    127.0.0.1:3320> KR.ADMIN DESCRIBE-CLUSTER
    1# "metadata_version" => "1.0.0"
    2# "cluster_name" => "my-cluster"
-   3# "bucket" =>
+   3# "shards" =>
       1# (integer) 0 =>
          1# "primary" => "006cdc459c59e600c76494e8388857fc3cba2fa8"
          2# "standbys" =>
             1) "a3f18b2e74d9c5601f82e4a7b390d612c8f7e149"
          3# "status" => "READWRITE"
          4# "linked_volumes" =>
-            1) "bucket-shard-0"
+            1) "shard-0"
    ```
 
 `ROUTE SET PRIMARY` also accepts `*` for the shard ID to assign the same member as primary across all
-bucket shards atomically. If any shard fails a pre-condition, the whole operation rolls back.
+shards atomically. If any shard fails a pre-condition, the whole operation rolls back.
 
 For full argument and error details, see
 [KR.ADMIN INITIALIZE-CLUSTER](commands/kr-admin-initialize-cluster.md),
@@ -117,13 +117,13 @@ Five read-only commands answer different questions:
   own ID.
 
 ```kronotop
-127.0.0.1:3320> KR.ADMIN DESCRIBE-SHARD BUCKET 0
+127.0.0.1:3320> KR.ADMIN DESCRIBE-SHARD 0
 1# "primary" => "006cdc459c59e600c76494e8388857fc3cba2fa8"
 2# "standbys" =>
    1) "a3f18b2e74d9c5601f82e4a7b390d612c8f7e149"
 3# "status" => "READWRITE"
 4# "linked_volumes" =>
-   1) "bucket-shard-0"
+   1) "shard-0"
 ```
 
 ---

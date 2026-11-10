@@ -18,7 +18,6 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import org.junit.jupiter.api.AfterEach;
@@ -44,7 +43,7 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
             tr.commit().join();
         }
 
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.BUCKET, 1);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, 1);
         VolumeConfig volumeConfig = generator.volumeConfig();
         service = context.getService(VolumeService.NAME);
         volume = service.newVolume(volumeConfig);
@@ -52,7 +51,7 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
 
     @BeforeEach
     public void setupIntegrationTest() {
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.BUCKET, 1);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, 1);
         subspace = generator.createOrOpenVolumeSubspace();
 
         try {

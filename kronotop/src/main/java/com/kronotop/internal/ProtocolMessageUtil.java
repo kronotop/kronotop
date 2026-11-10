@@ -24,7 +24,6 @@ import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.ShardRegistry;
 import com.kronotop.cluster.handlers.InvalidShardIdException;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.server.IllegalCommandArgumentException;
 import io.netty.buffer.ByteBuf;
 
@@ -81,17 +80,6 @@ public class ProtocolMessageUtil {
         byte[] raw = new byte[buf.readableBytes()];
         buf.readBytes(raw);
         return new String(raw);
-    }
-
-    /**
-     * Parses a shard kind from the given ByteBuf.
-     *
-     * @param shardKindBuf buffer containing the shard kind name (e.g., "BUCKET")
-     * @return the parsed ShardKind enum value
-     * @throws IllegalCommandArgumentException if the value is not a valid shard kind
-     */
-    public static ShardKind readShardKind(ByteBuf shardKindBuf) {
-        return readEnum(ShardKind.class, shardKindBuf, "shard kind");
     }
 
     /**
@@ -254,31 +242,29 @@ public class ProtocolMessageUtil {
      * Parses and validates a shard ID from the given ByteBuf.
      *
      * @param registry   the shard registry for validation
-     * @param shardKind  the shard kind to validate against
      * @param shardIdBuf buffer containing the shard ID as a numeric string
      * @return the validated shard ID
      * @throws KronotopException       if the value is not a valid integer
-     * @throws InvalidShardIdException if the value is out of range for the shard kind
+     * @throws InvalidShardIdException if no shard has this ID
      */
-    public static int readShardId(ShardRegistry registry, ShardKind shardKind, ByteBuf shardIdBuf) {
+    public static int readShardId(ShardRegistry registry, ByteBuf shardIdBuf) {
         String rawShardId = ProtocolMessageUtil.readAsString(shardIdBuf);
-        return readShardId(registry, shardKind, rawShardId);
+        return readShardId(registry, rawShardId);
     }
 
     /**
      * Parses and validates a shard ID from a string.
      *
      * @param registry   the shard registry for validation
-     * @param shardKind  the shard kind to validate against
      * @param rawShardId the shard ID as a numeric string
      * @return the validated shard ID
      * @throws KronotopException       if the value is not a valid integer
-     * @throws InvalidShardIdException if the value is out of range for the shard kind
+     * @throws InvalidShardIdException if no shard has this ID
      */
-    public static int readShardId(ShardRegistry registry, ShardKind shardKind, String rawShardId) {
+    public static int readShardId(ShardRegistry registry, String rawShardId) {
         try {
             int shardId = Integer.parseInt(rawShardId);
-            if (!registry.isValidShardId(shardKind, shardId)) {
+            if (!registry.isValidShardId(shardId)) {
                 throw new InvalidShardIdException();
             }
             return shardId;

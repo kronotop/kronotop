@@ -58,16 +58,16 @@ These rules apply to all sections:
 
 ### Kronotop
 
-| Field            | Description                                                        |
-|------------------|--------------------------------------------------------------------|
-| `cluster_name`   | Name of the cluster this member belongs to.                        |
-| `member_id`      | Id of this member.                                                 |
-| `member_status`  | One of `RUNNING`, `UNAVAILABLE`, `STOPPED`, `UNKNOWN`.             |
-| `bucket_shards`  | Number of Bucket shards in the cluster.                            |
-| `known_members`  | Members this member has ever seen.                                 |
-| `alive_members`  | Members with a recent heartbeat.                                   |
-| `primary_shards` | Shards where this member is the primary.                           |
-| `standby_shards` | Shards where this member is a standby.                             |
+| Field            | Description                                            |
+|------------------|--------------------------------------------------------|
+| `cluster_name`   | Name of the cluster this member belongs to.            |
+| `member_id`      | Id of this member.                                     |
+| `member_status`  | One of `RUNNING`, `UNAVAILABLE`, `STOPPED`, `UNKNOWN`. |
+| `shards`         | Number of shards in the cluster.                       |
+| `known_members`  | Members this member has ever seen.                     |
+| `alive_members`  | Members with a recent heartbeat.                       |
+| `primary_shards` | Shards where this member is the primary.               |
+| `standby_shards` | Shards where this member is a standby.                 |
 
 ### Clients
 

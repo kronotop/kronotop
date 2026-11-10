@@ -17,7 +17,6 @@
 package com.kronotop.volume.replication;
 
 import com.kronotop.cluster.RoutingEventHook;
-import com.kronotop.cluster.sharding.ShardKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,16 +29,16 @@ public class StopReplicationHook implements RoutingEventHook {
     }
 
     @Override
-    public void run(ShardKind shardKind, int shardId) {
+    public void run(int shardId) {
         try {
-            service.stopReplication(shardKind, shardId, false);
+            service.stopReplication(shardId, false);
             LOGGER.info(
-                    "Stopping replication for ShardKind={}, ShardId={}",
-                    shardKind, shardId
+                    "Stopping replication for ShardId={}",
+                    shardId
             );
         } catch (NoReplicationFoundException exp) {
-            LOGGER.trace("Skipping replication stop for {}-{}: {}",
-                    shardKind, shardId, exp.getMessage());
+            LOGGER.trace("Skipping replication stop for shard {}: {}",
+                    shardId, exp.getMessage());
         }
     }
 }

@@ -13,9 +13,9 @@ VOLUME.STATS <volume-name> RESET
 
 ## Arguments
 
-| Argument      | Type   | Description                                                               |
-|---------------|--------|---------------------------------------------------------------------------|
-| `volume-name` | string | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
+| Argument      | Type   | Description                                                 |
+|---------------|--------|-------------------------------------------------------------|
+| `volume-name` | string | Name of the volume, in `shard-<id>` format (e.g. `shard-0`) |
 
 ## Return Value
 
@@ -50,14 +50,14 @@ Volume errors:
 **Reset stats:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0 RESET
+127.0.0.1:3320> VOLUME.STATS shard-0 RESET
 OK
 ```
 
 **Verify counters are zeroed:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0 OPCOUNTERS
+127.0.0.1:3320> VOLUME.STATS shard-0 OPCOUNTERS
 1# "appends" => (integer) 0
 2# "deletes" => (integer) 0
 3# "updates" => (integer) 0

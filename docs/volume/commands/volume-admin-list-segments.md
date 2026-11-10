@@ -14,9 +14,9 @@ VOLUME.ADMIN LIST-SEGMENTS <volume-name>
 
 ## Arguments
 
-| Argument      | Type   | Description                                                               |
-|---------------|--------|---------------------------------------------------------------------------|
-| `volume-name` | string | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
+| Argument      | Type   | Description                                                 |
+|---------------|--------|-------------------------------------------------------------|
+| `volume-name` | string | Name of the volume, in `shard-<id>` format (e.g. `shard-0`) |
 
 ## Return Value
 
@@ -47,14 +47,14 @@ Volume errors:
 **List segments for an empty volume:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN LIST-SEGMENTS bucket-shard-1
+127.0.0.1:3320> VOLUME.ADMIN LIST-SEGMENTS shard-1
 (empty array)
 ```
 
 **List segments for a volume with data:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN LIST-SEGMENTS bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN LIST-SEGMENTS shard-0
 1) (integer) 0
 ```
 

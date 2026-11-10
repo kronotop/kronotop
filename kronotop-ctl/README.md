@@ -35,13 +35,11 @@ kronotop-ctl bootstrap [options]
 
 **Options:**
 
-| Option                                         | Description                                                |
-|------------------------------------------------|------------------------------------------------------------|
-| `--primary <shard-kind> <host:port=shard-ids>` | Assign primary shards. Repeatable, accepts multiple pairs. |
-| `--standby <shard-kind> <host:port=shard-ids>` | Assign standby shards. Repeatable, accepts multiple pairs. |
-| `--shard-discovery-timeout <seconds>`          | Max seconds to wait for shard discovery. Default: 30       |
-
-**Shard kinds:** `BUCKET`
+| Option                                | Description                                                 |
+|---------------------------------------|-------------------------------------------------------------|
+| `--primary <host:port=shard-ids>`     | Assign primary shards. Repeatable, accepts multiple values. |
+| `--standby <host:port=shard-ids>`     | Assign standby shards. Repeatable, accepts multiple values. |
+| `--shard-discovery-timeout <seconds>` | Max seconds to wait for shard discovery. Default: 30        |
 
 **Examples:**
 
@@ -49,15 +47,15 @@ Single-node cluster:
 
 ```bash
 kronotop-ctl bootstrap \
-  --primary BUCKET localhost:3320=0,1,2
+  --primary localhost:3320=0,1,2
 ```
 
 Multi-node cluster with primary and standby assignments:
 
 ```bash
 kronotop-ctl bootstrap \
-  --primary BUCKET node1:3320=0,1,2 \
-  --standby BUCKET node2:3320=0,1,2
+  --primary node1:3320=0,1,2 \
+  --standby node2:3320=0,1,2
 ```
 
 **Bootstrap steps:**

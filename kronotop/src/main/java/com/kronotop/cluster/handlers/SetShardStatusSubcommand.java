@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.ShardUtil;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
@@ -43,11 +42,11 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
         AsyncCommandExecutor.runAsync(context, response, () -> {
             try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 if (arguments.allShards) {
-                    for (int shardId : getShardIds(arguments.shardKind)) {
-                        ShardUtil.setShardStatus(context, tr, arguments.shardKind, arguments.shardStatus, shardId);
+                    for (int shardId : getShardIds()) {
+                        ShardUtil.setShardStatus(context, tr, arguments.shardStatus, shardId);
                     }
                 } else {
-                    ShardUtil.setShardStatus(context, tr, arguments.shardKind, arguments.shardStatus, arguments.shardId);
+                    ShardUtil.setShardStatus(context, tr, arguments.shardStatus, arguments.shardId);
                 }
                 membership.triggerClusterTopologyWatcher(tr);
                 tr.commit().join();
@@ -56,27 +55,24 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
     }
 
     private class SetShardStatusArguments {
-        private final ShardKind shardKind;
         private final boolean allShards;
         private final int shardId;
         private final ShardStatus shardStatus;
 
         private SetShardStatusArguments(ArrayList<ByteBuf> args) {
-            if (args.size() != 4) {
+            if (args.size() != 3) {
                 throw new InvalidNumberOfArgumentsException();
             }
 
-            shardKind = ProtocolMessageUtil.readShardKind(args.get(1));
-
-            String rawShardId = ProtocolMessageUtil.readAsString(args.get(2));
+            String rawShardId = ProtocolMessageUtil.readAsString(args.get(1));
             allShards = rawShardId.equals("*");
             if (!allShards) {
-                shardId = ProtocolMessageUtil.readShardId(context.getShardRegistry(), shardKind, rawShardId);
+                shardId = ProtocolMessageUtil.readShardId(context.getShardRegistry(), rawShardId);
             } else {
                 shardId = -1; // dummy assignment due to final declaration
             }
 
-            shardStatus = readShardStatus(args.get(3));
+            shardStatus = readShardStatus(args.get(2));
         }
     }
 }

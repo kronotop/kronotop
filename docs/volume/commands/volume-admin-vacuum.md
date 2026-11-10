@@ -43,7 +43,7 @@ VOLUME.ADMIN VACUUM START <volume-name> <garbage-threshold>
 
 | Argument            | Type   | Description                                                                                                 |
 |---------------------|--------|-------------------------------------------------------------------------------------------------------------|
-| `volume-name`       | string | Volume identifier (e.g. `bucket-shard-0`). Use `VOLUME.ADMIN LIST` to discover volume names                 |
+| `volume-name`       | string | Volume identifier (e.g. `shard-0`). Use `VOLUME.ADMIN LIST` to discover volume names                        |
 | `garbage-threshold` | float  | Minimum garbage percentage required to vacuum a segment. Must be between 0 and 100 (exclusive on both ends) |
 
 **Return Value**
@@ -82,25 +82,25 @@ Volume errors:
 
 **Examples**
 
-**Start vacuum on bucket-shard-0 with a 30% threshold:**
+**Start vacuum on shard-0 with a 30% threshold:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN VACUUM START bucket-shard-0 30
+127.0.0.1:3320> VOLUME.ADMIN VACUUM START shard-0 30
 OK
 ```
 
 **Attempt to start while already running:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN VACUUM START bucket-shard-0 30
-(error) ERR Vacuum is already running on volume bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN VACUUM START shard-0 30
+(error) ERR Vacuum is already running on volume shard-0
 ```
 
 **Stale metadata from a previous run:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN VACUUM START bucket-shard-0 30
-(error) ERR Stale vacuum metadata exists on volume bucket-shard-0, run DROP first
+127.0.0.1:3320> VOLUME.ADMIN VACUUM START shard-0 30
+(error) ERR Stale vacuum metadata exists on volume shard-0, run DROP first
 ```
 
 ---
@@ -117,9 +117,9 @@ VOLUME.ADMIN VACUUM STOP <volume-name>
 
 **Arguments**
 
-| Argument      | Type   | Description                                                                          |
-|---------------|--------|--------------------------------------------------------------------------------------|
-| `volume-name` | string | Volume identifier (e.g. `bucket-shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
+| Argument      | Type   | Description                                                                   |
+|---------------|--------|-------------------------------------------------------------------------------|
+| `volume-name` | string | Volume identifier (e.g. `shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
 
 **Return Value**
 
@@ -146,15 +146,15 @@ Volume errors:
 **Stop an active vacuum:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN VACUUM STOP bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN VACUUM STOP shard-0
 OK
 ```
 
 **No vacuum to stop:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN VACUUM STOP bucket-shard-0
-(error) ERR No active vacuum on volume bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN VACUUM STOP shard-0
+(error) ERR No active vacuum on volume shard-0
 ```
 
 ---
@@ -171,9 +171,9 @@ VOLUME.ADMIN VACUUM DROP <volume-name>
 
 **Arguments**
 
-| Argument      | Type   | Description                                                                          |
-|---------------|--------|--------------------------------------------------------------------------------------|
-| `volume-name` | string | Volume identifier (e.g. `bucket-shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
+| Argument      | Type   | Description                                                                   |
+|---------------|--------|-------------------------------------------------------------------------------|
+| `volume-name` | string | Volume identifier (e.g. `shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
 
 **Return Value**
 
@@ -199,15 +199,15 @@ Volume errors:
 **Drop metadata after a completed or stopped vacuum:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN VACUUM DROP bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN VACUUM DROP shard-0
 OK
 ```
 
 **Attempt to drop while still running:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN VACUUM DROP bucket-shard-0
-(error) ERR Vacuum is still running on volume bucket-shard-0, run STOP first
+127.0.0.1:3320> VOLUME.ADMIN VACUUM DROP shard-0
+(error) ERR Vacuum is still running on volume shard-0, run STOP first
 ```
 
 ---
@@ -224,9 +224,9 @@ VOLUME.ADMIN VACUUM STATUS <volume-name>
 
 **Arguments**
 
-| Argument      | Type   | Description                                                                          |
-|---------------|--------|--------------------------------------------------------------------------------------|
-| `volume-name` | string | Volume identifier (e.g. `bucket-shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
+| Argument      | Type   | Description                                                                   |
+|---------------|--------|-------------------------------------------------------------------------------|
+| `volume-name` | string | Volume identifier (e.g. `shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
 
 **Return Value**
 
@@ -277,7 +277,7 @@ Volume errors:
 **Status of a completed vacuum:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN VACUUM STATUS bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN VACUUM STATUS shard-0
 1# "active" => (false)
 2# "metadata" =>
    1# "started_at" => (integer) 1715100000000
@@ -299,7 +299,7 @@ Volume errors:
 **Status of an active vacuum with workers in progress:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN VACUUM STATUS bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN VACUUM STATUS shard-0
 1# "active" => (true)
 2# "segments" =>
    1) 1# "segment_id" => (integer) 0
@@ -313,8 +313,8 @@ Volume errors:
 **No vacuum has run:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.ADMIN VACUUM STATUS bucket-shard-0
-(error) ERR No active vacuum on volume bucket-shard-0
+127.0.0.1:3320> VOLUME.ADMIN VACUUM STATUS shard-0
+(error) ERR No active vacuum on volume shard-0
 ```
 
 ## Concepts

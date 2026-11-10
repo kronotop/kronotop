@@ -23,7 +23,6 @@ import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.network.Address;
 import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
@@ -39,7 +38,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class ReplicationClient {
     private final Context context;
-    private final ShardKind shardKind;
     private final int shardId;
 
     // Using ReentrantLock to avoid Virtual Thread pinning.
@@ -57,8 +55,7 @@ public class ReplicationClient {
     private volatile boolean connected;
     private volatile boolean shutdown;
 
-    ReplicationClient(Context context, ShardKind shardKind, int shardId) {
-        this.shardKind = shardKind;
+    ReplicationClient(Context context, int shardId) {
         this.shardId = shardId;
         this.context = context;
     }
@@ -80,9 +77,9 @@ public class ReplicationClient {
             }
 
             RoutingService routing = context.getService(RoutingService.NAME);
-            Route route = routing.findRoute(shardKind, shardId);
+            Route route = routing.findRoute(shardId);
             if (route == null) {
-                throw new IllegalArgumentException("Route not found: " + shardKind + " " + shardId);
+                throw new IllegalArgumentException("Route not found for shard " + shardId);
             }
 
             Member member = route.primary();

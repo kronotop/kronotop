@@ -33,7 +33,7 @@ public interface InternalAsyncCommands<K, V> {
 
     RedisFuture<VolumeInspectCursorResponse> volumeInspectCursor(String volume);
 
-    RedisFuture<VolumeInspectReplicationResponse> volumeInspectReplication(String shardKind, int shardId, String standbyId);
+    RedisFuture<VolumeInspectReplicationResponse> volumeInspectReplication(String volume, String standbyId);
 
     RedisFuture<List<ChangeLogEntryResponse>> changelogRange(String volume, String parentOperationKind, String start, String end, ChangeLogRangeArgs changelogArgs);
 

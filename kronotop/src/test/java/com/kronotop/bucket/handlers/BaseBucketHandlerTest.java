@@ -270,10 +270,10 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
     }
 
     /**
-     * Retrieves a bucket shard by its ID.
+     * Retrieves a shard by its ID.
      *
      * @param shardId the shard ID
-     * @return the bucket shard
+     * @return the shard
      */
     protected BucketShard getShard(int shardId) {
         return ((BucketService) context.getService(BucketService.NAME)).getShard(shardId);

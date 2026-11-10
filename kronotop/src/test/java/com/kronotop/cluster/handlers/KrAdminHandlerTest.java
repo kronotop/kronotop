@@ -22,7 +22,6 @@ import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.CollectStalePrefixesTask;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MemberStatus;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.commands.TaskAdminCommandBuilder;
@@ -426,7 +425,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldSetShardStatus() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setShardStatus("bucket", 1, "READONLY").encode(buf);
+        cmd.setShardStatus(1, "READONLY").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -438,7 +437,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldSetShardStatusForAllShards() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setShardStatus("bucket", "READONLY").encode(buf);
+        cmd.setShardStatus("READONLY").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -450,7 +449,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenSetShardStatusWithNegativeShardId() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setShardStatus("bucket", -1, "READONLY").encode(buf);
+        cmd.setShardStatus(-1, "READONLY").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
@@ -462,7 +461,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenSetShardStatusWithShardIdBiggerThanNumberOfShards() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setShardStatus("bucket", 1231253, "READONLY").encode(buf);
+        cmd.setShardStatus(1231253, "READONLY").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
@@ -472,7 +471,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldDescribeCluster() {
-        // Behavior: DESCRIBE-CLUSTER returns metadata_version, cluster_name, and a section for each enabled shard kind.
+        // Behavior: DESCRIBE-CLUSTER returns exactly three top-level keys: metadata_version, cluster_name and shards.
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.describeCluster().encode(buf);
@@ -490,12 +489,8 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertTrue(topLevelKeys.contains("metadata_version"));
         assertTrue(topLevelKeys.contains("cluster_name"));
 
-        Set<ShardKind> enabledKinds = context.getShardRegistry().getShardKinds();
-        for (ShardKind kind : enabledKinds) {
-            assertTrue(topLevelKeys.contains(kind.toString().toLowerCase()));
-        }
-
-        assertEquals(2 + enabledKinds.size(), topLevelKeys.size());
+        assertTrue(topLevelKeys.contains("shards"));
+        assertEquals(3, topLevelKeys.size());
     }
 
     @Test
@@ -516,10 +511,10 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             }
 
             assertInstanceOf(MapRedisMessage.class, valueMessage);
-            MapRedisMessage shardsByKind = (MapRedisMessage) valueMessage;
-            assertFalse(shardsByKind.children().isEmpty());
+            MapRedisMessage shards = (MapRedisMessage) valueMessage;
+            assertFalse(shards.children().isEmpty());
 
-            shardsByKind.children().forEach((shardIdMessage, shardDetailsMessage) -> {
+            shards.children().forEach((shardIdMessage, shardDetailsMessage) -> {
                 assertInstanceOf(IntegerRedisMessage.class, shardIdMessage);
                 assertInstanceOf(MapRedisMessage.class, shardDetailsMessage);
 
@@ -552,7 +547,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.describeShard("BUCKET", 1).encode(buf);
+        cmd.describeShard(1).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
@@ -586,7 +581,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenDescribeShardWithNonIntegerShardId() {
         // Behavior: DESCRIBE-SHARD rejects a shard id that is not an integer.
         ByteBuf buf = Unpooled.buffer();
-        buf.writeBytes("*4\r\n$8\r\nKR.ADMIN\r\n$14\r\nDESCRIBE-SHARD\r\n$6\r\nBUCKET\r\n$3\r\nabc\r\n".getBytes());
+        buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$14\r\nDESCRIBE-SHARD\r\n$3\r\nabc\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
@@ -596,10 +591,10 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldReturnErrorWhenDescribeShardWithNonExistentShardId() {
-        // Behavior: DESCRIBE-SHARD rejects a shard id that is not registered for the shard kind.
+        // Behavior: DESCRIBE-SHARD rejects a shard id that does not exist in the cluster.
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.describeShard("BUCKET", 1231253).encode(buf);
+        cmd.describeShard(1231253).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
@@ -611,7 +606,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenDescribeShardWithInvalidNumberOfArguments() {
         // Behavior: DESCRIBE-SHARD rejects a call without the shard id argument.
         ByteBuf buf = Unpooled.buffer();
-        buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$14\r\nDESCRIBE-SHARD\r\n$6\r\nBUCKET\r\n".getBytes());
+        buf.writeBytes("*2\r\n$8\r\nKR.ADMIN\r\n$14\r\nDESCRIBE-SHARD\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
