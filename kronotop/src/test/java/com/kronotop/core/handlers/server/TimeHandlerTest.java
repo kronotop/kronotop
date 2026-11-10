@@ -95,6 +95,6 @@ class TimeHandlerTest extends BaseHandlerTest {
         Object response = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertTrue(actualMessage.content().contains("wrong number of arguments"));
+        assertTrue(actualMessage.content().contains("Wrong number of arguments"));
     }
 }

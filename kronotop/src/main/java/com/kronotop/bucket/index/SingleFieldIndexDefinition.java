@@ -108,7 +108,7 @@ public record SingleFieldIndexDefinition(long id, String name, String selector, 
      */
     public SingleFieldIndexDefinition updateStatus(IndexStatus status) {
         if (status != IndexStatus.DROPPED && status() == IndexStatus.DROPPED) {
-            throw new IllegalStateException("Index '" + name + "' is already dropped and its status cannot be modified.");
+            throw new IllegalStateException("Index '" + name + "' is already dropped and its status cannot be modified");
         }
         return new SingleFieldIndexDefinition(id, name, selector, bsonType, multiKey, status, collation, unique);
     }

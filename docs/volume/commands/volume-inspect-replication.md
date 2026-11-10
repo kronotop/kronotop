@@ -66,18 +66,18 @@ Argument errors:
 
 | Error Code | Error message                 | Cause                                                                   |
 |------------|-------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `invalid number of arguments` | -                                                                       |
-| `ERR`      | `invalid volume name: <name>` | The name does not match the `shard-<id>` format.                        |
-| `ERR`      | `invalid shard id: <value>`   | The part after `shard-` in the volume name is not an integer.           |
-| `ERR`      | `invalid shard id`            | The volume name points to a shard that does not exist.                  |
+| `ERR`      | `Invalid number of arguments` | -                                                                       |
+| `ERR`      | `Invalid volume name: <name>` | The name does not match the `shard-<id>` format.                        |
+| `ERR`      | `Invalid shard id: <value>`   | The part after `shard-` in the volume name is not an integer.           |
+| `ERR`      | `Invalid shard id`            | The volume name points to a shard that does not exist.                  |
 | `ERR`      | `Invalid member id: <id>`     | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 Volume errors:
 
 | Error Code | Error message                                      | Cause                                               |
 |------------|----------------------------------------------------|-----------------------------------------------------|
-| `ERR`      | `no member found with prefix: <prefix>`            | -                                                   |
-| `ERR`      | `more than one member found with prefix: <prefix>` | -                                                   |
+| `ERR`      | `No member found with prefix: <prefix>`            | -                                                   |
+| `ERR`      | `More than one member found with prefix: <prefix>` | -                                                   |
 | `ERR`      | `No such standby member`                           | The member has no replication state for the volume. |
 
 ## Examples

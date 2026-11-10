@@ -34,7 +34,7 @@ public class SetInfoSubcommand implements SubcommandHandler {
             ClientMessage clientMessage = request.attr(MessageTypes.CLIENT).get();
             // ERR wrong number of arguments for 'client|setinfo' command
             throw new WrongNumberOfArgumentsException(
-                    String.format("wrong number of arguments for 'CLIENT|%s' command", clientMessage.getSubcommand())
+                    String.format("Wrong number of arguments for 'CLIENT|%s' command", clientMessage.getSubcommand())
             );
         }
 

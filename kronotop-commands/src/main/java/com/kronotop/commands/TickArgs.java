@@ -39,7 +39,7 @@ public class TickArgs {
 
     public <K, V> void build(CommandArgs<K, V> args) {
         if (argument == null) {
-            throw new IllegalArgumentException("argument has to be FRESH or CACHED");
+            throw new IllegalArgumentException("Argument has to be FRESH or CACHED");
         }
         args.add(argument);
     }

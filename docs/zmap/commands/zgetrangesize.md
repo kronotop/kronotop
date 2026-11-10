@@ -57,7 +57,7 @@ Argument errors:
 
 | Error Code | Error message                                           | Cause |
 |------------|---------------------------------------------------------|-------|
-| `ERR`      | `wrong number of arguments for 'ZGETRANGESIZE' command` | -     |
+| `ERR`      | `Wrong number of arguments for 'ZGETRANGESIZE' command` | -     |
 | `ERR`      | `Unknown '<keyword>' argument`                          | -     |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace`    | -     |
 

@@ -85,7 +85,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         if (entry.hasMaximumArgumentCount()) {
             if (request.getArguments().size() > entry.maximumArgumentCount()) {
                 throw new WrongNumberOfArgumentsException(
-                        String.format("wrong number of arguments for '%s' command", request.getCommand())
+                        String.format("Wrong number of arguments for '%s' command", request.getCommand())
                 );
             }
         }
@@ -95,7 +95,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         if (entry.hasMinimumArgumentCount()) {
             if (request.getArguments().size() < entry.minimumArgumentCount()) {
                 throw new WrongNumberOfArgumentsException(
-                        String.format("wrong number of arguments for '%s' command", request.getCommand())
+                        String.format("Wrong number of arguments for '%s' command", request.getCommand())
                 );
             }
         }
@@ -144,9 +144,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
                 } else if (cause instanceof KronotopException krEx) {
                     response.writeError(krEx.getPrefix(), krEx.getMessage());
                 } else {
-                    String message;
-                    message = RESPError.decapitalize(Objects.requireNonNullElse(cause, compExp).getMessage());
-                    response.writeError(message);
+                    response.writeError(Objects.requireNonNullElse(cause, compExp).getMessage());
                 }
             }
             case FDBException fdbEx -> {
@@ -195,7 +193,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
                         handler.execute(request, response);
                     } else {
                         metrics.increaseCommandsFailed(serverKind);
-                        response.writeError(RESPError.NOAUTH, "Authentication required.");
+                        response.writeError(RESPError.NOAUTH, "Authentication required");
                     }
                 }
             } else {

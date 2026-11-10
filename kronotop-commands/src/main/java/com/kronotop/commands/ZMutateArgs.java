@@ -90,7 +90,7 @@ public class ZMutateArgs {
 
     public <K, V> void build(CommandArgs<K, V> args) {
         if (mutationType == null) {
-            throw new IllegalArgumentException("mutation type has to be set");
+            throw new IllegalArgumentException("Mutation type has to be set");
         }
         args.add(mutationType);
         if (namespace != null) {

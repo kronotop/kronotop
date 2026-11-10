@@ -48,10 +48,10 @@ class ZGetD128HandlerTest extends BaseHandlerTest {
         return Stream.of(
                 arguments("too few arguments",
                         List.of(),
-                        "ERR wrong number of arguments for 'ZGET.D128' command"),
+                        "ERR Wrong number of arguments for 'ZGET.D128' command"),
                 arguments("too many arguments",
                         List.of("key", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZGET.D128' command"),
+                        "ERR Wrong number of arguments for 'ZGET.D128' command"),
                 arguments("unknown keyword",
                         List.of("key", "EXTRA"),
                         "ERR Unknown 'EXTRA' argument"),

@@ -87,7 +87,7 @@ public class ClientHandlerTest extends BaseHandlerTest {
         Object msg = BaseTest.runRaw(channel, CommandType.CLIENT, List.of("SETINFO", "lib-name"));
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
-        assertEquals("ERR wrong number of arguments for 'CLIENT|SETINFO' command", ((ErrorRedisMessage) msg).content());
+        assertEquals("ERR Wrong number of arguments for 'CLIENT|SETINFO' command", ((ErrorRedisMessage) msg).content());
     }
 
     @Test
@@ -96,6 +96,6 @@ public class ClientHandlerTest extends BaseHandlerTest {
         Object msg = BaseTest.runRaw(channel, CommandType.CLIENT, List.of("SETNAME", "a", "b"));
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
-        assertEquals("ERR wrong number of arguments for 'CLIENT|SETNAME' command", ((ErrorRedisMessage) msg).content());
+        assertEquals("ERR Wrong number of arguments for 'CLIENT|SETNAME' command", ((ErrorRedisMessage) msg).content());
     }
 }

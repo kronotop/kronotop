@@ -69,7 +69,7 @@ public class KronotopInstanceWithRESP extends KronotopInstance {
         } else if (nettyTransport.equals(NETTY_TRANSPORT_EPOLL)) {
             server = new EpollRESPServer(context, handlers, tlsConfig, nettyConfig, kind);
         } else {
-            throw new KronotopException(String.format("invalid %s: %s", transportConfigPath, nettyTransport));
+            throw new KronotopException(String.format("Invalid %s: %s", transportConfigPath, nettyTransport));
         }
         return server;
     }

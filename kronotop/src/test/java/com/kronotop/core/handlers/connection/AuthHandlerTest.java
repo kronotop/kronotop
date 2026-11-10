@@ -49,7 +49,7 @@ public class AuthHandlerTest extends BaseHandlerTest {
         Object msg = BaseTest.runCommand(noauthChannel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("NOAUTH Authentication required.", actualMessage.content());
+        assertEquals("NOAUTH Authentication required", actualMessage.content());
     }
 
     @Test
@@ -73,7 +73,7 @@ public class AuthHandlerTest extends BaseHandlerTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("WRONGPASS invalid username-password pair or user is disabled.", actualMessage.content());
+        assertEquals("WRONGPASS Invalid username-password pair or user is disabled", actualMessage.content());
     }
 
     @Test

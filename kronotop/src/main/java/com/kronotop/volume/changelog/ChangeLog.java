@@ -182,7 +182,7 @@ public class ChangeLog {
      */
     public static long calculateCutoffEnd(Context context, long retentionPeriod) {
         if (retentionPeriod <= 0) {
-            throw new IllegalArgumentException("retention period must be greater than zero");
+            throw new IllegalArgumentException("Retention period must be greater than zero");
         }
         long cutoffTimeMs = context.now() - TimeUnit.HOURS.toMillis(retentionPeriod);
         return HybridLogicalClock.fromPhysicalTime(cutoffTimeMs);

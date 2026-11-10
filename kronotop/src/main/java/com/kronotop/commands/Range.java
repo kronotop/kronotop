@@ -22,10 +22,10 @@ package com.kronotop.commands;
 public record Range(int lastkey, int step, int limit) {
     public Range {
         if (step < 1) {
-            throw new IllegalArgumentException("key spec range step must be >= 1");
+            throw new IllegalArgumentException("Key spec range step must be >= 1");
         }
         if (limit < 0) {
-            throw new IllegalArgumentException("key spec range limit must be >= 0");
+            throw new IllegalArgumentException("Key spec range limit must be >= 0");
         }
     }
 }

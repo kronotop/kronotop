@@ -78,7 +78,7 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
 
             BsonDocument updateDocument = parseUpdateDocument(message.getUpdate());
             if (updateDocument.isEmpty()) {
-                throw new KronotopException("update document cannot be an empty document");
+                throw new KronotopException("Update document cannot be an empty document");
             }
             UpdateOptions updateOptions = UpdateOptionsConverter.fromDocument(updateDocument);
             QueryContext ctx = buildQueryContext(

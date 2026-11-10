@@ -51,10 +51,10 @@ class ZWatchHandlerTest extends BaseHandlerTest {
         return Stream.of(
                 arguments("too few arguments",
                         List.of(),
-                        "ERR wrong number of arguments for 'ZWATCH' command"),
+                        "ERR Wrong number of arguments for 'ZWATCH' command"),
                 arguments("too many arguments",
                         List.of("key", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZWATCH' command"),
+                        "ERR Wrong number of arguments for 'ZWATCH' command"),
                 arguments("unknown keyword",
                         List.of("key", "EXTRA"),
                         "ERR Unknown 'EXTRA' argument"),

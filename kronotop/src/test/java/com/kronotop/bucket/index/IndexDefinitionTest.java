@@ -90,7 +90,7 @@ class IndexDefinitionTest {
         IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
                 dropped.updateStatus(IndexStatus.READY)
         );
-        assertEquals("Index 'index-name' is already dropped and its status cannot be modified.", exception.getMessage());
+        assertEquals("Index 'index-name' is already dropped and its status cannot be modified", exception.getMessage());
     }
 
     @Test

@@ -38,34 +38,34 @@ class VolumeNamesTest {
 
     @Test
     void shouldThrowWhenParsingNull() {
-        // Behavior: parsing a null name throws IllegalArgumentException with "name cannot be null".
+        // Behavior: parsing a null name throws IllegalArgumentException with "Name cannot be null".
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> VolumeNames.parse(null)
         );
-        assertEquals("name cannot be null", exception.getMessage());
+        assertEquals("Name cannot be null", exception.getMessage());
     }
 
     @Test
     void shouldThrowWhenParsingNameWithoutShardPrefix() {
         // Behavior: parsing a name that does not start with "shard-" throws IllegalArgumentException
-        // with "invalid volume name: <name>".
+        // with "Invalid volume name: <name>".
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> VolumeNames.parse("volume-0")
         );
-        assertEquals("invalid volume name: volume-0", exception.getMessage());
+        assertEquals("Invalid volume name: volume-0", exception.getMessage());
     }
 
     @Test
     void shouldThrowWhenParsingInvalidShardId() {
         // Behavior: parsing "shard-abc", where the shard id is not an integer, throws
-        // IllegalArgumentException with "invalid shard id: abc".
+        // IllegalArgumentException with "Invalid shard id: abc".
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> VolumeNames.parse("shard-abc")
         );
-        assertEquals("invalid shard id: abc", exception.getMessage());
+        assertEquals("Invalid shard id: abc", exception.getMessage());
     }
 
     @Test

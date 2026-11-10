@@ -227,7 +227,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
                 tr.options().setPriorityBatch();
                 IndexHolder<?> holder = lookupIndex(metadata);
                 if (holder == null) {
-                    throw new IndexMaintenanceRoutineException("no index found with id " + task.getIndexId());
+                    throw new IndexMaintenanceRoutineException("No index found with id " + task.getIndexId());
                 }
 
                 if (holder.definition().status() == IndexStatus.READY) {

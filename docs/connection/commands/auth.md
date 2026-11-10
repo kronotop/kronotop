@@ -41,7 +41,7 @@ Argument errors:
 
 | Error Code  | Error message                                                                                                              | Cause |
 |-------------|----------------------------------------------------------------------------------------------------------------------------|-------|
-| `WRONGPASS` | `invalid username-password pair or user is disabled.`                                                                      | -     |
+| `WRONGPASS` | `Invalid username-password pair or user is disabled`                                                                       | -     |
 | `ERR`       | `AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?` | -     |
 
 ## Examples
@@ -64,5 +64,5 @@ OK
 
 ```kronotop
 127.0.0.1:5484> AUTH wrongpassword
-(error) WRONGPASS invalid username-password pair or user is disabled.
+(error) WRONGPASS Invalid username-password pair or user is disabled
 ```

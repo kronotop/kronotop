@@ -42,19 +42,19 @@ public record BlobChunkHeader(String name, long offset, int chunkCount) {
     public static BlobChunkHeader readHeader(ByteBuffer buffer) {
         buffer.rewind();
         if (buffer.remaining() < FIXED_LENGTH) {
-            throw new CorruptBlobChunkException("chunk shorter than header");
+            throw new CorruptBlobChunkException("Chunk shorter than header");
         }
         if (buffer.getInt() != MAGIC) {
-            throw new CorruptBlobChunkException("bad magic");
+            throw new CorruptBlobChunkException("Bad magic");
         }
         int headerLength = buffer.getInt();
         if (headerLength <= FIXED_LENGTH || headerLength > buffer.limit()) {
-            throw new CorruptBlobChunkException("invalid header length: " + headerLength);
+            throw new CorruptBlobChunkException("Invalid header length: " + headerLength);
         }
         long offset = buffer.getLong();
         int chunkCount = buffer.getInt();
         if (offset < 0 || chunkCount <= 0) {
-            throw new CorruptBlobChunkException("invalid chunk fields: " + offset + "/" + chunkCount);
+            throw new CorruptBlobChunkException("Invalid chunk fields: " + offset + "/" + chunkCount);
         }
         byte[] name = new byte[headerLength - FIXED_LENGTH];
         buffer.get(name);

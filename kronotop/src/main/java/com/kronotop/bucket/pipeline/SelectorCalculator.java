@@ -65,7 +65,7 @@ class SelectorCalculator {
             case FullScanContext ctx -> calculateFullScanSelectors(ctx);
             case IndexScanContext ctx -> calculateIndexScanSelectors(ctx);
             case RangeScanContext ctx -> calculateRangeScanSelectors(ctx);
-            default -> throw new KronotopException("unknown context type");
+            default -> throw new KronotopException("Unknown context type");
         };
     }
 

@@ -165,7 +165,7 @@ public final class UpdateOptions {
 
         private static void requireField(String f) {
             if (f == null || f.isBlank()) {
-                throw new IllegalArgumentException("field is null/blank");
+                throw new IllegalArgumentException("Field is null/blank");
             }
         }
 

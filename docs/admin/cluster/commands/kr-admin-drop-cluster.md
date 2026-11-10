@@ -61,18 +61,18 @@ Argument errors:
 
 | Error Code | Error message                 | Cause |
 |------------|-------------------------------|-------|
-| `ERR`      | `cluster name is required`    | -     |
-| `ERR`      | `invalid number of arguments` | -     |
+| `ERR`      | `Cluster name is required`    | -     |
+| `ERR`      | `Invalid number of arguments` | -     |
 
 Cluster errors:
 
 | Error Code | Error message                                    | Cause                                                           |
 |------------|--------------------------------------------------|-----------------------------------------------------------------|
-| `ERR`      | `cluster has not been initialized yet`           | -                                                               |
-| `ERR`      | `cluster name does not match`                    | -                                                               |
-| `ERR`      | `no pending drop-cluster token for this cluster` | No token has been requested, or the token was already consumed. |
+| `ERR`      | `Cluster has not been initialized yet`           | -                                                               |
+| `ERR`      | `Cluster name does not match`                    | -                                                               |
+| `ERR`      | `No pending drop-cluster token for this cluster` | No token has been requested, or the token was already consumed. |
 | `ERR`      | `drop-cluster token has expired`                 | The token's 60-second TTL has elapsed.                          |
-| `ERR`      | `invalid drop-cluster token`                     | The token does not match the pending one.                       |
+| `ERR`      | `Invalid drop-cluster token`                     | The token does not match the pending one.                       |
 
 ## Examples
 
@@ -94,12 +94,12 @@ OK
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN DROP-CLUSTER wrong-name
-(error) ERR cluster name does not match
+(error) ERR Cluster name does not match
 ```
 
 **Reusing a consumed token:**
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN DROP-CLUSTER my-cluster a1b2c3d4-e5f6-7890-abcd-ef1234567890
-(error) ERR no pending drop-cluster token for this cluster
+(error) ERR No pending drop-cluster token for this cluster
 ```

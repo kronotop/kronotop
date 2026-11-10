@@ -345,7 +345,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
 
             SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
             if (primaryIndex == null) {
-                throw new KronotopException("Primary index is missing from metadata.");
+                throw new KronotopException("Primary index is missing from metadata");
             }
 
             BucketShard shard = findLocalShard(metadata);

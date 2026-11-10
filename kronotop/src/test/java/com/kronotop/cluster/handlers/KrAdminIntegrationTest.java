@@ -63,7 +63,7 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR cluster has not been initialized yet", actualMessage.content());
+        assertEquals("ERR Cluster has not been initialized yet", actualMessage.content());
     }
 
     @Test
@@ -77,7 +77,7 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR no primary member assigned yet", actualMessage.content());
+        assertEquals("ERR No primary member assigned yet", actualMessage.content());
     }
 
     @Test
@@ -92,7 +92,7 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-            assertEquals("ERR member not found", actualMessage.content());
+            assertEquals("ERR Member not found", actualMessage.content());
         }
     }
 }

@@ -32,13 +32,13 @@ Argument errors:
 
 | Error Code | Error message                                               | Cause |
 |------------|-------------------------------------------------------------|-------|
-| `ERR`      | `wrong number of arguments for 'NAMESPACE CURRENT' command` | -     |
+| `ERR`      | `Wrong number of arguments for 'NAMESPACE CURRENT' command` | -     |
 
 Namespace errors:
 
 | Error Code | Error message                               | Cause                                                                              |
 |------------|---------------------------------------------|------------------------------------------------------------------------------------|
-| `ERR`      | `current namespace is empty, blank or null` | The session has no current namespace. This does not happen under normal operation. |
+| `ERR`      | `Current namespace is empty, blank or null` | The session has no current namespace. This does not happen under normal operation. |
 
 ## Examples
 

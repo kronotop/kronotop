@@ -48,15 +48,15 @@ Argument errors:
 
 | Error Code | Error message                     | Cause                                                                   |
 |------------|-----------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `invalid number of arguments`     | -                                                                       |
-| `ERR`      | `invalid shard id`                | The shard ID is not a valid integer, or is out of the configured range. |
+| `ERR`      | `Invalid number of arguments`     | -                                                                       |
+| `ERR`      | `Invalid shard id`                | The shard ID is not a valid integer, or is out of the configured range. |
 | `ERR`      | `Unknown shard status: '<value>'` | The status must be `READWRITE`, `READONLY`, or `INOPERABLE`.            |
 
 Cluster errors:
 
 | Error Code | Error message                          | Cause |
 |------------|----------------------------------------|-------|
-| `ERR`      | `cluster has not been initialized yet` | -     |
+| `ERR`      | `Cluster has not been initialized yet` | -     |
 
 ## Examples
 
@@ -92,5 +92,5 @@ OK
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS 999999 READONLY
-(error) ERR invalid shard id
+(error) ERR Invalid shard id
 ```

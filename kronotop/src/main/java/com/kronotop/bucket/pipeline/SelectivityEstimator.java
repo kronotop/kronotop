@@ -65,7 +65,7 @@ public class SelectivityEstimator {
      */
     public static PipelineNode estimate(PlannerContext ctx, PipelineContext pipelineCtx, List<PipelineNode> children) {
         if (children == null || children.isEmpty()) {
-            throw new IllegalArgumentException("children cannot be null or empty");
+            throw new IllegalArgumentException("Children cannot be null or empty");
         }
 
         List<BqlValue> parameters = pipelineCtx.isParameterized() ? pipelineCtx.getParameters() : Collections.emptyList();

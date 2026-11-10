@@ -37,7 +37,7 @@ Argument errors:
 
 | Error Code | Error message                                           | Cause |
 |------------|---------------------------------------------------------|-------|
-| `ERR`      | `wrong number of arguments for 'SESSION.CLOSE' command` | -     |
+| `ERR`      | `Wrong number of arguments for 'SESSION.CLOSE' command` | -     |
 
 ## Examples
 
@@ -58,7 +58,7 @@ OK
 OK
 
 > ROLLBACK
-(error) TRANSACTION there is no transaction in progress.
+(error) TRANSACTION There is no transaction in progress
 ```
 
 The transaction is rolled back; no explicit `ROLLBACK` is needed.

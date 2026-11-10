@@ -632,7 +632,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR update document cannot be an empty document", errorMessage.content());
+        assertEquals("ERR Update document cannot be an empty document", errorMessage.content());
     }
 
     @Test
@@ -1212,7 +1212,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
         assertEquals(
-                "ERR query cannot be executed: SORTBY 'age' requires an index that provides natural ordering. Hint: create an index on 'age'",
+                "ERR Query cannot be executed: SORTBY 'age' requires an index that provides natural ordering. Hint: create an index on 'age'",
                 errorMessage.content()
         );
     }
@@ -1537,7 +1537,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
         assertEquals(
-                "ERR query cannot be executed: SORTBY 'age' requires an index that provides natural ordering. Hint: create an index on 'age'",
+                "ERR Query cannot be executed: SORTBY 'age' requires an index that provides natural ordering. Hint: create an index on 'age'",
                 errorMessage.content()
         );
     }
@@ -1562,7 +1562,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
         assertEquals(
-                "ERR query cannot be executed: SORTBY 'age' requires an index that provides natural ordering. Hint: create an index on 'age'",
+                "ERR Query cannot be executed: SORTBY 'age' requires an index that provides natural ordering. Hint: create an index on 'age'",
                 errorMessage.content()
         );
     }

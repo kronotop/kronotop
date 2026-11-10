@@ -123,7 +123,7 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Object response = runCommand(kronotopInstance.getChannel(), buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage message = (ErrorRedisMessage) response;
-        assertEquals("OUTOFBOUND position: " + (segmentSize - 10) + ", length: 20 but size: " + segmentSize, message.content());
+        assertEquals("OUTOFBOUND Position: " + (segmentSize - 10) + ", length: 20 but size: " + segmentSize, message.content());
     }
 
     @Test
@@ -134,6 +134,6 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 List.of(volumeConfig.name(), "1", "0", "3", "6"));
 
         assertInstanceOf(ErrorRedisMessage.class, response);
-        assertEquals("ERR wrong number of arguments for 'SEGMENT.RANGE' command", ((ErrorRedisMessage) response).content());
+        assertEquals("ERR Wrong number of arguments for 'SEGMENT.RANGE' command", ((ErrorRedisMessage) response).content());
     }
 }

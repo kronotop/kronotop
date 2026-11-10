@@ -20,6 +20,6 @@ import com.kronotop.KronotopException;
 
 public class ServerShuttingDownException extends KronotopException {
     public ServerShuttingDownException() {
-        super("server is shutting down");
+        super("Server is shutting down");
     }
 }

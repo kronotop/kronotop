@@ -104,7 +104,7 @@ public final class CommandMetadataLoader {
         for (Map.Entry<String, Map<String, CommandMetadata>> entry : pending.entrySet()) {
             CommandMetadata parent = commands.get(entry.getKey());
             if (parent == null) {
-                throw new IllegalStateException("unknown container '" + entry.getKey() + "' for subcommands " + entry.getValue().keySet());
+                throw new IllegalStateException("Unknown container '" + entry.getKey() + "' for subcommands " + entry.getValue().keySet());
             }
             commands.put(entry.getKey(), parent.withSubcommands(entry.getValue()));
         }
@@ -144,7 +144,7 @@ public final class CommandMetadataLoader {
                 switch (url.getProtocol()) {
                     case "file" -> listFromDirectory(url, dir, resources);
                     case "jar" -> listFromJar(url, dir, resources);
-                    default -> throw new IllegalStateException("unsupported resource protocol: " + url);
+                    default -> throw new IllegalStateException("Unsupported resource protocol: " + url);
                 }
             }
         } catch (IOException e) {

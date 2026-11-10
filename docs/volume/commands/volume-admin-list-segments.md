@@ -34,7 +34,7 @@ Argument errors:
 
 | Error Code | Error message                 | Cause |
 |------------|-------------------------------|-------|
-| `ERR`      | `invalid number of arguments` | -     |
+| `ERR`      | `Invalid number of arguments` | -     |
 
 Volume errors:
 

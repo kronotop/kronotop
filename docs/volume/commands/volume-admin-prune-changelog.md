@@ -35,9 +35,9 @@ Argument errors:
 
 | Error Code | Error message                                | Cause                                            |
 |------------|----------------------------------------------|--------------------------------------------------|
-| `ERR`      | `invalid number of arguments`                | -                                                |
-| `ERR`      | `retention period must be greater than zero` | -                                                |
-| `ERR`      | `invalid volume name: <name>`                | The name does not match the `shard-<id>` format. |
+| `ERR`      | `Invalid number of arguments`                | -                                                |
+| `ERR`      | `Retention period must be greater than zero` | -                                                |
+| `ERR`      | `Invalid volume name: <name>`                | The name does not match the `shard-<id>` format. |
 
 ## Examples
 
@@ -52,19 +52,19 @@ OK
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN PRUNE-CHANGELOG shard-0 0
-(error) ERR retention period must be greater than zero
+(error) ERR Retention period must be greater than zero
 ```
 
 **Invalid volume name:**
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN PRUNE-CHANGELOG non-existent-volume 24
-(error) ERR invalid volume name: non-existent-volume
+(error) ERR Invalid volume name: non-existent-volume
 ```
 
 **Missing arguments:**
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN PRUNE-CHANGELOG
-(error) ERR invalid number of arguments
+(error) ERR Invalid number of arguments
 ```

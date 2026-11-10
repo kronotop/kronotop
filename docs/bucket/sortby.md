@@ -63,7 +63,7 @@ If the query specifies a collation that differs from the index's collation, the 
 127.0.0.1:5484> BUCKET.QUERY users '{}' SORTBY name ASC COLLATION '{
   "locale": "fr"
 }'
-(error) ERR query cannot be executed: SORTBY 'name' cannot use the existing index because its collation does not match the query collation. Hint: use a collation that matches the index on 'name'
+(error) ERR Query cannot be executed: SORTBY 'name' cannot use the existing index because its collation does not match the query collation. Hint: use a collation that matches the index on 'name'
 ```
 
 To sort strings under a specific locale, create the index with that collation and issue queries without a conflicting
@@ -127,7 +127,7 @@ The sort field has no index, so the engine cannot provide ordered results.
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY users '{"status": "active"}' SORTBY score ASC
-(error) ERR query cannot be executed: SORTBY 'score' requires an index that provides natural ordering. Hint: create an index on 'score'
+(error) ERR Query cannot be executed: SORTBY 'score' requires an index that provides natural ordering. Hint: create an index on 'score'
 ```
 
 ### Compound index range prefix conflict
@@ -142,7 +142,7 @@ Compound index on `(status, age)`. The range on `status` breaks `age` ordering. 
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY users '{"status": {"$gt": "a"}}' SORTBY age ASC
-(error) ERR query cannot be executed: SORTBY 'age' cannot be executed because a range filter on 'status' breaks compound index ordering. Hint: use an equality filter on 'status' or create an index on 'age'
+(error) ERR Query cannot be executed: SORTBY 'age' cannot be executed because a range filter on 'status' breaks compound index ordering. Hint: use an equality filter on 'status' or create an index on 'age'
 ```
 
 Two ways to fix: change the prefix filter to equality or create a dedicated single-field index on the sort field.
@@ -172,7 +172,7 @@ Both queries scan the `age` index in ascending order and skip excluded values. G
 127.0.0.1:5484> BUCKET.QUERY users '{
   "role": {"$nin": ["admin", "editor"]}
 }' SORTBY age ASC
-(error) ERR query cannot be executed: SORTBY 'age' cannot be used because the query's execution plan does not provide natural ordering on this field. Hint: use RESULTSORT 'age' for in-memory sorting
+(error) ERR Query cannot be executed: SORTBY 'age' cannot be used because the query's execution plan does not provide natural ordering on this field. Hint: use RESULTSORT 'age' for in-memory sorting
 ```
 
 ### $in
@@ -196,7 +196,7 @@ or cross into the next value.
 127.0.0.1:5484> BUCKET.QUERY users '{
   "name": {"$in": ["Alice", "Bob"]}
 }' SORTBY age ASC
-(error) ERR query cannot be executed: SORTBY 'age' cannot be used because the query's execution plan does not provide natural ordering on this field. Hint: use RESULTSORT 'age' for in-memory sorting
+(error) ERR Query cannot be executed: SORTBY 'age' cannot be used because the query's execution plan does not provide natural ordering on this field. Hint: use RESULTSORT 'age' for in-memory sorting
 ```
 
 ### $nor
@@ -208,7 +208,7 @@ iterates by `_id`, not by the sort field. `SORTBY` is rejected:
 127.0.0.1:5484> BUCKET.QUERY users '{
   "$nor": [{"age": 10}, {"age": 30}]
 }' SORTBY age ASC
-(error) ERR query cannot be executed: SORTBY 'age' cannot be used because the query's execution plan does not provide natural ordering on this field. Hint: use RESULTSORT 'age' for in-memory sorting
+(error) ERR Query cannot be executed: SORTBY 'age' cannot be used because the query's execution plan does not provide natural ordering on this field. Hint: use RESULTSORT 'age' for in-memory sorting
 ```
 
 Use `RESULTSORT` for in-memory per-batch sorting when `SORTBY` is not available.

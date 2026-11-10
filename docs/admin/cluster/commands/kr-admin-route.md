@@ -71,24 +71,24 @@ Argument errors:
 
 | Error Code | Error message                       | Cause                                                                   |
 |------------|-------------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `invalid number of arguments`       | -                                                                       |
+| `ERR`      | `Invalid number of arguments`       | -                                                                       |
 | `ERR`      | `Unknown operation kind: '<value>'` | The operation kind must be `SET` or `UNSET`.                            |
 | `ERR`      | `Unknown route kind: '<value>'`     | The route kind must be `PRIMARY` or `STANDBY`.                          |
-| `ERR`      | `invalid shard id`                  | The shard ID is not a valid integer, or is out of the configured range. |
+| `ERR`      | `Invalid shard id`                  | The shard ID is not a valid integer, or is out of the configured range. |
 | `ERR`      | `Invalid member id: <value>`        | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 Cluster errors:
 
 | Error Code | Error message                                      | Cause                                                                                                                                                              |
 |------------|----------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `ERR`      | `cluster has not been initialized yet`             | -                                                                                                                                                                  |
-| `ERR`      | `no member found with prefix: <prefix>`            | -                                                                                                                                                                  |
-| `ERR`      | `more than one member found with prefix: <prefix>` | -                                                                                                                                                                  |
-| `ERR`      | `member not found`                                 | -                                                                                                                                                                  |
-| `ERR`      | `no primary member assigned yet`                   | SET or UNSET STANDBY requires an existing primary.                                                                                                                 |
-| `ERR`      | `primary cannot be assigned as a standby`          | -                                                                                                                                                                  |
-| `ERR`      | `already assigned as a standby`                    | -                                                                                                                                                                  |
-| `ERR`      | `member is not a standby`                          | -                                                                                                                                                                  |
+| `ERR`      | `Cluster has not been initialized yet`             | -                                                                                                                                                                  |
+| `ERR`      | `No member found with prefix: <prefix>`            | -                                                                                                                                                                  |
+| `ERR`      | `More than one member found with prefix: <prefix>` | -                                                                                                                                                                  |
+| `ERR`      | `Member not found`                                 | -                                                                                                                                                                  |
+| `ERR`      | `No primary member assigned yet`                   | SET or UNSET STANDBY requires an existing primary.                                                                                                                 |
+| `ERR`      | `Primary cannot be assigned as a standby`          | -                                                                                                                                                                  |
+| `ERR`      | `Already assigned as a standby`                    | -                                                                                                                                                                  |
+| `ERR`      | `Member is not a standby`                          | -                                                                                                                                                                  |
 | `ERR`      | `UNSET PRIMARY is not supported`                   | -                                                                                                                                                                  |
 | `ERR`      | `Shard status must not be READWRITE`               | Reassigning a primary requires the shard to be non-READWRITE first.                                                                                                |
 | `ERR`      | `Member could not be found: <id>`                  | The target member could not be resolved during reassignment.                                                                                                       |
@@ -131,7 +131,7 @@ OK
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN ROUTE SET STANDBY 0 a3f18b2e74d9c5601f82e4a7b390d612c8f7e149
-(error) ERR no primary member assigned yet
+(error) ERR No primary member assigned yet
 ```
 
 **Error: unsetting primary**

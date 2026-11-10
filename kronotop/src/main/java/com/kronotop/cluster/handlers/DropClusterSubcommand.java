@@ -51,7 +51,7 @@ class DropClusterSubcommand extends BaseKrAdminSubcommandHandler implements Subc
         DropClusterArguments arguments = new DropClusterArguments(request.getArguments());
 
         if (!arguments.clusterName.equals(context.getClusterName())) {
-            throw new KronotopException("cluster name does not match");
+            throw new KronotopException("Cluster name does not match");
         }
 
         if (arguments.token == null) {
@@ -76,12 +76,12 @@ class DropClusterSubcommand extends BaseKrAdminSubcommandHandler implements Subc
             lock.lock();
             try {
                 if (!pendingTokens.containsKey(arguments.clusterName)) {
-                    throw new KronotopException("no pending drop-cluster token for this cluster");
+                    throw new KronotopException("No pending drop-cluster token for this cluster");
                 }
 
                 DropClusterToken pending = pendingTokens.get(arguments.clusterName);
                 if (!pending.token().equals(arguments.token)) {
-                    throw new KronotopException("invalid drop-cluster token");
+                    throw new KronotopException("Invalid drop-cluster token");
                 }
 
                 if (isTokenExpired(pending)) {
@@ -106,7 +106,7 @@ class DropClusterSubcommand extends BaseKrAdminSubcommandHandler implements Subc
 
         DropClusterArguments(ArrayList<ByteBuf> args) {
             if (args.size() < 2) {
-                throw new KronotopException("cluster name is required");
+                throw new KronotopException("Cluster name is required");
             }
             if (args.size() > 3) {
                 throw new InvalidNumberOfArgumentsException();

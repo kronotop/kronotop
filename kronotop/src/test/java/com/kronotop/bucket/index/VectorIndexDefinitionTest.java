@@ -83,7 +83,7 @@ class VectorIndexDefinitionTest {
         IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
                 dropped.updateStatus(IndexStatus.READY)
         );
-        assertEquals("Index 'my_vec_idx' is already dropped and its status cannot be modified.", ex.getMessage());
+        assertEquals("Index 'my_vec_idx' is already dropped and its status cannot be modified", ex.getMessage());
     }
 
     @Test

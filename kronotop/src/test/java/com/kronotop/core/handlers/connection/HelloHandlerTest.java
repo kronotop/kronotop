@@ -133,7 +133,7 @@ class HelloHandlerTest extends BaseHandlerTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("NOPROTO unsupported protocol version", actualMessage.content());
+        assertEquals("NOPROTO Unsupported protocol version", actualMessage.content());
     }
 
     @Test

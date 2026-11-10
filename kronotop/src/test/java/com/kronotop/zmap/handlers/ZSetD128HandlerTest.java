@@ -47,10 +47,10 @@ class ZSetD128HandlerTest extends BaseHandlerTest {
         return Stream.of(
                 arguments("too few arguments",
                         List.of("key"),
-                        "ERR wrong number of arguments for 'ZSET.D128' command"),
+                        "ERR Wrong number of arguments for 'ZSET.D128' command"),
                 arguments("too many arguments",
                         List.of("key", "value", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZSET.D128' command"),
+                        "ERR Wrong number of arguments for 'ZSET.D128' command"),
                 arguments("unknown keyword",
                         List.of("key", "value", "EXTRA"),
                         "ERR Unknown 'EXTRA' argument"),
@@ -189,7 +189,7 @@ class ZSetD128HandlerTest extends BaseHandlerTest {
         cmd.zsetd128("key", "not-a-number").encode(buf);
         Object response = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
-        assertEquals("ERR invalid decimal", ((ErrorRedisMessage) response).content());
+        assertEquals("ERR Invalid decimal", ((ErrorRedisMessage) response).content());
     }
 
     @Test

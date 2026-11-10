@@ -47,7 +47,7 @@ public class CollatorCache {
             case 3 -> Collator.TERTIARY;
             case 4 -> Collator.QUATERNARY;
             case 5 -> Collator.IDENTICAL;
-            default -> throw new IllegalArgumentException("invalid collation strength: " + strength);
+            default -> throw new IllegalArgumentException("Invalid collation strength: " + strength);
         };
     }
 

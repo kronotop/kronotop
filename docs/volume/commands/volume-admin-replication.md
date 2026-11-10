@@ -46,9 +46,9 @@ Argument errors:
 
 | Error Code | Error message                       | Cause                                            |
 |------------|-------------------------------------|--------------------------------------------------|
-| `ERR`      | `invalid number of arguments`       | -                                                |
-| `ERR`      | `invalid volume name: <name>`       | The name does not match the `shard-<id>` format. |
-| `ERR`      | `unknown subcommand: '<operation>'` | -                                                |
+| `ERR`      | `Invalid number of arguments`       | -                                                |
+| `ERR`      | `Invalid volume name: <name>`       | The name does not match the `shard-<id>` format. |
+| `ERR`      | `Unknown subcommand: '<operation>'` | -                                                |
 
 Volume errors:
 
@@ -84,5 +84,5 @@ OK
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN REPLICATION
-(error) ERR invalid number of arguments
+(error) ERR Invalid number of arguments
 ```

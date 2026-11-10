@@ -97,16 +97,16 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
     private void appendStandbyMemberId(Transaction tr, DirectorySubspace shardSubspace, RouteArguments arguments) {
         String primaryMemberId = MembershipUtil.loadPrimaryMemberId(tr, shardSubspace);
         if (primaryMemberId == null) {
-            throw new KronotopException("no primary member assigned yet");
+            throw new KronotopException("No primary member assigned yet");
         }
 
         if (primaryMemberId.equals(arguments.memberId)) {
-            throw new KronotopException("primary cannot be assigned as a standby");
+            throw new KronotopException("Primary cannot be assigned as a standby");
         }
 
         Set<String> standbyMemberIds = MembershipUtil.loadStandbyMemberIds(tr, shardSubspace);
         if (standbyMemberIds.contains(arguments.memberId)) {
-            throw new KronotopException("already assigned as a standby");
+            throw new KronotopException("Already assigned as a standby");
         }
 
         standbyMemberIds.add(arguments.memberId);
@@ -118,12 +118,12 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
     private void removeStandbyMemberId(Transaction tr, DirectorySubspace shardSubspace, RouteArguments arguments) {
         String primaryMemberId = MembershipUtil.loadPrimaryMemberId(tr, shardSubspace);
         if (primaryMemberId == null) {
-            throw new KronotopException("no primary member assigned yet");
+            throw new KronotopException("No primary member assigned yet");
         }
 
         Set<String> standbyMemberIds = MembershipUtil.loadStandbyMemberIds(tr, shardSubspace);
         if (!standbyMemberIds.contains(arguments.memberId)) {
-            throw new KronotopException("member is not a standby");
+            throw new KronotopException("Member is not a standby");
         }
 
         standbyMemberIds.remove(arguments.memberId);
@@ -156,7 +156,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
         runAsync(context, response, () -> {
             try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 if (!membership.isMemberRegistered(tr, arguments.memberId)) {
-                    throw new KronotopException("member not found");
+                    throw new KronotopException("Member not found");
                 }
                 if (arguments.operationKind.equals(OperationKind.SET)) {
                     if (arguments.allShards) {

@@ -58,7 +58,7 @@ public class CommitHandler implements Handler {
             Session session = request.getSession();
             Attribute<Boolean> beginAttr = session.attr(SessionAttributes.BEGIN);
             if (!Boolean.TRUE.equals(beginAttr.get())) {
-                throw new KronotopException(RESPError.TRANSACTION, "there is no transaction in progress.");
+                throw new KronotopException(RESPError.TRANSACTION, "There is no transaction in progress");
             }
 
             Attribute<Transaction> transactionAttr = session.attr(SessionAttributes.TRANSACTION);

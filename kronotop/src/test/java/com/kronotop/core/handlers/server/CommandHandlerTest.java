@@ -544,7 +544,7 @@ class CommandHandlerTest extends BaseHandlerTest {
                 {"COMMAND", "LIST", "x"}}) {
             Object response = run(getChannel(), args);
             assertInstanceOf(ErrorRedisMessage.class, response);
-            assertEquals("ERR syntax error", ((ErrorRedisMessage) response).content());
+            assertEquals("ERR Syntax error", ((ErrorRedisMessage) response).content());
         }
     }
 
@@ -635,7 +635,7 @@ class CommandHandlerTest extends BaseHandlerTest {
                 {"COMMAND", "GETKEYS"}}) {
             Object response = run(getChannel(), args);
             assertInstanceOf(ErrorRedisMessage.class, response);
-            assertEquals("ERR wrong number of arguments for 'command|" + args[1].toLowerCase() + "' command",
+            assertEquals("ERR Wrong number of arguments for 'command|" + args[1].toLowerCase() + "' command",
                     ((ErrorRedisMessage) response).content());
         }
     }
@@ -646,6 +646,6 @@ class CommandHandlerTest extends BaseHandlerTest {
         Object response = run(getChannel(), "COMMAND", "FOO");
 
         assertInstanceOf(ErrorRedisMessage.class, response);
-        assertTrue(((ErrorRedisMessage) response).content().contains("unknown subcommand 'FOO'. Try COMMAND HELP."));
+        assertTrue(((ErrorRedisMessage) response).content().contains("Unknown subcommand 'FOO'. Try COMMAND HELP"));
     }
 }

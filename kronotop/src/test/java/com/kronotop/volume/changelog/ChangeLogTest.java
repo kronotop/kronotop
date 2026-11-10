@@ -814,7 +814,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
                 IllegalArgumentException.class,
                 () -> ChangeLog.calculateCutoffEnd(context, 0)
         );
-        assertEquals("retention period must be greater than zero", exception.getMessage());
+        assertEquals("Retention period must be greater than zero", exception.getMessage());
     }
 
     @Test
@@ -823,7 +823,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
                 IllegalArgumentException.class,
                 () -> ChangeLog.calculateCutoffEnd(context, -1)
         );
-        assertEquals("retention period must be greater than zero", exception.getMessage());
+        assertEquals("Retention period must be greater than zero", exception.getMessage());
     }
 
     @Test

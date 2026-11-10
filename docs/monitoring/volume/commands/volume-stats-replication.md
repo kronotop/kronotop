@@ -49,8 +49,8 @@ Argument errors:
 
 | Error Code | Error message                 | Cause                                                                   |
 |------------|-------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `invalid number of arguments` | -                                                                       |
-| `ERR`      | `invalid volume name: <name>` | The name does not match the `shard-<id>` format.                        |
+| `ERR`      | `Invalid number of arguments` | -                                                                       |
+| `ERR`      | `Invalid volume name: <name>` | The name does not match the `shard-<id>` format.                        |
 | `ERR`      | `Invalid member id: <id>`     | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 ## Examples

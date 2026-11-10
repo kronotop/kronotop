@@ -104,7 +104,7 @@ public class ChangeLogRangeHandler extends BaseVolumeHandler implements Handler 
         supplyAsync(context, response, () -> {
             ChangeLogRangeMessage message = request.attr(MessageTypes.CHANGELOGRANGE).get();
             if (message.getStart() >= message.getEnd()) {
-                throw new IllegalArgumentException("start cannot be greater or equal to end");
+                throw new IllegalArgumentException("Start cannot be greater or equal to end");
             }
 
             SequenceNumberSelector start = message.isStartInclusive() ?

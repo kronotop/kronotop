@@ -21,10 +21,10 @@ package com.kronotop.commands;
 public record KeyNum(int keynumidx, int firstkey, int step) {
     public KeyNum {
         if (step < 1) {
-            throw new IllegalArgumentException("key spec keynum step must be >= 1");
+            throw new IllegalArgumentException("Key spec keynum step must be >= 1");
         }
         if (keynumidx < 0 || firstkey < 0) {
-            throw new IllegalArgumentException("key spec keynum keynumidx and firstkey must be >= 0");
+            throw new IllegalArgumentException("Key spec keynum keynumidx and firstkey must be >= 0");
         }
     }
 }

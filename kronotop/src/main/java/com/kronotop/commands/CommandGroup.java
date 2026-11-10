@@ -46,7 +46,7 @@ public enum CommandGroup {
                 return group;
             }
         }
-        throw new IllegalArgumentException("unknown command group '" + value + "'");
+        throw new IllegalArgumentException("Unknown command group '" + value + "'");
     }
 
     @JsonValue

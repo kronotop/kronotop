@@ -1437,7 +1437,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         Object response = runRaw(getChannel(), CommandType.NAMESPACE, List.of("BOGUS"));
 
         assertInstanceOf(ErrorRedisMessage.class, response);
-        assertEquals("ERR unknown subcommand: 'BOGUS'", ((ErrorRedisMessage) response).content());
+        assertEquals("ERR Unknown subcommand: 'BOGUS'", ((ErrorRedisMessage) response).content());
     }
 
     private void assertWrongNumberOfArguments(List<String> args, String expected) {
@@ -1449,13 +1449,13 @@ class NamespaceHandlerTest extends BaseHandlerTest {
     @Test
     void shouldRejectCreateWithoutNamespace() {
         // Behavior: NAMESPACE CREATE without a namespace argument returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("CREATE"), "ERR wrong number of arguments for 'NAMESPACE CREATE' command");
+        assertWrongNumberOfArguments(List.of("CREATE"), "ERR Wrong number of arguments for 'NAMESPACE CREATE' command");
     }
 
     @Test
     void shouldRejectCreateWithExtraArgument() {
         // Behavior: NAMESPACE CREATE with an argument after IF-NOT-EXISTS returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("CREATE", "a", "IF-NOT-EXISTS", "c"), "ERR wrong number of arguments for 'NAMESPACE CREATE' command");
+        assertWrongNumberOfArguments(List.of("CREATE", "a", "IF-NOT-EXISTS", "c"), "ERR Wrong number of arguments for 'NAMESPACE CREATE' command");
     }
 
     @Test
@@ -1549,72 +1549,72 @@ class NamespaceHandlerTest extends BaseHandlerTest {
     @Test
     void shouldRejectMoveWithMissingArgument() {
         // Behavior: NAMESPACE MOVE with a single path returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("MOVE", "a"), "ERR wrong number of arguments for 'NAMESPACE MOVE' command");
+        assertWrongNumberOfArguments(List.of("MOVE", "a"), "ERR Wrong number of arguments for 'NAMESPACE MOVE' command");
     }
 
     @Test
     void shouldRejectMoveWithExtraArgument() {
         // Behavior: NAMESPACE MOVE with a third path returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("MOVE", "a", "b", "c"), "ERR wrong number of arguments for 'NAMESPACE MOVE' command");
+        assertWrongNumberOfArguments(List.of("MOVE", "a", "b", "c"), "ERR Wrong number of arguments for 'NAMESPACE MOVE' command");
     }
 
     @Test
     void shouldRejectListWithExtraArgument() {
         // Behavior: NAMESPACE LIST with a second path returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("LIST", "a", "b"), "ERR wrong number of arguments for 'NAMESPACE LIST' command");
+        assertWrongNumberOfArguments(List.of("LIST", "a", "b"), "ERR Wrong number of arguments for 'NAMESPACE LIST' command");
     }
 
     @Test
     void shouldRejectCurrentWithExtraArgument() {
         // Behavior: NAMESPACE CURRENT with an argument returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("CURRENT", "a"), "ERR wrong number of arguments for 'NAMESPACE CURRENT' command");
+        assertWrongNumberOfArguments(List.of("CURRENT", "a"), "ERR Wrong number of arguments for 'NAMESPACE CURRENT' command");
     }
 
     @Test
     void shouldRejectExistsWithExtraArgument() {
         // Behavior: NAMESPACE EXISTS with a second argument returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("EXISTS", "a", "b"), "ERR wrong number of arguments for 'NAMESPACE EXISTS' command");
+        assertWrongNumberOfArguments(List.of("EXISTS", "a", "b"), "ERR Wrong number of arguments for 'NAMESPACE EXISTS' command");
     }
 
     @Test
     void shouldRejectUseWithExtraArgument() {
         // Behavior: NAMESPACE USE with a second argument returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("USE", "a", "b"), "ERR wrong number of arguments for 'NAMESPACE USE' command");
+        assertWrongNumberOfArguments(List.of("USE", "a", "b"), "ERR Wrong number of arguments for 'NAMESPACE USE' command");
     }
 
     @Test
     void shouldRejectRemoveWithoutNamespace() {
         // Behavior: NAMESPACE REMOVE without a namespace argument returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("REMOVE"), "ERR wrong number of arguments for 'NAMESPACE REMOVE' command");
+        assertWrongNumberOfArguments(List.of("REMOVE"), "ERR Wrong number of arguments for 'NAMESPACE REMOVE' command");
     }
 
     @Test
     void shouldRejectRemoveWithExtraArgument() {
         // Behavior: NAMESPACE REMOVE with a second argument returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("REMOVE", "a", "b"), "ERR wrong number of arguments for 'NAMESPACE REMOVE' command");
+        assertWrongNumberOfArguments(List.of("REMOVE", "a", "b"), "ERR Wrong number of arguments for 'NAMESPACE REMOVE' command");
     }
 
     @Test
     void shouldRejectPurgeWithoutNamespace() {
         // Behavior: NAMESPACE PURGE without a namespace argument returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("PURGE"), "ERR wrong number of arguments for 'NAMESPACE PURGE' command");
+        assertWrongNumberOfArguments(List.of("PURGE"), "ERR Wrong number of arguments for 'NAMESPACE PURGE' command");
     }
 
     @Test
     void shouldRejectPurgeWithExtraArgument() {
         // Behavior: NAMESPACE PURGE with a second argument returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("PURGE", "a", "b"), "ERR wrong number of arguments for 'NAMESPACE PURGE' command");
+        assertWrongNumberOfArguments(List.of("PURGE", "a", "b"), "ERR Wrong number of arguments for 'NAMESPACE PURGE' command");
     }
 
     @Test
     void shouldRejectExistsWithoutNamespace() {
         // Behavior: NAMESPACE EXISTS without a namespace argument returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("EXISTS"), "ERR wrong number of arguments for 'NAMESPACE EXISTS' command");
+        assertWrongNumberOfArguments(List.of("EXISTS"), "ERR Wrong number of arguments for 'NAMESPACE EXISTS' command");
     }
 
     @Test
     void shouldRejectUseWithoutNamespace() {
         // Behavior: NAMESPACE USE without a namespace argument returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("USE"), "ERR wrong number of arguments for 'NAMESPACE USE' command");
+        assertWrongNumberOfArguments(List.of("USE"), "ERR Wrong number of arguments for 'NAMESPACE USE' command");
     }
 }

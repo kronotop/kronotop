@@ -50,10 +50,10 @@ This command does not require the cluster to be initialized.
 
 Argument errors:
 
-| Error Code  | Error message                                         | Cause                               |
-|-------------|-------------------------------------------------------|-------------------------------------|
-| `NOPROTO`   | `unsupported protocol version`                        | The protocol version is not 2 or 3. |
-| `WRONGPASS` | `invalid username-password pair or user is disabled.` | -                                   |
+| Error Code  | Error message                                        | Cause                               |
+|-------------|------------------------------------------------------|-------------------------------------|
+| `NOPROTO`   | `Unsupported protocol version`                       | The protocol version is not 2 or 3. |
+| `WRONGPASS` | `Invalid username-password pair or user is disabled` | -                                   |
 
 ## Examples
 

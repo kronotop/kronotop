@@ -35,7 +35,7 @@ public class AppendResult {
 
     public synchronized Versionstamp[] getVersionstampedKeys() {
         if (calledOnce) {
-            throw new IllegalStateException("this method was called before once");
+            throw new IllegalStateException("This method was called before once");
         }
         byte[] trVersion = future.join();
         calledOnce = true;

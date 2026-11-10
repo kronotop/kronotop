@@ -39,7 +39,7 @@ class CurrentSubcommand extends BaseSubcommand implements SubcommandHandler {
         }
         String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
         if (namespace == null || namespace.isBlank()) {
-            response.writeError("current namespace is empty, blank or null");
+            response.writeError("Current namespace is empty, blank or null");
             return;
         }
         response.write(Unpooled.wrappedBuffer(namespace.getBytes(StandardCharsets.UTF_8)));

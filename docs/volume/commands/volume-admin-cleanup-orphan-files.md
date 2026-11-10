@@ -38,14 +38,14 @@ Argument errors:
 
 | Error Code | Error message                 | Cause |
 |------------|-------------------------------|-------|
-| `ERR`      | `invalid number of arguments` | -     |
+| `ERR`      | `Invalid number of arguments` | -     |
 
 Volume errors:
 
 | Error Code | Error message                  | Cause                                               |
 |------------|--------------------------------|-----------------------------------------------------|
 | `ERR`      | `Volume: '<name>' is not open` | No volume with that name is managed by this member. |
-| `ERR`      | `Volume <name> is closed.`     | -                                                   |
+| `ERR`      | `Volume <name> is closed`      | -                                                   |
 | `ERR`      | `File not found: <path>`       | Segments directory not found.                       |
 
 ## Examples

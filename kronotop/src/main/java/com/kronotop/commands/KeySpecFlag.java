@@ -52,7 +52,7 @@ public enum KeySpecFlag {
                 return flag;
             }
         }
-        throw new IllegalArgumentException("unknown key spec flag '" + value + "'");
+        throw new IllegalArgumentException("Unknown key spec flag '" + value + "'");
     }
 
     @JsonValue

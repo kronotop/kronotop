@@ -177,7 +177,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             assertThatThrownBy(() -> NamespaceUtil.openDataStructureSubspace(context, tr, session, DataModelKind.BUCKET))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("namespace not specified");
+                    .hasMessage("Namespace not specified");
         }
     }
 

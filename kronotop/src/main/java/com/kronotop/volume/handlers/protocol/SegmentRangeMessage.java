@@ -39,7 +39,7 @@ public class SegmentRangeMessage extends BaseMessage implements ProtocolMessage<
     private void parse() {
         if (request.getArguments().size() % 2 > 0) {
             throw new WrongNumberOfArgumentsException(
-                    String.format("wrong number of arguments for '%s' command", request.getCommand()));
+                    String.format("Wrong number of arguments for '%s' command", request.getCommand()));
         }
 
         // segmentrange <volume-name> <segment-id> position length position length ...

@@ -143,7 +143,7 @@ public class BootstrapCommand implements Callable<Integer> {
             default -> null;
         };
         if (errorMessage != null) {
-            if (errorMessage.contains("cluster has already been initialized")) {
+            if (errorMessage.contains("Cluster has already been initialized")) {
                 logger.info("Cluster has already been initialized, skipping bootstrap");
                 return true;
             }

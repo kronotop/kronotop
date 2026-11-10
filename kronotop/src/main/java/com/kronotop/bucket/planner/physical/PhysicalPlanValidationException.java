@@ -26,7 +26,7 @@ public class PhysicalPlanValidationException extends KronotopException {
     private final Violation violation;
 
     public PhysicalPlanValidationException(Violation violation) {
-        super("query cannot be executed: " + violation.message() + ". Hint: " + violation.hint());
+        super("Query cannot be executed: " + violation.message() + ". Hint: " + violation.hint());
         this.violation = violation;
     }
 

@@ -131,7 +131,7 @@ public class NamespaceUtil {
     public static String resolve(Session session, String override) {
         String name = override != null ? override : session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
         if (name == null) {
-            throw new IllegalArgumentException("namespace not specified");
+            throw new IllegalArgumentException("Namespace not specified");
         }
         session.setNamespace(name);
         return name;

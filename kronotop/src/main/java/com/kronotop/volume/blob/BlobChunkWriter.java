@@ -64,13 +64,13 @@ public final class BlobChunkWriter implements AutoCloseable {
         this.chunkSize = chunkSize;
         int headerLength = new BlobChunkHeader(name, 0, 1).encode().length;
         if (headerLength + chunkSize > Volume.ENTRY_SIZE_LIMIT) {
-            throw new IllegalArgumentException("chunk size exceeds entry size limit");
+            throw new IllegalArgumentException("Chunk size exceeds entry size limit");
         }
         this.arena = Arena.ofShared();
         try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
             long size = channel.size();
             if (size == 0) {
-                throw new IllegalArgumentException("empty file: " + path);
+                throw new IllegalArgumentException("Empty file: " + path);
             }
             this.chunkCount = Math.toIntExact(Math.ceilDiv(size, chunkSize));
             this.mappedMemory = channel.map(FileChannel.MapMode.READ_ONLY, 0, size, arena);
@@ -95,7 +95,7 @@ public final class BlobChunkWriter implements AutoCloseable {
      */
     public AppendResult write(Transaction tr, int chunkIndex) throws IOException {
         if (chunkIndex < 0 || chunkIndex >= chunkCount) {
-            throw new IndexOutOfBoundsException("chunk index " + chunkIndex + " out of range for " + chunkCount + " chunks");
+            throw new IndexOutOfBoundsException("Chunk index " + chunkIndex + " out of range for " + chunkCount + " chunks");
         }
         long offset = (long) chunkIndex * chunkSize;
         int length = (int) Math.min(chunkSize, mappedMemory.byteSize() - offset);

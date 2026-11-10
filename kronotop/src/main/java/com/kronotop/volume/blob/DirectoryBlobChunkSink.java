@@ -78,7 +78,7 @@ public final class DirectoryBlobChunkSink implements BlobChunkSink {
             incomplete.add(entry.getKey());
         }
         if (!incomplete.isEmpty()) {
-            throw new IncompleteBlobException("incomplete files: " + incomplete);
+            throw new IncompleteBlobException("Incomplete files: " + incomplete);
         }
     }
 

@@ -169,7 +169,7 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
 
         TasksArguments(ArrayList<ByteBuf> args) {
             if (args.size() < 3 || args.size() > 5) {
-                throw new KronotopException("wrong number of arguments");
+                throw new KronotopException("Wrong number of arguments");
             }
             bucket = ProtocolMessageUtil.readAsString(args.get(1));
             index = ProtocolMessageUtil.readAsString(args.get(2));

@@ -90,7 +90,7 @@ class BucketIndexCreateSubcommand implements SubcommandHandler {
 
         private void parse() {
             if (args.size() < 3 || args.size() > 5) {
-                throw new IllegalArgumentException("wrong number of arguments");
+                throw new IllegalArgumentException("Wrong number of arguments");
             }
             bucket = ProtocolMessageUtil.readAsString(args.get(1));
             payload = IndexCreationHelper.deserializeAndValidate(ProtocolMessageUtil.readAsByteArray(args.get(2)));

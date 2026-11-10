@@ -199,7 +199,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("primary cannot be assigned as a standby"));
+        assertTrue(errorMessage.content().contains("Primary cannot be assigned as a standby"));
     }
 
     @Test
@@ -223,7 +223,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("already assigned as a standby"));
+        assertTrue(errorMessage.content().contains("Already assigned as a standby"));
     }
 
     @Test
@@ -242,7 +242,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("member is not a standby"));
+        assertTrue(errorMessage.content().contains("Member is not a standby"));
     }
 
     @Test
@@ -275,7 +275,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("member not found"));
+        assertTrue(errorMessage.content().contains("Member not found"));
     }
 
     @Test
@@ -288,7 +288,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("invalid number of arguments"));
+        assertTrue(errorMessage.content().contains("Invalid number of arguments"));
     }
 
     @Test

@@ -50,7 +50,7 @@ class SlowSubcommand implements SubcommandHandler {
     @Override
     public void execute(Request request, Response response) {
         if (request.getArguments().size() != 1) {
-            throw new WrongNumberOfArgumentsException("wrong number of arguments for 'TRANSACTION SLOW' command");
+            throw new WrongNumberOfArgumentsException("Wrong number of arguments for 'TRANSACTION SLOW' command");
         }
         RESPVersion version = request.getSession().getProtocolVersion();
         List<RedisMessage> result = new ArrayList<>();

@@ -65,7 +65,7 @@ class BaseSubcommand {
 
     WrongNumberOfArgumentsException wrongNumberOfArguments(Request request, NamespaceSubcommand subcommand) {
         return new WrongNumberOfArgumentsException(
-                String.format("wrong number of arguments for '%s %s' command", request.getCommand(), subcommand)
+                String.format("Wrong number of arguments for '%s %s' command", request.getCommand(), subcommand)
         );
     }
 

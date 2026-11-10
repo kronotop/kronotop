@@ -143,7 +143,7 @@ public final class CommandDocsReply {
                 }
                 yield new ArrayRedisMessage(items);
             }
-            default -> throw new IllegalStateException("unsupported reply_schema value: " + value.getClass().getName());
+            default -> throw new IllegalStateException("Unsupported reply_schema value: " + value.getClass().getName());
         };
     }
 

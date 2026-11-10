@@ -61,7 +61,7 @@ public enum AclCategory {
                 return category;
             }
         }
-        throw new IllegalArgumentException("unknown ACL category '" + value + "'");
+        throw new IllegalArgumentException("Unknown ACL category '" + value + "'");
     }
 
     /**

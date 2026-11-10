@@ -52,7 +52,7 @@ public class BucketUpdateMessage extends AbstractBucketMessage implements Protoc
         query = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(1));
         update = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(2));
         if (update.length == 0) {
-            throw new IllegalCommandArgumentException("update argument cannot be empty");
+            throw new IllegalCommandArgumentException("Update argument cannot be empty");
         }
         arguments = parseCommonQueryArguments(request, 3, supportedArguments);
     }

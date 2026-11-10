@@ -49,6 +49,6 @@ class BeginHandlerTest extends BaseHandlerTest {
         Object response = tt.getResponse();
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertEquals("TRANSACTION there is already a transaction in progress.", actualMessage.content());
+        assertEquals("TRANSACTION There is already a transaction in progress", actualMessage.content());
     }
 }

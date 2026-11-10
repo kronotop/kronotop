@@ -25,7 +25,7 @@ metadata exists; run `DROP` first.
 
 All subcommands are available on the management port (default 3320).
 
-An invalid subcommand (not START, STOP, DROP, or STATUS) returns `ERR unknown subcommand: '<operation>'`.
+An invalid subcommand (not START, STOP, DROP, or STATUS) returns `ERR Unknown subcommand: '<operation>'`.
 
 ## Subcommands
 

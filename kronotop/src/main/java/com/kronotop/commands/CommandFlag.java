@@ -77,7 +77,7 @@ public enum CommandFlag {
                 return flag;
             }
         }
-        throw new IllegalArgumentException("unknown command flag '" + value + "'");
+        throw new IllegalArgumentException("Unknown command flag '" + value + "'");
     }
 
     @JsonValue

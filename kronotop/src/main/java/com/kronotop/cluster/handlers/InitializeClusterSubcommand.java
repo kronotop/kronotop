@@ -129,7 +129,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
 
         try (Transaction tr = context.getTransactionManager().create(session)) {
             if (MembershipUtil.isClusterInitialized(tr, clusterMetadataSubspace)) {
-                throw new KronotopException("cluster has already been initialized");
+                throw new KronotopException("Cluster has already been initialized");
             }
 
             MetadataVersion.write(context, tr, MetadataVersion.CURRENT);

@@ -55,9 +55,9 @@ Argument errors:
 
 | Error Code | Error message                                                  | Cause                                                   |
 |------------|----------------------------------------------------------------|---------------------------------------------------------|
-| `ERR`      | `wrong number of arguments for 'CLIENT\|<subcommand>' command` | -                                                       |
+| `ERR`      | `Wrong number of arguments for 'CLIENT\|<subcommand>' command` | -                                                       |
 | `ERR`      | `Unrecognized option '<attribute>'`                            | The `SETINFO` attribute is not `lib-name` or `lib-ver`. |
-| `ERR`      | `unknown subcommand: '<value>'`                                | -                                                       |
+| `ERR`      | `Unknown subcommand: '<value>'`                                | -                                                       |
 
 ## Examples
 

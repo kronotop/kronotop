@@ -134,6 +134,6 @@ class SegmentTailPointerHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 List.of(volumeConfig.name(), "1", "2", "3"));
 
         assertInstanceOf(ErrorRedisMessage.class, response);
-        assertEquals("ERR wrong number of arguments for 'SEGMENT.TAILPOINTER' command", ((ErrorRedisMessage) response).content());
+        assertEquals("ERR Wrong number of arguments for 'SEGMENT.TAILPOINTER' command", ((ErrorRedisMessage) response).content());
     }
 }

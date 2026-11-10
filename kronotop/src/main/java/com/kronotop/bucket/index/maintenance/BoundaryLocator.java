@@ -78,7 +78,7 @@ public class BoundaryLocator {
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(primaryIndexPrefix));
         List<KeyValue> entries = tr.getRange(begin, end, 1, true).asList().join();
         if (entries.isEmpty()) {
-            throw new IndexMaintenanceRoutineException("no entries found to determine the highest versionstamp");
+            throw new IndexMaintenanceRoutineException("No entries found to determine the highest versionstamp");
         }
         KeyValue entry = entries.getFirst();
         Tuple parsedKey = primaryIndexSubspace.unpack(entry.getKey());

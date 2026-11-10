@@ -20,6 +20,6 @@ import com.kronotop.KronotopException;
 
 public class InvalidNumberOfArgumentsException extends KronotopException {
     public InvalidNumberOfArgumentsException() {
-        super("invalid number of arguments");
+        super("Invalid number of arguments");
     }
 }

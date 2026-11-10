@@ -20,6 +20,6 @@ import com.kronotop.KronotopException;
 
 public class ClusterNotInitializedException extends KronotopException {
     public ClusterNotInitializedException() {
-        super("cluster has not been initialized yet");
+        super("Cluster has not been initialized yet");
     }
 }

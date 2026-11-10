@@ -49,7 +49,7 @@ public class CommandHandlerRegistry {
 
         if (handlers[commandType.ordinal()] != null) {
             throw new CommandAlreadyRegisteredException(
-                    String.format("command already registered '%s'", commandType.getCommandName())
+                    String.format("Command already registered '%s'", commandType.getCommandName())
             );
         }
 
@@ -71,12 +71,12 @@ public class CommandHandlerRegistry {
      */
     public HandlerEntry get(CommandType commandType) throws CommandNotFoundException {
         if (commandType == null) {
-            throw new CommandNotFoundException("unknown command 'null'");
+            throw new CommandNotFoundException("Unknown command 'null'");
         }
         HandlerEntry entry = handlers[commandType.ordinal()];
         if (entry == null) {
             throw new CommandNotFoundException(
-                    String.format("unknown command '%s'", commandType.getCommandName())
+                    String.format("Unknown command '%s'", commandType.getCommandName())
             );
         }
         return entry;
@@ -93,7 +93,7 @@ public class CommandHandlerRegistry {
     public HandlerEntry get(String command) throws CommandNotFoundException {
         CommandType commandType = CommandType.parse(command);
         if (commandType == null) {
-            throw new CommandNotFoundException(String.format("unknown command '%s'", command));
+            throw new CommandNotFoundException(String.format("Unknown command '%s'", command));
         }
         return get(commandType);
     }

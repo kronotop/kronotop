@@ -44,7 +44,7 @@ Argument errors:
 
 | Error Code | Error message                                              | Cause                                                         |
 |------------|------------------------------------------------------------|---------------------------------------------------------------|
-| `ERR`      | `wrong number of arguments for 'NAMESPACE CREATE' command` | -                                                             |
+| `ERR`      | `Wrong number of arguments for 'NAMESPACE CREATE' command` | -                                                             |
 | `ERR`      | `Unknown '<keyword>' argument`                             | The second argument is not `IF-NOT-EXISTS`.                   |
 | `ERR`      | `Namespace '<path>' is reserved for internal use`          | The namespace path contains the reserved `__internal__` name. |
 | `ERR`      | `Namespace depth exceeds maximum allowed depth of 10`      | -                                                             |

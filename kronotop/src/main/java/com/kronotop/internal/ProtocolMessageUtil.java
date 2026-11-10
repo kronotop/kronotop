@@ -122,7 +122,7 @@ public class ProtocolMessageUtil {
         try {
             return Double.parseDouble(raw);
         } catch (NumberFormatException e) {
-            throw new KronotopException("value is not a double or out of range");
+            throw new KronotopException("Value is not a double or out of range");
         }
     }
 
@@ -140,7 +140,7 @@ public class ProtocolMessageUtil {
         try {
             return Long.parseLong(raw);
         } catch (NumberFormatException e) {
-            throw new KronotopException("value is not a long or out of range");
+            throw new KronotopException("Value is not a long or out of range");
         }
     }
 
@@ -158,7 +158,7 @@ public class ProtocolMessageUtil {
         try {
             return Integer.parseInt(raw);
         } catch (NumberFormatException e) {
-            throw new KronotopException("value is not an integer or out of range");
+            throw new KronotopException("Value is not an integer or out of range");
         }
     }
 
@@ -205,10 +205,10 @@ public class ProtocolMessageUtil {
             }
         }
         if (result.isEmpty()) {
-            throw new KronotopException("no member found with prefix: " + memberPrefix);
+            throw new KronotopException("No member found with prefix: " + memberPrefix);
         }
         if (result.size() > 1) {
-            throw new KronotopException("more than one member found with prefix: " + memberPrefix);
+            throw new KronotopException("More than one member found with prefix: " + memberPrefix);
         }
         return result.iterator().next();
     }

@@ -136,7 +136,7 @@ public final class ZMapNumericValueCodec {
         try {
             bd = new BigDecimal(value);
         } catch (NumberFormatException e) {
-            throw new KronotopException("invalid decimal");
+            throw new KronotopException("Invalid decimal");
         }
         try {
             return new Decimal128(bd);

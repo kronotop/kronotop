@@ -70,12 +70,12 @@ public class ZGetRangeArgs {
 
     public <K, V> void build(CommandArgs<K, V> args) {
         if (begin == null) {
-            throw new IllegalArgumentException("begin cannot be empty");
+            throw new IllegalArgumentException("Begin cannot be empty");
         }
         args.add(begin);
 
         if (end == null) {
-            throw new IllegalArgumentException("end cannot be empty");
+            throw new IllegalArgumentException("End cannot be empty");
         }
         args.add(end);
 

@@ -223,7 +223,7 @@ public class QueryOptions {
          */
         public Builder limit(int limit) {
             if (limit < 0) {
-                throw new IllegalArgumentException("limit must be a non-negative integer");
+                throw new IllegalArgumentException("Limit must be a non-negative integer");
             }
             this.limit = limit;
             return this;
@@ -241,7 +241,7 @@ public class QueryOptions {
                 throw new IllegalArgumentException("Maximum batch size is " + QueryContext.MAXIMUM_BATCH);
             }
             if (batch < 0) {
-                throw new IllegalArgumentException("batch size must be a non-negative integer");
+                throw new IllegalArgumentException("Batch size must be a non-negative integer");
             }
             this.batch = batch;
             return this;

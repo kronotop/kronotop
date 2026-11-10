@@ -170,26 +170,26 @@ class TransactionHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldRejectUnknownId() {
-        assertError(kill(999999), "TRANSACTION no such transaction: 999999");
+        assertError(kill(999999), "TRANSACTION No such transaction: 999999");
     }
 
     @Test
     void shouldRejectInternalTransaction() {
         try (InstrumentedTransaction tr = context.getTransactionManager().create()) {
-            assertError(kill(tr.getId()), "TRANSACTION internal transactions cannot be killed");
+            assertError(kill(tr.getId()), "TRANSACTION Internal transactions cannot be killed");
             assertSame(tr, context.getTransactionManager().get(tr.getId()));
         }
     }
 
     @Test
     void shouldRejectUnknownSubcommand() {
-        assertError(runRaw(channel, CommandType.TRANSACTION, List.of("FOO")), "ERR unknown subcommand: 'FOO'");
+        assertError(runRaw(channel, CommandType.TRANSACTION, List.of("FOO")), "ERR Unknown subcommand: 'FOO'");
     }
 
     @Test
     void shouldRejectMissingId() {
         assertError(runRaw(channel, CommandType.TRANSACTION, List.of("KILL")),
-                "ERR wrong number of arguments for 'TRANSACTION KILL' command");
+                "ERR Wrong number of arguments for 'TRANSACTION KILL' command");
     }
 
     @Test
@@ -345,7 +345,7 @@ class TransactionHandlerTest extends BaseHandlerTest {
     @Test
     void shouldRejectArguments() {
         assertError(runRaw(channel, CommandType.TRANSACTION, List.of("LIST", "extra")),
-                "ERR wrong number of arguments for 'TRANSACTION LIST' command");
+                "ERR Wrong number of arguments for 'TRANSACTION LIST' command");
     }
 
     @Test
@@ -421,6 +421,6 @@ class TransactionHandlerTest extends BaseHandlerTest {
     @Test
     void shouldRejectSlowArguments() {
         assertError(runRaw(channel, CommandType.TRANSACTION, List.of("SLOW", "extra")),
-                "ERR wrong number of arguments for 'TRANSACTION SLOW' command");
+                "ERR Wrong number of arguments for 'TRANSACTION SLOW' command");
     }
 }

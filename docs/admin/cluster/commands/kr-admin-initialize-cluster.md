@@ -36,13 +36,13 @@ Argument errors:
 
 | Error Code | Error message                 | Cause |
 |------------|-------------------------------|-------|
-| `ERR`      | `invalid number of arguments` | -     |
+| `ERR`      | `Invalid number of arguments` | -     |
 
 Cluster errors:
 
 | Error Code | Error message                                          | Cause                                                                                                                 |
 |------------|--------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
-| `ERR`      | `cluster has already been initialized`                 | -                                                                                                                     |
+| `ERR`      | `Cluster has already been initialized`                 | -                                                                                                                     |
 | `ERR`      | `KronotopDirectory: '<path>' has already been created` | A directory created during initialization already exists, indicating a partial or conflicting initialization attempt. |
 
 ## Examples
@@ -58,5 +58,5 @@ OK
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN INITIALIZE-CLUSTER
-(error) ERR cluster has already been initialized
+(error) ERR Cluster has already been initialized
 ```

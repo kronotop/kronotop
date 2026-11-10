@@ -81,7 +81,7 @@ public record CompoundIndexDefinition(long id, String name, List<CompoundIndexFi
     @Override
     public CompoundIndexDefinition updateStatus(IndexStatus status) {
         if (status != IndexStatus.DROPPED && status() == IndexStatus.DROPPED) {
-            throw new IllegalStateException("Index '" + name + "' is already dropped and its status cannot be modified.");
+            throw new IllegalStateException("Index '" + name + "' is already dropped and its status cannot be modified");
         }
         return new CompoundIndexDefinition(id, name, fields, status, collation, unique);
     }

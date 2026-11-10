@@ -89,11 +89,11 @@ Argument errors:
 
 | Error Code | Error message                                                 | Cause |
 |------------|---------------------------------------------------------------|-------|
-| `ERR`      | `wrong number of arguments for 'ZGETRANGE' command`           | -     |
+| `ERR`      | `Wrong number of arguments for 'ZGETRANGE' command`           | -     |
 | `ERR`      | `Unknown '<keyword>' argument`                                | -     |
 | `ERR`      | `Duplicate '<keyword>' argument`                              | -     |
 | `ERR`      | `LIMIT argument must be followed by a positive integer`       | -     |
-| `ERR`      | `value is not an integer or out of range`                     | -     |
+| `ERR`      | `Value is not an integer or out of range`                     | -     |
 | `ERR`      | `<keyword> argument must be followed by a valid key selector` | -     |
 | `ERR`      | `Unknown range key selector: '<value>'`                       | -     |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace`          | -     |

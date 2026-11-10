@@ -22,7 +22,7 @@ package com.kronotop.commands;
 public record Keyword(String keyword, int startfrom) {
     public Keyword {
         if (keyword == null || keyword.isEmpty()) {
-            throw new IllegalArgumentException("key spec keyword must not be empty");
+            throw new IllegalArgumentException("Key spec keyword must not be empty");
         }
     }
 }

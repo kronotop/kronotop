@@ -51,7 +51,7 @@ public class HelloHandler extends BaseConnectionHandler implements Handler {
     private void writeWrongPassErr(Response response) {
         response.writeError(
                 RESPError.WRONGPASS,
-                "invalid username-password pair or user is disabled.");
+                "Invalid username-password pair or user is disabled");
     }
 
     @Override

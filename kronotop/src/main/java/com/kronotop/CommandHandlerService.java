@@ -65,7 +65,7 @@ public class CommandHandlerService extends BaseKronotopService {
         CommandType commandType = CommandType.parse(upperCommand);
         if (commandType == null) {
             throw new IllegalArgumentException(
-                    String.format("Unknown command type for '%s'. Add it to CommandType enum.", upperCommand)
+                    String.format("Unknown command type for '%s'. Add it to CommandType enum", upperCommand)
             );
         }
 

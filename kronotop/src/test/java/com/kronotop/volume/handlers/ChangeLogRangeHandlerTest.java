@@ -574,7 +574,7 @@ class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("invalid volume name"));
+        assertTrue(errorMessage.content().contains("Invalid volume name"));
     }
 
     @Test

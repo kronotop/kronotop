@@ -433,7 +433,7 @@ public class BucketMetadataUtil {
 
             byte[] rawPrefix = tr.get(prefixBindingKey(pointerSubspace)).join();
             if (rawPrefix == null) {
-                throw new KronotopException("Volume prefix for bucket '" + bucket + "' not found.");
+                throw new KronotopException("Volume prefix for bucket '" + bucket + "' not found");
             }
 
             Prefix prefix = Prefix.fromBytes(rawPrefix);

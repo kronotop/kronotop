@@ -71,6 +71,6 @@ class GetReadVersionHandlerTest extends BaseHandlerTest {
         Object response = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertEquals("TRANSACTION there is no transaction in progress.", actualMessage.content());
+        assertEquals("TRANSACTION There is no transaction in progress", actualMessage.content());
     }
 }

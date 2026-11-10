@@ -71,7 +71,7 @@ class BucketIndexListSubcommand implements SubcommandHandler {
 
         ListArguments(ArrayList<ByteBuf> args) {
             if (args.size() < 2 || args.size() > 4) {
-                throw new KronotopException("wrong number of arguments");
+                throw new KronotopException("Wrong number of arguments");
             }
             bucket = ProtocolMessageUtil.readAsString(args.get(1));
             namespace = ProtocolMessageUtil.readTrailingNamespace(args, 2);

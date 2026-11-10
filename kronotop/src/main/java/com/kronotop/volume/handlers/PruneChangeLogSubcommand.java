@@ -44,7 +44,7 @@ class PruneChangeLogSubcommand extends BaseSubcommandHandler implements Subcomma
         PruneChangeLogArguments arguments = new PruneChangeLogArguments(request.getArguments());
         runAsync(context, response, () -> {
             if (arguments.retentionPeriod <= 0) {
-                throw new IllegalArgumentException("retention period must be greater than zero");
+                throw new IllegalArgumentException("Retention period must be greater than zero");
             }
 
             DirectorySubspace subspace = service.openSubspace(arguments.volumeName);

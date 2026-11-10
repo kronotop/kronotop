@@ -65,7 +65,7 @@ public final class HybridLogicalClock {
             long drift = lastPhysical - physicalNow;
             if (drift > MAX_POSSIBLE_DRIFT_MS) {
                 throw new IllegalStateException(
-                        String.format("Clock moved backwards too much (%d ms). Refusing to generate Sequence Number.", drift)
+                        String.format("Clock moved backwards too much (%d ms). Refusing to generate Sequence Number", drift)
                 );
             }
 
@@ -80,7 +80,7 @@ public final class HybridLogicalClock {
 
                     // Protection if the clock moves backwards dramatically while waiting
                     if (lastPhysical - physicalNow > MAX_POSSIBLE_DRIFT_MS) {
-                        throw new IllegalStateException("Clock kept moving backwards during spin-wait.");
+                        throw new IllegalStateException("Clock kept moving backwards during spin-wait");
                     }
                 }
 

@@ -39,22 +39,22 @@ class KillSubcommand implements SubcommandHandler {
     public void execute(Request request, Response response) {
         // The argument buffers are released before the task runs. Read them here.
         if (request.getArguments().size() != 2) {
-            throw new WrongNumberOfArgumentsException("wrong number of arguments for 'TRANSACTION KILL' command");
+            throw new WrongNumberOfArgumentsException("Wrong number of arguments for 'TRANSACTION KILL' command");
         }
         long id = ProtocolMessageUtil.readAsLong(request.getArguments().get(1));
         runAsync(context, response, () -> {
             InstrumentedTransaction tr = context.getTransactionManager().get(id);
             if (tr == null) {
-                throw new KronotopException(RESPError.TRANSACTION, "no such transaction: " + id);
+                throw new KronotopException(RESPError.TRANSACTION, "No such transaction: " + id);
             }
             if (tr.getClientId() == InstrumentedTransaction.INTERNAL) {
-                throw new KronotopException(RESPError.TRANSACTION, "internal transactions cannot be killed");
+                throw new KronotopException(RESPError.TRANSACTION, "Internal transactions cannot be killed");
             }
             try {
                 tr.cancel();
             } catch (IllegalStateException e) {
                 // The transaction was closed while we looked at it.
-                throw new KronotopException(RESPError.TRANSACTION, "no such transaction: " + id);
+                throw new KronotopException(RESPError.TRANSACTION, "No such transaction: " + id);
             }
         }, response::writeOK);
     }

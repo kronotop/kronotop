@@ -45,23 +45,12 @@ public enum RESPError {
     ERR;
 
     public final static String WRONGTYPE_MESSAGE = "Operation against a key holding the wrong kind of value";
-    public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_LONG = "value is not a long or out of range";
-    public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER = "value is not an integer or out of range";
-    public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT = "value is not a valid float";
+    public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_LONG = "Value is not a long or out of range";
+    public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER = "Value is not an integer or out of range";
+    public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT = "Value is not a valid float";
     public final static String PROTOCOL_VERSION_FORMAT_ERROR = "Protocol version is not an integer or out of range";
     public final static String CROSSSLOT_MESSAGE = "Keys in request don't hash to the same slot";
-    public final static String UNSUPPORTED_PROTOCOL_VERSION = "unsupported protocol version";
-
-    public static String decapitalize(String string) {
-        if (string == null || string.isEmpty()) {
-            return string;
-        }
-
-        char[] c = string.toCharArray();
-        c[0] = Character.toLowerCase(c[0]);
-
-        return new String(c);
-    }
+    public final static String UNSUPPORTED_PROTOCOL_VERSION = "Unsupported protocol version";
 
     /**
      * Extracts RESP error information from an FDBException.
@@ -72,7 +61,7 @@ public enum RESPError {
     public static FDBErrorResult extractFDBError(FDBException fdbEx) {
         FDBErrorInfo errInfo = FDBErrorRegistry.lookup(fdbEx.getCode());
         if (errInfo == null) {
-            return new FDBErrorResult(ERR.name(), decapitalize(fdbEx.getMessage()));
+            return new FDBErrorResult(ERR.name(), fdbEx.getMessage());
         }
         return new FDBErrorResult(errInfo.prefix(), errInfo.message());
     }

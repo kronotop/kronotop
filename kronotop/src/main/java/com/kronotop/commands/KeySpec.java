@@ -28,7 +28,7 @@ public record KeySpec(
 ) {
     public KeySpec {
         if (beginSearch == null || findKeys == null) {
-            throw new IllegalArgumentException("key spec requires begin_search and find_keys");
+            throw new IllegalArgumentException("Key spec requires begin_search and find_keys");
         }
         flags = flags == null ? List.of() : List.copyOf(flags);
     }

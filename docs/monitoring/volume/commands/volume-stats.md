@@ -62,8 +62,8 @@ Argument errors:
 
 | Error Code | Error message                                          | Cause |
 |------------|--------------------------------------------------------|-------|
-| `ERR`      | `wrong number of arguments for 'VOLUME.STATS' command` | -     |
-| `ERR`      | `unknown subcommand '<subcommand>'`                    | -     |
+| `ERR`      | `Wrong number of arguments for 'VOLUME.STATS' command` | -     |
+| `ERR`      | `Unknown subcommand '<subcommand>'`                    | -     |
 
 Volume errors:
 

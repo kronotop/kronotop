@@ -96,7 +96,7 @@ OK
 OK
 
 > ROLLBACK
-(error) TRANSACTION there is no transaction in progress.
+(error) TRANSACTION There is no transaction in progress
 ```
 
 Cursors are independent of transactions. A cursor created inside an explicit transaction survives `COMMIT` or `ROLLBACK`

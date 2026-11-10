@@ -157,7 +157,7 @@ class CommandMetadataLoaderTest {
         // Behavior: a subcommand whose container was not loaded is rejected
         IllegalStateException e = assertThrows(IllegalStateException.class,
                 () -> CommandMetadataLoader.load("test-commands-unknown-container"));
-        assertTrue(e.getMessage().contains("unknown container 'NOPE'"));
+        assertTrue(e.getMessage().contains("Unknown container 'NOPE'"));
     }
 
     @Test

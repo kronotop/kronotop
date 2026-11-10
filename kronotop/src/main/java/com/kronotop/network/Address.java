@@ -39,7 +39,7 @@ public final class Address {
             try {
                 port = findAvailablePort();
             } catch (IOException e) {
-                throw new KronotopException("failed to find an available port", e);
+                throw new KronotopException("Failed to find an available port", e);
             }
         }
         this.host = host;

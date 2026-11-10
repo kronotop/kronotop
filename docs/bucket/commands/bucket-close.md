@@ -41,7 +41,7 @@ Bucket errors:
 
 | Error Code | Error message     | Cause |
 |------------|-------------------|-------|
-| `ERR`      | `no cursor found` | -     |
+| `ERR`      | `No cursor found` | -     |
 
 ## Examples
 
@@ -67,7 +67,7 @@ entries -> [...]
 OK
 
 > BUCKET.CLOSE QUERY 1
-(error) ERR no cursor found
+(error) ERR No cursor found
 ```
 
 **Close after pagination:**

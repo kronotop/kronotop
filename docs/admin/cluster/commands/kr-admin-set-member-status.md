@@ -34,7 +34,7 @@ Argument errors:
 
 | Error Code | Error message                      | Cause                                                                   |
 |------------|------------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `invalid number of arguments`      | -                                                                       |
+| `ERR`      | `Invalid number of arguments`      | -                                                                       |
 | `ERR`      | `Unknown member status: '<value>'` | -                                                                       |
 | `ERR`      | `Invalid member id: <id>`          | The value is neither a 40-character member ID nor a 4-character prefix. |
 
@@ -42,11 +42,11 @@ Cluster errors:
 
 | Error Code | Error message                                      | Cause                                                    |
 |------------|----------------------------------------------------|----------------------------------------------------------|
-| `ERR`      | `cluster has not been initialized yet`             | -                                                        |
+| `ERR`      | `Cluster has not been initialized yet`             | -                                                        |
 | `ERR`      | `Member: <member-id> not registered`               | -                                                        |
 | `ERR`      | `Member: <member-id> not registered properly`      | The member directory exists but contains no member data. |
-| `ERR`      | `no member found with prefix: <prefix>`            | -                                                        |
-| `ERR`      | `more than one member found with prefix: <prefix>` | -                                                        |
+| `ERR`      | `No member found with prefix: <prefix>`            | -                                                        |
+| `ERR`      | `More than one member found with prefix: <prefix>` | -                                                        |
 
 ## Examples
 

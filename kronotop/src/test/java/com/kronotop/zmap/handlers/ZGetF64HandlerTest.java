@@ -48,10 +48,10 @@ class ZGetF64HandlerTest extends BaseHandlerTest {
         return Stream.of(
                 arguments("too few arguments",
                         List.of(),
-                        "ERR wrong number of arguments for 'ZGET.F64' command"),
+                        "ERR Wrong number of arguments for 'ZGET.F64' command"),
                 arguments("too many arguments",
                         List.of("key", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZGET.F64' command"),
+                        "ERR Wrong number of arguments for 'ZGET.F64' command"),
                 arguments("unknown keyword",
                         List.of("key", "EXTRA"),
                         "ERR Unknown 'EXTRA' argument"),

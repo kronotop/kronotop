@@ -29,9 +29,9 @@ The session returns to its default state and is ready to accept new commands or 
 
 Transaction errors:
 
-| Error Code    | Error message                          | Cause |
-|---------------|----------------------------------------|-------|
-| `TRANSACTION` | `there is no transaction in progress.` | -     |
+| Error Code    | Error message                         | Cause |
+|---------------|---------------------------------------|-------|
+| `TRANSACTION` | `There is no transaction in progress` | -     |
 
 ## Examples
 
@@ -49,5 +49,5 @@ OK
 
 ```kronotop
 > ROLLBACK
-(error) TRANSACTION there is no transaction in progress.
+(error) TRANSACTION There is no transaction in progress
 ```

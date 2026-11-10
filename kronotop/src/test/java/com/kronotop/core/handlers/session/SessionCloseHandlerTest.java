@@ -140,7 +140,7 @@ class SessionCloseHandlerTest extends BaseHandlerTest {
             cmd.rollback().encode(buf);
             Object response = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, response);
-            assertEquals("TRANSACTION there is no transaction in progress.", ((ErrorRedisMessage) response).content());
+            assertEquals("TRANSACTION There is no transaction in progress", ((ErrorRedisMessage) response).content());
         }
     }
 

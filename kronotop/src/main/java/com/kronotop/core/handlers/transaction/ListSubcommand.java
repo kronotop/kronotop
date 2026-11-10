@@ -49,7 +49,7 @@ class ListSubcommand implements SubcommandHandler {
     @Override
     public void execute(Request request, Response response) {
         if (request.getArguments().size() != 1) {
-            throw new WrongNumberOfArgumentsException("wrong number of arguments for 'TRANSACTION LIST' command");
+            throw new WrongNumberOfArgumentsException("Wrong number of arguments for 'TRANSACTION LIST' command");
         }
         RESPVersion version = request.getSession().getProtocolVersion();
         long now = System.nanoTime();

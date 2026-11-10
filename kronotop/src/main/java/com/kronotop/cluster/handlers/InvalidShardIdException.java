@@ -20,6 +20,6 @@ import com.kronotop.KronotopException;
 
 public class InvalidShardIdException extends KronotopException {
     public InvalidShardIdException() {
-        super("invalid shard id");
+        super("Invalid shard id");
     }
 }

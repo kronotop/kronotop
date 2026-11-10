@@ -53,7 +53,7 @@ class FindMemberSubcommand extends BaseKrAdminSubcommandHandler implements Subco
 
         FindMemberArguments(ArrayList<ByteBuf> args) {
             if (args.size() < 2) {
-                throw new KronotopException("member id is required");
+                throw new KronotopException("Member id is required");
             }
             if (args.size() > 2) {
                 throw new InvalidNumberOfArgumentsException();

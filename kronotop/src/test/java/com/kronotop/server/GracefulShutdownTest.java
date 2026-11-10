@@ -34,7 +34,7 @@ class GracefulShutdownTest extends BaseHandlerTest {
 
     @Test
     void shouldRejectCommandsWhenInstanceIsStopped() {
-        // Behavior: When instance status is STOPPED, new commands are rejected with "server is shutting down".
+        // Behavior: When instance status is STOPPED, new commands are rejected with "Server is shutting down".
         context.getMemberAttributes()
                 .attr(MemberAttributes.INSTANCE_STATUS)
                 .set(KronotopInstanceStatus.STOPPED);
@@ -46,7 +46,7 @@ class GracefulShutdownTest extends BaseHandlerTest {
         Object response = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage error = (ErrorRedisMessage) response;
-        assertTrue(error.content().contains("server is shutting down"));
+        assertTrue(error.content().contains("Server is shutting down"));
     }
 
     @Test

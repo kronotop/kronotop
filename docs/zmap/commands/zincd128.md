@@ -62,8 +62,8 @@ Argument errors:
 
 | Error Code | Error message                                                 | Cause                                      |
 |------------|---------------------------------------------------------------|--------------------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZINC.D128' command`           | -                                          |
-| `ERR`      | `invalid decimal`                                             | The value is not a decimal number.         |
+| `ERR`      | `Wrong number of arguments for 'ZINC.D128' command`           | -                                          |
+| `ERR`      | `Invalid decimal`                                             | The value is not a decimal number.         |
 | `ERR`      | `Exponent is out of range for Decimal128 encoding of <value>` | The value is outside the Decimal128 range. |
 | `ERR`      | `Unknown '<keyword>' argument`                                | -                                          |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace`          | -                                          |

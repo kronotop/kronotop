@@ -60,7 +60,7 @@ class ZGetRangeHandlerTest extends BaseHandlerTest {
                         limitValue),
                 arguments("non-numeric limit",
                         List.of("key-0", "key-5", "LIMIT", "abc"),
-                        "ERR value is not an integer or out of range"),
+                        "ERR Value is not an integer or out of range"),
                 arguments("begin selector without value",
                         List.of("key-0", "key-5", "BEGIN-KEY-SELECTOR"),
                         "ERR BEGIN-KEY-SELECTOR argument must be followed by a valid key selector"),
@@ -450,7 +450,7 @@ class ZGetRangeHandlerTest extends BaseHandlerTest {
                 "NAMESPACE", "ns", "EXTRA"));
 
         assertInstanceOf(ErrorRedisMessage.class, response);
-        assertTrue(((ErrorRedisMessage) response).content().contains("wrong number of arguments"));
+        assertTrue(((ErrorRedisMessage) response).content().contains("Wrong number of arguments"));
     }
 
     @Test

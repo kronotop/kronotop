@@ -73,7 +73,7 @@ class CompoundIndexDefinitionTest {
         IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
                 dropped.updateStatus(IndexStatus.READY)
         );
-        assertEquals("Index 'compound_idx' is already dropped and its status cannot be modified.", exception.getMessage());
+        assertEquals("Index 'compound_idx' is already dropped and its status cannot be modified", exception.getMessage());
     }
 
     @Test

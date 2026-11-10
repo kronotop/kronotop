@@ -50,6 +50,6 @@ class RollbackHandlerTest extends BaseHandlerTest {
         Object response = tt.getResponse();
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertEquals("TRANSACTION there is no transaction in progress.", actualMessage.content());
+        assertEquals("TRANSACTION There is no transaction in progress", actualMessage.content());
     }
 }

@@ -63,7 +63,7 @@ class ZGetKeyHandlerTest extends BaseHandlerTest {
                         "ERR NAMESPACE argument must be followed by a namespace"),
                 arguments("too many arguments",
                         List.of("key-0", "KEY-SELECTOR", "first_greater_than", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZGETKEY' command")
+                        "ERR Wrong number of arguments for 'ZGETKEY' command")
         );
     }
 

@@ -112,7 +112,7 @@ public class HistogramBucketCodec {
      */
     public static byte[] encode(HistogramBucket histogramBucket) {
         if (histogramBucket.min().getBsonType() != histogramBucket.max().getBsonType()) {
-            throw new IllegalStateException("min and max must have the same BsonType");
+            throw new IllegalStateException("Min and max must have the same BsonType");
         }
 
         BsonType bsonType = histogramBucket.min().getBsonType();

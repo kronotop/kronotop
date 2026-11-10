@@ -126,6 +126,6 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 List.of(volumeConfig.name(), "1", "0", "3", "6"));
 
         assertInstanceOf(ErrorRedisMessage.class, response);
-        assertEquals("ERR wrong number of arguments for 'SEGMENT.INSERT' command", ((ErrorRedisMessage) response).content());
+        assertEquals("ERR Wrong number of arguments for 'SEGMENT.INSERT' command", ((ErrorRedisMessage) response).content());
     }
 }

@@ -141,23 +141,23 @@ public abstract class AbstractTaskState {
 
         if (current == IndexTaskStatus.COMPLETED) {
             throw new InvalidTaskStateException(
-                    String.format("Cannot update status: task is already %s.", current)
+                    String.format("Cannot update status: task is already %s", current)
             );
         }
 
         if (current == IndexTaskStatus.STOPPED && target != IndexTaskStatus.FAILED) {
             // Accept the failed status to see the error in the records
             throw new InvalidTaskStateException(
-                    String.format("Cannot update status: task is in terminal state (%s).", current)
+                    String.format("Cannot update status: task is in terminal state (%s)", current)
             );
         }
 
         if (current == IndexTaskStatus.WAITING && target == IndexTaskStatus.COMPLETED) {
-            invalidTransition(current, target, "task has not started yet.");
+            invalidTransition(current, target, "task has not started yet");
         }
 
         if (current == IndexTaskStatus.WAITING && target == IndexTaskStatus.FAILED) {
-            invalidTransition(current, target, "task has not started yet.");
+            invalidTransition(current, target, "task has not started yet");
         }
     }
 

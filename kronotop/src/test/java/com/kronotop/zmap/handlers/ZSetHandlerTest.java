@@ -46,10 +46,10 @@ class ZSetHandlerTest extends BaseHandlerTest {
         return Stream.of(
                 arguments("too few arguments",
                         List.of("key"),
-                        "ERR wrong number of arguments for 'ZSET' command"),
+                        "ERR Wrong number of arguments for 'ZSET' command"),
                 arguments("too many arguments",
                         List.of("key", "value", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZSET' command"),
+                        "ERR Wrong number of arguments for 'ZSET' command"),
                 arguments("unknown keyword",
                         List.of("key", "value", "EXTRA"),
                         "ERR Unknown 'EXTRA' argument"),

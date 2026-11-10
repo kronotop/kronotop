@@ -40,7 +40,7 @@ public class SnapshotReadArgs {
 
     public <K, V> void build(CommandArgs<K, V> args) {
         if (argument == null) {
-            throw new IllegalArgumentException("argument has to be ON or OFF");
+            throw new IllegalArgumentException("Argument has to be ON or OFF");
         }
         args.add(argument);
     }

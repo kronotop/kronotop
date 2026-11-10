@@ -51,8 +51,8 @@ Argument errors:
 
 | Error Code | Error message                                        | Cause                         |
 |------------|------------------------------------------------------|-------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZSET.F64' command`   | -                             |
-| `ERR`      | `value is not a double or out of range`              | -                             |
+| `ERR`      | `Wrong number of arguments for 'ZSET.F64' command`   | -                             |
+| `ERR`      | `Value is not a double or out of range`              | -                             |
 | `ERR`      | `Invalid value: must be a finite IEEE-754 double`    | The value is NaN or Infinity. |
 | `ERR`      | `Unknown '<keyword>' argument`                       | -                             |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace` | -                             |

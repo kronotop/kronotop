@@ -174,7 +174,7 @@ class BucketLocateHandlerTest extends BaseBucketHandlerTest {
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_LOCATE, List.of("test-bucket", "NAMESPACE")));
         assertErrorReply("ERR Unknown 'BOGUS' argument",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_LOCATE, List.of("test-bucket", "BOGUS")));
-        assertErrorReply("ERR wrong number of arguments for 'BUCKET.LOCATE' command",
+        assertErrorReply("ERR Wrong number of arguments for 'BUCKET.LOCATE' command",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_LOCATE, List.of("test-bucket", "NAMESPACE", "ns", "EXTRA")));
     }
 }

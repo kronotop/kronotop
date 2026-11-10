@@ -201,7 +201,7 @@ public class KronotopTestInstance extends KronotopInstance {
         if (raw instanceof SimpleStringRedisMessage message) {
             assertEquals(Response.OK, message.content());
         } else if (raw instanceof ErrorRedisMessage message) {
-            if (message.content().equals("ERR cluster has already been initialized")) {
+            if (message.content().equals("ERR Cluster has already been initialized")) {
                 // It's okay, already initialized by the first call of addNewInstance method.
                 return true;
             } else {

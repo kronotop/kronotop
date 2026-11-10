@@ -60,8 +60,8 @@ Argument errors:
 
 | Error Code | Error message                                           | Cause                         |
 |------------|---------------------------------------------------------|-------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZINC.F64' command`      | -                             |
-| `ERR`      | `value is not a double or out of range`                 | The value is not a number.    |
+| `ERR`      | `Wrong number of arguments for 'ZINC.F64' command`      | -                             |
+| `ERR`      | `Value is not a double or out of range`                 | The value is not a number.    |
 | `ERR`      | `Invalid delta: value must be a finite IEEE-754 double` | The value is NaN or Infinity. |
 | `ERR`      | `Unknown '<keyword>' argument`                          | -                             |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace`    | -                             |

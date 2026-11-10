@@ -41,14 +41,14 @@ Argument errors:
 
 | Error Code | Error message                   | Cause                                                                   |
 |------------|---------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `invalid number of arguments`   | -                                                                       |
-| `ERR`      | `invalid shard id`              | The shard ID is not a valid integer, or is out of the configured range. |
+| `ERR`      | `Invalid number of arguments`   | -                                                                       |
+| `ERR`      | `Invalid shard id`              | The shard ID is not a valid integer, or is out of the configured range. |
 
 Cluster errors:
 
 | Error Code | Error message                          | Cause |
 |------------|----------------------------------------|-------|
-| `ERR`      | `cluster has not been initialized yet` | -     |
+| `ERR`      | `Cluster has not been initialized yet` | -     |
 
 ## Examples
 

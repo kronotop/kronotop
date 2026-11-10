@@ -40,7 +40,7 @@ Argument errors:
 
 | Error Code | Error message                                              | Cause                                                         |
 |------------|------------------------------------------------------------|---------------------------------------------------------------|
-| `ERR`      | `wrong number of arguments for 'NAMESPACE EXISTS' command` | -                                                             |
+| `ERR`      | `Wrong number of arguments for 'NAMESPACE EXISTS' command` | -                                                             |
 | `ERR`      | `Namespace '<path>' is reserved for internal use`          | The namespace path contains the reserved `__internal__` name. |
 
 Namespace errors:

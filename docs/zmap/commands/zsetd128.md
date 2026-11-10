@@ -52,8 +52,8 @@ Argument errors:
 
 | Error Code | Error message                                                 | Cause |
 |------------|---------------------------------------------------------------|-------|
-| `ERR`      | `wrong number of arguments for 'ZSET.D128' command`           | -     |
-| `ERR`      | `invalid decimal`                                             | -     |
+| `ERR`      | `Wrong number of arguments for 'ZSET.D128' command`           | -     |
+| `ERR`      | `Invalid decimal`                                             | -     |
 | `ERR`      | `Exponent is out of range for Decimal128 encoding of <value>` | -     |
 | `ERR`      | `Unknown '<keyword>' argument`                                | -     |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace`          | -     |
@@ -104,7 +104,7 @@ OK
 
 ```kronotop
 > ZSET.D128 price notanumber
-(error) ERR invalid decimal
+(error) ERR Invalid decimal
 ```
 
 **Use within an explicit transaction:**

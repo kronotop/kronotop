@@ -200,6 +200,6 @@ class ChangeLogWatchHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 List.of(volumeConfig.name(), "0", "1"));
 
         assertInstanceOf(ErrorRedisMessage.class, response);
-        assertEquals("ERR wrong number of arguments for 'CHANGELOG.WATCH' command", ((ErrorRedisMessage) response).content());
+        assertEquals("ERR Wrong number of arguments for 'CHANGELOG.WATCH' command", ((ErrorRedisMessage) response).content());
     }
 }

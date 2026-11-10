@@ -151,7 +151,7 @@ class BucketRemoveHandlerTest extends BaseBucketHandlerTest {
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_REMOVE, List.of("test-bucket", "NAMESPACE")));
         assertErrorReply("ERR Unknown 'BOGUS' argument",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_REMOVE, List.of("test-bucket", "BOGUS")));
-        assertErrorReply("ERR wrong number of arguments for 'BUCKET.REMOVE' command",
+        assertErrorReply("ERR Wrong number of arguments for 'BUCKET.REMOVE' command",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_REMOVE, List.of("test-bucket", "NAMESPACE", "ns", "EXTRA")));
     }
 }

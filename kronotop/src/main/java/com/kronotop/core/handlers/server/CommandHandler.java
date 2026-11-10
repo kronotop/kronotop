@@ -132,7 +132,7 @@ public class CommandHandler implements Handler {
             return listNames((name, metadata) -> true);
         }
         if (args.size() != 3 || !args.get(0).equalsIgnoreCase("FILTERBY")) {
-            throw new IllegalCommandArgumentException("syntax error");
+            throw new IllegalCommandArgumentException("Syntax error");
         }
         String type = args.get(1);
         String arg = args.get(2);
@@ -149,7 +149,7 @@ public class CommandHandler implements Handler {
         if (type.equalsIgnoreCase("PATTERN")) {
             return listNames((name, metadata) -> GlobMatcher.matches(arg, name, true));
         }
-        throw new IllegalCommandArgumentException("syntax error");
+        throw new IllegalCommandArgumentException("Syntax error");
     }
 
     private List<RedisMessage> listNames(BiPredicate<String, CommandMetadata> filter) {

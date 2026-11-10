@@ -77,7 +77,7 @@ public class MappedSegment implements ReadableSegment {
     @Override
     public ByteBuffer get(long position, long length) throws IOException {
         if (position + length > size) {
-            String message = String.format("position: %d, length: %d but size: %d", position, length, size);
+            String message = String.format("Position: %d, length: %d but size: %d", position, length, size);
             throw new EntryOutOfBoundException(message);
         }
         return mappedMemory.asSlice(position, length).asByteBuffer().asReadOnlyBuffer();

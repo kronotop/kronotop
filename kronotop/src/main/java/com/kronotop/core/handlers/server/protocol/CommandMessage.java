@@ -44,7 +44,7 @@ public class CommandMessage implements ProtocolMessage<Void> {
         int argc = request.getArguments().size() + 1;
         if ((argument.arity > 0 && argument.arity != argc) || argc < -argument.arity) {
             throw new IllegalCommandArgumentException(
-                    String.format("wrong number of arguments for 'command|%s' command", argument.name().toLowerCase()));
+                    String.format("Wrong number of arguments for 'command|%s' command", argument.name().toLowerCase()));
         }
         for (int i = 1; i < request.getArguments().size(); i++) {
             commands.add(ProtocolMessageUtil.readAsString(request.getArguments().get(i)));
@@ -83,7 +83,7 @@ public class CommandMessage implements ProtocolMessage<Void> {
                 return key;
             }
         }
-        throw new IllegalCommandArgumentException(String.format("unknown subcommand '%s'. Try COMMAND HELP.", raw));
+        throw new IllegalCommandArgumentException(String.format("Unknown subcommand '%s'. Try COMMAND HELP", raw));
     }
 
     /**

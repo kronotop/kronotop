@@ -689,7 +689,7 @@ Argument errors:
 
 | Error Code | Error message                                        | Cause |
 |------------|------------------------------------------------------|-------|
-| `ERR`      | `unknown subcommand: '<subcommand>'`                 | -     |
+| `ERR`      | `Unknown subcommand: '<subcommand>'`                 | -     |
 | `ERR`      | `Unknown '<keyword>' argument`                       | -     |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
 

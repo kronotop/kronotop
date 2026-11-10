@@ -47,10 +47,10 @@ class ZDelRangeHandlerTest extends BaseHandlerTest {
         return Stream.of(
                 arguments("too few arguments",
                         List.of("key-0"),
-                        "ERR wrong number of arguments for 'ZDELRANGE' command"),
+                        "ERR Wrong number of arguments for 'ZDELRANGE' command"),
                 arguments("too many arguments",
                         List.of("key-0", "key-5", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZDELRANGE' command"),
+                        "ERR Wrong number of arguments for 'ZDELRANGE' command"),
                 arguments("unknown keyword",
                         List.of("key-0", "key-5", "EXTRA"),
                         "ERR Unknown 'EXTRA' argument"),

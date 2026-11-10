@@ -51,10 +51,10 @@ class ZIncD128HandlerTest extends BaseHandlerTest {
         return Stream.of(
                 arguments("too few arguments",
                         List.of("key"),
-                        "ERR wrong number of arguments for 'ZINC.D128' command"),
+                        "ERR Wrong number of arguments for 'ZINC.D128' command"),
                 arguments("too many arguments",
                         List.of("key", "value", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZINC.D128' command"),
+                        "ERR Wrong number of arguments for 'ZINC.D128' command"),
                 arguments("unknown keyword",
                         List.of("key", "value", "EXTRA"),
                         "ERR Unknown 'EXTRA' argument"),
@@ -290,7 +290,7 @@ class ZIncD128HandlerTest extends BaseHandlerTest {
         Object response = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertEquals("ERR invalid decimal", actualMessage.content());
+        assertEquals("ERR Invalid decimal", actualMessage.content());
     }
 
     @Test

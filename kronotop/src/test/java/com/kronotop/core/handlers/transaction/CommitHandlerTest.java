@@ -76,7 +76,7 @@ class CommitHandlerTest extends BaseHandlerTest {
         Object response = tt.getResponse();
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertEquals("TRANSACTION there is no transaction in progress.", actualMessage.content());
+        assertEquals("TRANSACTION There is no transaction in progress", actualMessage.content());
     }
 
     @Test
@@ -167,7 +167,7 @@ class CommitHandlerTest extends BaseHandlerTest {
             Object response = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, response);
             ErrorRedisMessage errorMessage = (ErrorRedisMessage) response;
-            assertTrue(errorMessage.content().contains("wrong number of arguments"),
+            assertTrue(errorMessage.content().contains("Wrong number of arguments"),
                     "Should reject multiple RETURNING arguments");
         }
     }

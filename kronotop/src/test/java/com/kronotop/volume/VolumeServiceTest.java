@@ -128,7 +128,7 @@ public class VolumeServiceTest extends BaseVolumeTest {
                 IllegalArgumentException.class,
                 () -> service.openSubspace("invalid-name")
         );
-        assertEquals("invalid volume name: invalid-name", exception.getMessage());
+        assertEquals("Invalid volume name: invalid-name", exception.getMessage());
     }
 
     @Test

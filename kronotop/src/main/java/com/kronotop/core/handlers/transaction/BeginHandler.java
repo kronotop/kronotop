@@ -46,7 +46,7 @@ public class BeginHandler implements Handler {
             Session session = request.getSession();
             Attribute<Boolean> beginAttr = session.attr(SessionAttributes.BEGIN);
             if (Boolean.TRUE.equals(beginAttr.get())) {
-                throw new KronotopException(RESPError.TRANSACTION, "there is already a transaction in progress.");
+                throw new KronotopException(RESPError.TRANSACTION, "There is already a transaction in progress");
             }
             InstrumentedTransaction tr = context.getTransactionManager().create();
             tr.setClientId(session.getClientId());

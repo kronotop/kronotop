@@ -39,13 +39,13 @@ Argument errors:
 
 | Error Code | Error message                 | Cause |
 |------------|-------------------------------|-------|
-| `ERR`      | `invalid number of arguments` | -     |
+| `ERR`      | `Invalid number of arguments` | -     |
 
 Cluster errors:
 
 | Error Code | Error message                          | Cause |
 |------------|----------------------------------------|-------|
-| `ERR`      | `cluster has not been initialized yet` | -     |
+| `ERR`      | `Cluster has not been initialized yet` | -     |
 
 ## Examples
 

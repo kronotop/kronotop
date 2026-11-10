@@ -22,7 +22,7 @@ package com.kronotop.commands;
 public record Index(int pos) {
     public Index {
         if (pos < 1) {
-            throw new IllegalArgumentException("key spec index pos must be >= 1");
+            throw new IllegalArgumentException("Key spec index pos must be >= 1");
         }
     }
 }

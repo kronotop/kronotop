@@ -43,13 +43,13 @@ Argument errors:
 
 | Error Code | Error message                 | Cause |
 |------------|-------------------------------|-------|
-| `ERR`      | `invalid number of arguments` | -     |
+| `ERR`      | `Invalid number of arguments` | -     |
 
 Cluster errors:
 
 | Error Code | Error message                          | Cause |
 |------------|----------------------------------------|-------|
-| `ERR`      | `cluster has not been initialized yet` | -     |
+| `ERR`      | `Cluster has not been initialized yet` | -     |
 
 ## Examples
 
@@ -71,5 +71,5 @@ Cluster errors:
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN DESCRIBE-MEMBER foo
-(error) ERR invalid number of arguments
+(error) ERR Invalid number of arguments
 ```

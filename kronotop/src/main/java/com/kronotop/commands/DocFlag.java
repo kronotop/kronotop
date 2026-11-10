@@ -32,7 +32,7 @@ public enum DocFlag {
                 return flag;
             }
         }
-        throw new IllegalArgumentException("unknown doc flag '" + value + "'");
+        throw new IllegalArgumentException("Unknown doc flag '" + value + "'");
     }
 
     @JsonValue

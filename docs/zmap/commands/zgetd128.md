@@ -60,7 +60,7 @@ Argument errors:
 
 | Error Code | Error message                                        | Cause |
 |------------|------------------------------------------------------|-------|
-| `ERR`      | `wrong number of arguments for 'ZGET.D128' command`  | -     |
+| `ERR`      | `Wrong number of arguments for 'ZGET.D128' command`  | -     |
 | `ERR`      | `Unknown '<keyword>' argument`                       | -     |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
 

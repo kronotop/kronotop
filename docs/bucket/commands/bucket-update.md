@@ -150,8 +150,8 @@ Argument errors:
 
 | Error Code | Error message                                               | Cause                                          |
 |------------|-------------------------------------------------------------|------------------------------------------------|
-| `ERR`      | `update argument cannot be empty`                           | -                                              |
-| `ERR`      | `update document cannot be an empty document`               | -                                              |
+| `ERR`      | `Update argument cannot be empty`                           | -                                              |
+| `ERR`      | `Update document cannot be an empty document`               | -                                              |
 | `ERR`      | `BATCH argument must be followed by a non-negative integer` | -                                              |
 | `ERR`      | `LIMIT argument must be followed by a non-negative integer` | -                                              |
 | `ERR`      | `Unknown sort direction: '<value>'`                         | The `SORTBY` direction is not `ASC` or `DESC`. |

@@ -92,7 +92,7 @@ public class ContextImpl implements Context {
         if (config.hasPath("default_namespace")) {
             defaultNamespace = config.getString("default_namespace");
             if (defaultNamespace.isEmpty() || defaultNamespace.isBlank()) {
-                throw new IllegalArgumentException("default namespace is empty or blank");
+                throw new IllegalArgumentException("Default namespace is empty or blank");
             }
         } else {
             throw new ConfigException("cluster.name is missing in configuration");

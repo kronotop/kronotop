@@ -153,7 +153,7 @@ class BucketListHandlerTest extends BaseBucketHandlerTest {
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_LIST, List.of("NAMESPACE")));
         assertErrorReply("ERR Unknown 'BOGUS' argument",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_LIST, List.of("BOGUS")));
-        assertErrorReply("ERR wrong number of arguments for 'BUCKET.LIST' command",
+        assertErrorReply("ERR Wrong number of arguments for 'BUCKET.LIST' command",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_LIST, List.of("NAMESPACE", "ns", "EXTRA")));
     }
 }

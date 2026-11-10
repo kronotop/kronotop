@@ -32,9 +32,9 @@ A transaction must be started with `BEGIN` before calling this command.
 
 Transaction errors:
 
-| Error Code    | Error message                          | Cause |
-|---------------|----------------------------------------|-------|
-| `TRANSACTION` | `there is no transaction in progress.` | -     |
+| Error Code    | Error message                         | Cause |
+|---------------|---------------------------------------|-------|
+| `TRANSACTION` | `There is no transaction in progress` | -     |
 
 ## Examples
 
@@ -52,5 +52,5 @@ OK
 
 ```kronotop
 > GETREADVERSION
-(error) TRANSACTION there is no transaction in progress.
+(error) TRANSACTION There is no transaction in progress
 ```

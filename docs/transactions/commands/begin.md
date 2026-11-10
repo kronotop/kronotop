@@ -33,9 +33,9 @@ one-off transactions.
 
 Transaction errors:
 
-| Error Code    | Error message                                 | Cause |
-|---------------|-----------------------------------------------|-------|
-| `TRANSACTION` | `there is already a transaction in progress.` | -     |
+| Error Code    | Error message                                | Cause |
+|---------------|----------------------------------------------|-------|
+| `TRANSACTION` | `There is already a transaction in progress` | -     |
 
 ## Examples
 
@@ -53,5 +53,5 @@ OK
 OK
 
 > BEGIN
-(error) TRANSACTION there is already a transaction in progress.
+(error) TRANSACTION There is already a transaction in progress
 ```

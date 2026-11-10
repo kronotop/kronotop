@@ -23,7 +23,7 @@ import com.kronotop.KronotopException;
  */
 public class UnknownSubcommandException extends KronotopException {
     public UnknownSubcommandException(String command) {
-        super(String.format("unknown subcommand: '%s'", command));
+        super(String.format("Unknown subcommand: '%s'", command));
     }
 }
 

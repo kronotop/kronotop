@@ -458,7 +458,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Object raw = BaseTest.runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, raw);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) raw;
-        assertEquals("ERR wrong number of arguments for 'VOLUME.STATS' command", errorMessage.content());
+        assertEquals("ERR Wrong number of arguments for 'VOLUME.STATS' command", errorMessage.content());
     }
 
     @Test

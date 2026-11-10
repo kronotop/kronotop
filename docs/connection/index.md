@@ -41,7 +41,7 @@ authenticated before doing anything else. Until then, every command except `AUTH
 
 ```kronotop
 > BUCKET.LIST
-(error) NOAUTH Authentication required.
+(error) NOAUTH Authentication required
 
 > AUTH devpass
 OK

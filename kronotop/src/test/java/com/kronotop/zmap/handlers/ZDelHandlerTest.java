@@ -46,10 +46,10 @@ class ZDelHandlerTest extends BaseHandlerTest {
         return Stream.of(
                 arguments("too few arguments",
                         List.of(),
-                        "ERR wrong number of arguments for 'ZDEL' command"),
+                        "ERR Wrong number of arguments for 'ZDEL' command"),
                 arguments("too many arguments",
                         List.of("key", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZDEL' command"),
+                        "ERR Wrong number of arguments for 'ZDEL' command"),
                 arguments("unknown keyword",
                         List.of("key", "EXTRA"),
                         "ERR Unknown 'EXTRA' argument"),

@@ -37,7 +37,7 @@ Argument errors:
 
 | Error Code | Error message                                          | Cause |
 |------------|--------------------------------------------------------|-------|
-| `ERR`      | `wrong number of arguments for 'VOLUME.STATS' command` | -     |
+| `ERR`      | `Wrong number of arguments for 'VOLUME.STATS' command` | -     |
 
 Volume errors:
 

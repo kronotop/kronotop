@@ -489,7 +489,7 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_PURGE, List.of("test-bucket", "NAMESPACE")));
         assertErrorReply("ERR Unknown 'BOGUS' argument",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_PURGE, List.of("test-bucket", "BOGUS")));
-        assertErrorReply("ERR wrong number of arguments for 'BUCKET.PURGE' command",
+        assertErrorReply("ERR Wrong number of arguments for 'BUCKET.PURGE' command",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_PURGE, List.of("test-bucket", "NAMESPACE", "ns", "EXTRA")));
     }
 }

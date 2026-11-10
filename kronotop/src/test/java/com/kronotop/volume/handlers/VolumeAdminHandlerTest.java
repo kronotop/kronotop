@@ -141,7 +141,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("invalid number of arguments"));
+        assertTrue(errorMessage.content().contains("Invalid number of arguments"));
     }
 
     @Test
@@ -226,7 +226,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("invalid number of arguments"));
+        assertTrue(errorMessage.content().contains("Invalid number of arguments"));
     }
 
     @Test
@@ -385,7 +385,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR invalid number of arguments", actualMessage.content());
+        assertEquals("ERR Invalid number of arguments", actualMessage.content());
     }
 
     @Test
@@ -455,7 +455,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR invalid number of arguments", actualMessage.content());
+        assertEquals("ERR Invalid number of arguments", actualMessage.content());
     }
 
     @Test
@@ -481,7 +481,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR retention period must be greater than zero", actualMessage.content());
+        assertEquals("ERR Retention period must be greater than zero", actualMessage.content());
     }
 
     @Test
@@ -494,7 +494,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR retention period must be greater than zero", actualMessage.content());
+        assertEquals("ERR Retention period must be greater than zero", actualMessage.content());
     }
 
     @Test
@@ -507,7 +507,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR invalid volume name: non-existent-volume", actualMessage.content());
+        assertEquals("ERR Invalid volume name: non-existent-volume", actualMessage.content());
     }
 
     @Test
@@ -519,6 +519,6 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR invalid number of arguments", actualMessage.content());
+        assertEquals("ERR Invalid number of arguments", actualMessage.content());
     }
 }
