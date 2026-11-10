@@ -18,7 +18,10 @@ package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.directory.NoSuchDirectoryException;
+import com.kronotop.KronotopException;
 import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
+import com.kronotop.cluster.handlers.InvalidShardIdException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -36,6 +39,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 import static com.kronotop.server.RESPUtil.bulkString;
@@ -113,6 +117,11 @@ class InspectReplicationSubcommand extends BaseSubcommandHandler implements Subc
                 );
                 ReplicationStatusInfo info = ReplicationUtil.readReplicationStatusInfo(tr, standbySubspace);
                 return mapReplicationStatusInfo(info);
+            } catch (CompletionException exp) {
+                if (exp.getCause() instanceof NoSuchDirectoryException ignored) {
+                    throw new KronotopException("No such standby member");
+                }
+                throw exp;
             }
         }, response::writeMap);
     }
@@ -127,6 +136,10 @@ class InspectReplicationSubcommand extends BaseSubcommandHandler implements Subc
             }
 
             volumeName = ProtocolMessageUtil.readAsString(args.get(1));
+            int shardId = VolumeNames.parse(volumeName);
+            if (!service.getContext().getShardRegistry().isValidShardId(shardId)) {
+                throw new InvalidShardIdException();
+            }
             standById = ProtocolMessageUtil.readMemberId(service.getContext(), args.get(2));
         }
     }

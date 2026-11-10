@@ -157,6 +157,54 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
+    void shouldReturnErrorWhenStandbyHasNoReplicationState() {
+        // Behavior: The cluster has a single member, which is the primary of the shard and has never
+        // replicated it as a standby. VOLUME.INSPECT REPLICATION for the shard volume with this member's
+        // ID replies with the error "ERR No such standby member".
+        VolumeInspectCommandBuilder<String, String> cmd = new VolumeInspectCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.replication(VolumeNames.format(SHARD_ID), context.getMember().getId()).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR No such standby member", errorMessage.content());
+    }
+
+    @Test
+    void shouldReturnErrorWhenInspectReplicationWithInvalidVolumeName() {
+        // Behavior: VOLUME.INSPECT REPLICATION is called with the volume name "volume-1", which does not
+        // start with the "shard-" prefix, and the ID of an existing member. The command replies with the
+        // error "ERR invalid volume name: volume-1".
+        VolumeInspectCommandBuilder<String, String> cmd = new VolumeInspectCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.replication("volume-1", context.getMember().getId()).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR invalid volume name: volume-1", errorMessage.content());
+    }
+
+    @Test
+    void shouldReturnErrorWhenInspectReplicationWithUnknownShard() {
+        // Behavior: VOLUME.INSPECT REPLICATION is called with the well-formed volume name "shard-9999",
+        // whose shard ID does not exist in the cluster, and the ID of an existing member. The command
+        // replies with the error "ERR invalid shard id".
+        VolumeInspectCommandBuilder<String, String> cmd = new VolumeInspectCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.replication("shard-9999", context.getMember().getId()).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR invalid shard id", errorMessage.content());
+    }
+
+    @Test
     void shouldReturnReplicationStatusForActiveReplication() throws IOException {
         int length = 1024;
         int number = Math.toIntExact(volume.getConfig().segmentSize() / length);
