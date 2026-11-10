@@ -80,7 +80,7 @@ public class VolumeConfigGenerator {
 
     private VolumeConfig newShardVolumeConfig(DirectorySubspace subspace, String dataDir) {
         String name = VolumeNames.format(shardId);
-        long segmentSize = context.getConfig().getLong("bucket.volume.segment_size");
+        long segmentSize = context.getConfig().getLong("volume.segment_size");
         return new VolumeConfig(subspace, name, dataDir, segmentSize);
     }
 

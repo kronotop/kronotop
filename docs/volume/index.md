@@ -46,7 +46,7 @@ A segment is a fixed-size, pre-allocated, append-only file on the local disk. En
 beginning of the file. An entry is never split across segments.
 
 When the current segment fills up, a new segment is created automatically. Old segments accept no further writes. They
-serve only reads. The default segment size for buckets is 4 GiB, configurable via `bucket.volume.segment_size`.
+serve only reads. The default segment size for buckets is 4 GiB, configurable via `volume.segment_size`.
 
 Each segment tracks space accounting metrics:
 

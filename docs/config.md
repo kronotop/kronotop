@@ -275,6 +275,11 @@ TLS).
 
 Global tuning parameters for the volume storage engine. These apply to all volume instances.
 
+| Parameter                               | Type         | Default              | Description                                                                                                                              |
+|-----------------------------------------|--------------|----------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| `volume.segment_size`                   | long (bytes) | `4294967296` (4 GiB) | Maximum size of a single volume segment file. When a segment reaches this size, a new segment is created.                                |
+| `volume.segment_replication_chunk_size` | long (bytes) | `16777216` (16 MiB)  | Chunk size used when replicating segment data to standby nodes. Larger chunks reduce round trips; smaller chunks reduce memory pressure. |
+
 ### Vacuum
 
 Controls the background vacuum process that reclaims space from stale volume segments.
@@ -311,15 +316,6 @@ The query plan cache avoids re-planning identical queries.
 |-----------------------------|--------------------|------------------|--------------------------------------------------------------------------------------------------------|
 | `bucket.plan_cache.enabled` | boolean            | `true`           | Enable or disable the query plan cache. Disabling forces re-planning on every query.                   |
 | `bucket.plan_cache.max_ttl` | int (milliseconds) | `300000` (5 min) | Time-to-live for cached query plans. Plans are evicted after this duration and re-planned on next use. |
-
-### Bucket Volume
-
-Controls the local storage segments used by bucket volumes.
-
-| Parameter                                      | Type         | Default              | Description                                                                                                                              |
-|------------------------------------------------|--------------|----------------------|------------------------------------------------------------------------------------------------------------------------------------------|
-| `bucket.volume.segment_size`                   | long (bytes) | `4294967296` (4 GiB) | Maximum size of a single volume segment file. When a segment reaches this size, a new segment is created.                                |
-| `bucket.volume.segment_replication_chunk_size` | long (bytes) | `16777216` (16 MiB)  | Chunk size used when replicating segment data to standby nodes. Larger chunks reduce round trips; smaller chunks reduce memory pressure. |
 
 ### Index
 

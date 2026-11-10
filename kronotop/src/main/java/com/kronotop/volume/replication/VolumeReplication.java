@@ -87,7 +87,7 @@ public class VolumeReplication implements ReplicationTask {
     }
 
     private long getSegmentSize() {
-        return context.getConfig().getLong("bucket.volume.segment_size");
+        return context.getConfig().getLong("volume.segment_size");
     }
 
     DirectorySubspace createOrOpenStandbySubspace() {
@@ -99,7 +99,7 @@ public class VolumeReplication implements ReplicationTask {
     }
 
     private long getChunkSize() {
-        return context.getConfig().getLong("bucket.volume.segment_replication_chunk_size");
+        return context.getConfig().getLong("volume.segment_replication_chunk_size");
     }
 
     /**
