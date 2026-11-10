@@ -25,10 +25,13 @@ import com.kronotop.server.RESPVersion;
 import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
+import io.lettuce.core.protocol.CommandType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Attribute;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -133,7 +136,7 @@ class HelloHandlerTest extends BaseHandlerTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("NOPROTO Unsupported protocol version", actualMessage.content());
+        assertEquals("NOPROTO unsupported protocol version", actualMessage.content());
     }
 
     @Test
@@ -150,5 +153,59 @@ class HelloHandlerTest extends BaseHandlerTest {
         Client client = Clients.getClient(clientID.get());
         assertNotNull(client);
         assertEquals("test", client.getName());
+    }
+
+    @Test
+    void shouldReturnNOPROTOForProtocolVersionOutOfIntegerRange() {
+        // Behavior: a protocol version that is a valid number but too large for a 32-bit integer is still an
+        // unsupported version, so HELLO 99999999999 is rejected with the NOPROTO error.
+        Object msg = runRaw(channel, CommandType.HELLO, List.of("99999999999"));
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertEquals("NOPROTO unsupported protocol version", ((ErrorRedisMessage) msg).content());
+    }
+
+    @Test
+    void shouldRejectUnknownOption() {
+        // Behavior: HELLO accepts only the AUTH and SETNAME options. HELLO 3 FOO is rejected with a syntax error
+        // that quotes the option as the client sent it.
+        Object msg = runRaw(channel, CommandType.HELLO, List.of("3", "FOO"));
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertEquals("ERR Syntax error in HELLO option 'FOO'", ((ErrorRedisMessage) msg).content());
+    }
+
+    @Test
+    void shouldRejectAuthOptionWithoutPassword() {
+        // Behavior: the AUTH option needs a username and a password. HELLO 3 AUTH devuser, with the password
+        // missing, is rejected with a syntax error that names the AUTH option.
+        Object msg = runRaw(channel, CommandType.HELLO, List.of("3", "AUTH", "devuser"));
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertEquals("ERR Syntax error in HELLO option 'AUTH'", ((ErrorRedisMessage) msg).content());
+    }
+
+    @Test
+    void shouldRejectSetNameOptionWithoutName() {
+        // Behavior: the SETNAME option needs a client name. HELLO 3 SETNAME, with the name missing, is rejected
+        // with a syntax error that names the SETNAME option.
+        Object msg = runRaw(channel, CommandType.HELLO, List.of("3", "SETNAME"));
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertEquals("ERR Syntax error in HELLO option 'SETNAME'", ((ErrorRedisMessage) msg).content());
+    }
+
+    @Test
+    void shouldRejectClientNameWithSpace() {
+        // Behavior: a client name may hold only printable ASCII characters without spaces. HELLO 3 SETNAME with
+        // the name "my client" is rejected, and no name is stored for the connection.
+        Object msg = runRaw(channel, CommandType.HELLO, List.of("3", "SETNAME", "my client"));
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertEquals(
+                "ERR Client names cannot contain spaces, newlines or special characters.",
+                ((ErrorRedisMessage) msg).content()
+        );
+        assertNull(Clients.getClient(channel.attr(SessionAttributes.CLIENT_ID).get()));
     }
 }

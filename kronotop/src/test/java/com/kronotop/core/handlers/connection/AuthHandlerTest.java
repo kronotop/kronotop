@@ -22,13 +22,18 @@ import com.kronotop.commands.redis.RedisCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.SessionAttributes;
 import io.lettuce.core.codec.StringCodec;
+import io.lettuce.core.protocol.CommandType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class AuthHandlerTest extends BaseHandlerTest {
@@ -73,7 +78,7 @@ public class AuthHandlerTest extends BaseHandlerTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("WRONGPASS Invalid username-password pair or user is disabled", actualMessage.content());
+        assertEquals("WRONGPASS invalid username-password pair or user is disabled.", actualMessage.content());
     }
 
     @Test
@@ -98,5 +103,16 @@ public class AuthHandlerTest extends BaseHandlerTest {
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals("PONG", actualMessage.content());
         }
+    }
+
+    @Test
+    void shouldRejectMoreThanTwoArgumentsWithSyntaxError() {
+        // Behavior: AUTH takes a password, or a username and a password. AUTH with three arguments is rejected
+        // with "ERR syntax error" and the connection stays unauthenticated.
+        Object msg = runRaw(channel, CommandType.AUTH, List.of("devuser", "devpass", "extra"));
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertEquals("ERR syntax error", ((ErrorRedisMessage) msg).content());
+        assertFalse(channel.attr(SessionAttributes.AUTH).get());
     }
 }

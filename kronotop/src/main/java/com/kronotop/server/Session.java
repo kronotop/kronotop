@@ -23,6 +23,7 @@ import com.kronotop.bucket.bql.ast.BqlExpr;
 import com.kronotop.network.ClientIDGenerator;
 import com.kronotop.transaction.InstrumentedTransaction;
 import com.kronotop.transaction.TransactionState;
+import com.typesafe.config.Config;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
@@ -34,14 +35,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Represents a session that manages context, channel, and session-specific attributes.
- * A session is primarily used to interact with a client's connection and maintain its state
- * throughout the lifecycle of the connection.
- * <p>
- * The session is responsible for initializing and managing attributes such as client ID
- * and other context-specific settings. It also provides methods
- * for cleanup and resource management, such as handling transaction closure and session
- * post-commit processing.
+ * Holds the state of one client connection, such as the protocol version, the open transaction
+ * and the cursors. A session is created when the channel is registered and removed from the
+ * session store when the channel is closed.
  */
 public class Session {
     private final ChannelHandlerContext ctx;
@@ -69,15 +65,10 @@ public class Session {
     }
 
     /**
-     * Registers a new session and associates it with the specified {@link ChannelHandlerContext}.
-     * <p>
-     * This method creates a {@link Session} instance using the provided {@link Context} and
-     * {@link ChannelHandlerContext}. The created session is then stored in the {@link Channel}'s
-     * attributes using {@link SessionAttributes#SESSION}.
+     * Creates a session for the channel and adds it to the session store.
      *
-     * @param context the {@link Context} instance representing the environment of the session.
-     * @param ctx     the {@link ChannelHandlerContext} used to manage the channel where the session
-     *                will be associated. This context allows interaction with the underlying channel.
+     * @param context the context of the Kronotop instance
+     * @param ctx     the handler context of the client channel
      */
     public static void registerSession(Context context, ChannelHandlerContext ctx) {
         Session session = new Session(context, ctx);
@@ -86,24 +77,25 @@ public class Session {
     }
 
     /**
-     * Extracts the {@link Session} object associated with a given {@link Channel}.
+     * Reports whether the configuration requires clients to authenticate.
      *
-     * @param channel the {@link Channel} from which the session is to be extracted.
-     *                This channel is expected to have an associated {@link Session}
-     *                attribute stored using {@link SessionAttributes#SESSION}.
-     * @return the {@link Session} object associated with the given channel, or null
-     * if no session is associated with the channel.
+     * @param config the server configuration
+     * @return {@code true} if a password or a user list is configured, {@code false} otherwise
+     */
+    public static boolean isAuthEnabled(Config config) {
+        return config.hasPath("auth.requirepass") || config.hasPath("auth.users");
+    }
+
+    /**
+     * Returns the session of the given channel.
+     *
+     * @param channel the client channel
+     * @return the session, or {@code null} if the channel has no session
      */
     public static Session extractSessionFromChannel(Channel channel) {
         return channel.attr(SessionAttributes.SESSION).get();
     }
 
-    /**
-     * Generates and returns the next unique cursor identifier for the session.
-     * The value is incremented atomically, ensuring thread-safe operations.
-     *
-     * @return the next integer value representing the cursor identifier
-     */
     public int nextCursorId() {
         return cursorId.getAndIncrement();
     }
@@ -112,14 +104,6 @@ public class Session {
         return channel.attr(SessionAttributes.CLIENT_ID).get();
     }
 
-    /**
-     * Reports whether the client has authenticated on this connection.
-     * <p>
-     * A session starts unauthenticated and stays authenticated for the rest of the connection
-     * once AUTH or HELLO with credentials succeeds.
-     *
-     * @return {@code true} if the client has authenticated, {@code false} otherwise
-     */
     public boolean isAuthenticated() {
         Attribute<Boolean> auth = channel.attr(SessionAttributes.AUTH);
         return auth.get();
@@ -141,16 +125,10 @@ public class Session {
     }
 
     /**
-     * Sets the current transaction for the session and initializes transactional session attributes.
-     * <p>
-     * This method establishes a new transaction for the session by setting the provided
-     * {@link Transaction} object to the session's {@code TRANSACTION} attribute. It also initializes
-     * various session attributes to ensure proper transactional state setup, such as
-     * marking the transaction as started, and preparing hooks and counters related to
-     * transaction processing.
+     * Stores the transaction on the session and gives it empty post-commit hooks and a new user version counter.
      *
-     * @param tr the {@link Transaction} object to be associated with the session. This object
-     *           represents the transaction details to be used in subsequent operations.
+     * @param tr the transaction to store
+     * @throws KronotopException if the session already has a transaction
      */
     public void setTransaction(Transaction tr) {
         Transaction previousTransaction = attr(SessionAttributes.TRANSACTION).get();
@@ -168,7 +146,10 @@ public class Session {
     }
 
     /**
-     * Starts a new command. The pending metadata of the previous command is cleared.
+     * Records the command that is about to run and clears the metadata left by the previous command.
+     *
+     * @param command the command name
+     * @param model   the data model of the command, or {@code null} if it has none
      */
     public void startCommand(String command, String model) {
         this.pendingCommand = command;
@@ -180,8 +161,10 @@ public class Session {
     }
 
     /**
-     * Binds a transaction to the running command. The transaction takes the client id and
-     * the pending metadata. Metadata set later by the same command is written to it too.
+     * Binds a transaction to the running command and copies the client id and the command metadata to it,
+     * including metadata that the same command sets later.
+     *
+     * @param tr the transaction to bind
      */
     public void bind(InstrumentedTransaction tr) {
         tr.setClientId(getClientId());
@@ -218,8 +201,8 @@ public class Session {
     }
 
     /**
-     * Marks the open transaction as idle. Only a transaction opened with BEGIN survives
-     * the auto-commit cleanup, so only that transaction can become idle.
+     * Marks the open transaction as idle, which can only be one opened with BEGIN because the auto-commit
+     * cleanup has already closed the others.
      */
     public void markTransactionIdle() {
         Transaction tr = attr(SessionAttributes.TRANSACTION).get();
@@ -233,18 +216,7 @@ public class Session {
     }
 
     /**
-     * Closes any active transaction associated with the session and releases its resources.
-     * <p>
-     * If there is an active transaction stored under the TRANSACTION attribute in the session,
-     * this method ensures that it is properly closed and resources are released. After the
-     * transaction is closed, the TRANSACTION attribute is reset to null.
-     * <p>
-     * This method is a utility to safely handle transaction cleanup without throwing exceptions
-     * if the transaction fails to close. It silently ignores any exceptions that occur during
-     * the closing process.
-     * <p>
-     * It should be called after the transaction is no longer in use to ensure proper resource
-     * management and prevent resource leaks.
+     * Closes the open transaction, if any, and removes it from the session, ignoring any error from the close.
      */
     protected void closeTransactionIfAny() {
         // Close the Transaction object and release any associated resources.
@@ -265,14 +237,8 @@ public class Session {
     }
 
     /**
-     * Cleans up the session's transactional state if auto-commit mode is enabled.
-     * <p>
-     * This method checks the {@code SessionAttributes.AUTO_COMMIT} attribute associated with the session.
-     * If auto-commit mode is enabled (attribute value is {@code true}), it calls {@code unsetTransaction()}
-     * to reset the session's transactional state and release any associated resources.
-     * <p>
-     * It ensures that sessions operating in auto-commit mode do not retain any leftover transaction state
-     * that could interfere with subsequent operations.
+     * Closes the transaction and resets the transaction state when the session is in auto-commit mode,
+     * so no transaction is left behind for the next command.
      */
     public void cleanupIfAutoCommitEnabled() {
         Attribute<Boolean> autoCommitAttr = attr(SessionAttributes.AUTO_COMMIT);
@@ -288,20 +254,8 @@ public class Session {
     }
 
     /**
-     * Resets the transactional state of the session.
-     * <p>
-     * This method ensures that any active transaction within the session is properly closed and releases
-     * related resources by invoking the {@code closeTransactionIfAny()} method. It then resets various
-     * session attributes related to transaction management, including:
-     * <p>
-     * - Sets the {@code SessionAttributes.BEGIN} attribute to {@code false} indicating that no transaction
-     * is currently active.
-     * - Sets the {@code SessionAttributes.AUTO_COMMIT} attribute to {@code false} disabling auto-commit mode.
-     * - Resets the {@code SessionAttributes.POST_COMMIT_HOOKS} attribute to an empty {@code ArrayList}.
-     * - Resets the {@code SessionAttributes.USER_VERSION_COUNTER} attribute to a new {@code AtomicInteger}.
-     * <p>
-     * This method is typically called when a transaction needs to be explicitly terminated, ensuring the session
-     * is cleaned up and ready for subsequent operations without leftover stale transaction state.
+     * Closes the open transaction, if any, and resets the transaction state of the session: the BEGIN and
+     * auto-commit flags, the post-commit hooks and the user version counter.
      */
     public void closeAndCleanupTransaction() {
         closeTransactionIfAny();
@@ -311,38 +265,21 @@ public class Session {
         attr(SessionAttributes.USER_VERSION_COUNTER).set(new AtomicInteger());
     }
 
-    /**
-     * Retrieves the protocol version being used by the session.
-     *
-     * @return the {@link RESPVersion} representing the version of the Redis Serialization Protocol (RESP)
-     * currently set for the session.
-     */
     public RESPVersion getProtocolVersion() {
         return protocolVersion;
     }
 
-    /**
-     * Sets the protocol version for the session.
-     *
-     * @param version the {@link RESPVersion} to be set for the session. This determines the
-     *                version of the Redis Serialization Protocol (RESP) that the session will use.
-     */
     public void setProtocolVersion(RESPVersion version) {
         protocolVersion = version;
     }
 
-    /**
-     * Resets the cursor ID counter to 1.
-     */
     public void resetCursorId() {
         cursorId.set(1);
     }
 
     /**
-     * Restores every session default: the configurable attributes, the snapshot read flag,
-     * the current namespace and the open namespace cache.
-     * <p>
-     * The containers themselves are created once by the session and only emptied here.
+     * Restores the configurable attributes, the snapshot read flag and the current namespace to their
+     * defaults, and empties the open namespace cache.
      */
     public void restoreDefaults() {
         String replyType = context.getConfig().getString("session_attributes.reply_type");
@@ -366,9 +303,6 @@ public class Session {
         channel.attr(SessionAttributes.OPEN_NAMESPACES).get().clear();
     }
 
-    /**
-     * Clears all cursor maps (read, delete, update query contexts).
-     */
     public void clearCursors() {
         channel.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get().clear();
         channel.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get().clear();

@@ -33,6 +33,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class ClientHandlerTest extends BaseHandlerTest {
 
@@ -97,5 +98,44 @@ public class ClientHandlerTest extends BaseHandlerTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         assertEquals("ERR Wrong number of arguments for 'CLIENT|SETNAME' command", ((ErrorRedisMessage) msg).content());
+    }
+
+    @Test
+    void shouldRejectUnknownSubcommand() {
+        // Behavior: CLIENT with a subcommand the server does not have is rejected with an error that quotes the
+        // subcommand as the client sent it and points to CLIENT HELP.
+        Object msg = BaseTest.runRaw(channel, CommandType.CLIENT, List.of("foo"));
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertEquals("ERR unknown subcommand 'foo'. Try CLIENT HELP.", ((ErrorRedisMessage) msg).content());
+    }
+
+    @Test
+    void shouldRejectSetNameWithSpace() {
+        // Behavior: a client name may hold only printable ASCII characters without spaces. CLIENT SETNAME with
+        // the name "my client" is rejected, and the connection keeps no name.
+        Object msg = BaseTest.runRaw(channel, CommandType.CLIENT, List.of("SETNAME", "my client"));
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertEquals(
+                "ERR Client names cannot contain spaces, newlines or special characters.",
+                ((ErrorRedisMessage) msg).content()
+        );
+        assertNull(channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).get().get("name"));
+    }
+
+    @Test
+    void shouldRejectSetInfoValueWithSpace() {
+        // Behavior: a library name may hold only printable ASCII characters without spaces. CLIENT SETINFO
+        // lib-name with the value "my lib" is rejected with an error that starts with the attribute name, and
+        // the attribute is not stored.
+        Object msg = BaseTest.runRaw(channel, CommandType.CLIENT, List.of("SETINFO", "lib-name", "my lib"));
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertEquals(
+                "ERR lib-name cannot contain spaces, newlines or special characters.",
+                ((ErrorRedisMessage) msg).content()
+        );
+        assertNull(channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).get().get("lib-name"));
     }
 }

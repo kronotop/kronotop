@@ -50,10 +50,14 @@ This command does not require the cluster to be initialized.
 
 Argument errors:
 
-| Error Code  | Error message                                        | Cause                               |
-|-------------|------------------------------------------------------|-------------------------------------|
-| `NOPROTO`   | `Unsupported protocol version`                       | The protocol version is not 2 or 3. |
-| `WRONGPASS` | `Invalid username-password pair or user is disabled` | -                                   |
+| Error Code  | Error message                                                                                                                                                                                                    | Cause                                                                                   |
+|-------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
+| `ERR`       | `Protocol version is not an integer or out of range`                                                                                                                                                             | The protocol version is not a number.                                                   |
+| `NOPROTO`   | `unsupported protocol version`                                                                                                                                                                                   | The protocol version is not 2 or 3.                                                     |
+| `ERR`       | `Syntax error in HELLO option '<option>'`                                                                                                                                                                        | The option is unknown, or `AUTH` or `SETNAME` is missing a value.                       |
+| `ERR`       | `Client names cannot contain spaces, newlines or special characters.`                                                                                                                                            | The `SETNAME` value has a space or a character that is not printable ASCII.             |
+| `WRONGPASS` | `invalid username-password pair or user is disabled.`                                                                                                                                                            | -                                                                                       |
+| `NOAUTH`    | `HELLO must be called with the client already authenticated, otherwise the HELLO <proto> AUTH <user> <pass> option can be used to authenticate the client and select the RESP protocol version at the same time` | Authentication is enabled, the connection is not authenticated and `AUTH` is not given. |
 
 ## Examples
 

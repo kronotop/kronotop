@@ -544,7 +544,7 @@ class CommandHandlerTest extends BaseHandlerTest {
                 {"COMMAND", "LIST", "x"}}) {
             Object response = run(getChannel(), args);
             assertInstanceOf(ErrorRedisMessage.class, response);
-            assertEquals("ERR Syntax error", ((ErrorRedisMessage) response).content());
+            assertEquals("ERR syntax error", ((ErrorRedisMessage) response).content());
         }
     }
 
@@ -642,10 +642,11 @@ class CommandHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldRejectUnknownSubcommand() {
-        // Behavior: an unknown COMMAND subcommand returns an error
+        // Behavior: COMMAND with a subcommand the server does not have is rejected with an error that quotes the
+        // subcommand as the client sent it and points to COMMAND HELP.
         Object response = run(getChannel(), "COMMAND", "FOO");
 
         assertInstanceOf(ErrorRedisMessage.class, response);
-        assertTrue(((ErrorRedisMessage) response).content().contains("Unknown subcommand 'FOO'. Try COMMAND HELP"));
+        assertEquals("ERR unknown subcommand 'FOO'. Try COMMAND HELP.", ((ErrorRedisMessage) response).content());
     }
 }

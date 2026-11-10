@@ -20,6 +20,7 @@ import com.kronotop.internal.StringUtil;
 import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
+import com.kronotop.server.UnknownSubcommandException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -83,7 +84,7 @@ public class CommandMessage implements ProtocolMessage<Void> {
                 return key;
             }
         }
-        throw new IllegalCommandArgumentException(String.format("Unknown subcommand '%s'. Try COMMAND HELP", raw));
+        throw new UnknownSubcommandException(COMMAND, raw);
     }
 
     /**

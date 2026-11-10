@@ -45,12 +45,16 @@ public enum RESPError {
     ERR;
 
     public final static String WRONGTYPE_MESSAGE = "Operation against a key holding the wrong kind of value";
-    public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_LONG = "Value is not a long or out of range";
-    public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER = "Value is not an integer or out of range";
-    public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT = "Value is not a valid float";
     public final static String PROTOCOL_VERSION_FORMAT_ERROR = "Protocol version is not an integer or out of range";
-    public final static String CROSSSLOT_MESSAGE = "Keys in request don't hash to the same slot";
-    public final static String UNSUPPORTED_PROTOCOL_VERSION = "Unsupported protocol version";
+    // The messages below belong to commands that Redis also has, so they keep the Redis wording.
+    public final static String UNSUPPORTED_PROTOCOL_VERSION = "unsupported protocol version";
+    public final static String SYNTAX_ERROR_MESSAGE = "syntax error";
+    public final static String WRONGPASS_MESSAGE = "invalid username-password pair or user is disabled.";
+    public final static String HELLO_NOAUTH_MESSAGE = "HELLO must be called with the client already authenticated, " +
+            "otherwise the HELLO <proto> AUTH <user> <pass> option can be used to authenticate the client and " +
+            "select the RESP protocol version at the same time";
+    public final static String CLIENT_NAME_SUBJECT = "Client names";
+    public final static String CLIENT_ATTRIBUTE_FORMAT_ERROR = "%s cannot contain spaces, newlines or special characters.";
 
     /**
      * Extracts RESP error information from an FDBException.

@@ -59,7 +59,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     private final ServerKind serverKind;
     private final boolean logCommandForDebugging;
     private final NetworkMetrics metrics;
-    private boolean authEnabled = false;
+    private final boolean authEnabled;
 
     public KronotopChannelDuplexHandler(Context context, CommandHandlerRegistry commands, ServerKind serverKind) {
         this.context = context;
@@ -70,9 +70,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         Config config = context.getConfig();
         this.logCommandForDebugging = config.hasPath("log_command_for_debugging") && config.getBoolean("log_command_for_debugging");
 
-        if (config.hasPath("auth.requirepass") || config.hasPath("auth.users")) {
-            authEnabled = true;
-        }
+        this.authEnabled = Session.isAuthEnabled(config);
         this.metrics = context.getRuntimeMetrics().getNetworkMetrics();
     }
 

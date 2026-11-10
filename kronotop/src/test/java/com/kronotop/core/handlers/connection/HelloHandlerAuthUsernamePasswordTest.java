@@ -58,6 +58,6 @@ class HelloHandlerAuthUsernamePasswordTest extends BaseHandlerTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("WRONGPASS Invalid username-password pair or user is disabled", actualMessage.content());
+        assertEquals("WRONGPASS invalid username-password pair or user is disabled.", actualMessage.content());
     }
 }

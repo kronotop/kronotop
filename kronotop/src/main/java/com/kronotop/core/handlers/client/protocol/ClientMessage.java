@@ -40,7 +40,7 @@ public class ClientMessage implements ProtocolMessage<String> {
         try {
             subcommand = ClientSubcommand.valueOf(StringUtil.toUpperCaseAscii(cmd));
         } catch (IllegalArgumentException e) {
-            throw new UnknownSubcommandException(cmd);
+            throw new UnknownSubcommandException(COMMAND, cmd);
         }
     }
 

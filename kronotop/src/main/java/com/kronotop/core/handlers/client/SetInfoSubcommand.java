@@ -19,6 +19,7 @@ package com.kronotop.core.handlers.client;
 import com.kronotop.KronotopException;
 import com.kronotop.core.handlers.client.protocol.ClientMessage;
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.network.clients.Client;
 import com.kronotop.server.*;
 
 import java.util.HashMap;
@@ -41,14 +42,18 @@ public class SetInfoSubcommand implements SubcommandHandler {
         String attribute = ProtocolMessageUtil.readAsString(request.getArguments().get(1));
         String value = ProtocolMessageUtil.readAsString(request.getArguments().get(2));
 
-        HashMap<String, Object> channelAttributes = request.getSession().attr(SessionAttributes.CLIENT_ATTRIBUTES).get();
+        Attribute key;
         if (attribute.equalsIgnoreCase(Attribute.LIBNAME.toString())) {
-            channelAttributes.put(Attribute.LIBNAME.toString(), value);
+            key = Attribute.LIBNAME;
         } else if (attribute.equalsIgnoreCase(Attribute.LIBVER.toString())) {
-            channelAttributes.put(Attribute.LIBVER.toString(), value);
+            key = Attribute.LIBVER;
         } else {
             throw new KronotopException(String.format("Unrecognized option '%s'", attribute));
         }
+        Client.checkAttribute(attribute, value);
+
+        HashMap<String, Object> channelAttributes = request.getSession().attr(SessionAttributes.CLIENT_ATTRIBUTES).get();
+        channelAttributes.put(key.toString(), value);
 
         response.writeOK();
     }

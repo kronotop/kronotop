@@ -167,9 +167,9 @@ Argument errors:
 
 | Error Code | Error message                                                   | Cause                                             |
 |------------|-----------------------------------------------------------------|---------------------------------------------------|
-| `ERR`      | `Unknown subcommand '<value>'. Try COMMAND HELP`                | -                                                 |
+| `ERR`      | `unknown subcommand '<value>'. Try COMMAND HELP.`               | -                                                 |
 | `ERR`      | `Wrong number of arguments for 'command\|<subcommand>' command` | Subcommand called with the wrong argument count   |
-| `ERR`      | `Syntax error`                                                  | Bad `COMMAND LIST` filter                         |
+| `ERR`      | `syntax error`                                                  | Bad `COMMAND LIST` filter                         |
 | `ERR`      | `Invalid command specified`                                     | `GETKEYS` with an unknown command                 |
 | `ERR`      | `The command has no key arguments`                              | `GETKEYS` with a command without key specs        |
 | `ERR`      | `Invalid number of arguments specified for command`             | `GETKEYS` argument count does not fit the arity   |

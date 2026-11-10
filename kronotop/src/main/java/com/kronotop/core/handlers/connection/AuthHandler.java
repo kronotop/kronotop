@@ -18,9 +18,11 @@ package com.kronotop.core.handlers.connection;
 
 import com.kronotop.Context;
 import com.kronotop.core.handlers.connection.protocol.AuthMessage;
-import com.kronotop.server.*;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
@@ -29,18 +31,11 @@ import java.util.Objects;
 
 @Command(AuthMessage.COMMAND)
 @MinimumArgumentCount(AuthMessage.MINIMUM_ARGUMENT_COUNT)
-@MaximumArgumentCount(AuthMessage.MAXIMUM_ARGUMENT_COUNT)
 public class AuthHandler extends BaseConnectionHandler implements Handler {
     private final Context context;
 
     public AuthHandler(Context context) {
         this.context = context;
-    }
-
-    private void writeWrongPassErr(Response response) {
-        response.writeError(
-                RESPError.WRONGPASS,
-                "Invalid username-password pair or user is disabled");
     }
 
     @Override

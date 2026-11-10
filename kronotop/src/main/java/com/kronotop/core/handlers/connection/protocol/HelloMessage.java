@@ -18,6 +18,7 @@ package com.kronotop.core.handlers.connection.protocol;
 
 import com.kronotop.KronotopException;
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.network.clients.Client;
 import com.kronotop.server.*;
 import io.netty.buffer.ByteBuf;
 
@@ -45,40 +46,38 @@ public class HelloMessage implements ProtocolMessage<Void> {
             return;
         }
 
-        String rawProtover = request.getArguments().getFirst().toString(StandardCharsets.US_ASCII);
+        List<ByteBuf> arguments = request.getArguments();
+        String rawProtover = arguments.getFirst().toString(StandardCharsets.US_ASCII);
+        long version;
         try {
-            protover = Integer.parseInt(rawProtover);
+            version = Long.parseLong(rawProtover);
         } catch (NumberFormatException e) {
             throw new KronotopException(RESPError.PROTOCOL_VERSION_FORMAT_ERROR);
         }
 
-        if (protover != RESPVersion.RESP2.getValue() && protover != RESPVersion.RESP3.getValue()) {
+        if (version != RESPVersion.RESP2.getValue() && version != RESPVersion.RESP3.getValue()) {
             throw new NoProtoException();
         }
+        protover = (int) version;
 
-        for (int i = 1; i < request.getArguments().size(); i++) {
-            ByteBuf buf = request.getArguments().get(i);
-            String argument = ProtocolMessageUtil.readAsString(buf);
-            if (argument.equalsIgnoreCase("AUTH")) {
+        for (int i = 1; i < arguments.size(); i++) {
+            String option = ProtocolMessageUtil.readAsString(arguments.get(i));
+            int moreArguments = arguments.size() - 1 - i;
+            if (option.equalsIgnoreCase("AUTH") && moreArguments >= 2) {
                 // HELLO $protover AUTH $username $password
-                if (request.getArguments().size() - i < 2) {
-                    throw new KronotopException(String.format("Syntax error in %s option '%s'", COMMAND, argument));
-                }
-                username = request.getArguments().get(i + 1).toString(StandardCharsets.US_ASCII);
-                password = request.getArguments().get(i + 2).toString(StandardCharsets.US_ASCII);
+                username = arguments.get(i + 1).toString(StandardCharsets.US_ASCII);
+                password = arguments.get(i + 2).toString(StandardCharsets.US_ASCII);
                 auth = true;
                 i = i + 2;
-            }
-
-            if (argument.equalsIgnoreCase("SETNAME")) {
+            } else if (option.equalsIgnoreCase("SETNAME") && moreArguments >= 1) {
                 // HELLO $protover AUTH $username $password SETNAME $client-name
                 // HELLO $protover SETNAME $client-name
-                if (request.getArguments().size() - i < 1) {
-                    throw new KronotopException(String.format("Syntax error in %s option '%s'", COMMAND, argument));
-                }
-                clientName = request.getArguments().get(i + 1).toString(StandardCharsets.US_ASCII);
+                clientName = ProtocolMessageUtil.readAsString(arguments.get(i + 1));
+                Client.checkAttribute(RESPError.CLIENT_NAME_SUBJECT, clientName);
                 setName = true;
                 i++;
+            } else {
+                throw new KronotopException(String.format("Syntax error in %s option '%s'", COMMAND, option));
             }
         }
     }

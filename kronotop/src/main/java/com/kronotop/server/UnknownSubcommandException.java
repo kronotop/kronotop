@@ -25,5 +25,15 @@ public class UnknownSubcommandException extends KronotopException {
     public UnknownSubcommandException(String command) {
         super(String.format("Unknown subcommand: '%s'", command));
     }
+
+    /**
+     * Creates the error for a command that Redis also has, with the Redis wording.
+     *
+     * @param command    the command name in uppercase
+     * @param subcommand the unknown subcommand as the client sent it
+     */
+    public UnknownSubcommandException(String command, String subcommand) {
+        super(String.format("unknown subcommand '%.128s'. Try %s HELP.", subcommand, command));
+    }
 }
 

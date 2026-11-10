@@ -37,7 +37,7 @@ RESP2 client receives instead.
 ## Authentication
 
 Authentication is disabled by default. When an `auth` block is present in the configuration, the connection must be
-authenticated before doing anything else. Until then, every command except `AUTH` and `HELLO` is rejected:
+authenticated before doing anything else. Until then, only `AUTH` and `HELLO` with its `AUTH` clause are accepted:
 
 ```kronotop
 > BUCKET.LIST

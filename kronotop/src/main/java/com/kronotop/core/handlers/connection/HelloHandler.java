@@ -38,20 +38,16 @@ import java.util.*;
 @Command(HelloMessage.COMMAND)
 public class HelloHandler extends BaseConnectionHandler implements Handler {
     private final Context context;
+    private final boolean authEnabled;
 
     public HelloHandler(Context context) {
         this.context = context;
+        this.authEnabled = Session.isAuthEnabled(context.getConfig());
     }
 
     @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.HELLO).set(new HelloMessage(request));
-    }
-
-    private void writeWrongPassErr(Response response) {
-        response.writeError(
-                RESPError.WRONGPASS,
-                "Invalid username-password pair or user is disabled");
     }
 
     @Override
@@ -92,6 +88,11 @@ public class HelloHandler extends BaseConnectionHandler implements Handler {
                     return;
                 }
             }
+        }
+
+        if (authEnabled && !request.getSession().isAuthenticated()) {
+            response.writeError(RESPError.NOAUTH, RESPError.HELLO_NOAUTH_MESSAGE);
+            return;
         }
 
         if (msg.hasSetName()) {

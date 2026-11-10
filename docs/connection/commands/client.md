@@ -53,11 +53,13 @@ This command does not require the cluster to be initialized.
 
 Argument errors:
 
-| Error Code | Error message                                                  | Cause                                                   |
-|------------|----------------------------------------------------------------|---------------------------------------------------------|
-| `ERR`      | `Wrong number of arguments for 'CLIENT\|<subcommand>' command` | -                                                       |
-| `ERR`      | `Unrecognized option '<attribute>'`                            | The `SETINFO` attribute is not `lib-name` or `lib-ver`. |
-| `ERR`      | `Unknown subcommand: '<value>'`                                | -                                                       |
+| Error Code | Error message                                                         | Cause                                                                       |
+|------------|-----------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| `ERR`      | `Wrong number of arguments for 'CLIENT\|<subcommand>' command`        | -                                                                           |
+| `ERR`      | `Unrecognized option '<attribute>'`                                   | The `SETINFO` attribute is not `lib-name` or `lib-ver`.                     |
+| `ERR`      | `<attribute> cannot contain spaces, newlines or special characters.`  | The `SETINFO` value has a space or a character that is not printable ASCII. |
+| `ERR`      | `Client names cannot contain spaces, newlines or special characters.` | The `SETNAME` name has a space or a character that is not printable ASCII.  |
+| `ERR`      | `unknown subcommand '<value>'. Try CLIENT HELP.`                      | -                                                                           |
 
 ## Examples
 

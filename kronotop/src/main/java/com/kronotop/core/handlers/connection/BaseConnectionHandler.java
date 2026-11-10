@@ -16,6 +16,7 @@
 
 package com.kronotop.core.handlers.connection;
 
+import com.kronotop.server.RESPError;
 import com.kronotop.server.Response;
 import com.kronotop.server.SessionAttributes;
 import io.netty.util.Attribute;
@@ -28,6 +29,10 @@ public class BaseConnectionHandler {
                 channel().
                 attr(SessionAttributes.AUTH);
         authAttr.set(true);
+    }
+
+    void writeWrongPassErr(Response response) {
+        response.writeError(RESPError.WRONGPASS, RESPError.WRONGPASS_MESSAGE);
     }
 
 }

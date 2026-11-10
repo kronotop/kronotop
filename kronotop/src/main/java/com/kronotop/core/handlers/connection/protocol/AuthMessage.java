@@ -16,7 +16,9 @@
 
 package com.kronotop.core.handlers.connection.protocol;
 
+import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
+import com.kronotop.server.RESPError;
 import com.kronotop.server.Request;
 import io.netty.util.CharsetUtil;
 
@@ -25,7 +27,6 @@ import java.util.List;
 public class AuthMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "AUTH";
     public static final int MINIMUM_ARGUMENT_COUNT = 1;
-    public static final int MAXIMUM_ARGUMENT_COUNT = 2;
 
     private final Request request;
     private String username;
@@ -37,6 +38,9 @@ public class AuthMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
+        if (request.getArguments().size() > 2) {
+            throw new IllegalCommandArgumentException(RESPError.SYNTAX_ERROR_MESSAGE);
+        }
         if (request.getArguments().size() == 1) {
             password = request.getArguments().get(0).toString(CharsetUtil.UTF_8);
             return;

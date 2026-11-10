@@ -16,8 +16,27 @@
 
 package com.kronotop.network.clients;
 
+import com.kronotop.KronotopException;
+import com.kronotop.server.RESPError;
+
 public class Client {
     private String name;
+
+    /**
+     * Checks a value that describes a client, such as its name or its library name.
+     *
+     * @param subject what the value is, used as the start of the error message
+     * @param value   the value to check, an empty value is valid
+     * @throws KronotopException if a character is outside the printable ASCII range, from '!' to '~'
+     */
+    public static void checkAttribute(String subject, String value) {
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c < '!' || c > '~') {
+                throw new KronotopException(String.format(RESPError.CLIENT_ATTRIBUTE_FORMAT_ERROR, subject));
+            }
+        }
+    }
 
     public String getName() {
         return name;
