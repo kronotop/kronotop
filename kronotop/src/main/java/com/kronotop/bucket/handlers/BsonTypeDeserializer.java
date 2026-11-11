@@ -36,7 +36,7 @@ public class BsonTypeDeserializer extends ValueDeserializer<BsonType> {
             case "int64" -> BsonType.INT64;
             case "decimal128" -> BsonType.DECIMAL128;
             case "objectid" -> BsonType.OBJECT_ID;
-            default -> throw new IllegalArgumentException("Unknown BSON type: " + type);
+            default -> throw new IllegalArgumentException("Unknown BSON type: '" + type + "'");
         };
     }
 }

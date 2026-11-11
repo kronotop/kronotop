@@ -55,7 +55,7 @@ Argument errors:
 | `ERR`      | `Wrong number of arguments for 'ZSET.D128' command`           | -     |
 | `ERR`      | `Invalid decimal`                                             | -     |
 | `ERR`      | `Exponent is out of range for Decimal128 encoding of <value>` | -     |
-| `ERR`      | `Unknown '<keyword>' argument`                                | -     |
+| `ERR`      | `Unknown argument: '<keyword>'`                               | -     |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace`          | -     |
 
 Namespace errors:

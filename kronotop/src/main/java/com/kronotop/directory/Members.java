@@ -30,7 +30,7 @@ public class Members extends KronotopDirectoryNode {
 
     public Member member(String memberId) {
         if (!MemberIdGenerator.validateId(memberId)) {
-            throw new KronotopException("Invalid member ID: " + memberId);
+            throw new KronotopException("Invalid member id: '" + memberId + "'");
         }
         return new Member(layout, memberId);
     }

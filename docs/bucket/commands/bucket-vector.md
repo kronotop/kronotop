@@ -127,12 +127,12 @@ Argument errors:
 
 | Error Code | Error message                                                             | Cause |
 |------------|---------------------------------------------------------------------------|-------|
-| `ERR`      | `Duplicate '<keyword>' argument`                                          | -     |
+| `ERR`      | `Duplicate argument: '<keyword>'`                                         | -     |
 | `ERR`      | `TOP argument must be a non-negative integer`                             | -     |
 | `ERR`      | `OVERQUERY argument must be >= 1.0`                                       | -     |
 | `ERR`      | `MAX-SCAN-CANDIDATES argument must be a positive integer`                 | -     |
 | `ERR`      | `Vector index '<index>' requires <n> dimensions but query vector has <m>` | -     |
-| `ERR`      | `Unknown '<keyword>' argument`                                            | -     |
+| `ERR`      | `Unknown argument: '<keyword>'`                                           | -     |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace`                      | -     |
 
 Namespace errors:

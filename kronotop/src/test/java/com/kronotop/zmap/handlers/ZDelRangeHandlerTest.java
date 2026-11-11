@@ -53,7 +53,7 @@ class ZDelRangeHandlerTest extends BaseHandlerTest {
                         "ERR Wrong number of arguments for 'ZDELRANGE' command"),
                 arguments("unknown keyword",
                         List.of("key-0", "key-5", "EXTRA"),
-                        "ERR Unknown 'EXTRA' argument"),
+                        "ERR Unknown argument: 'EXTRA'"),
                 arguments("NAMESPACE without value",
                         List.of("key-0", "key-5", "NAMESPACE"),
                         "ERR NAMESPACE argument must be followed by a namespace")

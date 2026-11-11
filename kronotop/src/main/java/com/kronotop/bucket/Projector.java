@@ -131,7 +131,7 @@ public final class Projector {
                 for (String segment : segments) {
                     if (segment.equals("$")) {
                         throw new IllegalArgumentException(
-                                "The positional operator $ can only appear at the end of the field path: " + field);
+                                "The positional operator $ can only appear at the end of the field path: '" + field + "'");
                     }
                 }
 
@@ -147,7 +147,7 @@ public final class Projector {
                 for (int i = 0; i < segments.length - 1; i++) {
                     if (segments[i].equals("$")) {
                         throw new IllegalArgumentException(
-                                "The positional operator $ can only appear at the end of the field path: " + field);
+                                "The positional operator $ can only appear at the end of the field path: '" + field + "'");
                     }
                 }
                 fields.add(field);
@@ -203,7 +203,7 @@ public final class Projector {
             int skip = requireIntArg(a.get(0), field);
             int limit = requireIntArg(a.get(1), field);
             if (limit <= 0) {
-                throw new IllegalArgumentException("$slice limit must be positive: " + field);
+                throw new IllegalArgumentException("$slice limit must be positive: '" + field + "'");
             }
             return new SliceOp(field, skip, limit);
         }

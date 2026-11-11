@@ -39,10 +39,10 @@ Requires cluster initialization.
 
 Argument errors:
 
-| Error Code | Error message                   | Cause                                                                   |
-|------------|---------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `Invalid number of arguments`   | -                                                                       |
-| `ERR`      | `Invalid shard id`              | The shard ID is not a valid integer, or is out of the configured range. |
+| Error Code | Error message                                                     | Cause                                                                   |
+|------------|-------------------------------------------------------------------|-------------------------------------------------------------------------|
+| `ERR`      | `Wrong number of arguments for 'KR.ADMIN DESCRIBE-SHARD' command` | -                                                                       |
+| `ERR`      | `Invalid shard id: '<value>'`                                     | The shard ID is not a valid integer, or is out of the configured range. |
 
 Cluster errors:
 

@@ -20,6 +20,6 @@ import com.kronotop.KronotopException;
 
 public class TaskNotFoundException extends KronotopException {
     public TaskNotFoundException(String name) {
-        super("Task with name " + name + " does not exist");
+        super(String.format("No such task: '%s'", name));
     }
 }

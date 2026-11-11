@@ -17,14 +17,16 @@
 package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.volume.*;
+import com.kronotop.volume.handlers.protocol.VolumeAdminMessage;
+import com.kronotop.volume.handlers.protocol.VolumeAdminSubcommand;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -61,7 +63,7 @@ public class ListSegments extends BaseSubcommandHandler implements SubcommandHan
 
         private ListSegmentsArguments(ArrayList<ByteBuf> args) {
             if (args.size() != 2) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(VolumeAdminMessage.COMMAND, VolumeAdminSubcommand.LIST_SEGMENTS);
             }
 
             name = ProtocolMessageUtil.readAsString(args.get(1));

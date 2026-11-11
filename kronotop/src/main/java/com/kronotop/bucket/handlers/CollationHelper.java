@@ -36,7 +36,7 @@ public class CollationHelper {
             JsonNode tree = JSONUtil.objectMapper.readTree(data);
             for (String field : tree.propertyNames()) {
                 if (!KNOWN_FIELDS.contains(field)) {
-                    throw new KronotopException("Unknown collation field: " + field);
+                    throw new KronotopException("Unknown collation field: '" + field + "'");
                 }
             }
 

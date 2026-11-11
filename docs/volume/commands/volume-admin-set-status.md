@@ -32,10 +32,10 @@ It does not require cluster initialization. It is available on the management po
 
 Argument errors:
 
-| Error Code | Error message                      | Cause |
-|------------|------------------------------------|-------|
-| `ERR`      | `Invalid number of arguments`      | -     |
-| `ERR`      | `Unknown volume status: '<value>'` | -     |
+| Error Code | Error message                                                     | Cause |
+|------------|-------------------------------------------------------------------|-------|
+| `ERR`      | `Wrong number of arguments for 'VOLUME.ADMIN SET-STATUS' command` | -     |
+| `ERR`      | `Unknown volume status: '<value>'`                                | -     |
 
 Volume errors:
 

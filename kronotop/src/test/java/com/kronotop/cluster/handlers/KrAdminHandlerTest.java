@@ -73,14 +73,14 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldReturnErrorWhenInitializeClusterWithExtraArguments() {
-        // Behavior: INITIALIZE-CLUSTER rejects extra arguments with "Invalid number of arguments".
+        // Behavior: INITIALIZE-CLUSTER rejects extra arguments with "Wrong number of arguments for 'KR.ADMIN INITIALIZE-CLUSTER' command".
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$18\r\nINITIALIZE-CLUSTER\r\n$5\r\nextra\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid number of arguments", actualMessage.content());
+        assertEquals("ERR Wrong number of arguments for 'KR.ADMIN INITIALIZE-CLUSTER' command", actualMessage.content());
     }
 
     @Test
@@ -135,14 +135,14 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldReturnErrorWhenListMembersWithExtraArguments() {
-        // Behavior: LIST-MEMBERS rejects extra arguments with "Invalid number of arguments".
+        // Behavior: LIST-MEMBERS rejects extra arguments with "Wrong number of arguments for 'KR.ADMIN LIST-MEMBERS' command".
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$12\r\nLIST-MEMBERS\r\n$5\r\nextra\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid number of arguments", actualMessage.content());
+        assertEquals("ERR Wrong number of arguments for 'KR.ADMIN LIST-MEMBERS' command", actualMessage.content());
     }
 
     @Test
@@ -244,14 +244,14 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldReturnErrorWhenFindMemberWithExtraArguments() {
-        // Behavior: FIND-MEMBER rejects extra arguments with "Invalid number of arguments".
+        // Behavior: FIND-MEMBER rejects extra arguments with "Wrong number of arguments for 'KR.ADMIN FIND-MEMBER' command".
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*4\r\n$8\r\nKR.ADMIN\r\n$11\r\nFIND-MEMBER\r\n$4\r\nabcd\r\n$5\r\nextra\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid number of arguments", actualMessage.content());
+        assertEquals("ERR Wrong number of arguments for 'KR.ADMIN FIND-MEMBER' command", actualMessage.content());
     }
 
     @Test
@@ -289,7 +289,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals(String.format("ERR Member: %s not registered", memberId), actualMessage.content());
+        assertEquals(String.format("ERR No such member: '%s'", memberId), actualMessage.content());
     }
 
     @Test
@@ -358,14 +358,14 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldReturnErrorWhenListSilentMembersWithExtraArguments() {
-        // Behavior: LIST-SILENT-MEMBERS rejects extra arguments with "Invalid number of arguments".
+        // Behavior: LIST-SILENT-MEMBERS rejects extra arguments with "Wrong number of arguments for 'KR.ADMIN LIST-SILENT-MEMBERS' command".
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$19\r\nLIST-SILENT-MEMBERS\r\n$5\r\nextra\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid number of arguments", actualMessage.content());
+        assertEquals("ERR Wrong number of arguments for 'KR.ADMIN LIST-SILENT-MEMBERS' command", actualMessage.content());
     }
 
     @Test
@@ -392,7 +392,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid number of arguments", actualMessage.content());
+        assertEquals("ERR Wrong number of arguments for 'KR.ADMIN REMOVE-MEMBER' command", actualMessage.content());
     }
 
     @Test
@@ -405,7 +405,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid member id: not-a-valid-member-id", actualMessage.content());
+        assertEquals("ERR Invalid member id: 'not-a-valid-member-id'", actualMessage.content());
     }
 
     @Test
@@ -418,7 +418,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR No member found with prefix: zzzz", actualMessage.content());
+        assertEquals("ERR No member found with prefix: 'zzzz'", actualMessage.content());
     }
 
     @Test
@@ -454,7 +454,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid shard id", actualMessage.content());
+        assertEquals("ERR Invalid shard id: '-1'", actualMessage.content());
     }
 
     @Test
@@ -466,7 +466,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid shard id", actualMessage.content());
+        assertEquals("ERR Invalid shard id: '1231253'", actualMessage.content());
     }
 
     @Test
@@ -531,7 +531,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldReturnErrorWhenDescribeClusterWithExtraArguments() {
-        // Behavior: DESCRIBE-CLUSTER rejects extra arguments with "Invalid number of arguments".
+        // Behavior: DESCRIBE-CLUSTER rejects extra arguments with "Wrong number of arguments for 'KR.ADMIN DESCRIBE-CLUSTER' command".
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$16\r\nDESCRIBE-CLUSTER\r\n$5\r\nextra\r\n".getBytes());
 
@@ -539,7 +539,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("Invalid number of arguments"));
+        assertTrue(errorMessage.content().contains("Wrong number of arguments for 'KR.ADMIN DESCRIBE-CLUSTER' command"));
     }
 
     @Test
@@ -586,7 +586,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR shard-id is not an integer or out of range", actualMessage.content());
+        assertEquals("ERR Invalid shard id: 'abc'", actualMessage.content());
     }
 
     @Test
@@ -599,7 +599,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid shard id", actualMessage.content());
+        assertEquals("ERR Invalid shard id: '1231253'", actualMessage.content());
     }
 
     @Test
@@ -611,7 +611,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid number of arguments", actualMessage.content());
+        assertEquals("ERR Wrong number of arguments for 'KR.ADMIN DESCRIBE-SHARD' command", actualMessage.content());
     }
 
     @Test
@@ -680,14 +680,14 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldReturnErrorWhenDropClusterWithExtraArguments() {
-        // Behavior: DROP-CLUSTER rejects more than two arguments with "Invalid number of arguments".
+        // Behavior: DROP-CLUSTER rejects more than two arguments with "Wrong number of arguments for 'KR.ADMIN DROP-CLUSTER' command".
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*5\r\n$8\r\nKR.ADMIN\r\n$12\r\nDROP-CLUSTER\r\n$4\r\nname\r\n$5\r\ntoken\r\n$5\r\nextra\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid number of arguments", actualMessage.content());
+        assertEquals("ERR Wrong number of arguments for 'KR.ADMIN DROP-CLUSTER' command", actualMessage.content());
     }
 
     @Test
@@ -902,7 +902,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Task cluster:collect-stale-prefixes-task already exists", actualMessage.content());
+        assertEquals("ERR Task already exists: 'cluster:collect-stale-prefixes-task'", actualMessage.content());
 
         // Cleanup: stop the running task
         ByteBuf stopBuf = Unpooled.buffer();
@@ -921,7 +921,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Task with name cluster:collect-stale-prefixes-task does not exist", actualMessage.content());
+        assertEquals("ERR No such task: 'cluster:collect-stale-prefixes-task'", actualMessage.content());
     }
 
     boolean hasCollectStalePrefixesTask() {
@@ -1073,7 +1073,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-            assertEquals("ERR Task with name cluster:collect-stale-prefixes-task does not exist", actualMessage.content());
+            assertEquals("ERR No such task: 'cluster:collect-stale-prefixes-task'", actualMessage.content());
         }
     }
 

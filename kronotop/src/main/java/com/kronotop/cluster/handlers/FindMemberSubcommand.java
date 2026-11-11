@@ -20,10 +20,12 @@ import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
 
@@ -56,7 +58,7 @@ class FindMemberSubcommand extends BaseKrAdminSubcommandHandler implements Subco
                 throw new KronotopException("Member id is required");
             }
             if (args.size() > 2) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(KrAdminMessage.COMMAND, KrAdminSubcommand.FIND_MEMBER);
             }
             memberId = ProtocolMessageUtil.readMemberId(context, args.get(1));
         }

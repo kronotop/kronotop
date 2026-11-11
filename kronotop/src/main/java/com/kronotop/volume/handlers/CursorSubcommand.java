@@ -18,18 +18,20 @@ package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.volume.SegmentSubspaceUtil;
 import com.kronotop.volume.SegmentTailPointer;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.changelog.ChangeLog;
+import com.kronotop.volume.handlers.protocol.VolumeInspectMessage;
+import com.kronotop.volume.handlers.protocol.VolumeInspectSubcommand;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.StandardCharsets;
@@ -89,7 +91,7 @@ public class CursorSubcommand extends BaseSubcommandHandler implements Subcomman
 
         private CursorArguments(ArrayList<ByteBuf> args) {
             if (args.size() != 2) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(VolumeInspectMessage.COMMAND, VolumeInspectSubcommand.CURSOR);
             }
 
             volumeName = ProtocolMessageUtil.readAsString(args.get(1));

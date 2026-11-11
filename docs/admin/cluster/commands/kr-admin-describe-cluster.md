@@ -45,9 +45,9 @@ Requires cluster initialization.
 
 Argument errors:
 
-| Error Code | Error message                 | Cause |
-|------------|-------------------------------|-------|
-| `ERR`      | `Invalid number of arguments` | -     |
+| Error Code | Error message                                                       | Cause |
+|------------|---------------------------------------------------------------------|-------|
+| `ERR`      | `Wrong number of arguments for 'KR.ADMIN DESCRIBE-CLUSTER' command` | -     |
 
 Cluster errors:
 

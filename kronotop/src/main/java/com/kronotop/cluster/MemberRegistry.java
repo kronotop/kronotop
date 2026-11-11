@@ -169,7 +169,7 @@ class MemberRegistry {
      */
     void update(Transaction tr, Member member) {
         if (!isAdded(tr, member.getId())) {
-            throw new MemberNotRegisteredException(String.format("Member: %s not registered", member.getId()));
+            throw new MemberNotRegisteredException(member.getId());
         }
 
         KronotopDirectoryNode directory = getDirectoryNode(member.getId());
@@ -208,7 +208,7 @@ class MemberRegistry {
             context.getDirectoryLayer().remove(tr, directory.toList()).join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
-                throw new MemberNotRegisteredException(String.format("Member: %s not registered", memberId));
+                throw new MemberNotRegisteredException(memberId);
             }
             throw e;
         }
@@ -239,7 +239,7 @@ class MemberRegistry {
                 return member;
             } catch (CompletionException e) {
                 if (e.getCause() instanceof NoSuchDirectoryException) {
-                    throw new MemberNotRegisteredException(String.format("Member: %s not registered", memberId));
+                    throw new MemberNotRegisteredException(memberId);
                 }
                 throw e;
             }
@@ -261,12 +261,12 @@ class MemberRegistry {
             byte[] key = subspace.pack(Tuple.from(MEMBER_KEY));
             byte[] data = tr.get(key).join();
             if (data == null) {
-                throw new KronotopException(String.format("Member: %s not registered properly", memberId));
+                throw new KronotopException(String.format("Member: '%s' not registered properly", memberId));
             }
             return JSONUtil.readValue(data, Member.class);
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
-                throw new MemberNotRegisteredException(String.format("Member: %s not registered", memberId));
+                throw new MemberNotRegisteredException(memberId);
             }
             throw e;
         }
@@ -285,7 +285,7 @@ class MemberRegistry {
             return findMember(tr, memberId);
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
-                throw new MemberNotRegisteredException(String.format("Member: %s not registered", memberId));
+                throw new MemberNotRegisteredException(memberId);
             }
             throw e;
         }

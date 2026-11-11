@@ -46,11 +46,11 @@ shard), post-initialization (set `READWRITE` after assigning routes).
 
 Argument errors:
 
-| Error Code | Error message                     | Cause                                                                   |
-|------------|-----------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `Invalid number of arguments`     | -                                                                       |
-| `ERR`      | `Invalid shard id`                | The shard ID is not a valid integer, or is out of the configured range. |
-| `ERR`      | `Unknown shard status: '<value>'` | The status must be `READWRITE`, `READONLY`, or `INOPERABLE`.            |
+| Error Code | Error message                                                       | Cause                                                                   |
+|------------|---------------------------------------------------------------------|-------------------------------------------------------------------------|
+| `ERR`      | `Wrong number of arguments for 'KR.ADMIN SET-SHARD-STATUS' command` | -                                                                       |
+| `ERR`      | `Invalid shard id: '<value>'`                                       | The shard ID is not a valid integer, or is out of the configured range. |
+| `ERR`      | `Unknown shard status: '<value>'`                                   | The status must be `READWRITE`, `READONLY`, or `INOPERABLE`.            |
 
 Cluster errors:
 
@@ -92,5 +92,5 @@ OK
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS 999999 READONLY
-(error) ERR Invalid shard id
+(error) ERR Invalid shard id: '999999'
 ```

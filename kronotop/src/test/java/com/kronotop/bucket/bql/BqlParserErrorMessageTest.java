@@ -33,10 +33,10 @@ class BqlParserErrorMessageTest {
     @DisplayName("Unknown operator errors should be specific and helpful")
     void shouldProvideSpecificAndHelpfulUnknownOperatorErrors() {
         Map<String, String> invalidOperators = Map.of(
-                "{ \"$unknown\": [] }", "Unknown operator: $unknown",
-                "{ \"$invalid\": [ { \"selector\": \"value\" } ] }", "Unknown operator: $invalid",
-                "{ \"$badOp\": [ { \"a\": 1 }, { \"b\": 2 } ] }", "Unknown operator: $badOp",
-                "{ \"$typo\": { \"selector\": \"value\" } }", "Unknown operator: $typo"
+                "{ \"$unknown\": [] }", "Unknown operator: '$unknown'",
+                "{ \"$invalid\": [ { \"selector\": \"value\" } ] }", "Unknown operator: '$invalid'",
+                "{ \"$badOp\": [ { \"a\": 1 }, { \"b\": 2 } ] }", "Unknown operator: '$badOp'",
+                "{ \"$typo\": { \"selector\": \"value\" } }", "Unknown operator: '$typo'"
         );
 
         for (Map.Entry<String, String> entry : invalidOperators.entrySet()) {
@@ -60,10 +60,10 @@ class BqlParserErrorMessageTest {
     @DisplayName("Unknown selector operator errors should specify the invalid operator")
     void shouldSpecifyInvalidOperatorInUnknownSelectorOperatorErrors() {
         Map<String, String> invalidSelectorOperators = Map.of(
-                "{ \"selector\": { \"$unknownOp\": \"value\" } }", "Unknown selector operator: $unknownOp",
-                "{ \"name\": { \"$badOperator\": 123 } }", "Unknown selector operator: $badOperator",
-                "{ \"status\": { \"$invalidSelectorOp\": true } }", "Unknown selector operator: $invalidSelectorOp",
-                "{ \"count\": { \"$wrongOp\": [1, 2, 3] } }", "Unknown selector operator: $wrongOp"
+                "{ \"selector\": { \"$unknownOp\": \"value\" } }", "Unknown selector operator: '$unknownOp'",
+                "{ \"name\": { \"$badOperator\": 123 } }", "Unknown selector operator: '$badOperator'",
+                "{ \"status\": { \"$invalidSelectorOp\": true } }", "Unknown selector operator: '$invalidSelectorOp'",
+                "{ \"count\": { \"$wrongOp\": [1, 2, 3] } }", "Unknown selector operator: '$wrongOp'"
         );
 
         for (Map.Entry<String, String> entry : invalidSelectorOperators.entrySet()) {
@@ -112,10 +112,10 @@ class BqlParserErrorMessageTest {
     @DisplayName("Empty selector operator document errors should specify the selector")
     void shouldSpecifySelectorInEmptySelectorOperatorErrors() {
         Map<String, String> emptyOperatorCases = Map.of(
-                "{ \"selector\": { } }", "Empty selector operator document for: selector",
-                "{ \"name\": { } }", "Empty selector operator document for: name",
-                "{ \"status\": { } }", "Empty selector operator document for: status",
-                "{ \"very_long_selector_name\": { } }", "Empty selector operator document for: very_long_selector_name"
+                "{ \"selector\": { } }", "Empty selector operator document for: 'selector'",
+                "{ \"name\": { } }", "Empty selector operator document for: 'name'",
+                "{ \"status\": { } }", "Empty selector operator document for: 'status'",
+                "{ \"very_long_selector_name\": { } }", "Empty selector operator document for: 'very_long_selector_name'"
         );
 
         for (Map.Entry<String, String> entry : emptyOperatorCases.entrySet()) {

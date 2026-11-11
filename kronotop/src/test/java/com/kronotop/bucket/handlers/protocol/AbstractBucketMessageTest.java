@@ -265,7 +265,7 @@ class AbstractBucketMessageTest {
                 () -> message.parseCommonQueryArguments(request, 2, supported)
         );
 
-        assertEquals("Duplicate 'CLOSE' argument", ex.getMessage());
+        assertEquals("Duplicate argument: 'CLOSE'", ex.getMessage());
     }
 
     @Test

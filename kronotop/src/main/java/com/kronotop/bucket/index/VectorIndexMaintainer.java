@@ -294,7 +294,7 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
             double d = array.get(i).asDouble().getValue();
             float f = (float) d;
             if (Float.isInfinite(f) || Float.isNaN(f)) {
-                throw new KronotopException("Vector component at index " + i + " overflows float range: " + d);
+                throw new KronotopException("Vector component at index " + i + " overflows float range: '" + d + "'");
             }
             vector[i] = f;
         }

@@ -141,7 +141,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("Invalid number of arguments"));
+        assertTrue(errorMessage.content().contains("Wrong number of arguments for 'VOLUME.ADMIN DESCRIBE' command"));
     }
 
     @Test
@@ -226,7 +226,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("Invalid number of arguments"));
+        assertTrue(errorMessage.content().contains("Wrong number of arguments for 'VOLUME.ADMIN SET-STATUS' command"));
     }
 
     @Test
@@ -358,7 +358,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR This node is not a standby for shard-1", actualMessage.content());
+        assertEquals("ERR This node is not a standby for 'shard-1'", actualMessage.content());
     }
 
     @Test
@@ -372,7 +372,22 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR This node is not a standby for shard-1", actualMessage.content());
+        assertEquals("ERR This node is not a standby for 'shard-1'", actualMessage.content());
+    }
+
+    @Test
+    void shouldFailStartReplicationWhenShardIdIsNotAnInteger() {
+        // Behavior: VOLUME.ADMIN REPLICATION START with the volume name "shard-abc" replies with the error
+        // "ERR Invalid shard id: 'abc'", because the part after "shard-" is not an integer.
+        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.startReplication("shard-abc").encode(buf);
+
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR Invalid shard id: 'abc'", actualMessage.content());
     }
 
     @Test
@@ -385,7 +400,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid number of arguments", actualMessage.content());
+        assertEquals("ERR Wrong number of arguments for 'VOLUME.ADMIN REPLICATION' command", actualMessage.content());
     }
 
     @Test
@@ -428,7 +443,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR This node is not a standby for shard-1", actualMessage.content());
+        assertEquals("ERR This node is not a standby for 'shard-1'", actualMessage.content());
     }
 
     @Test
@@ -442,7 +457,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR This node is not a standby for shard-1", actualMessage.content());
+        assertEquals("ERR This node is not a standby for 'shard-1'", actualMessage.content());
     }
 
     @Test
@@ -455,7 +470,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid number of arguments", actualMessage.content());
+        assertEquals("ERR Wrong number of arguments for 'VOLUME.ADMIN REPLICATION' command", actualMessage.content());
     }
 
     @Test
@@ -507,7 +522,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid volume name: non-existent-volume", actualMessage.content());
+        assertEquals("ERR Invalid volume name: 'non-existent-volume'", actualMessage.content());
     }
 
     @Test
@@ -519,6 +534,6 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid number of arguments", actualMessage.content());
+        assertEquals("ERR Wrong number of arguments for 'VOLUME.ADMIN PRUNE-CHANGELOG' command", actualMessage.content());
     }
 }

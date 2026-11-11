@@ -32,7 +32,7 @@ public final class VolumeNames {
         }
 
         if (!name.startsWith(PREFIX)) {
-            throw new IllegalArgumentException("Invalid volume name: " + name);
+            throw new IllegalArgumentException("Invalid volume name: '" + name + "'");
         }
 
         String rawShardId = name.substring(PREFIX.length());
@@ -40,7 +40,7 @@ public final class VolumeNames {
         try {
             shardId = Integer.parseInt(rawShardId);
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid shard id: " + rawShardId, e);
+            throw new IllegalArgumentException("Invalid shard id: '" + rawShardId + "'");
         }
 
         return shardId;

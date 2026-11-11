@@ -30,9 +30,7 @@ public class SetNameSubcommand implements SubcommandHandler {
         if (request.getArguments().size() != 2) {
             ClientMessage clientMessage = request.attr(MessageTypes.CLIENT).get();
             // ERR wrong number of arguments for 'client|setinfo' command
-            throw new WrongNumberOfArgumentsException(
-                    String.format("Wrong number of arguments for 'CLIENT|%s' command", clientMessage.getSubcommand())
-            );
+            throw new WrongNumberOfArgumentsException("CLIENT|" + clientMessage.getSubcommand());
         }
 
         String name = ProtocolMessageUtil.readAsString(request.getArguments().get(1));

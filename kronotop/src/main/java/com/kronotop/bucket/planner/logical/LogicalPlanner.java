@@ -248,7 +248,7 @@ public final class LogicalPlanner {
             } else if (operand instanceof BinaryVal) {
                 throw new IllegalArgumentException("Binary values are not numeric");
             }
-            throw new IllegalArgumentException("Operand is not numeric: " + operand);
+            throw new IllegalArgumentException("Operand is not numeric: '" + operand + "'");
         }
 
         /**

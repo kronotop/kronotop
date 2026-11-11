@@ -64,7 +64,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
                         "ERR Wrong number of arguments for 'ZMUTATE' command"),
                 arguments("unknown keyword",
                         List.of("some-key", "some-value", "ADD", "EXTRA"),
-                        "ERR Unknown 'EXTRA' argument"),
+                        "ERR Unknown argument: 'EXTRA'"),
                 arguments("NAMESPACE without value",
                         List.of("some-key", "some-value", "ADD", "NAMESPACE"),
                         "ERR NAMESPACE argument must be followed by a namespace")

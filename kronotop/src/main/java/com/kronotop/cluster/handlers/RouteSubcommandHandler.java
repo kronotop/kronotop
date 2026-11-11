@@ -21,12 +21,14 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.*;
+import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.volume.VolumeConfigGenerator;
 import com.kronotop.volume.VolumeMetadataUtil;
 import com.kronotop.volume.VolumeStatus;
@@ -56,7 +58,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
 
         Member nextPrimaryOwner = membership.findMember(tr, arguments.memberId);
         if (nextPrimaryOwner == null) {
-            throw new KronotopException("Member could not be found: " + arguments.memberId);
+            throw new MemberNotRegisteredException(arguments.memberId);
         }
 
         Member primaryOwner = membership.findMember(tr, primaryMemberId);
@@ -72,7 +74,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
 
         Set<String> standbyMemberIds = MembershipUtil.loadStandbyMemberIds(tr, shardSubspace);
         if (!standbyMemberIds.contains(nextPrimaryOwner.getId())) {
-            throw new KronotopException("Member id: " + nextPrimaryOwner.getId() + " is not a standby");
+            throw new KronotopException("Member is not a standby: '" + nextPrimaryOwner.getId() + "'");
         }
 
         VolumeConfigGenerator configGen = new VolumeConfigGenerator(context, shardId);
@@ -123,7 +125,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
 
         Set<String> standbyMemberIds = MembershipUtil.loadStandbyMemberIds(tr, shardSubspace);
         if (!standbyMemberIds.contains(arguments.memberId)) {
-            throw new KronotopException("Member is not a standby");
+            throw new KronotopException("Member is not a standby: '" + arguments.memberId + "'");
         }
 
         standbyMemberIds.remove(arguments.memberId);
@@ -156,7 +158,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
         runAsync(context, response, () -> {
             try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 if (!membership.isMemberRegistered(tr, arguments.memberId)) {
-                    throw new KronotopException("Member not found");
+                    throw new MemberNotRegisteredException(arguments.memberId);
                 }
                 if (arguments.operationKind.equals(OperationKind.SET)) {
                     if (arguments.allShards) {
@@ -199,7 +201,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
         RouteArguments(ArrayList<ByteBuf> args) {
             // kr.admin route set primary * 12b3cf60
             if (args.size() != 5) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(KrAdminMessage.COMMAND, KrAdminSubcommand.ROUTE);
             }
 
             operationKind = ProtocolMessageUtil.readEnum(OperationKind.class, args.get(1), "operation kind");

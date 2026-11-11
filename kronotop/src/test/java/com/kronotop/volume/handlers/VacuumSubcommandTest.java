@@ -207,7 +207,7 @@ class VacuumSubcommandTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("Invalid number of arguments"));
+        assertTrue(errorMessage.content().contains("Wrong number of arguments for 'VOLUME.ADMIN VACUUM' command"));
     }
 
     @Test
@@ -220,6 +220,6 @@ class VacuumSubcommandTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("Invalid number of arguments"));
+        assertTrue(errorMessage.content().contains("Wrong number of arguments for 'VOLUME.ADMIN VACUUM' command"));
     }
 }

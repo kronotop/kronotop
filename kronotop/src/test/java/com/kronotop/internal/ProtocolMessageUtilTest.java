@@ -49,7 +49,7 @@ class ProtocolMessageUtilTest {
                 IllegalCommandArgumentException.class,
                 () -> ProtocolMessageUtil.markArgumentSeen(seen, Keyword.LIMIT)
         );
-        assertEquals("Duplicate 'LIMIT' argument", exception.getMessage());
+        assertEquals("Duplicate argument: 'LIMIT'", exception.getMessage());
     }
 
     @Test
@@ -62,7 +62,7 @@ class ProtocolMessageUtilTest {
                 IllegalCommandArgumentException.class,
                 () -> ProtocolMessageUtil.markArgumentSeen(seen, Keyword.SELECTOR, "BEGIN-KEY-SELECTOR")
         );
-        assertEquals("Duplicate 'BEGIN-KEY-SELECTOR' argument", exception.getMessage());
+        assertEquals("Duplicate argument: 'BEGIN-KEY-SELECTOR'", exception.getMessage());
     }
 
     @Test

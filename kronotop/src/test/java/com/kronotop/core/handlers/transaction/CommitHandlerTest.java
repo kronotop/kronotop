@@ -44,7 +44,7 @@ class CommitHandlerTest extends BaseHandlerTest {
         return Stream.of(
                 arguments("unknown keyword",
                         List.of("BOGUS"),
-                        "ERR Unknown 'BOGUS' argument"),
+                        "ERR Unknown argument: 'BOGUS'"),
                 arguments("RETURNING without value",
                         List.of("RETURNING"),
                         "ERR RETURNING argument must be followed by VERSIONSTAMP or COMMITTED_VERSION"),

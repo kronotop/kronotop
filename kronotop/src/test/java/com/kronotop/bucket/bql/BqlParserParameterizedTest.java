@@ -289,8 +289,8 @@ class BqlParserParameterizedTest {
     @DisplayName("Invalid queries should throw BqlParseException with specific error messages")
     void shouldThrowForInvalidQueriesWithSpecificErrors() {
         Map<String, String> invalidQueries = Map.of(
-                "{ \"$invalidOp\": [] }", "Unknown operator: $invalidOp",
-                "{ \"selector\": { \"$unknownSelectorOp\": 5 } }", "Unknown selector operator: $unknownSelectorOp",
+                "{ \"$invalidOp\": [] }", "Unknown operator: '$invalidOp'",
+                "{ \"selector\": { \"$unknownSelectorOp\": 5 } }", "Unknown selector operator: '$unknownSelectorOp'",
                 "{ \"selector\": { \"$size\": \"not_int\" } }", "$size expects an integer",
                 "{ \"selector\": { \"$exists\": \"not_boolean\" } }", "$exists expects a boolean"
         );

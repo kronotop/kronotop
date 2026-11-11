@@ -23,6 +23,8 @@ import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
+import com.kronotop.bucket.handlers.protocol.BucketIndexMessage;
+import com.kronotop.bucket.handlers.protocol.BucketIndexSubcommand;
 import com.kronotop.bucket.index.maintenance.*;
 import com.kronotop.bucket.index.statistics.IndexAnalyzeTaskState;
 import com.kronotop.internal.JSONUtil;
@@ -33,6 +35,7 @@ import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
@@ -169,7 +172,7 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
 
         TasksArguments(ArrayList<ByteBuf> args) {
             if (args.size() < 3 || args.size() > 5) {
-                throw new KronotopException("Wrong number of arguments");
+                throw new WrongNumberOfArgumentsException(BucketIndexMessage.COMMAND, BucketIndexSubcommand.TASKS);
             }
             bucket = ProtocolMessageUtil.readAsString(args.get(1));
             index = ProtocolMessageUtil.readAsString(args.get(2));

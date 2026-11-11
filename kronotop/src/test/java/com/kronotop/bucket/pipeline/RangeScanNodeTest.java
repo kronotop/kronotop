@@ -236,7 +236,7 @@ class RangeScanNodeTest extends BasePipelineTest {
                 validateForwardResults(fieldName, bsonType, rangeQuery, actualFieldValues, testDescription);
             }
         } catch (RuntimeException e) {
-            if (!(e.getMessage().contains("Shard not found") || e.getMessage().contains("not found"))) {
+            if (!(e.getMessage().contains("No such shard") || e.getMessage().contains("not found"))) {
                 throw e;
             }
         }

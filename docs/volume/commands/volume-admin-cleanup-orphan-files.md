@@ -36,16 +36,16 @@ It is available on the management port (default 3320).
 
 Argument errors:
 
-| Error Code | Error message                 | Cause |
-|------------|-------------------------------|-------|
-| `ERR`      | `Invalid number of arguments` | -     |
+| Error Code | Error message                                                               | Cause |
+|------------|-----------------------------------------------------------------------------|-------|
+| `ERR`      | `Wrong number of arguments for 'VOLUME.ADMIN CLEANUP-ORPHAN-FILES' command` | -     |
 
 Volume errors:
 
 | Error Code | Error message                  | Cause                                               |
 |------------|--------------------------------|-----------------------------------------------------|
 | `ERR`      | `Volume: '<name>' is not open` | No volume with that name is managed by this member. |
-| `ERR`      | `Volume <name> is closed`      | -                                                   |
+| `ERR`      | `Volume '<name>' is closed`    | -                                                   |
 | `ERR`      | `File not found: <path>`       | Segments directory not found.                       |
 
 ## Examples

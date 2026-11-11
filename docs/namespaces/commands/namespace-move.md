@@ -65,7 +65,7 @@ Namespace errors:
 | Error Code               | Error message                         | Cause |
 |--------------------------|---------------------------------------|-------|
 | `NOSUCHNAMESPACE`        | `No such namespace: '<path>'`         | -     |
-| `NAMESPACEALREADYEXISTS` | `Namespace already exists: <path>`    | -     |
+| `NAMESPACEALREADYEXISTS` | `Namespace already exists: '<path>'`  | -     |
 | `NAMESPACEBEINGREMOVED`  | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
@@ -97,7 +97,7 @@ OK
 OK
 
 > NAMESPACE MOVE staging.orders production.orders
-(error) NAMESPACEALREADYEXISTS Namespace already exists: production.orders
+(error) NAMESPACEALREADYEXISTS Namespace already exists: 'production.orders'
 ```
 
 **Namespace being removed:**

@@ -70,7 +70,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         return Stream.of(
                 arguments("repeated LIMIT",
                         List.of("test-bucket", "{}", "LIMIT", "10", "LIMIT", "10"),
-                        "ERR Duplicate 'LIMIT' argument")
+                        "ERR Duplicate argument: 'LIMIT'")
         );
     }
 
@@ -1387,7 +1387,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         // Behavior: BUCKET.DELETE rejects NAMESPACE without a value and a repeated NAMESPACE.
         assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_DELETE, List.of("test-bucket", "{}", "NAMESPACE")));
-        assertErrorReply("ERR Duplicate 'NAMESPACE' argument",
+        assertErrorReply("ERR Duplicate argument: 'NAMESPACE'",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_DELETE,
                         List.of("test-bucket", "{}", "NAMESPACE", "a", "NAMESPACE", "b")));
     }

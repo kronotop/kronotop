@@ -115,7 +115,7 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage message = (ErrorRedisMessage) response;
-        assertEquals("ERR Segment with id: '1' could not be found", message.content());
+        assertEquals("ERR No such segment: '1'", message.content());
     }
 
     @Test

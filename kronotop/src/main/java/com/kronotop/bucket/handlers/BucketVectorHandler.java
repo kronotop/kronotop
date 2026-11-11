@@ -78,7 +78,7 @@ public class BucketVectorHandler extends AbstractBucketHandler implements Handle
         for (int i = 0; i < floats.length; i++) {
             float f = floats[i];
             if (Float.isInfinite(f) || Float.isNaN(f)) {
-                throw new IllegalCommandArgumentException("Vector component at index " + i + " overflows float range: " + f);
+                throw new IllegalCommandArgumentException("Vector component at index " + i + " overflows float range: '" + f + "'");
             }
         }
     }
@@ -195,7 +195,7 @@ public class BucketVectorHandler extends AbstractBucketHandler implements Handle
         for (MergedNodeScore merged : mergedResults) {
             BucketShard targetShard = service.getShard(merged.location().shardId());
             if (targetShard == null) {
-                throw new KronotopException("Shard not found: " + merged.location().shardId());
+                throw new KronotopException(String.format("No such shard: '%d'", merged.location().shardId()));
             }
             ByteBuffer document = targetShard.volume().getByEntryMetadata(merged.location().entryMetadata());
             results.add(new VectorSearchResult(merged.score(), document));

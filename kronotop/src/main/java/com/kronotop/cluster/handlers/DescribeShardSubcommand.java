@@ -19,10 +19,12 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -48,7 +50,7 @@ class DescribeShardSubcommand extends BaseKrAdminSubcommandHandler implements Su
 
         private DescribeShardArguments(ArrayList<ByteBuf> args) {
             if (args.size() != 2) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(KrAdminMessage.COMMAND, KrAdminSubcommand.DESCRIBE_SHARD);
             }
 
             shardId = ProtocolMessageUtil.readShardId(context.getShardRegistry(), args.get(1));

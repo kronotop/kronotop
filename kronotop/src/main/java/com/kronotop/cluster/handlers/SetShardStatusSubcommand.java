@@ -20,11 +20,13 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.ShardUtil;
+import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -61,7 +63,7 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
 
         private SetShardStatusArguments(ArrayList<ByteBuf> args) {
             if (args.size() != 3) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(KrAdminMessage.COMMAND, KrAdminSubcommand.SET_SHARD_STATUS);
             }
 
             String rawShardId = ProtocolMessageUtil.readAsString(args.get(1));

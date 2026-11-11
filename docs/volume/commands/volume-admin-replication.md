@@ -44,18 +44,18 @@ This command must be run on the standby node. It is available on the management 
 
 Argument errors:
 
-| Error Code | Error message                       | Cause                                            |
-|------------|-------------------------------------|--------------------------------------------------|
-| `ERR`      | `Invalid number of arguments`       | -                                                |
-| `ERR`      | `Invalid volume name: <name>`       | The name does not match the `shard-<id>` format. |
-| `ERR`      | `Unknown subcommand: '<operation>'` | -                                                |
+| Error Code | Error message                                                      | Cause                                            |
+|------------|--------------------------------------------------------------------|--------------------------------------------------|
+| `ERR`      | `Wrong number of arguments for 'VOLUME.ADMIN REPLICATION' command` | -                                                |
+| `ERR`      | `Invalid volume name: '<name>'`                                    | The name does not match the `shard-<id>` format. |
+| `ERR`      | `Unknown subcommand: '<operation>'`                                | -                                                |
 
 Volume errors:
 
-| Error Code | Error message                                  | Cause |
-|------------|------------------------------------------------|-------|
-| `ERR`      | `No route found for <volume-name>`             | -     |
-| `ERR`      | `This node is not a standby for <volume-name>` | -     |
+| Error Code | Error message                                    | Cause |
+|------------|--------------------------------------------------|-------|
+| `ERR`      | `No route found for '<volume-name>'`             | -     |
+| `ERR`      | `This node is not a standby for '<volume-name>'` | -     |
 
 ## Examples
 
@@ -77,12 +77,12 @@ OK
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN REPLICATION START shard-1
-(error) ERR This node is not a standby for shard-1
+(error) ERR This node is not a standby for 'shard-1'
 ```
 
 **Missing arguments:**
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN REPLICATION
-(error) ERR Invalid number of arguments
+(error) ERR Wrong number of arguments for 'VOLUME.ADMIN REPLICATION' command
 ```

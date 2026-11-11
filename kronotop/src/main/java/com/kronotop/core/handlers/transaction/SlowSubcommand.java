@@ -18,6 +18,8 @@ package com.kronotop.core.handlers.transaction;
 
 import com.kronotop.Context;
 import com.kronotop.bucket.bql.QueryText;
+import com.kronotop.core.handlers.transaction.protocol.TransactionMessage;
+import com.kronotop.core.handlers.transaction.protocol.TransactionSubcommand;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.SlowTransaction;
@@ -50,7 +52,7 @@ class SlowSubcommand implements SubcommandHandler {
     @Override
     public void execute(Request request, Response response) {
         if (request.getArguments().size() != 1) {
-            throw new WrongNumberOfArgumentsException("Wrong number of arguments for 'TRANSACTION SLOW' command");
+            throw new WrongNumberOfArgumentsException(TransactionMessage.COMMAND, TransactionSubcommand.SLOW);
         }
         RESPVersion version = request.getSession().getProtocolVersion();
         List<RedisMessage> result = new ArrayList<>();

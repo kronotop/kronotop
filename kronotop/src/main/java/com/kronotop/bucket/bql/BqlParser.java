@@ -174,7 +174,7 @@ public class BqlParser {
                 case "$or" -> new BqlOr(readArray(reader));
                 case "$nor" -> new BqlNot(new BqlOr(readArray(reader)));
                 case "$not" -> new BqlNot(readExpr(reader));
-                default -> throw new BqlParseException("Unknown operator: " + key);
+                default -> throw new BqlParseException("Unknown operator: '" + key + "'");
             };
         } else {
             // It's a selector name
@@ -274,7 +274,7 @@ public class BqlParser {
                 };
                 yield new BqlExists(selector, exists);
             }
-            default -> throw new BqlParseException("Unknown selector operator: " + op);
+            default -> throw new BqlParseException("Unknown selector operator: '" + op + "'");
         };
     }
 
@@ -283,7 +283,7 @@ public class BqlParser {
      */
     private BqlValue readNonNullValue(BsonReader reader, String op) {
         if (reader.getCurrentBsonType() == BsonType.NULL) {
-            throw new BqlParseException(op + " operator does not support null values");
+            throw new BqlParseException("'" + op + "' operator does not support null values");
         }
         return readValue(reader);
     }
@@ -302,7 +302,7 @@ public class BqlParser {
 
         if (reader.readBsonType() == BsonType.END_OF_DOCUMENT) {
             reader.readEndDocument();
-            throw new BqlParseException("Empty selector operator document for: " + selector);
+            throw new BqlParseException("Empty selector operator document for: '" + selector + "'");
         }
 
         List<BqlExpr> expressions = new ArrayList<>();

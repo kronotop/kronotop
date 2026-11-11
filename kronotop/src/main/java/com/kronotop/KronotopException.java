@@ -20,6 +20,7 @@ import com.kronotop.server.RESPError;
 
 public class KronotopException extends RuntimeException {
     private RESPError prefix = RESPError.ERR;
+    private boolean causeOnly;
 
     public KronotopException() {
     }
@@ -44,9 +45,14 @@ public class KronotopException extends RuntimeException {
 
     public KronotopException(final Throwable cause) {
         super(cause);
+        this.causeOnly = true;
     }
 
     public RESPError getPrefix() {
         return prefix;
+    }
+
+    public boolean isCauseOnly() {
+        return causeOnly;
     }
 }

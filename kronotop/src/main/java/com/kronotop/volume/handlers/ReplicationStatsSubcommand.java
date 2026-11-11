@@ -18,15 +18,17 @@ package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.volume.VolumeService;
+import com.kronotop.volume.handlers.protocol.VolumeStatsMessage;
+import com.kronotop.volume.handlers.protocol.VolumeStatsSubcommand;
 import com.kronotop.volume.replication.ReplicationStatusInfo;
 import com.kronotop.volume.replication.ReplicationUtil;
 import io.netty.buffer.ByteBuf;
@@ -83,7 +85,7 @@ class ReplicationStatsSubcommand extends BaseSubcommandHandler implements Subcom
 
         private ReplicationArguments(ArrayList<ByteBuf> args) {
             if (args.size() != 3) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(VolumeStatsMessage.COMMAND, VolumeStatsSubcommand.REPLICATION);
             }
 
             standbyId = ProtocolMessageUtil.readMemberId(service.getContext(), args.get(2));

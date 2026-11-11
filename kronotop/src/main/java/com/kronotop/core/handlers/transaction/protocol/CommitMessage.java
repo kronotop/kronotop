@@ -42,7 +42,7 @@ public class CommitMessage implements ProtocolMessage<Void> {
         if (!request.getArguments().isEmpty()) {
             String raw = ProtocolMessageUtil.readAsString(request.getArguments().getFirst());
             if (!StringUtil.toUpperCaseAscii(raw).equals(RETURNING_ARGUMENT)) {
-                throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+                throw ProtocolMessageUtil.unknownArgument(raw);
             }
             ByteBuf value = ProtocolMessageUtil.requireValue(
                     request.getArguments(), 0, RETURNING_ARGUMENT, "VERSIONSTAMP or COMMITTED_VERSION");

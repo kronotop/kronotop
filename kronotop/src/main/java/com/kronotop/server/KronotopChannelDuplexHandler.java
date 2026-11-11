@@ -16,9 +16,7 @@
 
 package com.kronotop.server;
 
-import com.apple.foundationdb.FDBException;
 import com.kronotop.Context;
-import com.kronotop.KronotopException;
 import com.kronotop.MemberAttributes;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.instance.KronotopInstanceStatus;
@@ -26,7 +24,6 @@ import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.metrics.NetworkMetrics;
 import com.kronotop.server.impl.RESPRequest;
 import com.kronotop.server.impl.RESPResponse;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.zmap.ZMapService;
 import com.typesafe.config.Config;
 import io.netty.buffer.ByteBuf;
@@ -44,7 +41,6 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CompletionException;
 
 /**
  * Serves RESP commands on a client channel. It checks authentication and argument counts, runs
@@ -82,9 +78,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     private void checkMaximumArgumentCount(HandlerEntry entry, Request request) throws WrongNumberOfArgumentsException {
         if (entry.hasMaximumArgumentCount()) {
             if (request.getArguments().size() > entry.maximumArgumentCount()) {
-                throw new WrongNumberOfArgumentsException(
-                        String.format("Wrong number of arguments for '%s' command", request.getCommand())
-                );
+                throw new WrongNumberOfArgumentsException(request.getCommand());
             }
         }
     }
@@ -92,9 +86,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     private void checkMinimumArgumentCount(HandlerEntry entry, Request request) throws WrongNumberOfArgumentsException {
         if (entry.hasMinimumArgumentCount()) {
             if (request.getArguments().size() < entry.minimumArgumentCount()) {
-                throw new WrongNumberOfArgumentsException(
-                        String.format("Wrong number of arguments for '%s' command", request.getCommand())
-                );
+                throw new WrongNumberOfArgumentsException(request.getCommand());
             }
         }
     }
@@ -126,56 +118,16 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
 
     private void exceptionToRespError(Request request, Response response, Exception exception) {
         metrics.increaseCommandsFailed(serverKind);
-        switch (exception) {
-            case KronotopException exp -> {
-                if (exp.getCause() != null) {
-                    response.writeError(exp.getPrefix(), exp.getCause().getMessage());
-                } else {
-                    response.writeError(exp.getPrefix(), exp.getMessage());
-                }
-            }
-            case CompletionException compExp -> {
-                Throwable cause = TransactionUtil.getRootCause(compExp);
-                if (cause instanceof FDBException fdbEx) {
-                    RESPError.FDBErrorResult result = RESPError.extractFDBError(fdbEx);
-                    response.writeError(result.prefix(), result.message());
-                } else if (cause instanceof KronotopException krEx) {
-                    response.writeError(krEx.getPrefix(), krEx.getMessage());
-                } else {
-                    response.writeError(Objects.requireNonNullElse(cause, compExp).getMessage());
-                }
-            }
-            case FDBException fdbEx -> {
-                RESPError.FDBErrorResult result = RESPError.extractFDBError(fdbEx);
-                response.writeError(result.prefix(), result.message());
-            }
-            default -> {
-                StringBuilder command = new StringBuilder();
-                command.append(request.getCommand()).append(" ");
-                for (ByteBuf buf : request.getArguments()) {
-                    byte[] rawArgument = ProtocolMessageUtil.readAsByteArray(buf);
-                    buf.resetReaderIndex();
-                    String argument = new String(rawArgument);
-                    command.append(argument).append(" ");
-                }
-                LOGGER.debug("Unhandled error while serving command: {}: '{}'", command, exception.getMessage());
-                response.writeError(exception.getMessage());
-            }
+        response.writeError(exception);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Error while serving command: {}", request.getCommand(), exception);
         }
     }
 
     private void beforeExecute(HandlerEntry entry, Request request) {
         checkMinimumArgumentCount(entry, request);
         checkMaximumArgumentCount(entry, request);
-        try {
-            entry.handler().beforeExecute(request);
-        } catch (Exception e) {
-            for (ByteBuf argument : request.getArguments()) {
-                // Reset the reader index to re-construct the received command for debugging purposes.
-                argument.resetReaderIndex();
-            }
-            throw e;
-        }
+        entry.handler().beforeExecute(request);
     }
 
     private void executeCommand(Handler handler, Request request, Response response) {

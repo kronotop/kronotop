@@ -19,15 +19,17 @@ package com.kronotop.volume.handlers;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.StringUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.UnknownSubcommandException;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.volume.VolumeNames;
 import com.kronotop.volume.VolumeService;
+import com.kronotop.volume.handlers.protocol.VolumeAdminMessage;
+import com.kronotop.volume.handlers.protocol.VolumeAdminSubcommand;
 import com.kronotop.volume.replication.ReplicationService;
 import io.netty.buffer.ByteBuf;
 
@@ -44,7 +46,7 @@ class ReplicationSubcommand extends BaseSubcommandHandler implements SubcommandH
     public void execute(Request request, Response response) {
         ArrayList<ByteBuf> args = request.getArguments();
         if (args.size() < 2) {
-            throw new InvalidNumberOfArgumentsException();
+            throw new WrongNumberOfArgumentsException(VolumeAdminMessage.COMMAND, VolumeAdminSubcommand.REPLICATION);
         }
         String operation = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(args.get(1)));
         switch (operation) {
@@ -64,12 +66,12 @@ class ReplicationSubcommand extends BaseSubcommandHandler implements SubcommandH
             Route route = routing.findRoute(shardId);
             if (route == null) {
                 throw new KronotopException(
-                        String.format("No route found for %s", arguments.volumeName)
+                        String.format("No route found for '%s'", arguments.volumeName)
                 );
             }
             if (!route.standbys().contains(service.getContext().getMember())) {
                 throw new KronotopException(
-                        String.format("This node is not a standby for %s", arguments.volumeName)
+                        String.format("This node is not a standby for '%s'", arguments.volumeName)
                 );
             }
             replications.startReplication(shardId, true);
@@ -86,12 +88,12 @@ class ReplicationSubcommand extends BaseSubcommandHandler implements SubcommandH
             Route route = routing.findRoute(shardId);
             if (route == null) {
                 throw new KronotopException(
-                        String.format("No route found for %s", arguments.volumeName)
+                        String.format("No route found for '%s'", arguments.volumeName)
                 );
             }
             if (!route.standbys().contains(service.getContext().getMember())) {
                 throw new KronotopException(
-                        String.format("This node is not a standby for %s", arguments.volumeName)
+                        String.format("This node is not a standby for '%s'", arguments.volumeName)
                 );
             }
             replications.stopReplication(shardId, true);
@@ -103,7 +105,7 @@ class ReplicationSubcommand extends BaseSubcommandHandler implements SubcommandH
 
         private Arguments(ArrayList<ByteBuf> args) {
             if (args.size() != 3) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(VolumeAdminMessage.COMMAND, VolumeAdminSubcommand.REPLICATION);
             }
 
             volumeName = ProtocolMessageUtil.readAsString(args.get(2));

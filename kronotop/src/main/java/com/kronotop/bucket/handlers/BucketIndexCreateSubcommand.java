@@ -22,12 +22,15 @@ import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.RetryMethods;
+import com.kronotop.bucket.handlers.protocol.BucketIndexMessage;
+import com.kronotop.bucket.handlers.protocol.BucketIndexSubcommand;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import io.github.resilience4j.retry.Retry;
 import io.netty.buffer.ByteBuf;
 
@@ -90,7 +93,7 @@ class BucketIndexCreateSubcommand implements SubcommandHandler {
 
         private void parse() {
             if (args.size() < 3 || args.size() > 5) {
-                throw new IllegalArgumentException("Wrong number of arguments");
+                throw new WrongNumberOfArgumentsException(BucketIndexMessage.COMMAND, BucketIndexSubcommand.CREATE);
             }
             bucket = ProtocolMessageUtil.readAsString(args.get(1));
             payload = IndexCreationHelper.deserializeAndValidate(ProtocolMessageUtil.readAsByteArray(args.get(2)));

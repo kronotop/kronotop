@@ -17,12 +17,17 @@
 package com.kronotop.server;
 
 import com.kronotop.KronotopException;
+import com.kronotop.internal.StringUtil;
 
 /**
- * Exception thrown when a wrong number of arguments is provided.
+ * Exception thrown when a command gets a wrong number of arguments.
  */
 public class WrongNumberOfArgumentsException extends KronotopException {
-    public WrongNumberOfArgumentsException(String content) {
-        super(content);
+    public WrongNumberOfArgumentsException(String command) {
+        super(String.format("Wrong number of arguments for '%s' command", command));
+    }
+
+    public WrongNumberOfArgumentsException(String command, Object subcommand) {
+        this(command + " " + StringUtil.toUpperCaseAscii(subcommand.toString()));
     }
 }

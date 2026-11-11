@@ -18,9 +18,11 @@ package com.kronotop.cluster.handlers;
 
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 
@@ -39,7 +41,7 @@ class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements Subc
     @Override
     public void execute(Request request, Response response) {
         if (request.getArguments().size() != 1) {
-            throw new InvalidNumberOfArgumentsException();
+            throw new WrongNumberOfArgumentsException(KrAdminMessage.COMMAND, KrAdminSubcommand.LIST_MEMBERS);
         }
         supplyAsync(context, response, () -> {
             TreeSet<Member> sortedMembers = membership.listMembers();

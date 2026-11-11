@@ -18,9 +18,10 @@ package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
-import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.handlers.protocol.BucketIndexMessage;
+import com.kronotop.bucket.handlers.protocol.BucketIndexSubcommand;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.namespace.NamespaceUtil;
@@ -28,6 +29,7 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.Session;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
@@ -71,7 +73,7 @@ class BucketIndexListSubcommand implements SubcommandHandler {
 
         ListArguments(ArrayList<ByteBuf> args) {
             if (args.size() < 2 || args.size() > 4) {
-                throw new KronotopException("Wrong number of arguments");
+                throw new WrongNumberOfArgumentsException(BucketIndexMessage.COMMAND, BucketIndexSubcommand.LIST);
             }
             bucket = ProtocolMessageUtil.readAsString(args.get(1));
             namespace = ProtocolMessageUtil.readTrailingNamespace(args, 2);

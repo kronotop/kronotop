@@ -155,8 +155,8 @@ Argument errors:
 | `ERR`      | `BATCH argument must be followed by a non-negative integer` | -                                              |
 | `ERR`      | `LIMIT argument must be followed by a non-negative integer` | -                                              |
 | `ERR`      | `Unknown sort direction: '<value>'`                         | The `SORTBY` direction is not `ASC` or `DESC`. |
-| `ERR`      | `Unknown '<keyword>' argument`                              | -                                              |
-| `ERR`      | `Duplicate '<keyword>' argument`                            | -                                              |
+| `ERR`      | `Unknown argument: '<keyword>'`                             | -                                              |
+| `ERR`      | `Duplicate argument: '<keyword>'`                           | -                                              |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace`        | -                                              |
 
 Namespace errors:

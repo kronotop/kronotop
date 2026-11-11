@@ -18,13 +18,15 @@ package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
-import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.volume.*;
+import com.kronotop.volume.handlers.protocol.VolumeAdminMessage;
+import com.kronotop.volume.handlers.protocol.VolumeAdminSubcommand;
 import com.kronotop.volume.segment.SegmentUtil;
 import io.netty.buffer.ByteBuf;
 
@@ -97,7 +99,7 @@ public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implemen
     private record CleanupOrphanFilesArguments(String volumeName) {
         private CleanupOrphanFilesArguments(ArrayList<ByteBuf> args) {
             if (args.size() != 2) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(VolumeAdminMessage.COMMAND, VolumeAdminSubcommand.CLEANUP_ORPHAN_FILES);
             }
 
             this(ProtocolMessageUtil.readAsString(args.get(1)));

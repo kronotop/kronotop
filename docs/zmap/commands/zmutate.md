@@ -164,7 +164,7 @@ Argument errors:
 |------------|------------------------------------------------------|-------|
 | `ERR`      | `Wrong number of arguments for 'ZMUTATE' command`    | -     |
 | `ERR`      | `Unknown mutation type: '<value>'`                   | -     |
-| `ERR`      | `Unknown '<keyword>' argument`                       | -     |
+| `ERR`      | `Unknown argument: '<keyword>'`                      | -     |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
 
 Transaction errors:

@@ -66,16 +66,16 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         return Stream.of(
                 arguments("repeated LIMIT",
                         List.of("test-bucket", "{}", "LIMIT", "10", "LIMIT", "10"),
-                        "ERR Duplicate 'LIMIT' argument"),
+                        "ERR Duplicate argument: 'LIMIT'"),
                 arguments("repeated BATCH",
                         List.of("test-bucket", "{}", "BATCH", "5", "BATCH", "5"),
-                        "ERR Duplicate 'BATCH' argument"),
+                        "ERR Duplicate argument: 'BATCH'"),
                 arguments("repeated SORTBY",
                         List.of("test-bucket", "{}", "SORTBY", "a", "ASC", "SORTBY", "b", "ASC"),
-                        "ERR Duplicate 'SORTBY' argument"),
+                        "ERR Duplicate argument: 'SORTBY'"),
                 arguments("repeated PROJECTION",
                         List.of("test-bucket", "{}", "PROJECTION", "{}", "PROJECTION", "{}"),
-                        "ERR Duplicate 'PROJECTION' argument")
+                        "ERR Duplicate argument: 'PROJECTION'")
         );
     }
 
@@ -101,7 +101,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
                         "ERR PROJECTION argument must be followed by a projection specification"),
                 arguments("unknown keyword",
                         List.of("test-bucket", "{}", "BOGUS"),
-                        "ERR Unknown 'BOGUS' argument"),
+                        "ERR Unknown argument: 'BOGUS'"),
                 arguments("NAMESPACE without value",
                         List.of("test-bucket", "{}", "NAMESPACE"),
                         "ERR NAMESPACE argument must be followed by a namespace")

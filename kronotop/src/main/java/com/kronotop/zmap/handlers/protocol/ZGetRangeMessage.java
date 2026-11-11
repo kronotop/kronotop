@@ -18,7 +18,6 @@ package com.kronotop.zmap.handlers.protocol;
 
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.StringUtil;
-import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
@@ -140,7 +139,7 @@ public class ZGetRangeMessage implements ProtocolMessage<Void> {
                 return key;
             }
         }
-        throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+        throw ProtocolMessageUtil.unknownArgument(raw);
     }
 
     enum ZGetRangeArgumentKey {

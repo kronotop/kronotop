@@ -74,8 +74,8 @@ class IndexSchemaPayloadTest {
         // Behavior: Unknown $ directives are rejected with an error.
         String json = "{\"$unknown\": []}";
         Exception ex = assertThrows(Exception.class, () -> parse(json));
-        assertTrue(ex.getMessage().contains("Unknown directive: $unknown") ||
-                (ex.getCause() != null && ex.getCause().getMessage().contains("Unknown directive: $unknown")));
+        assertTrue(ex.getMessage().contains("Unknown directive: '$unknown'") ||
+                (ex.getCause() != null && ex.getCause().getMessage().contains("Unknown directive: '$unknown'")));
     }
 
     @Test

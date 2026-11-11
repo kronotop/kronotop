@@ -18,15 +18,17 @@ package com.kronotop.volume.handlers;
 
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketEntryEvacuator;
-import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.StringUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.UnknownSubcommandException;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.*;
+import com.kronotop.volume.handlers.protocol.VolumeAdminMessage;
+import com.kronotop.volume.handlers.protocol.VolumeAdminSubcommand;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.StandardCharsets;
@@ -59,7 +61,7 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
     public void execute(Request request, Response response) {
         ArrayList<ByteBuf> args = request.getArguments();
         if (args.size() < 2) {
-            throw new InvalidNumberOfArgumentsException();
+            throw new WrongNumberOfArgumentsException(VolumeAdminMessage.COMMAND, VolumeAdminSubcommand.VACUUM);
         }
         String operation = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(args.get(1)));
         switch (operation) {
@@ -135,7 +137,7 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
 
         private Arguments(ArrayList<ByteBuf> args) {
             if (args.size() != 3) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(VolumeAdminMessage.COMMAND, VolumeAdminSubcommand.VACUUM);
             }
             volumeName = ProtocolMessageUtil.readAsString(args.get(2));
         }
@@ -147,7 +149,7 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
 
         private StartArguments(ArrayList<ByteBuf> args) {
             if (args.size() != 4) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(VolumeAdminMessage.COMMAND, VolumeAdminSubcommand.VACUUM);
             }
             volumeName = ProtocolMessageUtil.readAsString(args.get(2));
 

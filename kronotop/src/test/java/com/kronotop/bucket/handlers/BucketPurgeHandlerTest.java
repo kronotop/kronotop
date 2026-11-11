@@ -487,7 +487,7 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
         // Behavior: BUCKET.PURGE rejects NAMESPACE without a value, an unknown keyword and an argument after the namespace.
         assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_PURGE, List.of("test-bucket", "NAMESPACE")));
-        assertErrorReply("ERR Unknown 'BOGUS' argument",
+        assertErrorReply("ERR Unknown argument: 'BOGUS'",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_PURGE, List.of("test-bucket", "BOGUS")));
         assertErrorReply("ERR Wrong number of arguments for 'BUCKET.PURGE' command",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_PURGE, List.of("test-bucket", "NAMESPACE", "ns", "EXTRA")));

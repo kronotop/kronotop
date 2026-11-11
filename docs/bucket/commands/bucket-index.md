@@ -177,7 +177,7 @@ Index errors:
 |------------|----------------------------------------------|-------|
 | `ERR`      | `An index on field '<field>' already exists` | -     |
 | `ERR`      | `Invalid index schema`                       | -     |
-| `ERR`      | `Unknown BSON type: <type>`                  | -     |
+| `ERR`      | `Unknown BSON type: '<type>'`                | -     |
 | `ERR`      | `A unique index cannot be multi-key`         | -     |
 
 ### Examples
@@ -673,7 +673,7 @@ Index errors:
 | Error Code    | Error message                                                          | Cause |
 |---------------|------------------------------------------------------------------------|-------|
 | `NOSUCHINDEX` | `No such index: '<index>'`                                             | -     |
-| `ERR`         | `An analyze task has already exist`                                    | -     |
+| `ERR`         | `An analyze task already exists`                                       | -     |
 | `ERR`         | `Cannot analyze index: index is not in READY state (current=<status>)` | -     |
 
 ### Examples
@@ -690,7 +690,7 @@ Argument errors:
 | Error Code | Error message                                        | Cause |
 |------------|------------------------------------------------------|-------|
 | `ERR`      | `Unknown subcommand: '<subcommand>'`                 | -     |
-| `ERR`      | `Unknown '<keyword>' argument`                       | -     |
+| `ERR`      | `Unknown argument: '<keyword>'`                      | -     |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
 
 Namespace errors:

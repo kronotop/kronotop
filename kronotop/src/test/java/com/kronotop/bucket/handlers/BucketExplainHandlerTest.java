@@ -813,7 +813,7 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
         // Behavior: BUCKET.EXPLAIN rejects NAMESPACE without a value and a repeated NAMESPACE.
         assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_EXPLAIN, List.of("test-bucket", "{}", "NAMESPACE")));
-        assertErrorReply("ERR Duplicate 'NAMESPACE' argument",
+        assertErrorReply("ERR Duplicate argument: 'NAMESPACE'",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_EXPLAIN,
                         List.of("test-bucket", "{}", "NAMESPACE", "a", "NAMESPACE", "b")));
     }

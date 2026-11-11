@@ -65,15 +65,16 @@ Argument errors:
 | `ERR`      | `Wrong number of arguments for 'ZINC.D128' command`           | -                                          |
 | `ERR`      | `Invalid decimal`                                             | The value is not a decimal number.         |
 | `ERR`      | `Exponent is out of range for Decimal128 encoding of <value>` | The value is outside the Decimal128 range. |
-| `ERR`      | `Unknown '<keyword>' argument`                                | -                                          |
+| `ERR`      | `Unknown argument: '<keyword>'`                               | -                                          |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace`          | -                                          |
 
 Stored value and result errors:
 
-| Error Code | Error message                                                      | Cause                                     |
-|------------|--------------------------------------------------------------------|-------------------------------------------|
-| `ERR`      | `Invalid stored value: expected 16-byte Decimal128 (IEEE-754 BID)` | The stored value is not exactly 16 bytes. |
-| `ERR`      | `Exponent is out of range for Decimal128 encoding: <exponent>`     | The sum is outside the Decimal128 range.  |
+| Error Code | Error message                                                      | Cause                                          |
+|------------|--------------------------------------------------------------------|------------------------------------------------|
+| `ERR`      | `Invalid stored value: expected 16-byte Decimal128 (IEEE-754 BID)` | The stored value is not exactly 16 bytes.      |
+| `ERR`      | `Exponent is out of range for Decimal128 encoding: <exponent>`     | The sum is outside the Decimal128 range.       |
+| `ERR`      | `Result is not representable as Decimal128`                        | The sum needs more than 34 significant digits. |
 
 Namespace errors:
 

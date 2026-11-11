@@ -265,7 +265,7 @@ public class DocumentRetriever {
     ) {
         BucketShard shard = service.getShard(group.shardId);
         if (shard == null) {
-            throw new RuntimeException("Shard not found for ID: " + group.shardId);
+            throw new RuntimeException(String.format("No such shard: '%d'", group.shardId));
         }
 
         for (int i = 0; i < group.indices.size; i++) {

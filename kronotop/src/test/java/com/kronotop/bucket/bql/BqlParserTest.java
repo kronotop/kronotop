@@ -312,7 +312,7 @@ class BqlParserTest {
 
         assertNotNull(exception.getMessage(), "Exception should have a message");
         assertTrue(exception.getMessage().contains("BQL parse error"), "Exception should contain BQL parse error prefix");
-        assertTrue(exception.getMessage().contains("Empty selector operator document for: selector"), "Exception should mention empty selector operator document");
+        assertTrue(exception.getMessage().contains("Empty selector operator document for: 'selector'"), "Exception should mention empty selector operator document");
     }
 
 
@@ -683,7 +683,7 @@ class BqlParserTest {
             BqlParser.parse(query);
         });
 
-        assertTrue(exception.getMessage().contains("$gt operator does not support null values"));
+        assertTrue(exception.getMessage().contains("'$gt' operator does not support null values"));
     }
 
     @Test
@@ -694,7 +694,7 @@ class BqlParserTest {
             BqlParser.parse(query);
         });
 
-        assertTrue(exception.getMessage().contains("$lt operator does not support null values"));
+        assertTrue(exception.getMessage().contains("'$lt' operator does not support null values"));
     }
 
     @Test
@@ -705,7 +705,7 @@ class BqlParserTest {
             BqlParser.parse(query);
         });
 
-        assertTrue(exception.getMessage().contains("$gte operator does not support null values"));
+        assertTrue(exception.getMessage().contains("'$gte' operator does not support null values"));
     }
 
     @Test
@@ -716,7 +716,7 @@ class BqlParserTest {
             BqlParser.parse(query);
         });
 
-        assertTrue(exception.getMessage().contains("$lte operator does not support null values"));
+        assertTrue(exception.getMessage().contains("'$lte' operator does not support null values"));
     }
 
     @Test

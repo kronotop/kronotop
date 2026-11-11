@@ -149,7 +149,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
             Object response = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, response);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-            assertEquals(String.format("NAMESPACEALREADYEXISTS Namespace already exists: %s", namespace), actualMessage.content());
+            assertEquals(String.format("NAMESPACEALREADYEXISTS Namespace already exists: '%s'", namespace), actualMessage.content());
         }
     }
 
@@ -1461,7 +1461,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
     @Test
     void shouldRejectUnknownCreateArgument() {
         // Behavior: NAMESPACE CREATE rejects a second argument other than IF-NOT-EXISTS.
-        assertWrongNumberOfArguments(List.of("CREATE", "a", "b"), "ERR Unknown 'b' argument");
+        assertWrongNumberOfArguments(List.of("CREATE", "a", "b"), "ERR Unknown argument: 'b'");
     }
 
     @Test

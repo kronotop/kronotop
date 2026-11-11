@@ -32,7 +32,6 @@ import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletionException;
 
 /**
  * The RespResponse class is an implementation of the Response interface.
@@ -254,40 +253,25 @@ public class RESPResponse implements Response {
 
     /**
      * Writes the error that best describes a {@link Throwable} to the client.
-     * <p>
-     * Failures from async commands arrive wrapped in a {@link CompletionException}, so the cause
-     * chain is unwrapped first. An {@link FDBException} is reported with its own prefix and a
-     * registered message, which lets clients act on the FoundationDB error code. Otherwise the
-     * prefix and message come from a {@link KronotopException} in the chain when there is one,
-     * and from the root cause with a generic prefix when there is none.
      *
-     * @param throwable the Throwable representing the error to be written to the client
-     *                  (e.g., an exception or error that occurred during processing)
+     * @param throwable the error to report
      * @throws NullPointerException if the throwable is null
-     * @see RESPError#preferKronotopCause(Throwable)
      */
     @Override
     public void writeError(Throwable throwable) {
-        if (throwable instanceof CompletionException) {
-            Throwable cause = TransactionUtil.getRootCause(throwable);
-            if (cause instanceof KronotopException kr) {
-                writeError(kr.getPrefix(), RESPError.getMessage(cause));
-            } else if (cause instanceof FDBException fdbEx) {
-                RESPError.FDBErrorResult result = RESPError.extractFDBError(fdbEx);
-                writeError(result.prefix(), result.message());
-            } else {
-                Throwable preferredCause = RESPError.preferKronotopCause(throwable);
-                if (preferredCause instanceof KronotopException kr) {
-                    writeError(kr.getPrefix(), RESPError.getMessage(kr));
-                } else {
-                    writeError(RESPError.getMessage(preferredCause));
-                }
-            }
-        } else if (throwable instanceof FDBException fdbEx) {
+        Throwable root = TransactionUtil.getRootCause(throwable);
+        if (root instanceof FDBException fdbEx) {
+            // Clients act on the FoundationDB error code, so it keeps its own prefix.
             RESPError.FDBErrorResult result = RESPError.extractFDBError(fdbEx);
             writeError(result.prefix(), result.message());
+            return;
+        }
+        // A KronotopException at the root wins over one that wraps it, so its prefix is kept.
+        Throwable described = root instanceof KronotopException ? root : RESPError.preferKronotopCause(throwable);
+        if (described instanceof KronotopException kr) {
+            writeError(kr.getPrefix(), RESPError.getMessage(kr));
         } else {
-            writeError(RESPError.getMessage(throwable));
+            writeError(RESPError.getMessage(described));
         }
     }
 

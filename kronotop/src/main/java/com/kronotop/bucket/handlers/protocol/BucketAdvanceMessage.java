@@ -17,8 +17,6 @@
 package com.kronotop.bucket.handlers.protocol;
 
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.internal.StringUtil;
-import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
@@ -37,11 +35,7 @@ public class BucketAdvanceMessage extends AbstractBucketMessage implements Proto
 
     private void parse() {
         String raw = ProtocolMessageUtil.readAsString(request.getArguments().get(0));
-        try {
-            operation = BucketOperation.valueOf(StringUtil.toUpperCaseAscii(raw));
-        } catch (IllegalArgumentException e) {
-            throw new IllegalCommandArgumentException(String.format("Unknown '%s' operation", raw));
-        }
+        operation = ProtocolMessageUtil.readEnum(BucketOperation.class, raw, "operation");
         cursorId = ProtocolMessageUtil.readAsInteger(request.getArguments().get(1));
     }
 

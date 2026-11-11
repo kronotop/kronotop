@@ -41,9 +41,9 @@ Requires cluster initialization.
 
 Argument errors:
 
-| Error Code | Error message                 | Cause |
-|------------|-------------------------------|-------|
-| `ERR`      | `Invalid number of arguments` | -     |
+| Error Code | Error message                                                      | Cause |
+|------------|--------------------------------------------------------------------|-------|
+| `ERR`      | `Wrong number of arguments for 'KR.ADMIN DESCRIBE-MEMBER' command` | -     |
 
 Cluster errors:
 
@@ -71,5 +71,5 @@ Cluster errors:
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN DESCRIBE-MEMBER foo
-(error) ERR Invalid number of arguments
+(error) ERR Wrong number of arguments for 'KR.ADMIN DESCRIBE-MEMBER' command
 ```

@@ -18,11 +18,13 @@ package com.kronotop.cluster.handlers;
 
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 
@@ -109,7 +111,7 @@ class DropClusterSubcommand extends BaseKrAdminSubcommandHandler implements Subc
                 throw new KronotopException("Cluster name is required");
             }
             if (args.size() > 3) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(KrAdminMessage.COMMAND, KrAdminSubcommand.DROP_CLUSTER);
             }
 
             clusterName = ProtocolMessageUtil.readAsString(args.get(1));

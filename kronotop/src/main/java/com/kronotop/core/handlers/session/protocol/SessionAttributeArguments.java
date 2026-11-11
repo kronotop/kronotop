@@ -16,13 +16,13 @@
 
 package com.kronotop.core.handlers.session.protocol;
 
-import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.StringUtil;
 import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.InputType;
 import com.kronotop.server.ObjectIdFormat;
 import com.kronotop.server.ReplyType;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -40,13 +40,13 @@ public class SessionAttributeArguments {
 
         if (subcommand.equals(SessionAttributeSubcommand.LIST)) {
             if (args.size() != 1) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(SessionAttributeMessage.COMMAND, subcommand);
             }
             return;
         }
 
         if (args.size() != 3) {
-            throw new InvalidNumberOfArgumentsException();
+            throw new WrongNumberOfArgumentsException(SessionAttributeMessage.COMMAND, subcommand);
         }
 
         String rawSessionAttribute = ProtocolMessageUtil.readAsString(args.get(1));

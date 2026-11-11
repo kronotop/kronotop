@@ -21,6 +21,6 @@ import com.kronotop.server.RESPError;
 
 public class NamespaceAlreadyExistsException extends KronotopException {
     public NamespaceAlreadyExistsException(String namespace) {
-        super(RESPError.NAMESPACEALREADYEXISTS, String.format("Namespace already exists: %s", namespace));
+        super(RESPError.NAMESPACEALREADYEXISTS, String.format("Namespace already exists: '%s'", namespace));
     }
 }

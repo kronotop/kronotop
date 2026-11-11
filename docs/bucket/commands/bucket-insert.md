@@ -96,10 +96,10 @@ Argument errors:
 
 | Error Code | Error message                                             | Cause |
 |------------|-----------------------------------------------------------|-------|
-| `ERR`      | `Unknown '<keyword>' argument`                            | -     |
+| `ERR`      | `Unknown argument: '<keyword>'`                           | -     |
 | `ERR`      | `DOCS argument must be followed by one or more documents` | -     |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace`      | -     |
-| `ERR`      | `Duplicate '<keyword>' argument`                          | -     |
+| `ERR`      | `Duplicate argument: '<keyword>'`                         | -     |
 | `ERR`      | `_id field must be of type ObjectId`                      | -     |
 
 Namespace errors:

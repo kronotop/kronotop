@@ -49,9 +49,9 @@ It is available on the management port (default 3320).
 
 Argument errors:
 
-| Error Code | Error message                 | Cause |
-|------------|-------------------------------|-------|
-| `ERR`      | `Invalid number of arguments` | -     |
+| Error Code | Error message                                                   | Cause |
+|------------|-----------------------------------------------------------------|-------|
+| `ERR`      | `Wrong number of arguments for 'VOLUME.ADMIN DESCRIBE' command` | -     |
 
 Volume errors:
 

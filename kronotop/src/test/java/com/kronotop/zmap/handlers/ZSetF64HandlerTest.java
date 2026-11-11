@@ -56,7 +56,7 @@ class ZSetF64HandlerTest extends BaseHandlerTest {
                         "ERR Wrong number of arguments for 'ZSET.F64' command"),
                 arguments("unknown keyword",
                         List.of("key", "1", "EXTRA"),
-                        "ERR Unknown 'EXTRA' argument"),
+                        "ERR Unknown argument: 'EXTRA'"),
                 arguments("NAMESPACE without value",
                         List.of("key", "1", "NAMESPACE"),
                         "ERR NAMESPACE argument must be followed by a namespace"),

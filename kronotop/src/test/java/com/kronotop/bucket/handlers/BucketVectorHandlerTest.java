@@ -55,16 +55,16 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
         return Stream.of(
                 arguments("repeated TOP",
                         List.of("test-bucket", "embedding", "[0.1,0.2,0.3]", "TOP", "5", "TOP", "5"),
-                        "ERR Duplicate 'TOP' argument"),
+                        "ERR Duplicate argument: 'TOP'"),
                 arguments("repeated MAX-SCAN-CANDIDATES in mixed case",
                         List.of("test-bucket", "embedding", "[0.1,0.2,0.3]", "MAX-SCAN-CANDIDATES", "10", "max-scan-candidates", "10"),
-                        "ERR Duplicate 'MAX-SCAN-CANDIDATES' argument"),
+                        "ERR Duplicate argument: 'MAX-SCAN-CANDIDATES'"),
                 arguments("repeated FILTER",
                         List.of("test-bucket", "embedding", "[0.1,0.2,0.3]", "FILTER", "{}", "FILTER", "{}"),
-                        "ERR Duplicate 'FILTER' argument"),
+                        "ERR Duplicate argument: 'FILTER'"),
                 arguments("unknown keyword",
                         List.of("test-bucket", "embedding", "[0.1,0.2,0.3]", "BOGUS", "1"),
-                        "ERR Unknown 'BOGUS' argument")
+                        "ERR Unknown argument: 'BOGUS'")
         );
     }
 
@@ -930,7 +930,7 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
         assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_VECTOR,
                         List.of("test-bucket", "embedding", "[0.1,0.2,0.3]", "NAMESPACE")));
-        assertErrorReply("ERR Duplicate 'NAMESPACE' argument",
+        assertErrorReply("ERR Duplicate argument: 'NAMESPACE'",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_VECTOR,
                         List.of("test-bucket", "embedding", "[0.1,0.2,0.3]", "NAMESPACE", "a", "namespace", "b")));
     }

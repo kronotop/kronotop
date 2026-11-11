@@ -68,11 +68,11 @@ Argument errors:
 | Error Code | Error message                                                    | Cause |
 |------------|------------------------------------------------------------------|-------|
 | `ERR`      | `Wrong number of arguments for 'ZGETKEY' command`                | -     |
-| `ERR`      | `Unknown '<keyword>' argument`                                   | -     |
+| `ERR`      | `Unknown argument: '<keyword>'`                                  | -     |
 | `ERR`      | `KEY-SELECTOR argument must be followed by a valid key selector` | -     |
 | `ERR`      | `Unknown range key selector: '<value>'`                          | -     |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace`             | -     |
-| `ERR`      | `Duplicate '<keyword>' argument`                                 | -     |
+| `ERR`      | `Duplicate argument: '<keyword>'`                                | -     |
 
 Namespace errors:
 

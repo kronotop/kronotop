@@ -100,9 +100,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
     public void startReplication(int shardId, boolean explicit) {
         Route route = routing.findRoute(shardId);
         if (route == null) {
-            throw new NoRouteFoundException(
-                    "No route found for shard " + shardId
-            );
+            throw new NoRouteFoundException("No route found for shard: '" + shardId + "'");
         }
         if (route.standbys().contains(context.getMember())) {
             rwlock.writeLock().lock();

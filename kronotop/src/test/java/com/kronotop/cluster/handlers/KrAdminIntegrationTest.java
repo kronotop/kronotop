@@ -87,12 +87,13 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
 
         for (RouteKind routeKind : RouteKind.values()) {
             ByteBuf buf = Unpooled.buffer();
-            cmd.route("SET", routeKind.name(), 1, MemberIdGenerator.generateId()).encode(buf);
+            String memberId = MemberIdGenerator.generateId();
+            cmd.route("SET", routeKind.name(), 1, memberId).encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-            assertEquals("ERR Member not found", actualMessage.content());
+            assertEquals(String.format("ERR No such member: '%s'", memberId), actualMessage.content());
         }
     }
 }

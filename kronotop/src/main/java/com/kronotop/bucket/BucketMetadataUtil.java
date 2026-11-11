@@ -891,7 +891,7 @@ public class BucketMetadataUtil {
             return indexSubspace;
         } catch (CompletionException e) {
             if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                throw new KronotopException("'" + indexName + "' has already exist");
+                throw new KronotopException("Index already exists: '" + indexName + "'");
             }
             throw e;
         }

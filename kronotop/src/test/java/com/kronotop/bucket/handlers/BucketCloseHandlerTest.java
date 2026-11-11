@@ -95,7 +95,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
             assertEquals(Response.OK, closeResponse.content(), "First close should return OK");
         }
 
-        // Step 4: Try to close the same cursor again - should return "No cursor found" error
+        // Step 4: Try to close the same cursor again - should return "No such cursor" error
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.close("QUERY", cursorId).encode(buf);
@@ -103,8 +103,8 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
 
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage errorResponse = (ErrorRedisMessage) msg;
-            assertEquals("ERR No cursor found", errorResponse.content(),
-                    "Second close attempt should return 'No cursor found' error");
+            assertEquals(String.format("ERR No such cursor: '%d'", cursorId), errorResponse.content(),
+                    "Second close attempt should return 'No such cursor' error");
         }
 
         // Step 5: Verify that trying to advance the closed cursor also fails
@@ -188,7 +188,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(ErrorRedisMessage.class, msg);
-            assertEquals("ERR No cursor found", ((ErrorRedisMessage) msg).content());
+            assertEquals("ERR No such cursor: '99999'", ((ErrorRedisMessage) msg).content());
         }
     }
 
@@ -239,7 +239,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(ErrorRedisMessage.class, msg);
-            assertEquals("ERR No cursor found", ((ErrorRedisMessage) msg).content());
+            assertEquals(String.format("ERR No such cursor: '%d'", deleteCursorId), ((ErrorRedisMessage) msg).content());
         }
     }
 

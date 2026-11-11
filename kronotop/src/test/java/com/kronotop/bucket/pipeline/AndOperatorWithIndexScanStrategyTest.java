@@ -430,7 +430,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
             assertEquals(expectedAges, actualAges, "Should return document with age 25");
 
         } catch (RuntimeException e) {
-            if (!(e.getMessage().contains("Shard not found") || e.getMessage().contains("not found"))) {
+            if (!(e.getMessage().contains("No such shard") || e.getMessage().contains("not found"))) {
                 throw e;
             }
         }
@@ -507,7 +507,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
             assertEquals(expectedAges, actualAges, "Should return documents with specific ages");
 
         } catch (RuntimeException e) {
-            if (!(e.getMessage().contains("Shard not found") || e.getMessage().contains("not found"))) {
+            if (!(e.getMessage().contains("No such shard") || e.getMessage().contains("not found"))) {
                 throw e;
             }
         }
@@ -587,7 +587,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
             assertEquals(350, maxPrice, "Maximum price in results should be 350");
 
         } catch (RuntimeException e) {
-            if (!(e.getMessage().contains("Shard not found") || e.getMessage().contains("not found"))) {
+            if (!(e.getMessage().contains("No such shard") || e.getMessage().contains("not found"))) {
                 throw e;
             }
         }

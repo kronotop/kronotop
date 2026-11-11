@@ -117,9 +117,9 @@ The cursor ID must match the operation type. For example, a cursor created by `B
 
 Argument errors:
 
-| Error Code | Error message                     | Cause                                                     |
-|------------|-----------------------------------|-----------------------------------------------------------|
-| `ERR`      | `Unknown '<operation>' operation` | The operation type is not `QUERY`, `DELETE`, or `UPDATE`. |
+| Error Code | Error message                      | Cause                                                     |
+|------------|------------------------------------|-----------------------------------------------------------|
+| `ERR`      | `Unknown operation: '<operation>'` | The operation type is not `QUERY`, `DELETE`, or `UPDATE`. |
 
 Bucket errors:
 

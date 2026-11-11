@@ -34,16 +34,16 @@ Operators must explicitly set shard status and assign routes before the cluster 
 
 Argument errors:
 
-| Error Code | Error message                 | Cause |
-|------------|-------------------------------|-------|
-| `ERR`      | `Invalid number of arguments` | -     |
+| Error Code | Error message                                                         | Cause |
+|------------|-----------------------------------------------------------------------|-------|
+| `ERR`      | `Wrong number of arguments for 'KR.ADMIN INITIALIZE-CLUSTER' command` | -     |
 
 Cluster errors:
 
-| Error Code | Error message                                          | Cause                                                                                                                 |
-|------------|--------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
-| `ERR`      | `Cluster has already been initialized`                 | -                                                                                                                     |
-| `ERR`      | `KronotopDirectory: '<path>' has already been created` | A directory created during initialization already exists, indicating a partial or conflicting initialization attempt. |
+| Error Code | Error message                          | Cause                                                                                                                 |
+|------------|----------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
+| `ERR`      | `Cluster has already been initialized` | -                                                                                                                     |
+| `ERR`      | `Directory already exists: '<path>'`   | A directory created during initialization already exists, indicating a partial or conflicting initialization attempt. |
 
 ## Examples
 

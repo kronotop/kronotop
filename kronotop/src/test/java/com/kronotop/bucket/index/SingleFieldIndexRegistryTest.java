@@ -228,7 +228,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
 
         IndexAlreadyRegisteredException exception = assertThrows(IndexAlreadyRegisteredException.class, () ->
                 indexRegistry.register(secondDef, secondSubspace));
-        assertEquals("Index entry with 'shared.field' has already registered", exception.getMessage());
+        assertEquals("Index entry with 'shared.field' has already been registered", exception.getMessage());
 
         // Should still return the first (original) index
         SingleFieldIndex result = indexRegistry.getIndex("shared.field", IndexSelectionPolicy.ALL);

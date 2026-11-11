@@ -20,6 +20,6 @@ import com.kronotop.KronotopException;
 
 public class ClosedVolumeException extends KronotopException {
     public ClosedVolumeException(String name) {
-        super(String.format("Volume %s is closed", name));
+        super(String.format("Volume '%s' is closed", name));
     }
 }

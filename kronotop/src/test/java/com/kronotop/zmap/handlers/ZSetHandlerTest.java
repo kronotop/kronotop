@@ -52,7 +52,7 @@ class ZSetHandlerTest extends BaseHandlerTest {
                         "ERR Wrong number of arguments for 'ZSET' command"),
                 arguments("unknown keyword",
                         List.of("key", "value", "EXTRA"),
-                        "ERR Unknown 'EXTRA' argument"),
+                        "ERR Unknown argument: 'EXTRA'"),
                 arguments("NAMESPACE without value",
                         List.of("key", "value", "NAMESPACE"),
                         "ERR NAMESPACE argument must be followed by a namespace")

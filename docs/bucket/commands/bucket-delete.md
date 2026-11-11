@@ -108,8 +108,8 @@ Argument errors:
 | `ERR`      | `'SORTBY' is an unsupported argument`                       | -     |
 | `ERR`      | `BATCH argument must be followed by a non-negative integer` | -     |
 | `ERR`      | `LIMIT argument must be followed by a non-negative integer` | -     |
-| `ERR`      | `Unknown '<keyword>' argument`                              | -     |
-| `ERR`      | `Duplicate '<keyword>' argument`                            | -     |
+| `ERR`      | `Unknown argument: '<keyword>'`                             | -     |
+| `ERR`      | `Duplicate argument: '<keyword>'`                           | -     |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace`        | -     |
 
 Namespace errors:

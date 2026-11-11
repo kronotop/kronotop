@@ -55,7 +55,7 @@ class ZGetHandlerTest extends BaseHandlerTest {
                         "ERR Wrong number of arguments for 'ZGET' command"),
                 arguments("unknown keyword",
                         List.of("key", "EXTRA"),
-                        "ERR Unknown 'EXTRA' argument"),
+                        "ERR Unknown argument: 'EXTRA'"),
                 arguments("NAMESPACE without value",
                         List.of("key", "NAMESPACE"),
                         "ERR NAMESPACE argument must be followed by a namespace")

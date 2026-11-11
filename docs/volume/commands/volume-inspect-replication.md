@@ -64,21 +64,20 @@ It is available on the management port (default 3320).
 
 Argument errors:
 
-| Error Code | Error message                 | Cause                                                                   |
-|------------|-------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `Invalid number of arguments` | -                                                                       |
-| `ERR`      | `Invalid volume name: <name>` | The name does not match the `shard-<id>` format.                        |
-| `ERR`      | `Invalid shard id: <value>`   | The part after `shard-` in the volume name is not an integer.           |
-| `ERR`      | `Invalid shard id`            | The volume name points to a shard that does not exist.                  |
-| `ERR`      | `Invalid member id: <id>`     | The value is neither a 40-character member ID nor a 4-character prefix. |
+| Error Code | Error message                                                        | Cause                                                                                  |
+|------------|----------------------------------------------------------------------|----------------------------------------------------------------------------------------|
+| `ERR`      | `Wrong number of arguments for 'VOLUME.INSPECT REPLICATION' command` | -                                                                                      |
+| `ERR`      | `Invalid volume name: '<name>'`                                      | The name does not match the `shard-<id>` format.                                       |
+| `ERR`      | `Invalid shard id: '<value>'`                                        | The part after `shard-` in the volume name is not an integer, or no shard has that ID. |
+| `ERR`      | `Invalid member id: '<id>'`                                          | The value is neither a 40-character member ID nor a 4-character prefix.                |
 
 Volume errors:
 
-| Error Code | Error message                                      | Cause                                               |
-|------------|----------------------------------------------------|-----------------------------------------------------|
-| `ERR`      | `No member found with prefix: <prefix>`            | -                                                   |
-| `ERR`      | `More than one member found with prefix: <prefix>` | -                                                   |
-| `ERR`      | `No such standby member`                           | The member has no replication state for the volume. |
+| Error Code | Error message                                        | Cause                                               |
+|------------|------------------------------------------------------|-----------------------------------------------------|
+| `ERR`      | `No member found with prefix: '<prefix>'`            | -                                                   |
+| `ERR`      | `More than one member found with prefix: '<prefix>'` | -                                                   |
+| `ERR`      | `No such standby member: '<member-id>'`              | The member has no replication state for the volume. |
 
 ## Examples
 

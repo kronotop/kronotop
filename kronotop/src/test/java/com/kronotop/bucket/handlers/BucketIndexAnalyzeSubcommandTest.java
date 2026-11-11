@@ -106,7 +106,7 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
                 if (msg instanceof ErrorRedisMessage errorMessage) {
                     assertFalse(errorMessage.content().startsWith("NOT_COMMITTED"),
                             "Transient FDB conflict, retrying");
-                    assertEquals("ERR An analyze task has already exist", errorMessage.content());
+                    assertEquals("ERR An analyze task already exists", errorMessage.content());
                 } else {
                     SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
                     assertNotNull(actualMessage);
@@ -201,7 +201,7 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
             Object response = run(bucketCmd.indexAnalyze(TEST_BUCKET, "test-index", otherNamespace));
             // The background IndexBoundaryRoutine may have already scheduled an analyze task.
             if (response instanceof ErrorRedisMessage error) {
-                assertEquals("ERR An analyze task has already exist", error.content());
+                assertEquals("ERR An analyze task already exists", error.content());
             } else {
                 assertOK(response);
             }
@@ -219,9 +219,9 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
         // Behavior: BUCKET.INDEX ANALYZE rejects NAMESPACE without a value, an unknown keyword and an argument after the namespace.
         assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("ANALYZE", "test-bucket", "test-index", "NAMESPACE")));
-        assertErrorReply("ERR Unknown 'BOGUS' argument",
+        assertErrorReply("ERR Unknown argument: 'BOGUS'",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("ANALYZE", "test-bucket", "test-index", "BOGUS")));
-        assertErrorReply("ERR Wrong number of arguments",
+        assertErrorReply("ERR Wrong number of arguments for 'BUCKET.INDEX ANALYZE' command",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("ANALYZE", "test-bucket", "test-index", "NAMESPACE", "ns", "EXTRA")));
     }
 }

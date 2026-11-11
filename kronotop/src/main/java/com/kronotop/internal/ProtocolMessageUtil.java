@@ -95,8 +95,22 @@ public class ProtocolMessageUtil {
         try {
             return Enum.valueOf(type, StringUtil.toUpperCaseAscii(raw));
         } catch (IllegalArgumentException e) {
-            throw new IllegalCommandArgumentException(String.format("Unknown %s: '%s'", what, raw));
+            throw unknown(what, raw);
         }
+    }
+
+    /**
+     * Creates the error for an argument that a command does not know.
+     *
+     * @param raw the argument as it is written on the wire
+     * @return the exception to throw
+     */
+    public static IllegalCommandArgumentException unknownArgument(String raw) {
+        return unknown("argument", raw);
+    }
+
+    private static IllegalCommandArgumentException unknown(String what, String raw) {
+        return new IllegalCommandArgumentException(String.format("Unknown %s: '%s'", what, raw));
     }
 
     /**
@@ -180,7 +194,7 @@ public class ProtocolMessageUtil {
                 case FALSE -> false;
             };
         } catch (IllegalArgumentException e) {
-            throw new KronotopException("Invalid boolean value: " + value);
+            throw new KronotopException("Invalid boolean value: '" + value + "'");
         }
     }
 
@@ -205,10 +219,10 @@ public class ProtocolMessageUtil {
             }
         }
         if (result.isEmpty()) {
-            throw new KronotopException("No member found with prefix: " + memberPrefix);
+            throw new KronotopException("No member found with prefix: '" + memberPrefix + "'");
         }
         if (result.size() > 1) {
-            throw new KronotopException("More than one member found with prefix: " + memberPrefix);
+            throw new KronotopException("More than one member found with prefix: '" + memberPrefix + "'");
         }
         return result.iterator().next();
     }
@@ -234,7 +248,7 @@ public class ProtocolMessageUtil {
         if (MemberIdGenerator.validateId(memberId)) {
             return memberId;
         } else {
-            throw new KronotopException("Invalid member id: " + memberId);
+            throw new KronotopException("Invalid member id: '" + memberId + "'");
         }
     }
 
@@ -244,8 +258,7 @@ public class ProtocolMessageUtil {
      * @param registry   the shard registry for validation
      * @param shardIdBuf buffer containing the shard ID as a numeric string
      * @return the validated shard ID
-     * @throws KronotopException       if the value is not a valid integer
-     * @throws InvalidShardIdException if no shard has this ID
+     * @throws InvalidShardIdException if the value is not an integer or no shard has this ID
      */
     public static int readShardId(ShardRegistry registry, ByteBuf shardIdBuf) {
         String rawShardId = ProtocolMessageUtil.readAsString(shardIdBuf);
@@ -258,18 +271,17 @@ public class ProtocolMessageUtil {
      * @param registry   the shard registry for validation
      * @param rawShardId the shard ID as a numeric string
      * @return the validated shard ID
-     * @throws KronotopException       if the value is not a valid integer
-     * @throws InvalidShardIdException if no shard has this ID
+     * @throws InvalidShardIdException if the value is not an integer or no shard has this ID
      */
     public static int readShardId(ShardRegistry registry, String rawShardId) {
         try {
             int shardId = Integer.parseInt(rawShardId);
             if (!registry.isValidShardId(shardId)) {
-                throw new InvalidShardIdException();
+                throw new InvalidShardIdException(rawShardId);
             }
             return shardId;
         } catch (NumberFormatException e) {
-            throw new KronotopException("shard-id is not an integer or out of range");
+            throw new InvalidShardIdException(rawShardId);
         }
     }
 
@@ -292,7 +304,7 @@ public class ProtocolMessageUtil {
         }
         long bit = 1L << key.ordinal();
         if ((seen & bit) != 0) {
-            throw new IllegalCommandArgumentException(String.format("Duplicate '%s' argument", name));
+            throw new IllegalCommandArgumentException(String.format("Duplicate argument: '%s'", name));
         }
         return seen | bit;
     }
@@ -342,7 +354,7 @@ public class ProtocolMessageUtil {
         for (int i = startIndex; i < arguments.size(); i++) {
             String raw = readAsString(arguments.get(i));
             if (!StringUtil.toUpperCaseAscii(raw).equals(NAMESPACE_KEYWORD)) {
-                throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+                throw unknownArgument(raw);
             }
             ByteBuf value = requireValue(arguments, i, NAMESPACE_KEYWORD, NAMESPACE_PATH);
             namespace = readAsString(value);

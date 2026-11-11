@@ -170,7 +170,7 @@ class TransactionHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldRejectUnknownId() {
-        assertError(kill(999999), "TRANSACTION No such transaction: 999999");
+        assertError(kill(999999), "TRANSACTION No such transaction: '999999'");
     }
 
     @Test

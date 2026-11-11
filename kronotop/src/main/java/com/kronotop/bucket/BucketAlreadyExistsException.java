@@ -21,6 +21,6 @@ import com.kronotop.server.RESPError;
 
 public class BucketAlreadyExistsException extends KronotopException {
     public BucketAlreadyExistsException(String bucket) {
-        super(RESPError.BUCKETALREADYEXISTS, String.format("Bucket already exists: %s", bucket));
+        super(RESPError.BUCKETALREADYEXISTS, String.format("Bucket already exists: '%s'", bucket));
     }
 }

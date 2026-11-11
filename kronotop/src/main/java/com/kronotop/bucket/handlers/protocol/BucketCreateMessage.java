@@ -18,7 +18,6 @@ package com.kronotop.bucket.handlers.protocol;
 
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.StringUtil;
-import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
@@ -78,7 +77,7 @@ public class BucketCreateMessage extends AbstractBucketMessage implements Protoc
             String raw = ProtocolMessageUtil.readAsString(request.getArguments().get(i));
             CreateArgumentKey key = tryParseKey(raw);
             if (key == null) {
-                throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+                throw ProtocolMessageUtil.unknownArgument(raw);
             }
             String keyword = StringUtil.toUpperCaseAscii(raw);
             seen = ProtocolMessageUtil.markArgumentSeen(seen, key, keyword);

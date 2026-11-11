@@ -28,6 +28,7 @@ import com.kronotop.cluster.ClusterConstants;
 import com.kronotop.cluster.MembershipUtil;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.ShardUtil;
+import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
@@ -36,6 +37,7 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.Session;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
 
@@ -139,9 +141,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
             tr.commit().join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof DirectoryAlreadyExistsException ex) {
-                throw new KronotopException(
-                        String.format("KronotopDirectory: '%s' has already been created", String.join(".", ex.path))
-                );
+                throw new KronotopException("Directory already exists: '" + String.join(".", ex.path) + "'");
             }
             throw e;
         }
@@ -157,7 +157,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
     @Override
     public void execute(Request request, Response response) {
         if (request.getArguments().size() != 1) {
-            throw new InvalidNumberOfArgumentsException();
+            throw new WrongNumberOfArgumentsException(KrAdminMessage.COMMAND, KrAdminSubcommand.INITIALIZE_CLUSTER);
         }
         runAsync(context, response, () -> {
             Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));

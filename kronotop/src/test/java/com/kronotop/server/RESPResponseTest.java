@@ -16,9 +16,13 @@
 
 package com.kronotop.server;
 
+import com.apple.foundationdb.FDBException;
 import com.kronotop.BaseStandaloneInstanceTest;
+import com.kronotop.KronotopException;
+import com.kronotop.bucket.NoSuchBucketException;
 import com.kronotop.server.impl.RESPResponse;
 import com.kronotop.server.resp3.*;
+import com.kronotop.volume.EntryOutOfBoundException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.CharsetUtil;
@@ -29,6 +33,7 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.CompletionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -259,6 +264,67 @@ class RESPResponseTest extends BaseStandaloneInstanceTest {
         assertInstanceOf(ErrorRedisMessage.class, redisMessage);
         ErrorRedisMessage errorRedisMessage = (ErrorRedisMessage) redisMessage;
         assertEquals("CROSSSLOT error message", errorRedisMessage.content());
+    }
+
+    @Test
+    void shouldWriteKronotopExceptionWithItsPrefix() {
+        // Behavior: A KronotopException that carries the NOSUCHBUCKET prefix is written with that prefix and its
+        // own message. The reply is the same when the exception is passed directly and when it arrives wrapped
+        // in a CompletionException.
+        NoSuchBucketException exception = new NoSuchBucketException("users");
+
+        assertEquals("NOSUCHBUCKET No such bucket: 'users'", errorOf(exception));
+        assertEquals("NOSUCHBUCKET No such bucket: 'users'", errorOf(new CompletionException(exception)));
+    }
+
+    @Test
+    void shouldWriteWrapperMessageWhenCauseIsNotKronotopException() {
+        // Behavior: A KronotopException created with its own message and a cause that is not a
+        // KronotopException is written with the ERR prefix and the message of the KronotopException. The
+        // message of the cause does not reach the client.
+        KronotopException exception = new KronotopException("JSON deserialization failed", new RuntimeException("internal"));
+
+        assertEquals("ERR JSON deserialization failed", errorOf(exception));
+    }
+
+    @Test
+    void shouldSkipCauseOnlyKronotopException() {
+        // Behavior: A KronotopException created from a cause alone is skipped and the message of the cause is
+        // written with the ERR prefix, without the class name of the cause. The reply is the same when the
+        // exception is passed directly and when it arrives wrapped in a CompletionException.
+        KronotopException exception = new KronotopException(new IllegalArgumentException("Unknown BSON type: int322"));
+
+        assertEquals("ERR Unknown BSON type: int322", errorOf(exception));
+        assertEquals("ERR Unknown BSON type: int322", errorOf(new CompletionException(exception)));
+    }
+
+    @Test
+    void shouldWriteFDBErrorWhenRootCauseIsFDBException() {
+        // Behavior: When the root cause is an FDBException with the code 1020, the reply uses the prefix and
+        // the message registered for that code, even if a KronotopException wraps the FDBException.
+        KronotopException exception = new KronotopException(new FDBException("not_committed", 1020));
+
+        assertEquals(
+                "NOT_COMMITTED Transaction not committed due to conflict with another transaction",
+                errorOf(exception)
+        );
+    }
+
+    @Test
+    void shouldPreferRootKronotopExceptionOverWrapper() {
+        // Behavior: When a KronotopException wraps another KronotopException that is the root cause, the reply
+        // uses the prefix and the message of the root cause, so the OUTOFBOUND prefix is kept.
+        KronotopException exception = new KronotopException("outer", new EntryOutOfBoundException("inner"));
+
+        assertEquals("OUTOFBOUND inner", errorOf(exception));
+    }
+
+    @Test
+    void shouldWriteMessageOfNonKronotopException() {
+        // Behavior: An exception that is neither a KronotopException nor an FDBException is written with the
+        // ERR prefix and its own message. When it has no message, its simple class name is written instead.
+        assertEquals("ERR Invalid value", errorOf(new IllegalArgumentException("Invalid value")));
+        assertEquals("ERR IllegalStateException", errorOf(new IllegalStateException()));
     }
 
     @Test
@@ -593,6 +659,13 @@ class RESPResponseTest extends BaseStandaloneInstanceTest {
 
     private RedisMessage readOutbound() {
         return instance.getChannel().readOutbound();
+    }
+
+    private String errorOf(Throwable throwable) {
+        newResponse(RESPVersion.RESP3).writeError(throwable);
+        RedisMessage redisMessage = readOutbound();
+        assertInstanceOf(ErrorRedisMessage.class, redisMessage);
+        return ((ErrorRedisMessage) redisMessage).content();
     }
 
     private List<RedisMessage> flatArrayOf(RedisMessage message) {

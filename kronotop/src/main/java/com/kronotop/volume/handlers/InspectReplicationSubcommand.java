@@ -20,17 +20,19 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.KronotopException;
-import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.cluster.handlers.InvalidShardIdException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.volume.VolumeNames;
 import com.kronotop.volume.VolumeService;
+import com.kronotop.volume.handlers.protocol.VolumeInspectMessage;
+import com.kronotop.volume.handlers.protocol.VolumeInspectSubcommand;
 import com.kronotop.volume.replication.ReplicationStatusInfo;
 import com.kronotop.volume.replication.ReplicationUtil;
 import io.netty.buffer.ByteBuf;
@@ -119,7 +121,7 @@ class InspectReplicationSubcommand extends BaseSubcommandHandler implements Subc
                 return mapReplicationStatusInfo(info);
             } catch (CompletionException exp) {
                 if (exp.getCause() instanceof NoSuchDirectoryException ignored) {
-                    throw new KronotopException("No such standby member");
+                    throw new KronotopException(String.format("No such standby member: '%s'", arguments.standById));
                 }
                 throw exp;
             }
@@ -132,13 +134,13 @@ class InspectReplicationSubcommand extends BaseSubcommandHandler implements Subc
 
         private ReplicationArguments(ArrayList<ByteBuf> args) {
             if (args.size() != 3) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(VolumeInspectMessage.COMMAND, VolumeInspectSubcommand.REPLICATION);
             }
 
             volumeName = ProtocolMessageUtil.readAsString(args.get(1));
             int shardId = VolumeNames.parse(volumeName);
             if (!service.getContext().getShardRegistry().isValidShardId(shardId)) {
-                throw new InvalidShardIdException();
+                throw new InvalidShardIdException(Integer.toString(shardId));
             }
             standById = ProtocolMessageUtil.readMemberId(service.getContext(), args.get(2));
         }

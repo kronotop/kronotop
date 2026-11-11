@@ -32,21 +32,21 @@ Updates the status of the specified member and notifies the cluster so that othe
 
 Argument errors:
 
-| Error Code | Error message                      | Cause                                                                   |
-|------------|------------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `Invalid number of arguments`      | -                                                                       |
-| `ERR`      | `Unknown member status: '<value>'` | -                                                                       |
-| `ERR`      | `Invalid member id: <id>`          | The value is neither a 40-character member ID nor a 4-character prefix. |
+| Error Code | Error message                                                        | Cause                                                                   |
+|------------|----------------------------------------------------------------------|-------------------------------------------------------------------------|
+| `ERR`      | `Wrong number of arguments for 'KR.ADMIN SET-MEMBER-STATUS' command` | -                                                                       |
+| `ERR`      | `Unknown member status: '<value>'`                                   | -                                                                       |
+| `ERR`      | `Invalid member id: '<id>'`                                          | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 Cluster errors:
 
-| Error Code | Error message                                      | Cause                                                    |
-|------------|----------------------------------------------------|----------------------------------------------------------|
-| `ERR`      | `Cluster has not been initialized yet`             | -                                                        |
-| `ERR`      | `Member: <member-id> not registered`               | -                                                        |
-| `ERR`      | `Member: <member-id> not registered properly`      | The member directory exists but contains no member data. |
-| `ERR`      | `No member found with prefix: <prefix>`            | -                                                        |
-| `ERR`      | `More than one member found with prefix: <prefix>` | -                                                        |
+| Error Code | Error message                                        | Cause                                                    |
+|------------|------------------------------------------------------|----------------------------------------------------------|
+| `ERR`      | `Cluster has not been initialized yet`               | -                                                        |
+| `ERR`      | `No such member: '<member-id>'`                      | -                                                        |
+| `ERR`      | `Member: '<member-id>' not registered properly`      | The member directory exists but contains no member data. |
+| `ERR`      | `No member found with prefix: '<prefix>'`            | -                                                        |
+| `ERR`      | `More than one member found with prefix: '<prefix>'` | -                                                        |
 
 ## Examples
 
@@ -75,5 +75,5 @@ OK
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN SET-MEMBER-STATUS a3f18b2e74d9c5601f82e4a7b390d612c8f7e149 RUNNING
-(error) ERR Member: a3f18b2e74d9c5601f82e4a7b390d612c8f7e149 not registered
+(error) ERR No such member: 'a3f18b2e74d9c5601f82e4a7b390d612c8f7e149'
 ```

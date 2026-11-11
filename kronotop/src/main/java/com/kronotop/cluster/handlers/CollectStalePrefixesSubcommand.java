@@ -27,6 +27,7 @@ import com.kronotop.cluster.CollectStalePrefixesTask;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberNotRegisteredException;
 import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.ProtocolMessageUtil;
@@ -35,6 +36,7 @@ import com.kronotop.network.Address;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.task.TaskService;
@@ -139,7 +141,7 @@ class CollectStalePrefixesSubcommand extends BaseKrAdminSubcommandHandler implem
 
         private CollectStalePrefixesArguments(ArrayList<ByteBuf> args) {
             if (args.size() != 2) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(KrAdminMessage.COMMAND, KrAdminSubcommand.COLLECT_STALE_PREFIXES);
             }
 
             operation = ProtocolMessageUtil.readEnum(Operation.class, args.get(1), "operation");

@@ -65,17 +65,17 @@ It is available on the management port (default 3320).
 
 Argument errors:
 
-| Error Code | Error message                  | Cause |
-|------------|--------------------------------|-------|
-| `ERR`      | `Invalid number of arguments`  | -     |
-| `ERR`      | `Unknown operation: '<value>'` | -     |
+| Error Code | Error message                                                             | Cause |
+|------------|---------------------------------------------------------------------------|-------|
+| `ERR`      | `Wrong number of arguments for 'KR.ADMIN COLLECT-STALE-PREFIXES' command` | -     |
+| `ERR`      | `Unknown operation: '<value>'`                                            | -     |
 
 Task errors:
 
 | Error Code | Error message                                                                          | Cause                                    |
 |------------|----------------------------------------------------------------------------------------|------------------------------------------|
-| `ERR`      | `Task cluster:collect-stale-prefixes-task already exists`                              | -                                        |
-| `ERR`      | `Task with name cluster:collect-stale-prefixes-task does not exist`                    | -                                        |
+| `ERR`      | `Task already exists: 'cluster:collect-stale-prefixes-task'`                           | -                                        |
+| `ERR`      | `No such task: 'cluster:collect-stale-prefixes-task'`                                  | -                                        |
 | `ERR`      | `Run by another cluster member`                                                        | -                                        |
 | `ERR`      | `Another member is starting task cluster:collect-stale-prefixes-task at the same time` | Two members ran `START` at the same time |
 | `ERR`      | `No metadata found`                                                                    | -                                        |
@@ -107,7 +107,7 @@ OK
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES START
-(error) ERR Task cluster:collect-stale-prefixes-task already exists
+(error) ERR Task already exists: 'cluster:collect-stale-prefixes-task'
 ```
 
 **Locate the task owner:**
@@ -126,5 +126,5 @@ OK
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES STOP
-(error) ERR Task with name cluster:collect-stale-prefixes-task does not exist
+(error) ERR No such task: 'cluster:collect-stale-prefixes-task'
 ```

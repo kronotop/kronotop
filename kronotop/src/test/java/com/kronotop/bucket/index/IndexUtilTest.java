@@ -207,7 +207,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
                 SingleFieldIndexUtil.create(tr, metadata.subspace(), definition);
             }
         });
-        assertEquals("'" + definition.name() + "' has already exist", exception.getMessage());
+        assertEquals(String.format("Index already exists: '%s'", definition.name()), exception.getMessage());
     }
 
     @Test

@@ -59,7 +59,7 @@ Argument errors:
 |------------|------------------------------------------------------|-------------------------------------------|
 | `ERR`      | `Wrong number of arguments for 'ZINC.I64' command`   | -                                         |
 | `ERR`      | `Value is not a long or out of range`                | The value is not a signed 64-bit integer. |
-| `ERR`      | `Unknown '<keyword>' argument`                       | -                                         |
+| `ERR`      | `Unknown argument: '<keyword>'`                      | -                                         |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace` | -                                         |
 
 Namespace errors:

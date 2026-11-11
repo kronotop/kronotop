@@ -180,7 +180,7 @@ public class UpdateOptionsConverter {
             case "$all" -> Operator.ALL;
             case "$size" -> Operator.SIZE;
             case "$exists" -> Operator.EXISTS;
-            default -> throw new IllegalArgumentException("Unsupported array filter operator: " + opKey);
+            default -> throw new IllegalArgumentException("Unsupported array filter operator: '" + opKey + "'");
         };
     }
 

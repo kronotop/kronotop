@@ -74,7 +74,7 @@ public class ZIncD128Handler extends BaseZMapHandler implements Handler {
             try {
                 next = new Decimal128(nextValue);
             } catch (NumberFormatException e) {
-                throw new KronotopException("ERR decimal overflow", e);
+                throw new KronotopException("Result is not representable as Decimal128", e);
             }
             tr.set(key, ZMapNumericValueCodec.encodeD128(next));
             TransactionUtil.commitIfAutoCommitEnabled(tr, session);

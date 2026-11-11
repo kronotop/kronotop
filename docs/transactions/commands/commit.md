@@ -48,7 +48,7 @@ Argument errors:
 
 | Error Code | Error message                                                              | Cause                                                   |
 |------------|----------------------------------------------------------------------------|---------------------------------------------------------|
-| `ERR`      | `Unknown '<argument>' argument`                                            | -                                                       |
+| `ERR`      | `Unknown argument: '<argument>'`                                           | -                                                       |
 | `ERR`      | `RETURNING argument must be followed by VERSIONSTAMP or COMMITTED_VERSION` | -                                                       |
 | `ERR`      | `Unknown RETURNING argument: '<value>'`                                    | The value is not `committed-version` or `versionstamp`. |
 

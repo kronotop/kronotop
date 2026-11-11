@@ -20,6 +20,6 @@ import com.kronotop.KronotopException;
 
 public class TaskAlreadyExistsException extends KronotopException {
     public TaskAlreadyExistsException(String name) {
-        super("Task " + name + " already exists");
+        super("Task already exists: '" + name + "'");
     }
 }

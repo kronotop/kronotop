@@ -86,7 +86,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
-        assertEquals("ERR Unknown BSON type: int322", actualMessage.content());
+        assertEquals("ERR Unknown BSON type: 'int322'", actualMessage.content());
     }
 
 
@@ -467,7 +467,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-            assertEquals("ERR 'shared_name' has already exist", errorMessage.content());
+            assertEquals("ERR Index already exists: 'shared_name'", errorMessage.content());
         }
     }
 
@@ -826,9 +826,9 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
         // Behavior: BUCKET.INDEX CREATE rejects NAMESPACE without a value, an unknown keyword and an argument after the namespace.
         assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("CREATE", "test-bucket", "{\"username\": {\"bson_type\": \"string\"}}", "NAMESPACE")));
-        assertErrorReply("ERR Unknown 'BOGUS' argument",
+        assertErrorReply("ERR Unknown argument: 'BOGUS'",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("CREATE", "test-bucket", "{\"username\": {\"bson_type\": \"string\"}}", "BOGUS")));
-        assertErrorReply("ERR Wrong number of arguments",
+        assertErrorReply("ERR Wrong number of arguments for 'BUCKET.INDEX CREATE' command",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("CREATE", "test-bucket", "{\"username\": {\"bson_type\": \"string\"}}", "NAMESPACE", "ns", "EXTRA")));
     }
 }

@@ -47,11 +47,11 @@ This command is available on the management port (default 3320).
 
 Argument errors:
 
-| Error Code | Error message                 | Cause                                                                   |
-|------------|-------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `Invalid number of arguments` | -                                                                       |
-| `ERR`      | `Invalid volume name: <name>` | The name does not match the `shard-<id>` format.                        |
-| `ERR`      | `Invalid member id: <id>`     | The value is neither a 40-character member ID nor a 4-character prefix. |
+| Error Code | Error message                                                      | Cause                                                                   |
+|------------|--------------------------------------------------------------------|-------------------------------------------------------------------------|
+| `ERR`      | `Wrong number of arguments for 'VOLUME.STATS REPLICATION' command` | -                                                                       |
+| `ERR`      | `Invalid volume name: '<name>'`                                    | The name does not match the `shard-<id>` format.                        |
+| `ERR`      | `Invalid member id: '<id>'`                                        | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 ## Examples
 

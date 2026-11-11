@@ -39,15 +39,15 @@ All attribute names and enum values are case-insensitive.
 
 Argument errors:
 
-| Error Code | Error message                         | Cause |
-|------------|---------------------------------------|-------|
-| `ERR`      | `Unknown subcommand: '<value>'`       | -     |
-| `ERR`      | `Invalid number of arguments`         | -     |
-| `ERR`      | `Unknown session attribute: '<name>'` | -     |
-| `ERR`      | `Unknown reply type: '<value>'`       | -     |
-| `ERR`      | `Unknown input type: '<value>'`       | -     |
-| `ERR`      | `Unknown object id format: '<value>'` | -     |
-| `ERR`      | `'batch' must be greater than 0`      | -     |
+| Error Code | Error message                                                            | Cause |
+|------------|--------------------------------------------------------------------------|-------|
+| `ERR`      | `Unknown subcommand: '<value>'`                                          | -     |
+| `ERR`      | `Wrong number of arguments for 'SESSION.ATTRIBUTE <subcommand>' command` | -     |
+| `ERR`      | `Unknown session attribute: '<name>'`                                    | -     |
+| `ERR`      | `Unknown reply type: '<value>'`                                          | -     |
+| `ERR`      | `Unknown input type: '<value>'`                                          | -     |
+| `ERR`      | `Unknown object id format: '<value>'`                                    | -     |
+| `ERR`      | `'batch' must be greater than 0`                                         | -     |
 
 ## Examples
 

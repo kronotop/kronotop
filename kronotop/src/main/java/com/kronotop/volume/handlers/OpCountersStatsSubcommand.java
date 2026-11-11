@@ -23,6 +23,7 @@ import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.VolumeStats;
 import com.kronotop.volume.handlers.protocol.VolumeStatsMessage;
+import com.kronotop.volume.handlers.protocol.VolumeStatsSubcommand;
 
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
@@ -47,9 +48,7 @@ class OpCountersStatsSubcommand extends BaseSubcommandHandler implements Subcomm
     @Override
     public void execute(Request request, Response response) {
         if (request.getArguments().size() != 2) {
-            throw new WrongNumberOfArgumentsException(
-                    String.format("Wrong number of arguments for '%s' command", VolumeStatsMessage.COMMAND)
-            );
+            throw new WrongNumberOfArgumentsException(VolumeStatsMessage.COMMAND, VolumeStatsSubcommand.OPCOUNTERS);
         }
 
         VolumeStatsMessage message = request.attr(MessageTypes.VOLUMESTATS).get();

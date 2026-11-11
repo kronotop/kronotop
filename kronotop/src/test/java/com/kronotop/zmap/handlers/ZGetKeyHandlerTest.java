@@ -46,7 +46,7 @@ class ZGetKeyHandlerTest extends BaseHandlerTest {
         return Stream.of(
                 arguments("unknown keyword",
                         List.of("key-0", "SELECTOR", "first_greater_than"),
-                        "ERR Unknown 'SELECTOR' argument"),
+                        "ERR Unknown argument: 'SELECTOR'"),
                 arguments("key selector without value",
                         List.of("key-0", "KEY-SELECTOR"),
                         "ERR KEY-SELECTOR argument must be followed by a valid key selector"),
@@ -57,7 +57,7 @@ class ZGetKeyHandlerTest extends BaseHandlerTest {
                         List.of("key-0",
                                 "KEY-SELECTOR", "first_greater_than",
                                 "KEY-SELECTOR", "first_greater_or_equal"),
-                        "ERR Duplicate 'KEY-SELECTOR' argument"),
+                        "ERR Duplicate argument: 'KEY-SELECTOR'"),
                 arguments("NAMESPACE without value",
                         List.of("key-0", "NAMESPACE"),
                         "ERR NAMESPACE argument must be followed by a namespace"),

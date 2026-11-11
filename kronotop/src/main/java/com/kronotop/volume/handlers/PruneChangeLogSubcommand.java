@@ -17,14 +17,16 @@
 package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
 import com.kronotop.volume.changelog.ChangeLog;
+import com.kronotop.volume.handlers.protocol.VolumeAdminMessage;
+import com.kronotop.volume.handlers.protocol.VolumeAdminSubcommand;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -71,7 +73,7 @@ class PruneChangeLogSubcommand extends BaseSubcommandHandler implements Subcomma
 
         private PruneChangeLogArguments(ArrayList<ByteBuf> args) {
             if (args.size() != 3) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(VolumeAdminMessage.COMMAND, VolumeAdminSubcommand.PRUNE_CHANGELOG);
             }
 
             volumeName = ProtocolMessageUtil.readAsString(args.get(1));

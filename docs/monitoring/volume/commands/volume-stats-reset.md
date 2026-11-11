@@ -35,9 +35,9 @@ This command is available on the management port (default 3320).
 
 Argument errors:
 
-| Error Code | Error message                                          | Cause |
-|------------|--------------------------------------------------------|-------|
-| `ERR`      | `Wrong number of arguments for 'VOLUME.STATS' command` | -     |
+| Error Code | Error message                                                | Cause |
+|------------|--------------------------------------------------------------|-------|
+| `ERR`      | `Wrong number of arguments for 'VOLUME.STATS RESET' command` | -     |
 
 Volume errors:
 

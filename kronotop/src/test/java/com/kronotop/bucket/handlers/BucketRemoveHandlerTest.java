@@ -149,7 +149,7 @@ class BucketRemoveHandlerTest extends BaseBucketHandlerTest {
         // Behavior: BUCKET.REMOVE rejects NAMESPACE without a value, an unknown keyword and an argument after the namespace.
         assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_REMOVE, List.of("test-bucket", "NAMESPACE")));
-        assertErrorReply("ERR Unknown 'BOGUS' argument",
+        assertErrorReply("ERR Unknown argument: 'BOGUS'",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_REMOVE, List.of("test-bucket", "BOGUS")));
         assertErrorReply("ERR Wrong number of arguments for 'BUCKET.REMOVE' command",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_REMOVE, List.of("test-bucket", "NAMESPACE", "ns", "EXTRA")));

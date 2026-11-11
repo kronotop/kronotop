@@ -35,7 +35,7 @@ Transaction errors:
 
 | Error Code    | Error message                            | Cause                                        |
 |---------------|------------------------------------------|----------------------------------------------|
-| `TRANSACTION` | `No such transaction: <id>`              | No open transaction has this id              |
+| `TRANSACTION` | `No such transaction: '<id>'`            | No open transaction has this id              |
 | `TRANSACTION` | `Internal transactions cannot be killed` | The transaction belongs to the member itself |
 
 ## Examples

@@ -76,7 +76,7 @@ class IndexSchemaPayload {
                     } else if ("$vector".equals(fieldName)) {
                         vectorSchema = ctxt.readValue(p, VectorIndexSchema.class);
                     } else {
-                        throw new IllegalArgumentException("Unknown directive: " + fieldName);
+                        throw new IllegalArgumentException("Unknown directive: '" + fieldName + "'");
                     }
                 } else {
                     SingleFieldIndexSchema schema = ctxt.readValue(p, SingleFieldIndexSchema.class);

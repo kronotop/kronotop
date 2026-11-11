@@ -24,7 +24,6 @@ import com.kronotop.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.namespace.TombstoneManager;
 import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
-import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
@@ -75,7 +74,7 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandHandler {
             if (size == 3) {
                 String raw = ProtocolMessageUtil.readAsString(request.getArguments().get(2));
                 if (!StringUtil.toUpperCaseAscii(raw).equals(IF_NOT_EXISTS)) {
-                    throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+                    throw ProtocolMessageUtil.unknownArgument(raw);
                 }
                 ifNotExists = true;
             }

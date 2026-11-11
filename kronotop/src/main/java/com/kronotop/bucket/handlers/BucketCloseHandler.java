@@ -48,7 +48,7 @@ public class BucketCloseHandler extends AbstractBucketHandler {
         Map<Integer, QueryContext> contexts = findQueryContext(request.getSession(), message.getOperation());
         QueryContext ctx = contexts.remove(message.getCursorId());
         if (ctx == null) {
-            response.writeError("No cursor found");
+            response.writeError(String.format("No such cursor: '%d'", message.getCursorId()));
             return;
         }
         // With the current implementation, there is no need to release context manually

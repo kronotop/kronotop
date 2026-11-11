@@ -57,7 +57,7 @@ class ZIncD128HandlerTest extends BaseHandlerTest {
                         "ERR Wrong number of arguments for 'ZINC.D128' command"),
                 arguments("unknown keyword",
                         List.of("key", "value", "EXTRA"),
-                        "ERR Unknown 'EXTRA' argument"),
+                        "ERR Unknown argument: 'EXTRA'"),
                 arguments("NAMESPACE without value",
                         List.of("key", "value", "NAMESPACE"),
                         "ERR NAMESPACE argument must be followed by a namespace")
@@ -479,6 +479,28 @@ class ZIncD128HandlerTest extends BaseHandlerTest {
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());
+    }
+
+    @Test
+    void shouldRejectResultWithTooManySignificantDigits() {
+        // Behavior: The key holds 1E+40. ZINC.D128 with the value 1 gives a sum that needs 41 significant
+        // digits, which is more than the 34 digits of Decimal128. The command replies with the error
+        // "ERR Result is not representable as Decimal128".
+        EmbeddedChannel channel = getChannel();
+
+        // ZSET.D128 key 1E+40
+        {
+            Object response = runRaw(channel, CommandType.ZSET_D128, List.of("key", "1E+40"));
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+        }
+
+        // ZINC.D128 key 1
+        {
+            Object response = runRaw(channel, CommandType.ZINC_D128, List.of("key", "1"));
+            assertInstanceOf(ErrorRedisMessage.class, response);
+            assertEquals("ERR Result is not representable as Decimal128", ((ErrorRedisMessage) response).content());
+        }
     }
 
     @Test

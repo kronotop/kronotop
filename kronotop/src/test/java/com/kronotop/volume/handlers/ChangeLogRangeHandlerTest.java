@@ -53,13 +53,13 @@ class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         return Stream.of(
                 arguments("repeated LIMIT",
                         List.of("LIMIT", "5", "LIMIT"),
-                        "ERR Duplicate 'LIMIT' argument"),
+                        "ERR Duplicate argument: 'LIMIT'"),
                 arguments("repeated REVERSE",
                         List.of("REVERSE", "REVERSE"),
-                        "ERR Duplicate 'REVERSE' argument"),
+                        "ERR Duplicate argument: 'REVERSE'"),
                 arguments("unknown keyword",
                         List.of("BOGUS"),
-                        "ERR Unknown 'BOGUS' argument"),
+                        "ERR Unknown argument: 'BOGUS'"),
                 arguments("LIMIT without value",
                         List.of("LIMIT"),
                         "ERR LIMIT argument must be followed by an integer")

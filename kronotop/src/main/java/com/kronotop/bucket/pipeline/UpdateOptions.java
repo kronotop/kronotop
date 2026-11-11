@@ -76,7 +76,7 @@ public final class UpdateOptions {
         }
         if (count > 1) {
             throw new IllegalArgumentException(
-                    "Multiple positional operators not supported in path: " + path);
+                    "Multiple positional operators not supported in path: '" + path + "'");
         }
     }
 
@@ -122,7 +122,7 @@ public final class UpdateOptions {
         }
         if (arrayPath.isEmpty()) {
             throw new IllegalArgumentException(
-                    "Invalid positional operator path: " + path + " - array field required before $");
+                    "Invalid positional operator path: '" + path + "' - array field required before $");
         }
         return arrayPath.toString();
     }

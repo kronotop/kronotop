@@ -16,11 +16,11 @@
 
 package com.kronotop.volume.handlers;
 
-import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.server.resp3.DoubleRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
@@ -28,6 +28,8 @@ import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.VolumeService;
+import com.kronotop.volume.handlers.protocol.VolumeAdminMessage;
+import com.kronotop.volume.handlers.protocol.VolumeAdminSubcommand;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import io.netty.buffer.ByteBuf;
 
@@ -93,7 +95,7 @@ class DescribeSubcommand extends BaseSubcommandHandler implements SubcommandHand
 
         private DescribeArguments(ArrayList<ByteBuf> args) {
             if (args.size() != 2) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(VolumeAdminMessage.COMMAND, VolumeAdminSubcommand.DESCRIBE);
             }
 
             name = ProtocolMessageUtil.readAsString(args.get(1));

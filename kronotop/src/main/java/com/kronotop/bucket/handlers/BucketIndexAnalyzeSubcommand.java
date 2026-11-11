@@ -25,6 +25,8 @@ import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.handlers.protocol.BucketIndexMessage;
+import com.kronotop.bucket.handlers.protocol.BucketIndexSubcommand;
 import com.kronotop.bucket.index.CompoundIndex;
 import com.kronotop.bucket.index.CompoundIndexUtil;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
@@ -39,6 +41,7 @@ import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -77,7 +80,7 @@ public class BucketIndexAnalyzeSubcommand implements SubcommandHandler {
                 List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, namespace, arguments.bucket, arguments.index);
                 for (Versionstamp taskId : taskIds) {
                     if (isAnalyzeTask(tr, taskId)) {
-                        throw new KronotopException("An analyze task has already exist");
+                        throw new KronotopException("An analyze task already exists");
                     }
                 }
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, arguments.bucket);
@@ -99,7 +102,7 @@ public class BucketIndexAnalyzeSubcommand implements SubcommandHandler {
 
         AnalyzeArguments(ArrayList<ByteBuf> args) {
             if (args.size() < 3 || args.size() > 5) {
-                throw new KronotopException("Wrong number of arguments");
+                throw new WrongNumberOfArgumentsException(BucketIndexMessage.COMMAND, BucketIndexSubcommand.ANALYZE);
             }
             bucket = ProtocolMessageUtil.readAsString(args.get(1));
             index = ProtocolMessageUtil.readAsString(args.get(2));

@@ -74,11 +74,11 @@ Argument errors:
 
 Volume errors:
 
-| Error Code | Error message                                                   | Cause                                               |
-|------------|-----------------------------------------------------------------|-----------------------------------------------------|
-| `ERR`      | `Vacuum is already running on volume <name>`                    | -                                                   |
-| `ERR`      | `Stale vacuum metadata exists on volume <name>, run DROP first` | -                                                   |
-| `ERR`      | `Volume: '<name>' is not open`                                  | No volume with that name is managed by this member. |
+| Error Code | Error message                                                     | Cause                                               |
+|------------|-------------------------------------------------------------------|-----------------------------------------------------|
+| `ERR`      | `Vacuum is already running on volume '<name>'`                    | -                                                   |
+| `ERR`      | `Stale vacuum metadata exists on volume '<name>', run DROP first` | -                                                   |
+| `ERR`      | `Volume: '<name>' is not open`                                    | No volume with that name is managed by this member. |
 
 **Examples**
 
@@ -93,14 +93,14 @@ OK
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN VACUUM START shard-0 30
-(error) ERR Vacuum is already running on volume shard-0
+(error) ERR Vacuum is already running on volume 'shard-0'
 ```
 
 **Stale metadata from a previous run:**
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN VACUUM START shard-0 30
-(error) ERR Stale vacuum metadata exists on volume shard-0, run DROP first
+(error) ERR Stale vacuum metadata exists on volume 'shard-0', run DROP first
 ```
 
 ---
@@ -136,10 +136,10 @@ After stopping, the metadata remains in place. Use `DROP` to clear it before sta
 
 Volume errors:
 
-| Error Code | Error message                       | Cause                                               |
-|------------|-------------------------------------|-----------------------------------------------------|
-| `ERR`      | `No active vacuum on volume <name>` | -                                                   |
-| `ERR`      | `Volume: '<name>' is not open`      | No volume with that name is managed by this member. |
+| Error Code | Error message                         | Cause                                               |
+|------------|---------------------------------------|-----------------------------------------------------|
+| `ERR`      | `No active vacuum on volume '<name>'` | -                                                   |
+| `ERR`      | `Volume: '<name>' is not open`        | No volume with that name is managed by this member. |
 
 **Examples**
 
@@ -154,7 +154,7 @@ OK
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN VACUUM STOP shard-0
-(error) ERR No active vacuum on volume shard-0
+(error) ERR No active vacuum on volume 'shard-0'
 ```
 
 ---
@@ -188,11 +188,11 @@ before dropping. Drop metadata before starting a new vacuum run on the same volu
 
 Volume errors:
 
-| Error Code | Error message                                              | Cause                                               |
-|------------|------------------------------------------------------------|-----------------------------------------------------|
-| `ERR`      | `Vacuum is still running on volume <name>, run STOP first` | -                                                   |
-| `ERR`      | `No active vacuum on volume <name>`                        | -                                                   |
-| `ERR`      | `Volume: '<name>' is not open`                             | No volume with that name is managed by this member. |
+| Error Code | Error message                                                | Cause                                               |
+|------------|--------------------------------------------------------------|-----------------------------------------------------|
+| `ERR`      | `Vacuum is still running on volume '<name>', run STOP first` | -                                                   |
+| `ERR`      | `No active vacuum on volume '<name>'`                        | -                                                   |
+| `ERR`      | `Volume: '<name>' is not open`                               | No volume with that name is managed by this member. |
 
 **Examples**
 
@@ -207,7 +207,7 @@ OK
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN VACUUM DROP shard-0
-(error) ERR Vacuum is still running on volume shard-0, run STOP first
+(error) ERR Vacuum is still running on volume 'shard-0', run STOP first
 ```
 
 ---
@@ -267,10 +267,10 @@ while `segments` reflects real-time per-segment progress.
 
 Volume errors:
 
-| Error Code | Error message                       | Cause                                               |
-|------------|-------------------------------------|-----------------------------------------------------|
-| `ERR`      | `No active vacuum on volume <name>` | -                                                   |
-| `ERR`      | `Volume: '<name>' is not open`      | No volume with that name is managed by this member. |
+| Error Code | Error message                         | Cause                                               |
+|------------|---------------------------------------|-----------------------------------------------------|
+| `ERR`      | `No active vacuum on volume '<name>'` | -                                                   |
+| `ERR`      | `Volume: '<name>' is not open`        | No volume with that name is managed by this member. |
 
 **Examples**
 
@@ -314,7 +314,7 @@ Volume errors:
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN VACUUM STATUS shard-0
-(error) ERR No active vacuum on volume shard-0
+(error) ERR No active vacuum on volume 'shard-0'
 ```
 
 ## Concepts

@@ -21,10 +21,12 @@ import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -55,7 +57,7 @@ class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements 
 
         private SetMemberStatusArguments(ArrayList<ByteBuf> args) {
             if (args.size() != 3) {
-                throw new InvalidNumberOfArgumentsException();
+                throw new WrongNumberOfArgumentsException(KrAdminMessage.COMMAND, KrAdminSubcommand.SET_MEMBER_STATUS);
             }
             memberId = ProtocolMessageUtil.readMemberId(context, args.get(1));
             memberStatus = readMemberStatus(args.get(2));

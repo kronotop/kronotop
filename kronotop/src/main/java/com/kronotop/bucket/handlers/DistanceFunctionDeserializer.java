@@ -29,7 +29,7 @@ public class DistanceFunctionDeserializer extends ValueDeserializer<DistanceFunc
             case "cosine" -> DistanceFunction.COSINE;
             case "euclidean" -> DistanceFunction.EUCLIDEAN;
             case "dot_product" -> DistanceFunction.DOT_PRODUCT;
-            default -> throw new IllegalArgumentException("Unknown distance function: " + value);
+            default -> throw new IllegalArgumentException("Unknown distance function: '" + value + "'");
         };
     }
 }

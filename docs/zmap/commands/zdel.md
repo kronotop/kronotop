@@ -48,7 +48,7 @@ Argument errors:
 | Error Code | Error message                                        | Cause |
 |------------|------------------------------------------------------|-------|
 | `ERR`      | `Wrong number of arguments for 'ZDEL' command`       | -     |
-| `ERR`      | `Unknown '<keyword>' argument`                       | -     |
+| `ERR`      | `Unknown argument: '<keyword>'`                      | -     |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
 
 Namespace errors:

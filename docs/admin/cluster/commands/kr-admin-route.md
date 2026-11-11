@@ -69,33 +69,31 @@ Every successful mutation triggers the cluster topology watcher, causing other m
 
 Argument errors:
 
-| Error Code | Error message                       | Cause                                                                   |
-|------------|-------------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `Invalid number of arguments`       | -                                                                       |
-| `ERR`      | `Unknown operation kind: '<value>'` | The operation kind must be `SET` or `UNSET`.                            |
-| `ERR`      | `Unknown route kind: '<value>'`     | The route kind must be `PRIMARY` or `STANDBY`.                          |
-| `ERR`      | `Invalid shard id`                  | The shard ID is not a valid integer, or is out of the configured range. |
-| `ERR`      | `Invalid member id: <value>`        | The value is neither a 40-character member ID nor a 4-character prefix. |
+| Error Code | Error message                                            | Cause                                                                   |
+|------------|----------------------------------------------------------|-------------------------------------------------------------------------|
+| `ERR`      | `Wrong number of arguments for 'KR.ADMIN ROUTE' command` | -                                                                       |
+| `ERR`      | `Unknown operation kind: '<value>'`                      | The operation kind must be `SET` or `UNSET`.                            |
+| `ERR`      | `Unknown route kind: '<value>'`                          | The route kind must be `PRIMARY` or `STANDBY`.                          |
+| `ERR`      | `Invalid shard id: '<value>'`                            | The shard ID is not a valid integer, or is out of the configured range. |
+| `ERR`      | `Invalid member id: '<value>'`                           | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 Cluster errors:
 
-| Error Code | Error message                                      | Cause                                                                                                                                                              |
-|------------|----------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `ERR`      | `Cluster has not been initialized yet`             | -                                                                                                                                                                  |
-| `ERR`      | `No member found with prefix: <prefix>`            | -                                                                                                                                                                  |
-| `ERR`      | `More than one member found with prefix: <prefix>` | -                                                                                                                                                                  |
-| `ERR`      | `Member not found`                                 | -                                                                                                                                                                  |
-| `ERR`      | `No primary member assigned yet`                   | SET or UNSET STANDBY requires an existing primary.                                                                                                                 |
-| `ERR`      | `Primary cannot be assigned as a standby`          | -                                                                                                                                                                  |
-| `ERR`      | `Already assigned as a standby`                    | -                                                                                                                                                                  |
-| `ERR`      | `Member is not a standby`                          | -                                                                                                                                                                  |
-| `ERR`      | `UNSET PRIMARY is not supported`                   | -                                                                                                                                                                  |
-| `ERR`      | `Shard status must not be READWRITE`               | Reassigning a primary requires the shard to be non-READWRITE first.                                                                                                |
-| `ERR`      | `Member could not be found: <id>`                  | The target member could not be resolved during reassignment.                                                                                                       |
-| `ERR`      | `Primary shard owner could not be found: <id>`     | The current primary could not be resolved during reassignment.                                                                                                     |
-| `ERR`      | `Member id: <id> is not a standby`                 | The new primary must be a current standby during reassignment.                                                                                                     |
-| `ERR`      | `Volume status must be READONLY`                   | The volume must be READONLY before primary reassignment.                                                                                                           |
-| `ERR`      | `Standby is not caught up: <details>`              | The standby has not finished replicating from the primary. The detail indicates whether the lag is in the replication stage, segment position, or sequence number. |
+| Error Code | Error message                                        | Cause                                                                                                                                                              |
+|------------|------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `ERR`      | `Cluster has not been initialized yet`               | -                                                                                                                                                                  |
+| `ERR`      | `No member found with prefix: '<prefix>'`            | -                                                                                                                                                                  |
+| `ERR`      | `More than one member found with prefix: '<prefix>'` | -                                                                                                                                                                  |
+| `ERR`      | `No such member: '<id>'`                             | -                                                                                                                                                                  |
+| `ERR`      | `No primary member assigned yet`                     | SET or UNSET STANDBY requires an existing primary.                                                                                                                 |
+| `ERR`      | `Primary cannot be assigned as a standby`            | -                                                                                                                                                                  |
+| `ERR`      | `Already assigned as a standby`                      | -                                                                                                                                                                  |
+| `ERR`      | `Member is not a standby: '<id>'`                    | The member is not a standby of the shard. A new primary must be a current standby.                                                                                 |
+| `ERR`      | `UNSET PRIMARY is not supported`                     | -                                                                                                                                                                  |
+| `ERR`      | `Shard status must not be READWRITE`                 | Reassigning a primary requires the shard to be non-READWRITE first.                                                                                                |
+| `ERR`      | `Primary shard owner could not be found: <id>`       | The current primary could not be resolved during reassignment.                                                                                                     |
+| `ERR`      | `Volume status must be READONLY`                     | The volume must be READONLY before primary reassignment.                                                                                                           |
+| `ERR`      | `Standby is not caught up: <details>`                | The standby has not finished replicating from the primary. The detail indicates whether the lag is in the replication stage, segment position, or sequence number. |
 
 ## Examples
 

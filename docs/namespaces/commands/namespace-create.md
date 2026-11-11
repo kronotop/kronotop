@@ -45,7 +45,7 @@ Argument errors:
 | Error Code | Error message                                              | Cause                                                         |
 |------------|------------------------------------------------------------|---------------------------------------------------------------|
 | `ERR`      | `Wrong number of arguments for 'NAMESPACE CREATE' command` | -                                                             |
-| `ERR`      | `Unknown '<keyword>' argument`                             | The second argument is not `IF-NOT-EXISTS`.                   |
+| `ERR`      | `Unknown argument: '<keyword>'`                            | The second argument is not `IF-NOT-EXISTS`.                   |
 | `ERR`      | `Namespace '<path>' is reserved for internal use`          | The namespace path contains the reserved `__internal__` name. |
 | `ERR`      | `Namespace depth exceeds maximum allowed depth of 10`      | -                                                             |
 
@@ -53,7 +53,7 @@ Namespace errors:
 
 | Error Code               | Error message                                                                | Cause                                                                                             |
 |--------------------------|------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
-| `NAMESPACEALREADYEXISTS` | `Namespace already exists: <path>`                                           | Suppressed when `IF-NOT-EXISTS` is given.                                                         |
+| `NAMESPACEALREADYEXISTS` | `Namespace already exists: '<path>'`                                         | Suppressed when `IF-NOT-EXISTS` is given.                                                         |
 | `NAMESPACEBEINGREMOVED`  | `Namespace '<path>' is being removed`                                        | -                                                                                                 |
 | `BARRIERNOTSATISFIED`    | `Not all cluster members have observed the tombstone for namespace '<path>'` | The tombstone from a prior `NAMESPACE MOVE` is not yet visible on all members. Retry the command. |
 
@@ -73,7 +73,7 @@ OK
 OK
 
 > NAMESPACE CREATE production.users
-(error) NAMESPACEALREADYEXISTS Namespace already exists: production.users
+(error) NAMESPACEALREADYEXISTS Namespace already exists: 'production.users'
 ```
 
 **Idempotent creation:**

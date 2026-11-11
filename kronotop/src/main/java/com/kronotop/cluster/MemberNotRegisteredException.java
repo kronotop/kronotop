@@ -19,7 +19,7 @@ package com.kronotop.cluster;
 import com.kronotop.KronotopException;
 
 public class MemberNotRegisteredException extends KronotopException {
-    public MemberNotRegisteredException(String content) {
-        super(content);
+    public MemberNotRegisteredException(String memberId) {
+        super(String.format("No such member: '%s'", memberId));
     }
 }

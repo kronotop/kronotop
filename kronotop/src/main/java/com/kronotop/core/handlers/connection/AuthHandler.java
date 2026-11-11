@@ -77,7 +77,7 @@ public class AuthHandler extends BaseConnectionHandler implements Handler {
             writeWrongPassErr(response);
             return;
         } catch (Exception e) {
-            response.writeError(e.getMessage());
+            response.writeError(e);
             return;
         }
 

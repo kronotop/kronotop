@@ -20,6 +20,6 @@ import com.kronotop.KronotopException;
 
 public class IndexAlreadyRegisteredException extends KronotopException {
     public IndexAlreadyRegisteredException(String selector) {
-        super("Index entry with '" + selector + "' has already registered");
+        super("Index entry with '" + selector + "' has already been registered");
     }
 }

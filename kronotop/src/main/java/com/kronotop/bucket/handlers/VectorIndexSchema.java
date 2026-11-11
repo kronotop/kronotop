@@ -71,7 +71,7 @@ class VectorIndexSchema {
             throw new KronotopException("Vector index 'field' cannot be null or empty");
         }
         if (dimensions < 1) {
-            throw new KronotopException("Vector index 'dimensions' must be >= 1, got " + dimensions);
+            throw new KronotopException("Vector index 'dimensions' must be >= 1, got '" + dimensions + "'");
         }
         if (distance == null) {
             throw new KronotopException("Vector index 'distance' cannot be null");

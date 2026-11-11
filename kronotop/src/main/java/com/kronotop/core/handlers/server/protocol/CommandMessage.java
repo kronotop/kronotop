@@ -17,10 +17,10 @@ package com.kronotop.core.handlers.server.protocol;
 
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.StringUtil;
-import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.UnknownSubcommandException;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,8 +44,7 @@ public class CommandMessage implements ProtocolMessage<Void> {
         argument = valueOfArgument(raw);
         int argc = request.getArguments().size() + 1;
         if ((argument.arity > 0 && argument.arity != argc) || argc < -argument.arity) {
-            throw new IllegalCommandArgumentException(
-                    String.format("Wrong number of arguments for 'command|%s' command", argument.name().toLowerCase()));
+            throw new WrongNumberOfArgumentsException("command|" + argument.name().toLowerCase());
         }
         for (int i = 1; i < request.getArguments().size(); i++) {
             commands.add(ProtocolMessageUtil.readAsString(request.getArguments().get(i)));

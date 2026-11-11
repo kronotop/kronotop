@@ -63,7 +63,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         return Stream.of(
                 arguments("repeated LIMIT",
                         List.of("test-bucket", "{}", "{\"$set\":{\"a\":1}}", "LIMIT", "10", "LIMIT", "10"),
-                        "ERR Duplicate 'LIMIT' argument")
+                        "ERR Duplicate argument: 'LIMIT'")
         );
     }
 
@@ -3155,7 +3155,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_UPDATE,
                         List.of("test-bucket", "{}", "{\"$set\":{\"a\":1}}", "NAMESPACE")));
-        assertErrorReply("ERR Duplicate 'NAMESPACE' argument",
+        assertErrorReply("ERR Duplicate argument: 'NAMESPACE'",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_UPDATE,
                         List.of("test-bucket", "{}", "{\"$set\":{\"a\":1}}", "NAMESPACE", "a", "NAMESPACE", "b")));
     }

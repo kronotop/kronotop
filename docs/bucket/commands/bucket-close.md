@@ -33,15 +33,15 @@ its first batch with `cursor_id` `-1` and leaves no cursor in the session, so th
 
 Argument errors:
 
-| Error Code | Error message                     | Cause                                                     |
-|------------|-----------------------------------|-----------------------------------------------------------|
-| `ERR`      | `Unknown '<operation>' operation` | The operation type is not `QUERY`, `DELETE`, or `UPDATE`. |
+| Error Code | Error message                      | Cause                                                     |
+|------------|------------------------------------|-----------------------------------------------------------|
+| `ERR`      | `Unknown operation: '<operation>'` | The operation type is not `QUERY`, `DELETE`, or `UPDATE`. |
 
 Bucket errors:
 
-| Error Code | Error message     | Cause |
-|------------|-------------------|-------|
-| `ERR`      | `No cursor found` | -     |
+| Error Code | Error message                   | Cause |
+|------------|---------------------------------|-------|
+| `ERR`      | `No such cursor: '<cursor-id>'` | -     |
 
 ## Examples
 
@@ -67,7 +67,7 @@ entries -> [...]
 OK
 
 > BUCKET.CLOSE QUERY 1
-(error) ERR No cursor found
+(error) ERR No such cursor: '1'
 ```
 
 **Close after pagination:**

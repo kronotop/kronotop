@@ -82,7 +82,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         return Stream.of(
                 arguments("unknown keyword",
                         List.of("test-bucket", "BOGUS"),
-                        "ERR Unknown 'BOGUS' argument"),
+                        "ERR Unknown argument: 'BOGUS'"),
                 arguments("DOCS without documents",
                         List.of("test-bucket", "docs"),
                         "ERR DOCS argument must be followed by one or more documents"),
@@ -91,7 +91,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
                         "ERR NAMESPACE argument must be followed by a namespace"),
                 arguments("duplicate NAMESPACE",
                         List.of("test-bucket", "NAMESPACE", "a", "NAMESPACE", "b", "DOCS", "{}"),
-                        "ERR Duplicate 'NAMESPACE' argument")
+                        "ERR Duplicate argument: 'NAMESPACE'")
         );
     }
 

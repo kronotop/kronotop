@@ -19,7 +19,7 @@ package com.kronotop.cluster.handlers;
 import com.kronotop.KronotopException;
 
 public class InvalidShardIdException extends KronotopException {
-    public InvalidShardIdException() {
-        super("Invalid shard id");
+    public InvalidShardIdException(String shardId) {
+        super("Invalid shard id: '" + shardId + "'");
     }
 }

@@ -441,7 +441,7 @@ public final class LogicalPlanValidator {
         } else if (operand instanceof Long longValue) {
             return longValue;
         }
-        throw new IllegalArgumentException("Operand is not an integer: " + operand);
+        throw new IllegalArgumentException("Operand is not an integer: '" + operand + "'");
     }
 
     /**

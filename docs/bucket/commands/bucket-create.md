@@ -138,8 +138,8 @@ Argument errors:
 
 | Error Code | Error message                                                      | Cause |
 |------------|--------------------------------------------------------------------|-------|
-| `ERR`      | `Duplicate '<keyword>' argument`                                   | -     |
-| `ERR`      | `Unknown '<keyword>' argument`                                     | -     |
+| `ERR`      | `Duplicate argument: '<keyword>'`                                  | -     |
+| `ERR`      | `Unknown argument: '<keyword>'`                                    | -     |
 | `ERR`      | `SHARDS argument must be followed by one or more shard ids`        | -     |
 | `ERR`      | `INDEXES argument must be followed by an index specification`      | -     |
 | `ERR`      | `COLLATION argument must be followed by a collation specification` | -     |
@@ -154,19 +154,19 @@ Namespace errors:
 
 Bucket errors:
 
-| Error Code            | Error message                                | Cause                                                                                    |
-|-----------------------|----------------------------------------------|------------------------------------------------------------------------------------------|
-| `BUCKETALREADYEXISTS` | `Bucket already exists: <bucket>`            | A bucket with the same name already exists. Suppressed when `IF-NOT-EXISTS` is given.    |
-| `BUCKETBEINGREMOVED`  | `Bucket '<bucket>' is being removed`         | The bucket was removed but not yet purged. `IF-NOT-EXISTS` does not suppress this error. |
-| `ERR`                 | `No route found for shard: <shardId>`        | -                                                                                        |
+| Error Code            | Error message                           | Cause                                                                                    |
+|-----------------------|-----------------------------------------|------------------------------------------------------------------------------------------|
+| `BUCKETALREADYEXISTS` | `Bucket already exists: '<bucket>'`     | A bucket with the same name already exists. Suppressed when `IF-NOT-EXISTS` is given.    |
+| `BUCKETBEINGREMOVED`  | `Bucket '<bucket>' is being removed`    | The bucket was removed but not yet purged. `IF-NOT-EXISTS` does not suppress this error. |
+| `ERR`                 | `No route found for shard: '<shardId>'` | -                                                                                        |
 
 Index errors:
 
-| Error Code | Error message                | Cause |
-|------------|------------------------------|-------|
-| `ERR`      | `Invalid index schema`       | -     |
-| `ERR`      | `'bson_type' cannot be null` | -     |
-| `ERR`      | `Unknown BSON type: <type>`  | -     |
+| Error Code | Error message                 | Cause |
+|------------|-------------------------------|-------|
+| `ERR`      | `Invalid index schema`        | -     |
+| `ERR`      | `'bson_type' cannot be null`  | -     |
+| `ERR`      | `Unknown BSON type: '<type>'` | -     |
 
 ## Examples
 
@@ -294,7 +294,7 @@ OK
 OK
 
 > BUCKET.CREATE users
-(error) BUCKETALREADYEXISTS Bucket already exists: users
+(error) BUCKETALREADYEXISTS Bucket already exists: 'users'
 ```
 
 **Creating a bucket that is still being removed:**

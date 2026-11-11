@@ -190,9 +190,9 @@ class BucketIndexTasksSubcommandTest extends BaseIndexHandlerTest {
         // Behavior: BUCKET.INDEX TASKS rejects NAMESPACE without a value, an unknown keyword and an argument after the namespace.
         assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("TASKS", "test-bucket", "primary-index", "NAMESPACE")));
-        assertErrorReply("ERR Unknown 'BOGUS' argument",
+        assertErrorReply("ERR Unknown argument: 'BOGUS'",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("TASKS", "test-bucket", "primary-index", "BOGUS")));
-        assertErrorReply("ERR Wrong number of arguments",
+        assertErrorReply("ERR Wrong number of arguments for 'BUCKET.INDEX TASKS' command",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("TASKS", "test-bucket", "primary-index", "NAMESPACE", "ns", "EXTRA")));
     }
 }

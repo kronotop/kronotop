@@ -24,6 +24,7 @@ import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.handlers.protocol.VolumeStatsMessage;
+import com.kronotop.volume.handlers.protocol.VolumeStatsSubcommand;
 import com.kronotop.volume.segment.SegmentAnalysis;
 
 import java.nio.charset.StandardCharsets;
@@ -51,9 +52,7 @@ class SegmentsStatsSubcommand extends BaseSubcommandHandler implements Subcomman
     @Override
     public void execute(Request request, Response response) {
         if (request.getArguments().size() != 2) {
-            throw new WrongNumberOfArgumentsException(
-                    String.format("Wrong number of arguments for '%s' command", VolumeStatsMessage.COMMAND)
-            );
+            throw new WrongNumberOfArgumentsException(VolumeStatsMessage.COMMAND, VolumeStatsSubcommand.SEGMENTS);
         }
 
         VolumeStatsMessage message = request.attr(MessageTypes.VOLUMESTATS).get();

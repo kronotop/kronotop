@@ -93,23 +93,23 @@ public record Collation(
         ULocale uLocale = new ULocale(locale);
         boolean supported = Arrays.asList(Collator.getAvailableULocales()).contains(uLocale);
         if (!supported) {
-            throw new IllegalArgumentException("Invalid collation locale: " + locale);
+            throw new IllegalArgumentException("Invalid collation locale: '" + locale + "'");
         }
 
         if (strength < 1 || strength > 5) {
-            throw new IllegalArgumentException("Collation 'strength' must be between 1 and 5, got: " + strength);
+            throw new IllegalArgumentException("Collation 'strength' must be between 1 and 5, got: '" + strength + "'");
         }
 
         if (!VALID_CASE_FIRST.contains(caseFirst)) {
-            throw new IllegalArgumentException("Collation 'case_first' must be one of 'upper', 'lower', 'off', got: " + caseFirst);
+            throw new IllegalArgumentException("Collation 'case_first' must be one of 'upper', 'lower', 'off', got: '" + caseFirst + "'");
         }
 
         if (!VALID_ALTERNATE.contains(alternate)) {
-            throw new IllegalArgumentException("Collation 'alternate' must be one of 'non-ignorable', 'shifted', got: " + alternate);
+            throw new IllegalArgumentException("Collation 'alternate' must be one of 'non-ignorable', 'shifted', got: '" + alternate + "'");
         }
 
         if (!VALID_MAX_VARIABLE.contains(maxVariable)) {
-            throw new IllegalArgumentException("Collation 'max_variable' must be one of 'punct', 'space', got: " + maxVariable);
+            throw new IllegalArgumentException("Collation 'max_variable' must be one of 'punct', 'space', got: '" + maxVariable + "'");
         }
     }
 }

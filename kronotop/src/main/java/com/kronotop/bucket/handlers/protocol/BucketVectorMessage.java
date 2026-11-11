@@ -59,7 +59,7 @@ public class BucketVectorMessage extends AbstractBucketMessage implements Protoc
             String raw = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(request.getArguments().get(i)));
             VectorArgumentKey key = VectorArgumentKey.findByValue(raw);
             if (key == null) {
-                throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+                throw ProtocolMessageUtil.unknownArgument(raw);
             }
             seen = ProtocolMessageUtil.markArgumentSeen(seen, key, key.getValue());
             switch (key) {

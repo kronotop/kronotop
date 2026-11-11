@@ -49,23 +49,23 @@ class VolumeNamesTest {
     @Test
     void shouldThrowWhenParsingNameWithoutShardPrefix() {
         // Behavior: parsing a name that does not start with "shard-" throws IllegalArgumentException
-        // with "Invalid volume name: <name>".
+        // with "Invalid volume name: '<name>'".
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> VolumeNames.parse("volume-0")
         );
-        assertEquals("Invalid volume name: volume-0", exception.getMessage());
+        assertEquals("Invalid volume name: 'volume-0'", exception.getMessage());
     }
 
     @Test
     void shouldThrowWhenParsingInvalidShardId() {
         // Behavior: parsing "shard-abc", where the shard id is not an integer, throws
-        // IllegalArgumentException with "Invalid shard id: abc".
+        // IllegalArgumentException with "Invalid shard id: 'abc'".
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> VolumeNames.parse("shard-abc")
         );
-        assertEquals("Invalid shard id: abc", exception.getMessage());
+        assertEquals("Invalid shard id: 'abc'", exception.getMessage());
     }
 
     @Test

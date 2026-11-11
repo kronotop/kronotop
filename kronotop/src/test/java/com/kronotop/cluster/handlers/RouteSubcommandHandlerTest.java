@@ -242,7 +242,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("Member is not a standby"));
+        assertEquals(String.format("ERR Member is not a standby: '%s'", memberId), errorMessage.content());
     }
 
     @Test
@@ -275,7 +275,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("Member not found"));
+        assertTrue(errorMessage.content().contains("No such member"));
     }
 
     @Test
@@ -288,7 +288,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("Invalid number of arguments"));
+        assertTrue(errorMessage.content().contains("Wrong number of arguments for 'KR.ADMIN ROUTE' command"));
     }
 
     @Test
@@ -366,7 +366,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("is not a standby"));
+        assertEquals(String.format("ERR Member is not a standby: '%s'", memberId), errorMessage.content());
     }
 
     @Test

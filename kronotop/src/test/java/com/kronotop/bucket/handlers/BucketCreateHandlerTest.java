@@ -48,16 +48,16 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         return Stream.of(
                 arguments("repeated SHARDS",
                         List.of("test-bucket", "SHARDS", "1", "SHARDS", "2"),
-                        "ERR Duplicate 'SHARDS' argument"),
+                        "ERR Duplicate argument: 'SHARDS'"),
                 arguments("repeated INDEXES",
                         List.of("test-bucket", "INDEXES", "{}", "INDEXES", "{}"),
-                        "ERR Duplicate 'INDEXES' argument"),
+                        "ERR Duplicate argument: 'INDEXES'"),
                 arguments("repeated IF-NOT-EXISTS in mixed case",
                         List.of("test-bucket", "if-not-exists", "IF-NOT-EXISTS"),
-                        "ERR Duplicate 'IF-NOT-EXISTS' argument"),
+                        "ERR Duplicate argument: 'IF-NOT-EXISTS'"),
                 arguments("repeated NAMESPACE",
                         List.of("test-bucket", "NAMESPACE", "a", "NAMESPACE", "b"),
-                        "ERR Duplicate 'NAMESPACE' argument")
+                        "ERR Duplicate argument: 'NAMESPACE'")
         );
     }
 
@@ -127,7 +127,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
             Object response = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, response);
             ErrorRedisMessage errorMessage = (ErrorRedisMessage) response;
-            assertEquals("BUCKETALREADYEXISTS Bucket already exists: test-bucket", errorMessage.content());
+            assertEquals("BUCKETALREADYEXISTS Bucket already exists: 'test-bucket'", errorMessage.content());
         }
     }
 
@@ -330,7 +330,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         Object response = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) response;
-        assertEquals("ERR No route found for shard: 9999", errorMessage.content());
+        assertEquals("ERR No route found for shard: '9999'", errorMessage.content());
     }
 
     @Test

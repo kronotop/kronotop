@@ -90,8 +90,8 @@ Argument errors:
 | Error Code | Error message                                                 | Cause |
 |------------|---------------------------------------------------------------|-------|
 | `ERR`      | `Wrong number of arguments for 'ZGETRANGE' command`           | -     |
-| `ERR`      | `Unknown '<keyword>' argument`                                | -     |
-| `ERR`      | `Duplicate '<keyword>' argument`                              | -     |
+| `ERR`      | `Unknown argument: '<keyword>'`                               | -     |
+| `ERR`      | `Duplicate argument: '<keyword>'`                             | -     |
 | `ERR`      | `LIMIT argument must be followed by a positive integer`       | -     |
 | `ERR`      | `Value is not an integer or out of range`                     | -     |
 | `ERR`      | `<keyword> argument must be followed by a valid key selector` | -     |

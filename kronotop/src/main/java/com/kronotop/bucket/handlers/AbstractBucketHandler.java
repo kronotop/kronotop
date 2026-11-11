@@ -397,7 +397,7 @@ public abstract class AbstractBucketHandler implements Handler {
         for (int shardId : metadata.shards()) {
             Route route = service.findRoute(shardId);
             if (Objects.isNull(route)) {
-                throw new KronotopException("No route found for shard: " + shardId);
+                throw new KronotopException("No route found for shard: '" + shardId + "'");
             }
             if (route.primary().equals(context.getMember())) {
                 return service.getShard(shardId);

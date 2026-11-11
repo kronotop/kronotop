@@ -59,10 +59,10 @@ the pending token. After an expiry error, the operator must request a new token 
 
 Argument errors:
 
-| Error Code | Error message                 | Cause |
-|------------|-------------------------------|-------|
-| `ERR`      | `Cluster name is required`    | -     |
-| `ERR`      | `Invalid number of arguments` | -     |
+| Error Code | Error message                                                   | Cause |
+|------------|-----------------------------------------------------------------|-------|
+| `ERR`      | `Cluster name is required`                                      | -     |
+| `ERR`      | `Wrong number of arguments for 'KR.ADMIN DROP-CLUSTER' command` | -     |
 
 Cluster errors:
 

@@ -18,6 +18,6 @@ package com.kronotop.volume.segment;
 
 public class SegmentNotFoundException extends RuntimeException {
     public SegmentNotFoundException(long id) {
-        super(String.format("Segment with id: '%d' could not be found", id));
+        super(String.format("No such segment: '%d'", id));
     }
 }

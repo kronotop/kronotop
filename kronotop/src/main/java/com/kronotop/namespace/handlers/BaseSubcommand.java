@@ -64,9 +64,7 @@ class BaseSubcommand {
     }
 
     WrongNumberOfArgumentsException wrongNumberOfArguments(Request request, NamespaceSubcommand subcommand) {
-        return new WrongNumberOfArgumentsException(
-                String.format("Wrong number of arguments for '%s %s' command", request.getCommand(), subcommand)
-        );
+        return new WrongNumberOfArgumentsException(request.getCommand(), subcommand);
     }
 
     void checkNamespaceBeingRemoved(Transaction tr, List<String> subpath) {

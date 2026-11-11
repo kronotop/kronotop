@@ -71,7 +71,7 @@ public class VolumeConfigGenerator {
                 return subspace;
             } catch (CompletionException exp) {
                 if (exp.getCause() instanceof NoSuchDirectoryException) {
-                    throw new IllegalArgumentException("No such volume");
+                    throw new IllegalArgumentException(String.format("No such volume: '%s'", VolumeNames.format(shardId)));
                 }
                 throw exp;
             }

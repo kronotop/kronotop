@@ -71,25 +71,22 @@ public enum RESPError {
     }
 
     /**
-     * Returns the cause that best describes an error for the client.
-     * <p>
-     * Third party exceptions often carry long internal messages that mean nothing to a client.
-     * When such an exception is wrapped in a {@link KronotopException}, the wrapper holds the
-     * message worth reporting, so the wrapper is returned instead. The root cause is returned
-     * when the chain has no {@link KronotopException}.
+     * Returns the throwable in a cause chain whose message is reported to the client.
      *
      * @param t the throwable to inspect
-     * @return the outermost {@link KronotopException} below {@code t}, or the root cause if there is none
+     * @return the outermost {@link KronotopException} that has its own message, or the root cause if there is none
      */
     public static Throwable preferKronotopCause(Throwable t) {
         Throwable result = t;
-        while (result.getCause() != null && result.getCause() != result) {
+        while (!hasOwnMessage(result) && result.getCause() != null && result.getCause() != result) {
             result = result.getCause();
-            if (result instanceof KronotopException) {
-                break;
-            }
         }
         return result;
+    }
+
+    // A KronotopException built from a cause alone only repeats the cause, class name included.
+    private static boolean hasOwnMessage(Throwable t) {
+        return t instanceof KronotopException kr && !kr.isCauseOnly();
     }
 
     /**

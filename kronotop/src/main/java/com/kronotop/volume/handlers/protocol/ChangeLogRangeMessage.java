@@ -116,7 +116,7 @@ public class ChangeLogRangeMessage extends BaseMessage implements ProtocolMessag
         try {
             return ChangeLogRangeArgumentKey.valueOf(raw);
         } catch (IllegalArgumentException e) {
-            throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+            throw ProtocolMessageUtil.unknownArgument(raw);
         }
     }
 

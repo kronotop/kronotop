@@ -61,7 +61,7 @@ Argument errors:
 | Error Code | Error message                                        | Cause |
 |------------|------------------------------------------------------|-------|
 | `ERR`      | `Wrong number of arguments for 'ZGET.D128' command`  | -     |
-| `ERR`      | `Unknown '<keyword>' argument`                       | -     |
+| `ERR`      | `Unknown argument: '<keyword>'`                      | -     |
 | `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
 
 Stored value errors:

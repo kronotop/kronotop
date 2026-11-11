@@ -419,7 +419,7 @@ public class Volume {
     private void raiseExceptionIfVolumeReadOnly() {
         // Raise an exception if the volume is in READONLY status.
         if (getStatus().equals(VolumeStatus.READONLY)) {
-            throw new VolumeReadOnlyException("Volume: " + config.name() + " is read-only");
+            throw new VolumeReadOnlyException("Volume: '" + config.name() + "' is read-only");
         }
     }
 
@@ -1031,11 +1031,11 @@ public class Volume {
         vacuumLock.lock();
         try {
             if (vacuumWatchDog != null && !vacuumWatchDog.isStopped()) {
-                throw new KronotopException("Vacuum is already running on volume " + config.name());
+                throw new KronotopException("Vacuum is already running on volume '" + config.name() + "'");
             }
             try (Transaction tr = context.getTransactionManager().create()) {
                 if (VacuumMetadataUtil.exists(tr, subspace)) {
-                    throw new KronotopException("Stale vacuum metadata exists on volume " + config.name() + ", run DROP first");
+                    throw new KronotopException("Stale vacuum metadata exists on volume '" + config.name() + "', run DROP first");
                 }
             }
             int maxWorkers = context.getConfig().getInt("volume.vacuum.max_workers");
@@ -1054,7 +1054,7 @@ public class Volume {
         try {
             VacuumWatchDog watchDog = vacuumWatchDog;
             if (watchDog == null || watchDog.isStopped()) {
-                throw new KronotopException("No active vacuum on volume " + config.name());
+                throw new KronotopException("No active vacuum on volume '" + config.name() + "'");
             }
             watchDog.stop();
             vacuumWatchDog = null;
@@ -1067,11 +1067,11 @@ public class Volume {
         vacuumLock.lock();
         try {
             if (vacuumWatchDog != null && !vacuumWatchDog.isStopped()) {
-                throw new KronotopException("Vacuum is still running on volume " + config.name() + ", run STOP first");
+                throw new KronotopException("Vacuum is still running on volume '" + config.name() + "', run STOP first");
             }
             try (Transaction tr = context.getTransactionManager().create()) {
                 if (!VacuumMetadataUtil.exists(tr, subspace)) {
-                    throw new KronotopException("No active vacuum on volume " + config.name());
+                    throw new KronotopException("No active vacuum on volume '" + config.name() + "'");
                 }
                 VacuumMetadataUtil.deleteAll(tr, subspace);
                 tr.commit().join();
@@ -1098,7 +1098,7 @@ public class Volume {
         if (!active) {
             try (Transaction tr = context.getTransactionManager().create()) {
                 if (!VacuumMetadataUtil.exists(tr, subspace)) {
-                    throw new KronotopException("No active vacuum on volume " + config.name());
+                    throw new KronotopException("No active vacuum on volume '" + config.name() + "'");
                 }
             }
         }

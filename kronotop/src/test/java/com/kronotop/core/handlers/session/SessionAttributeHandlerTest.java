@@ -52,10 +52,10 @@ class SessionAttributeHandlerTest extends BaseHandlerTest {
                         "ERR Unknown session attribute: 'xobject_id_format'"),
                 arguments("LIST with extra arguments",
                         List.of("LIST", "extra"),
-                        "ERR Invalid number of arguments"),
+                        "ERR Wrong number of arguments for 'SESSION.ATTRIBUTE LIST' command"),
                 arguments("SET with a missing value",
                         List.of("SET", "batch"),
-                        "ERR Invalid number of arguments")
+                        "ERR Wrong number of arguments for 'SESSION.ATTRIBUTE SET' command")
         );
     }
 

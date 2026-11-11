@@ -40,10 +40,10 @@ It is available on the management port (default 3320).
 
 Argument errors:
 
-| Error Code | Error message                 | Cause                                            |
-|------------|-------------------------------|--------------------------------------------------|
-| `ERR`      | `Invalid number of arguments` | -                                                |
-| `ERR`      | `Invalid volume name: <name>` | The name does not match the `shard-<id>` format. |
+| Error Code | Error message                                                   | Cause                                            |
+|------------|-----------------------------------------------------------------|--------------------------------------------------|
+| `ERR`      | `Wrong number of arguments for 'VOLUME.INSPECT CURSOR' command` | -                                                |
+| `ERR`      | `Invalid volume name: '<name>'`                                 | The name does not match the `shard-<id>` format. |
 
 ## Examples
 
