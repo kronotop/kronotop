@@ -4,6 +4,9 @@
       "type": "com.kronotop.cli.KronotopCLI",
       "fields": [
         {
+          "name": "askpass"
+        },
+        {
           "name": "cacert"
         },
         {
@@ -37,6 +40,9 @@
           "name": "json"
         },
         {
+          "name": "noAuthWarning"
+        },
+        {
           "name": "noColor"
         },
         {
@@ -44,6 +50,12 @@
         },
         {
           "name": "objectIdFormat"
+        },
+        {
+          "name": "password"
+        },
+        {
+          "name": "passwordAlias"
         },
         {
           "name": "port"
@@ -92,6 +104,9 @@
         },
         {
           "name": "tlsCiphersuites"
+        },
+        {
+          "name": "user"
         },
         {
           "name": "versionRequested"

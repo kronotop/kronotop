@@ -31,6 +31,34 @@ docker run --rm -it --network kronotop \
   ghcr.io/kronotop/kronotop:latest kronotop-cli -h kronotop-primary -p 5484
 ```
 
+## Authentication
+
+When the server requires authentication, pass the password with `-a`. `kronotop-cli` sends `AUTH` before any other
+command:
+
+```bash
+kronotop-cli -p 5484 -a devpass
+```
+
+Add `--user` to log in as a named user. `--pass` is an alias of `-a`:
+
+```bash
+kronotop-cli -p 5484 --user devuser --pass devpass
+```
+
+`kronotop-cli` prints a warning to stderr when the password is given on the command line. `--no-auth-warning` turns
+it off. There are two ways to keep the password off the command line:
+
+- Set the `KRONOTOPCLI_AUTH` environment variable. `-a` takes precedence when both are given.
+- Pass `--askpass` to type the password at a prompt. It ignores `-a` and `KRONOTOPCLI_AUTH`.
+
+The warning is not printed for a password that comes from the environment variable or the prompt.
+
+If the password is wrong, or missing on a server that requires one, `kronotop-cli` prints the server error and exits
+with status 1.
+
+In interactive mode, `AUTH` and `HELLO` with the `AUTH` option are not saved to the history file.
+
 ## One-Shot Mode
 
 Pass a command after the options to execute it once and exit:
@@ -96,15 +124,19 @@ Each reply is printed as the script runs. Pass `-s` to suppress replies; errors 
 ## Help
 
 ```
-Usage: kronotop-cli [-23sv] [--csv] [--help] [--insecure] [--json] [--no-color]
-                    [--no-raw] [--quoted-input] [--quoted-json] [--raw] [--tls]
-                    [--cacert=<cacert>] [--cacertdir=<cacertdir>]
-                    [-d=<delimiter>] [-D=<responseDelimiter>] [-f=<scriptFile>]
-                    [-h=<host>] [-i=<interval>] [--input-type=<inputType>]
+Usage: kronotop-cli [-23sv] [--askpass] [--csv] [--help] [--insecure] [--json]
+                    [--no-auth-warning] [--no-color] [--no-raw]
+                    [--quoted-input] [--quoted-json] [--raw] [--tls]
+                    [-a=<password>] [--cacert=<cacert>]
+                    [--cacertdir=<cacertdir>] [-d=<delimiter>]
+                    [-D=<responseDelimiter>] [-f=<scriptFile>] [-h=<host>]
+                    [-i=<interval>] [--input-type=<inputType>]
                     [--object-id-format=<objectIdFormat>] [-p=<port>]
-                    [-r=<repeat>] [--reply-type=<replyType>] [--sni=<sni>]
-                    [-t=<timeout>] [--tls-ciphers=<tlsCiphers>]
-                    [--tls-ciphersuites=<tlsCiphersuites>] [<command>...]
+                    [--pass=<password>] [-r=<repeat>]
+                    [--reply-type=<replyType>] [--sni=<sni>] [-t=<timeout>]
+                    [--tls-ciphers=<tlsCiphers>]
+                    [--tls-ciphersuites=<tlsCiphersuites>] [--user=<username>]
+                    [<command>...]
 Command-line interface for Kronotop.
 When no command is given, kronotop-cli starts in interactive mode.
       [<command>...]        Command to execute.
@@ -112,6 +144,18 @@ When no command is given, kronotop-cli starts in interactive mode.
   -p, --port=<port>         Server port.
   -t, --timeout=<timeout>   Server connection timeout in seconds (decimals
                               allowed). Default is 0, meaning no limit.
+  -a=<password>             Password to use when connecting to the server. You
+                              can also use the KRONOTOPCLI_AUTH environment
+                              variable to pass this password more safely (if
+                              both are used, this argument takes precedence).
+      --user=<username>     Used to send ACL style 'AUTH username pass'. Needs
+                              -a.
+      --pass=<password>     Alias of -a for consistency with the new --user
+                              option.
+      --askpass             Force user to input password with mask from STDIN.
+                              If this argument is used, '-a' and
+                              KRONOTOPCLI_AUTH environment variable will be
+                              ignored.
   -r=<repeat>               Execute specified command N times.
   -i=<interval>             When -r is used, waits <interval> seconds per
                               command. Sub-second times allowed (e.g., -i 0.1).
@@ -130,6 +174,8 @@ When no command is given, kronotop-cli starts in interactive mode.
   -d=<delimiter>            Delimiter between response bulks for raw formatting.
   -D=<responseDelimiter>    Delimiter between responses for raw formatting.
       --quoted-input        Force input to be handled as quoted strings.
+      --no-auth-warning     Don't show warning message when using password on
+                              command line interface.
   -v, --version             Print version information and quit.
       --help                Show help.
   -f, --file=<scriptFile>   Execute commands from a script file.

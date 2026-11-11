@@ -23,7 +23,6 @@ import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.UserInterruptException;
-import org.jline.reader.impl.history.DefaultHistory;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.jline.widget.TailTipWidgets;
@@ -32,9 +31,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.file.Files;
@@ -71,6 +68,18 @@ public class KronotopCLI implements Callable<Integer> {
     @Option(names = {"-t", "--timeout"}, description = "Server connection timeout in seconds (decimals allowed). Default is 0, meaning no limit.", defaultValue = "0")
     private double timeout;
 
+    @Option(names = "-a", paramLabel = "<password>", description = "Password to use when connecting to the server. You can also use the " + CLICredentials.AUTH_ENV + " environment variable to pass this password more safely (if both are used, this argument takes precedence).")
+    private String password;
+
+    @Option(names = "--user", paramLabel = "<username>", description = "Used to send ACL style 'AUTH username pass'. Needs -a.")
+    private String user;
+
+    @Option(names = "--pass", paramLabel = "<password>", description = "Alias of -a for consistency with the new --user option.")
+    private String passwordAlias;
+
+    @Option(names = "--askpass", description = "Force user to input password with mask from STDIN. If this argument is used, '-a' and " + CLICredentials.AUTH_ENV + " environment variable will be ignored.")
+    private boolean askpass;
+
     @Option(names = "-r", description = "Execute specified command N times.", defaultValue = "1")
     private int repeat;
 
@@ -106,6 +115,9 @@ public class KronotopCLI implements Callable<Integer> {
 
     @Option(names = "--quoted-input", description = "Force input to be handled as quoted strings.")
     private boolean quotedInput;
+
+    @Option(names = "--no-auth-warning", description = "Don't show warning message when using password on command line interface.")
+    private boolean noAuthWarning;
 
     @Option(names = {"-v", "--version"}, versionHelp = true, description = "Print version information and quit.")
     private boolean versionRequested;
@@ -161,6 +173,7 @@ public class KronotopCLI implements Callable<Integer> {
     private RawResponseFormatter rawFormatter;
     private CsvResponseFormatter csvFormatter;
     private CommandLineParser commandLineParser;
+    private CLICredentials credentials;
     private boolean useRawOutput;
     private boolean connected;
     private String connectionError;
@@ -195,16 +208,20 @@ public class KronotopCLI implements Callable<Integer> {
     public Integer call() {
         commandLineParser = new CommandLineParser(quotedInput);
 
+        String optionPassword = password != null ? password : passwordAlias;
+        if (optionPassword != null && !noAuthWarning) {
+            System.err.println("Warning: Using a password with '-a' option on the command line interface may not be safe.");
+        }
+        credentials = CLICredentials.resolve(
+                user, optionPassword, System.getenv(CLICredentials.AUTH_ENV), askpass, KronotopCLI::askPassword);
+
+        // Default to RESP3 unless -2 is explicitly set
+        if (!resp2) {
+            resp3 = true;
+        }
+
         try {
-            connect();
-            connected = true;
-            // Default to RESP3 unless -2 is explicitly set
-            if (!resp2) {
-                resp3 = true;
-            }
-            switchProtocol();
-            setSessionAttributes();
-            initializeFormatter();
+            openSession();
         } catch (IOException e) {
             connectionError = String.format("Could not connect to Kronotop at %s:%d: %s", host, port, e.getMessage());
             System.err.println(connectionError);
@@ -302,10 +319,55 @@ public class KronotopCLI implements Callable<Integer> {
         respWriter = new RespWriter(socket.getOutputStream());
     }
 
+    // Connects and prepares the session: AUTH first, then HELLO, then the session attributes.
+    private void openSession() throws IOException {
+        connect();
+        try {
+            authenticate();
+            switchProtocol();
+            setSessionAttributes();
+            initializeFormatter();
+        } catch (IOException e) {
+            disconnect();
+            throw e;
+        }
+        connected = true;
+    }
+
+    private static String askPassword() {
+        String prompt = "Please input password: ";
+        Console console = System.console();
+        if (console != null) {
+            char[] typed = console.readPassword(prompt);
+            return typed == null ? null : new String(typed);
+        }
+        System.err.print(prompt);
+        try {
+            return new BufferedReader(new InputStreamReader(System.in)).readLine();
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private static void failOnError(String step, RespValue reply) throws IOException {
+        if (reply instanceof RespValue.SimpleError(String code, String message)) {
+            throw new IOException(step + " failed: " + (code + " " + message).strip());
+        }
+    }
+
+    private void authenticate() throws IOException {
+        List<String> authCommand = credentials.authCommand();
+        if (authCommand.isEmpty()) {
+            return;
+        }
+        respWriter.writeCommand(authCommand);
+        failOnError("AUTH", respReader.read());
+    }
+
     private void switchProtocol() throws IOException {
         int protocolVersion = resp2 ? 2 : 3;
         respWriter.writeCommand(List.of("HELLO", String.valueOf(protocolVersion)));
-        respReader.read();
+        failOnError("HELLO " + protocolVersion, respReader.read());
     }
 
     private void setSessionAttributes() throws IOException {
@@ -441,7 +503,7 @@ public class KronotopCLI implements Callable<Integer> {
                 initializeFormatter();
             }
 
-            DefaultHistory history = new DefaultHistory();
+            CLIHistory history = new CLIHistory(commandLineParser);
             completer = new CommandCompleter();
 
             LineReaderBuilder readerBuilder = LineReaderBuilder.builder()
@@ -619,13 +681,7 @@ public class KronotopCLI implements Callable<Integer> {
     private RespValue executeCommand(List<String> args, boolean printOutput) {
         if (!connected) {
             try {
-                connect();
-                connected = true;
-                if (resp2 || resp3) {
-                    switchProtocol();
-                }
-                setSessionAttributes();
-                initializeFormatter();
+                openSession();
                 loadCommandDocs();
             } catch (IOException e) {
                 connected = false;
