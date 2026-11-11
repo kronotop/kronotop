@@ -38,8 +38,11 @@ jobs:
           sarif_file: trivy-fs.sarif
           category: trivy-fs
 
+  # This job runs only on the schedule and on manual dispatch. Each run pulls the image
+  # from ghcr.io and raises the package download count.
   image:
     name: Published Docker image
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
