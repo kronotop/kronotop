@@ -40,6 +40,14 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
+    public Command<K, V, String> initializeCluster(int shardCount) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(CommandKeyword.INITIALIZE_CLUSTER).
+                add("SHARDS").
+                add(shardCount);
+        return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Command<K, V, Map<String, Object>> listMembers() {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.LIST_MEMBERS);
@@ -128,7 +136,7 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
-    enum CommandType implements ProtocolKeyword {
+    public enum CommandType implements ProtocolKeyword {
         KR_ADMIN("KR.ADMIN");
 
         public final byte[] bytes;

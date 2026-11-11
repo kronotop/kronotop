@@ -16,7 +16,6 @@
 
 package com.kronotop.cluster.handlers;
 
-import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -33,16 +32,13 @@ import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
-import com.kronotop.server.Session;
-import com.kronotop.server.SubcommandHandler;
-import com.kronotop.server.WrongNumberOfArgumentsException;
+import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.internal.StringUtil;
+import com.kronotop.server.*;
 import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
+import io.netty.buffer.ByteBuf;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletionException;
@@ -50,6 +46,8 @@ import java.util.concurrent.CompletionException;
 import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
+    private static final String SHARDS_KEYWORD = "SHARDS";
+    private static final int DEFAULT_SHARD_COUNT = 1;
 
     InitializeClusterSubcommand(RoutingService service) {
         super(service);
@@ -85,12 +83,8 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
         context.getDirectoryLayer().create(tr, directory.toList()).join();
     }
 
-    private void initializeBucketSection(Transaction tr, DirectorySubspace subspace) {
-        int numberOfBucketShards = context.getConfig().getInt("bucket.shards");
-        if (numberOfBucketShards <= 0) {
-            throw new KronotopException("bucket.shards must be greater than 0");
-        }
-        for (int shardId = 0; shardId < numberOfBucketShards; shardId++) {
+    private void initializeBucketSection(Transaction tr, DirectorySubspace subspace, int shardCount) {
+        for (int shardId = 0; shardId < shardCount; shardId++) {
             KronotopDirectoryNode directory = KronotopDirectory.
                     kronotop().
                     cluster(context.getClusterName()).
@@ -119,7 +113,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
         subspace.create(tr, directory.excludeSubspace(subspace)).join();
     }
 
-    private void initializeCluster(Session session) {
+    private void initializeCluster(Session session, InitializeClusterArguments arguments) {
         DirectorySubspace clusterMetadataSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
 
         try (Transaction tr = context.getTransactionManager().create(session)) {
@@ -129,7 +123,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
 
             MetadataVersion.write(context, tr, MetadataVersion.CURRENT);
             initializeNamespaces(tr, clusterMetadataSubspace);
-            initializeBucketSection(tr, clusterMetadataSubspace);
+            initializeBucketSection(tr, clusterMetadataSubspace, arguments.shardCount);
             setClusterInitializedTrue(tr, clusterMetadataSubspace);
             tr.commit().join();
         } catch (CompletionException e) {
@@ -149,12 +143,36 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
 
     @Override
     public void execute(Request request, Response response) {
-        if (request.getArguments().size() != 1) {
-            throw new WrongNumberOfArgumentsException(KrAdminMessage.COMMAND, KrAdminSubcommand.INITIALIZE_CLUSTER);
-        }
+        InitializeClusterArguments arguments = new InitializeClusterArguments(request.getArguments());
         runAsync(context, response, () -> {
             Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
-            retry.executeRunnable(() -> initializeCluster(request.getSession()));
+            retry.executeRunnable(() -> initializeCluster(request.getSession(), arguments));
         }, response::writeOK);
+    }
+
+    private static class InitializeClusterArguments {
+        private final int shardCount;
+
+        private InitializeClusterArguments(List<ByteBuf> args) {
+            // kr.admin initialize-cluster shards 3
+            if (args.size() > 3) {
+                throw new WrongNumberOfArgumentsException(KrAdminMessage.COMMAND, KrAdminSubcommand.INITIALIZE_CLUSTER);
+            }
+            if (args.size() == 1) {
+                shardCount = DEFAULT_SHARD_COUNT;
+                return;
+            }
+
+            String raw = ProtocolMessageUtil.readAsString(args.get(1));
+            if (!StringUtil.toUpperCaseAscii(raw).equals(SHARDS_KEYWORD)) {
+                throw ProtocolMessageUtil.unknownArgument(raw);
+            }
+            ByteBuf value = ProtocolMessageUtil.requireValue(
+                    args, 1, SHARDS_KEYWORD, ProtocolMessageUtil.POSITIVE_INTEGER);
+            shardCount = ProtocolMessageUtil.readAsInteger(value);
+            if (shardCount <= 0) {
+                throw ProtocolMessageUtil.illegalValue(SHARDS_KEYWORD, ProtocolMessageUtil.POSITIVE_INTEGER);
+            }
+        }
     }
 }

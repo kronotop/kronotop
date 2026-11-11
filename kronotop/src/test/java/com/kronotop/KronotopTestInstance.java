@@ -195,7 +195,7 @@ public class KronotopTestInstance extends KronotopInstance {
 
     private boolean initializeCluster(KrAdminCommandBuilder<String, String> cmd) {
         ByteBuf buf = Unpooled.buffer();
-        cmd.initializeCluster().encode(buf);
+        cmd.initializeCluster(config.getInt("bucket.shards")).encode(buf);
 
         Object raw = BaseTest.runCommand(channel, buf);
         if (raw instanceof SimpleStringRedisMessage message) {

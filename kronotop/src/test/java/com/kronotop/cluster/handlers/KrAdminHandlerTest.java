@@ -73,9 +73,10 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldReturnErrorWhenInitializeClusterWithExtraArguments() {
-        // Behavior: INITIALIZE-CLUSTER rejects extra arguments with "Wrong number of arguments for 'KR.ADMIN INITIALIZE-CLUSTER' command".
+        // Behavior: INITIALIZE-CLUSTER SHARDS 1 followed by one more argument is rejected with
+        // "Wrong number of arguments for 'KR.ADMIN INITIALIZE-CLUSTER' command".
         ByteBuf buf = Unpooled.buffer();
-        buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$18\r\nINITIALIZE-CLUSTER\r\n$5\r\nextra\r\n".getBytes());
+        buf.writeBytes("*5\r\n$8\r\nKR.ADMIN\r\n$18\r\nINITIALIZE-CLUSTER\r\n$6\r\nSHARDS\r\n$1\r\n1\r\n$5\r\nextra\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
