@@ -85,12 +85,6 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
         context.getDirectoryLayer().create(tr, directory.toList()).join();
     }
 
-    private void initializeBucketShardCounter(Transaction tr, DirectorySubspace clusterMetadataSubspace, int count) {
-        byte[] key = clusterMetadataSubspace.pack(Tuple.from(ClusterConstants.BUCKET_SHARD_COUNTER));
-        byte[] value = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(count).array();
-        tr.mutate(MutationType.ADD, key, value);
-    }
-
     private void initializeBucketSection(Transaction tr, DirectorySubspace subspace) {
         int numberOfBucketShards = context.getConfig().getInt("bucket.shards");
         if (numberOfBucketShards <= 0) {
@@ -109,7 +103,6 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
             ShardUtil.setShardStatus(tr, ShardStatus.INOPERABLE, shardSubspace);
         }
         initializeIndexTaskCounter(tr);
-        initializeBucketShardCounter(tr, subspace, numberOfBucketShards);
     }
 
     private void setClusterInitializedTrue(Transaction tr, DirectorySubspace subspace) {
