@@ -74,7 +74,7 @@ abstract class BaseBucketMultiNodeTest extends BaseClusterTest {
 
         // Initialize the cluster on node1
         ByteBuf buf = Unpooled.buffer();
-        cmd.initializeCluster(node1.getContext().getConfig().getInt("bucket.shards")).encode(buf);
+        cmd.initializeCluster(NUM_SHARDS).encode(buf);
         Object raw = runCommand(node1.getChannel(), buf);
         assertInstanceOf(SimpleStringRedisMessage.class, raw);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) raw).content());

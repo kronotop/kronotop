@@ -50,6 +50,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class BaseTest {
+    public static final int NUM_SHARDS = 7;
     private final String clusterName = UUID.randomUUID().toString();
     private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
 

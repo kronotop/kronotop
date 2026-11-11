@@ -12,7 +12,8 @@ are the primary unit of the document model in Kronotop. You insert documents int
 Query Language), and manage indexes on their fields.
 
 Buckets are distributed across one or more shards. Each shard is owned by a primary member and optionally replicated to
-standby members. The number of shards is configured at the cluster level and assigned at bucket creation time.
+standby members. The number of shards is set when the cluster is initialized, and a bucket gets its shards when it is
+created.
 
 ## Documents
 

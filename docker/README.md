@@ -47,7 +47,7 @@ The entrypoint script `start.sh` reads these variables:
 | `KRONOTOP_EXTERNAL_ADVERTISE` | Comma-separated list of `host:port` addresses clients use to reach this node. The first entry is the preferred one.                             |
 | `KRONOTOP_INTERNAL_ADVERTISE` | Comma-separated list of `host:port` addresses other nodes use to reach this node.                                                               |
 | `KRONOTOP_INIT_FDB`           | When set, this node configures a new FoundationDB cluster if none exists. Set it on one node only. Other nodes wait until the cluster is ready. |
-| `KRONOTOP_BOOTSTRAP`          | Shard layout for `kronotop-ctl bootstrap`. Set it on one node only.                                                                             |
+| `KRONOTOP_BOOTSTRAP`          | Shard count and layout for `kronotop-ctl bootstrap`. Set it on one node only.                                                                   |
 | `KRONOTOP_STANDBY_HOST`       | Host that must answer PING before bootstrap runs.                                                                                               |
 | `KRONOTOP_OPTS`               | Replaces the default JVM options.                                                                                                               |
 

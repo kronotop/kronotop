@@ -18,6 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.BaseTest;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MembershipUtil;
@@ -95,9 +96,8 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertEquals(Response.OK, actualMessage.content());
 
         // Verify standby was added to all shards
-        int numberOfShards = context.getConfig().getInt("bucket.shards");
         try (Transaction tr = database.createTransaction()) {
-            for (int shardId = 0; shardId < numberOfShards; shardId++) {
+            for (int shardId = 0; shardId < BaseTest.NUM_SHARDS; shardId++) {
                 DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardId);
                 Set<String> standbyMemberIds = MembershipUtil.loadStandbyMemberIds(tr, shardSubspace);
                 assertTrue(standbyMemberIds.contains(standbyMemberId), "Standby not found in shard " + shardId);
@@ -156,9 +156,8 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertInstanceOf(SimpleStringRedisMessage.class, setMsg);
 
         // Verify standby was added to all shards
-        int numberOfShards = context.getConfig().getInt("bucket.shards");
         try (Transaction tr = database.createTransaction()) {
-            for (int shardId = 0; shardId < numberOfShards; shardId++) {
+            for (int shardId = 0; shardId < BaseTest.NUM_SHARDS; shardId++) {
                 DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardId);
                 Set<String> standbyMemberIds = MembershipUtil.loadStandbyMemberIds(tr, shardSubspace);
                 assertTrue(standbyMemberIds.contains(standbyMemberId), "Standby not found in shard " + shardId);
@@ -177,7 +176,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Verify standby was removed from all shards
         try (Transaction tr = database.createTransaction()) {
-            for (int shardId = 0; shardId < numberOfShards; shardId++) {
+            for (int shardId = 0; shardId < BaseTest.NUM_SHARDS; shardId++) {
                 DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardId);
                 Set<String> standbyMemberIds = MembershipUtil.loadStandbyMemberIds(tr, shardSubspace);
                 assertFalse(standbyMemberIds.contains(standbyMemberId), "Standby still present in shard " + shardId);

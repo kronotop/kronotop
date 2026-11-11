@@ -28,6 +28,7 @@ import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Command(
         name = "bootstrap",
@@ -43,6 +44,9 @@ public class BootstrapCommand implements Callable<Integer> {
     @Option(names = "--standby", arity = "1..*", paramLabel = "<host:port=shard-ids>",
             description = "Assign standby shards (repeatable). Example: --standby node2:3320=0,1,2")
     private List<String> standbys;
+    @Option(names = "--shards", paramLabel = "<count>", defaultValue = "1",
+            description = "Number of shards to create. Default: ${DEFAULT-VALUE}")
+    private int shards;
     @Option(names = "--shard-discovery-timeout", paramLabel = "<seconds>", defaultValue = "30",
             description = "Max seconds to wait for shard discovery after cluster initialization. Default: ${DEFAULT-VALUE}")
     private int shardDiscoveryTimeout;
@@ -66,6 +70,8 @@ public class BootstrapCommand implements Callable<Integer> {
                     assignments.add(parseAssignment("STANDBY", standby));
                 }
             }
+            validateShardIds(assignments);
+
             String firstPrimaryAddress = assignments.stream()
                     .filter(a -> a.routeKind().equals("PRIMARY"))
                     .findFirst()
@@ -80,7 +86,7 @@ public class BootstrapCommand implements Callable<Integer> {
                     return 0;
                 }
 
-                waitForShards(conn, assignments);
+                waitForShards(conn);
                 Map<String, String> addressToMemberId = resolveMemberIds(assignments);
                 setRoutes(conn, assignments, addressToMemberId);
                 setShardStatuses(conn, assignments);
@@ -136,7 +142,8 @@ public class BootstrapCommand implements Callable<Integer> {
 
     private boolean initializeCluster(RespConnection conn) throws IOException {
         logger.info("Initializing cluster");
-        RespValue response = conn.executeRaw(List.of("KR.ADMIN", "INITIALIZE-CLUSTER"));
+        RespValue response = conn.executeRaw(
+                List.of("KR.ADMIN", "INITIALIZE-CLUSTER", "SHARDS", String.valueOf(shards)));
         String errorMessage = switch (response) {
             case RespValue.SimpleError(String code, String message) -> code + " " + message;
             case RespValue.BlobError(String code, String message) -> code + " " + message;
@@ -153,23 +160,29 @@ public class BootstrapCommand implements Callable<Integer> {
         return false;
     }
 
-    private void waitForShards(RespConnection conn, List<RouteAssignment> assignments) throws IOException {
-        Set<Integer> required = new TreeSet<>();
-        for (RouteAssignment a : assignments) {
-            required.addAll(a.shardIds());
+    private void validateShardIds(List<RouteAssignment> assignments) {
+        if (shards < 1) {
+            throw new IllegalArgumentException("--shards must be a positive integer");
         }
 
+        Set<Integer> invalid = new TreeSet<>();
+        for (RouteAssignment assignment : assignments) {
+            for (int shardId : assignment.shardIds()) {
+                if (shardId < 0 || shardId >= shards) {
+                    invalid.add(shardId);
+                }
+            }
+        }
+        if (!invalid.isEmpty()) {
+            throw new IllegalArgumentException("Invalid shard ids " + invalid
+                    + ". Available: " + IntStream.range(0, shards).boxed().toList());
+        }
+    }
+
+    private void waitForShards(RespConnection conn) throws IOException {
         logger.info("Waiting for shard discovery (timeout: {}s)", shardDiscoveryTimeout);
         for (int attempt = 1; attempt <= shardDiscoveryTimeout; attempt++) {
-            Set<Integer> available = describeCluster(conn);
-
-            if (!available.isEmpty()) {
-                Set<Integer> invalid = new TreeSet<>(required);
-                invalid.removeAll(available);
-                if (!invalid.isEmpty()) {
-                    throw new IOException("Invalid shard ids " + invalid
-                            + ". Available: " + new TreeSet<>(available));
-                }
+            if (!describeCluster(conn).isEmpty()) {
                 logger.info("All shards discovered");
                 return;
             }
@@ -198,10 +211,10 @@ public class BootstrapCommand implements Callable<Integer> {
             if (!extractString(entry.getKey()).equals("shards")) {
                 continue;
             }
-            if (!(entry.getValue() instanceof RespValue.RespMap(Map<RespValue, RespValue> shards))) {
+            if (!(entry.getValue() instanceof RespValue.RespMap(Map<RespValue, RespValue> value))) {
                 continue;
             }
-            for (RespValue shardKey : shards.keySet()) {
+            for (RespValue shardKey : value.keySet()) {
                 if (shardKey instanceof RespValue.Number(long id)) {
                     shardIds.add((int) id);
                 }

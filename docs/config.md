@@ -305,7 +305,6 @@ Configuration for the document database engine.
 
 | Parameter                 | Type   | Default   | Description                                                                                                                                                 |
 |---------------------------|--------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bucket.shards`           | int    | `1`       | Number of shards for bucket data. More shards allow parallel writes across cluster nodes but increase coordination overhead.                                |
 | `bucket.object_id_format` | string | `"bytes"` | Controls how ObjectIds are encoded in DELETE and UPDATE responses. `"bytes"` returns raw 12-byte ObjectId values; `"hex"` returns 24-character hex strings. |
 
 ### Plan Cache

@@ -8,17 +8,14 @@ you need more than one shard.
 
 ## 1. Pick the shard count
 
-Bucket data is split into shards. The number of shards comes from the `bucket.shards` setting. The
-default is 1.
-
-Give every node the same value. In Docker you pass it as a JVM property:
+Bucket data is split into shards. The shards are created once, when the cluster is initialized. In
+Docker, `kronotop-ctl bootstrap` initializes the cluster, and its `--shards` option sets the count.
+The default is 1.
 
 ```yaml
-environment:
-  JAVA_TOOL_OPTIONS: "-Dbucket.shards=2"
+KRONOTOP_BOOTSTRAP: "--shards 2 ..."
 ```
 
-The setting is read when the cluster is initialized, and the shards are created at that moment.
 There is no command to add or remove shards later, so pick the count before the first start.
 
 ## 2. Spread the shards over the nodes
@@ -69,11 +66,12 @@ Both variables are needed on every node. A node without them fails at startup.
 The layout is passed to the cluster once, at bootstrap time:
 
 ```yaml
-KRONOTOP_BOOTSTRAP: "--primary kronotop-node1:3320=0 --primary kronotop-node2:3320=1 --standby kronotop-node2:3320=0 --standby kronotop-node1:3320=1"
+KRONOTOP_BOOTSTRAP: "--shards 2 --primary kronotop-node1:3320=0 --primary kronotop-node2:3320=1 --standby kronotop-node2:3320=0 --standby kronotop-node1:3320=1"
 ```
 
-Each part is `<host>:<port>=<shard ids>`. The port is the internal port, 3320 by
-default. For the full flag syntax, see `docs/tooling/kronotop-ctl.md`.
+Each `--primary` and `--standby` value is `<host>:<port>=<shard ids>`. The port is the internal
+port, 3320 by default. Shard ids start at 0, so two shards have the ids 0 and 1. For the full flag
+syntax, see `docs/tooling/kronotop-ctl.md`.
 
 Two environment variables control this, both read by `start.sh`:
 

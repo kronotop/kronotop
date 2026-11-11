@@ -27,11 +27,10 @@ services:
     environment:
       FDB_COORDINATOR: foundationdb
       FDB_API_VERSION: 630
-      JAVA_TOOL_OPTIONS: "-Dbucket.shards=2"
       KRONOTOP_INIT_FDB: "1"
       KRONOTOP_EXTERNAL_ADVERTISE: "127.0.0.1:5484,kronotop-node1:5484"
       KRONOTOP_INTERNAL_ADVERTISE: "kronotop-node1:3320"
-      KRONOTOP_BOOTSTRAP: "--primary kronotop-node1:3320=0 --primary kronotop-node2:3320=1 --standby kronotop-node2:3320=0 --standby kronotop-node1:3320=1"
+      KRONOTOP_BOOTSTRAP: "--shards 2 --primary kronotop-node1:3320=0 --primary kronotop-node2:3320=1 --standby kronotop-node2:3320=0 --standby kronotop-node1:3320=1"
       KRONOTOP_STANDBY_HOST: "kronotop-node2"
     platform: "linux/amd64"
 
@@ -51,7 +50,6 @@ services:
     environment:
       FDB_COORDINATOR: foundationdb
       FDB_API_VERSION: 630
-      JAVA_TOOL_OPTIONS: "-Dbucket.shards=2"
       KRONOTOP_EXTERNAL_ADVERTISE: "127.0.0.1:5485,kronotop-node2:5484"
       KRONOTOP_INTERNAL_ADVERTISE: "kronotop-node2:3320"
     platform: "linux/amd64"
