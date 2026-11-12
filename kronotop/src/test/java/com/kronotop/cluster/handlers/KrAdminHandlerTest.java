@@ -22,6 +22,7 @@ import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.CollectStalePrefixesTask;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MemberStatus;
+import com.kronotop.cluster.ShardRegistry;
 import com.kronotop.cluster.ShardUtil;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commands.KrAdminCommandBuilder;
@@ -58,6 +59,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.LongStream;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
@@ -172,6 +174,23 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             return context.getDirectoryLayer().list(tr, subpath).join();
         });
         assertEquals(NUM_SHARDS + shardIds.size(), shards.size());
+    }
+
+    @Test
+    void shouldMakeNewShardVisibleToOtherMembers() {
+        // Behavior: A second member joins the cluster and the shard ids in its shard registry are recorded. ADD-SHARD
+        // is sent to the first member and replies with the id of the new shard. The recorded ids do not contain this
+        // id. Within five seconds the shard registry of the second member contains it.
+        KronotopTestInstance secondInstance = addNewInstance();
+        ShardRegistry secondRegistry = secondInstance.getContext().getShardRegistry();
+        List<Integer> shardIdsBefore = secondRegistry.getShardIds();
+
+        Object reply = addShard(channel);
+        assertInstanceOf(IntegerRedisMessage.class, reply);
+        int newShardId = Math.toIntExact(((IntegerRedisMessage) reply).value());
+
+        assertFalse(shardIdsBefore.contains(newShardId));
+        await().atMost(5, TimeUnit.SECONDS).until(() -> secondRegistry.isValidShardId(newShardId));
     }
 
     @Test
