@@ -38,41 +38,24 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Synchronization barrier for bucket metadata version propagation across cluster shards.
- * <p>
- * The barrier makes dependent operations wait until every shard has observed a target metadata
- * version. Each shard records the latest version it has seen under a {@code lastSeenVersions} witness
- * key, which {@link BucketEventsWatcher} updates as metadata events arrive. The barrier polls those
- * keys with snapshot reads and releases once all shards report a version at or above the target. If
- * they do not converge within the allowed attempts, it fails.
- * <p>
- * Retries use a configurable attempt count and wait duration, which suits eventual-consistency cases
- * where propagation lags behind network or shard processing. Barriers can be created concurrently,
- * but a single {@code await()} call must not be shared across threads.
+ * Makes dependent operations wait until every shard in the cluster has observed a target bucket
+ * metadata version. Each shard records the latest version it has seen under a {@code lastSeenVersions}
+ * witness key, which {@link BucketEventsWatcher} updates as metadata events arrive. The barrier polls
+ * those keys with snapshot reads, so it does not block concurrent transactions. Propagation can lag
+ * behind network or shard processing, so the caller sets the number of attempts and the wait between
+ * them. Threads can create their own barriers concurrently, but one instance must not be shared
+ * between threads.
  */
 public class BucketMetadataVersionBarrier {
     private final Context context;
     private final BucketMetadata metadata;
     private final Map<Integer, DirectorySubspace> subspaces = new HashMap<>();
 
-    /**
-     * Creates a barrier for the specified bucket metadata.
-     *
-     * @param context  the Kronotop context providing cluster configuration and FoundationDB access
-     * @param metadata the bucket metadata to synchronize on
-     */
     public BucketMetadataVersionBarrier(Context context, BucketMetadata metadata) {
         this.context = context;
         this.metadata = metadata;
     }
 
-    /**
-     * Opens or retrieves the cached lastSeenVersions subspace for a shard.
-     *
-     * @param tr      the read transaction to use for directory operations
-     * @param shardId the shard identifier
-     * @return the directory subspace containing lastSeenVersions witness keys
-     */
     private DirectorySubspace openLastSeenVersionsSubspace(ReadTransaction tr, int shardId) {
         KronotopDirectoryNode directory = KronotopDirectory.
                 kronotop().
@@ -80,6 +63,7 @@ public class BucketMetadataVersionBarrier {
                 metadata().
                 shards().
                 shard(shardId).
+                buckets().
                 lastSeenVersions();
         return subspaces.computeIfAbsent(shardId,
                 (ignored) -> context.getDirectoryLayer().open(tr, directory.toList()).join()
@@ -87,17 +71,14 @@ public class BucketMetadataVersionBarrier {
     }
 
     /**
-     * Waits until all shards have observed the target metadata version.
-     * <p>
-     * Polls each shard's lastSeenVersions key using snapshot reads and retries until either all shards
-     * report a version >= targetVersion or maxAttempts is exhausted. Uses snapshot isolation to avoid
-     * blocking concurrent transactions.
+     * Waits until all shards report a metadata version at or above the target.
      *
      * @param targetVersion the metadata version that all shards must observe
-     * @param maxAttempts   maximum number of polling attempts before failing
-     * @param waitDuration  duration to wait between polling attempts
-     * @throws BarrierNotSatisfiedException if not all shards observe the target version within maxAttempts
-     * @throws KronotopException            if other errors occur during barrier synchronization
+     * @param maxAttempts   the maximum number of polling attempts
+     * @param waitDuration  the wait between polling attempts
+     * @throws BarrierNotSatisfiedException if a shard has still not observed the target version after
+     *                                      {@code maxAttempts} attempts
+     * @throws KronotopException            if any other error occurs while polling
      */
     public void await(long targetVersion, int maxAttempts, Duration waitDuration) {
         RetryConfig config = RetryConfig.custom()

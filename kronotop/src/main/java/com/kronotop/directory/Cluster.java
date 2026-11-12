@@ -35,8 +35,4 @@ public class Cluster extends KronotopDirectoryNode {
     public Namespaces namespaces() {
         return new Namespaces(layout);
     }
-
-    public Scheduler scheduler() {
-        return new Scheduler(layout);
-    }
 }

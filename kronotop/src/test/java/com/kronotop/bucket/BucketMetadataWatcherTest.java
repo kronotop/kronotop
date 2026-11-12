@@ -49,6 +49,7 @@ class BucketMetadataWatcherTest extends BaseBucketHandlerTest {
                 metadata().
                 shards().
                 shard(shardId).
+                buckets().
                 lastSeenVersions();
         return subspaces.computeIfAbsent(shardId,
                 (ignored) -> context.getDirectoryLayer().open(tr, directory.toList()).join()

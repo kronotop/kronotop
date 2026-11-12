@@ -52,8 +52,8 @@ class ShardUtilTest extends BaseStandaloneInstanceTest {
         ShardStatus status = TransactionUtil.execute(context, tr -> ShardUtil.getShardStatus(context, tr, NUM_SHARDS));
         assertEquals(ShardStatus.INOPERABLE, status);
 
-        assertTrue(directoryExists(shardDirectory(NUM_SHARDS).maintenance().index().tasks()));
-        assertTrue(directoryExists(shardDirectory(NUM_SHARDS).lastSeenVersions()));
+        assertTrue(directoryExists(shardDirectory(NUM_SHARDS).buckets().maintenance().index().tasks()));
+        assertTrue(directoryExists(shardDirectory(NUM_SHARDS).buckets().lastSeenVersions()));
     }
 
     @Test

@@ -37,47 +37,58 @@ public class Shards extends KronotopDirectoryNode {
             layout.add(Integer.toString(shardId));
         }
 
-        public Maintenance maintenance() {
-            return new Maintenance(layout);
+        public Buckets buckets() {
+            return new Buckets(layout);
         }
 
-        public LastSeenVersions lastSeenVersions() {
-            return new LastSeenVersions(layout);
-        }
-
-        public static class Maintenance extends KronotopDirectoryNode {
-            public Maintenance(List<String> layout) {
+        public static class Buckets extends KronotopDirectoryNode {
+            public Buckets(List<String> layout) {
                 super(layout);
-                layout.add("maintenance");
+                layout.add("buckets");
             }
 
-            public Index index() {
-                return new Index(layout);
+            public Maintenance maintenance() {
+                return new Maintenance(layout);
             }
 
-            public static class Index extends KronotopDirectoryNode {
-                public Index(List<String> layout) {
+            public LastSeenVersions lastSeenVersions() {
+                return new LastSeenVersions(layout);
+            }
+
+            public static class Maintenance extends KronotopDirectoryNode {
+                public Maintenance(List<String> layout) {
                     super(layout);
-                    layout.add("index");
+                    layout.add("maintenance");
                 }
 
-                public Tasks tasks() {
-                    return new Tasks(layout);
+                public Index index() {
+                    return new Index(layout);
                 }
 
-                public static class Tasks extends KronotopDirectoryNode {
-                    public Tasks(List<String> layout) {
+                public static class Index extends KronotopDirectoryNode {
+                    public Index(List<String> layout) {
                         super(layout);
-                        layout.add("tasks");
+                        layout.add("index");
+                    }
+
+                    public Tasks tasks() {
+                        return new Tasks(layout);
+                    }
+
+                    public static class Tasks extends KronotopDirectoryNode {
+                        public Tasks(List<String> layout) {
+                            super(layout);
+                            layout.add("tasks");
+                        }
                     }
                 }
             }
-        }
 
-        public static class LastSeenVersions extends KronotopDirectoryNode {
-            public LastSeenVersions(List<String> layout) {
-                super(layout);
-                layout.add("lastSeenVersions");
+            public static class LastSeenVersions extends KronotopDirectoryNode {
+                public LastSeenVersions(List<String> layout) {
+                    super(layout);
+                    layout.add("lastSeenVersions");
+                }
             }
         }
     }

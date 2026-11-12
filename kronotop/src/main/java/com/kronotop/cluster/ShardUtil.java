@@ -96,21 +96,22 @@ public class ShardUtil {
         return getShardStatus(tr, shardSubspace);
     }
 
-    private static void initializeIndexMetadata(Context context, Transaction tr, int shardId) {
+    private static void createIndexTasksDirectory(Context context, Transaction tr, int shardId) {
         List<String> layout = KronotopDirectory.
                 kronotop().cluster(context.getClusterName()).metadata().
-                shards().shard(shardId).maintenance().
+                shards().shard(shardId).buckets().maintenance().
                 index().tasks().toList();
         context.getDirectoryLayer().create(tr, layout).join();
     }
 
-    private static void initializeBucketMetadataVersionWitness(Context context, Transaction tr, int shardId) {
+    private static void createLastSeenVersionsDirectory(Context context, Transaction tr, int shardId) {
         KronotopDirectoryNode directory = KronotopDirectory.
                 kronotop().
                 cluster(context.getClusterName()).
                 metadata().
                 shards().
                 shard(shardId).
+                buckets().
                 lastSeenVersions();
         context.getDirectoryLayer().create(tr, directory.toList()).join();
     }
@@ -133,8 +134,8 @@ public class ShardUtil {
                 shards().
                 shard(shardId);
         DirectorySubspace shardSubspace = subspace.create(tr, directory.excludeSubspace(subspace)).join();
-        initializeIndexMetadata(context, tr, shardId);
-        initializeBucketMetadataVersionWitness(context, tr, shardId);
+        createIndexTasksDirectory(context, tr, shardId);
+        createLastSeenVersionsDirectory(context, tr, shardId);
         setShardStatus(tr, ShardStatus.INOPERABLE, shardSubspace);
         return shardSubspace;
     }

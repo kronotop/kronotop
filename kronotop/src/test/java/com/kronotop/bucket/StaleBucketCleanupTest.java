@@ -59,7 +59,7 @@ class StaleBucketCleanupTest extends BaseBucketHandlerTest {
 
     private boolean lastSeenVersionExists(int shardId, UUID uuid) {
         List<String> path = KronotopDirectory.kronotop().cluster(context.getClusterName()).metadata()
-                .shards().shard(shardId).lastSeenVersions().toList();
+                .shards().shard(shardId).buckets().lastSeenVersions().toList();
         try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace subspace = context.getDirectoryLayer().open(tr, path).join();
             return tr.get(subspace.pack(Tuple.from(uuid))).join() != null;

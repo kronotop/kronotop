@@ -32,7 +32,6 @@ import com.kronotop.transaction.TransactionManager;
 
 import javax.annotation.Nonnull;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.concurrent.CompletionException;
@@ -50,7 +49,6 @@ public final class DirectorySubspaceCache {
 
     private final EnumMap<Key, List<String>> subpaths = new EnumMap<>(Key.class);
     private final ConcurrentHashMap<Integer, List<String>> shards = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ConcurrentHashMap<String, List<String>>> buckets = new ConcurrentHashMap<>();
 
     private final LoadingCache<List<String>, DirectorySubspace> cache = CacheBuilder.newBuilder()
             .expireAfterAccess(Duration.ofSeconds(10))
@@ -138,12 +136,6 @@ public final class DirectorySubspaceCache {
                 shard(shardId).
                 toList());
 
-        return get(subpath);
-    }
-
-    public DirectorySubspace get(String namespace, String bucket) {
-        List<String> subpath = buckets.computeIfAbsent(namespace, k -> new ConcurrentHashMap<>())
-                .computeIfAbsent(bucket, k -> new ArrayList<>());
         return get(subpath);
     }
 

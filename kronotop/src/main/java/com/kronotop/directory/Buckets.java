@@ -25,30 +25,8 @@ public class Buckets extends KronotopDirectoryNode {
         layout.add("buckets");
     }
 
-    public Maintenance maintenance() {
-        return new Maintenance(layout);
-    }
-
     public Registry registry(UUID uuid) {
         return new Registry(layout, uuid);
-    }
-
-    public static class Maintenance extends KronotopDirectoryNode {
-        public Maintenance(List<String> layout) {
-            super(layout);
-            layout.add("maintenance");
-        }
-
-        public Index index() {
-            return new Index(layout);
-        }
-
-        public static class Index extends KronotopDirectoryNode {
-            public Index(List<String> layout) {
-                super(layout);
-                layout.add("index");
-            }
-        }
     }
 
     public static class Registry extends KronotopDirectoryNode {

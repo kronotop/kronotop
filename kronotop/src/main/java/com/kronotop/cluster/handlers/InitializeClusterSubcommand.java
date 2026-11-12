@@ -53,17 +53,6 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
         super(service);
     }
 
-    private void createIndexMaintenanceDirectory(Transaction tr) {
-        KronotopDirectoryNode directory = KronotopDirectory.
-                kronotop().
-                cluster(context.getClusterName()).
-                metadata().
-                buckets().
-                maintenance().
-                index();
-        context.getDirectoryLayer().create(tr, directory.toList()).join();
-    }
-
     private void writeShardIdCounter(Transaction tr, DirectorySubspace subspace, int lastShardId) {
         byte[] shardIdCounterKey = subspace.pack(Tuple.from(ClusterConstants.SHARD_ID_COUNTER_KEY));
         tr.set(shardIdCounterKey, ByteBuffer.allocate(4).putInt(lastShardId).array());
@@ -74,7 +63,6 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
             ShardUtil.createShard(context, tr, shardId);
         }
         writeShardIdCounter(tr, subspace, shards - 1);
-        createIndexMaintenanceDirectory(tr);
     }
 
     private void markClusterInitialized(Transaction tr, DirectorySubspace subspace) {
