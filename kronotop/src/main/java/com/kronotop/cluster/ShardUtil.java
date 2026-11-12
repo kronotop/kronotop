@@ -21,9 +21,14 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.cluster.sharding.ShardStatus;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.internal.DirectorySubspaceCache;
+
+import java.util.List;
 
 /**
- * Utility class for handling shard operations within the Kronotop system.
+ * Static helpers that create shards and read or write the shard status.
  */
 public class ShardUtil {
 
@@ -37,12 +42,13 @@ public class ShardUtil {
     }
 
     /**
-     * Sets the status of a specific shard in the DirectorySubspace cache.
+     * Sets the status of the shard with the given ID.
      *
-     * @param context     the context of the Kronotop instance, containing necessary utilities and configurations
-     * @param tr          the transaction within which the shard status is being set
-     * @param shardStatus the new status to be set for the shard (e.g., READONLY, READWRITE, INOPERABLE)
-     * @param shardId     the identifier for the specific shard whose status is being updated
+     * @param context     the Kronotop context
+     * @param tr          the transaction to write with
+     * @param shardStatus the new status
+     * @param shardId     the shard ID
+     * @throws com.kronotop.NoSuchDirectorySubspaceException if the shard has no directory
      */
     public static void setShardStatus(
             Context context,
@@ -55,12 +61,12 @@ public class ShardUtil {
     }
 
     /**
-     * Retrieves the status of a specific shard from the given DirectorySubspace within a transaction.
+     * Returns the status stored in the given shard directory.
      *
-     * @param tr            the transaction within which the shard status is being retrieved.
-     * @param shardSubspace the DirectorySubspace representing the shard.
-     * @return the status of the specified shard as a {@link ShardStatus} enum value.
-     * @throws IllegalStateException if the shard status has not been set for the given shard.
+     * @param tr            the transaction to read with
+     * @param shardSubspace the directory of the shard
+     * @return the shard status
+     * @throws IllegalStateException if the shard has no status
      */
     public static ShardStatus getShardStatus(Transaction tr, DirectorySubspace shardSubspace) {
         byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.SHARD_STATUS_KEY));
@@ -72,13 +78,14 @@ public class ShardUtil {
     }
 
     /**
-     * Retrieves the status of a specific shard in the DirectorySubspace cache.
+     * Returns the status of the shard with the given ID.
      *
-     * @param context   the context of the Kronotop instance, containing the necessary utilities and configurations.
-     * @param tr        the transaction within which the shard status is being retrieved.
-     * @param shardId   the identifier for the specific shard whose status is being retrieved.
-     * @return the status of the specified shard as a {@link ShardStatus} enum value.
-     * @throws IllegalStateException if the shard status has not been set for the given shard.
+     * @param context the Kronotop context
+     * @param tr      the transaction to read with
+     * @param shardId the shard ID
+     * @return the shard status
+     * @throws IllegalStateException                         if the shard has no status
+     * @throws com.kronotop.NoSuchDirectorySubspaceException if the shard has no directory
      */
     public static ShardStatus getShardStatus(
             Context context,
@@ -87,5 +94,48 @@ public class ShardUtil {
     ) {
         DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardId);
         return getShardStatus(tr, shardSubspace);
+    }
+
+    private static void initializeIndexMetadata(Context context, Transaction tr, int shardId) {
+        List<String> layout = KronotopDirectory.
+                kronotop().cluster(context.getClusterName()).metadata().
+                shards().shard(shardId).maintenance().
+                index().tasks().toList();
+        context.getDirectoryLayer().create(tr, layout).join();
+    }
+
+    private static void initializeBucketMetadataVersionWitness(Context context, Transaction tr, int shardId) {
+        KronotopDirectoryNode directory = KronotopDirectory.
+                kronotop().
+                cluster(context.getClusterName()).
+                metadata().
+                shards().
+                shard(shardId).
+                lastSeenVersions();
+        context.getDirectoryLayer().create(tr, directory.toList()).join();
+    }
+
+    /**
+     * Creates a shard that starts as {@link ShardStatus#INOPERABLE}.
+     *
+     * @param context the Kronotop context
+     * @param tr      the transaction to write with. The caller commits it.
+     * @param shardId the ID of the new shard
+     * @return the directory of the new shard
+     * @throws java.util.concurrent.CompletionException if a shard with the given ID already exists
+     */
+    public static DirectorySubspace createShard(Context context, Transaction tr, int shardId) {
+        DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
+        KronotopDirectoryNode directory = KronotopDirectory.
+                kronotop().
+                cluster(context.getClusterName()).
+                metadata().
+                shards().
+                shard(shardId);
+        DirectorySubspace shardSubspace = subspace.create(tr, directory.excludeSubspace(subspace)).join();
+        initializeIndexMetadata(context, tr, shardId);
+        initializeBucketMetadataVersionWitness(context, tr, shardId);
+        setShardStatus(tr, ShardStatus.INOPERABLE, shardSubspace);
+        return shardSubspace;
     }
 }

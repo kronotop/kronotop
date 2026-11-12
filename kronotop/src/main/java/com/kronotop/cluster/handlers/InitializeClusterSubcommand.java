@@ -39,6 +39,7 @@ import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
 import io.netty.buffer.ByteBuf;
 
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletionException;
@@ -83,6 +84,11 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
         context.getDirectoryLayer().create(tr, directory.toList()).join();
     }
 
+    private void initializeShardIdCounterKey(Transaction tr, DirectorySubspace subspace, int counter) {
+        byte[] shardIdCounterKey = subspace.pack(Tuple.from(ClusterConstants.SHARD_ID_COUNTER_KEY));
+        tr.set(shardIdCounterKey, ByteBuffer.allocate(4).putInt(counter).array());
+    }
+
     private void initializeBucketSection(Transaction tr, DirectorySubspace subspace, int shardCount) {
         for (int shardId = 0; shardId < shardCount; shardId++) {
             KronotopDirectoryNode directory = KronotopDirectory.
@@ -96,6 +102,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
             initializeBucketMetadataVersionWitness(tr, shardId);
             ShardUtil.setShardStatus(tr, ShardStatus.INOPERABLE, shardSubspace);
         }
+        initializeShardIdCounterKey(tr, subspace, shardCount - 1);
         initializeIndexTaskCounter(tr);
     }
 

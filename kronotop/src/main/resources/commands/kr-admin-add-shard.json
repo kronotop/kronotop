@@ -4,7 +4,7 @@
     "complexity": "O(1)",
     "group": "cluster",
     "since": "2026.11-2",
-    "arity": -2,
+    "arity": 2,
     "container": "KR.ADMIN",
     "command_flags": [
       "ADMIN",
@@ -13,7 +13,7 @@
     "acl_categories": [],
     "key_specs": [],
     "reply_schema": {
-      "description": "Always 0.",
+      "description": "The id of the new shard.",
       "type": "integer"
     }
   }

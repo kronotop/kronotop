@@ -17,6 +17,7 @@
 package com.kronotop.cluster;
 
 public final class ClusterConstants {
-    public static final byte CLUSTER_INITIALIZED = 0x02;
-    public static final byte CLUSTER_TOPOLOGY_CHANGED = 0x06;
+    public static final byte CLUSTER_INITIALIZED = 0x01;
+    public static final byte CLUSTER_TOPOLOGY_CHANGED = 0x02;
+    public static final byte SHARD_ID_COUNTER_KEY = 0x03;
 }

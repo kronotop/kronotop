@@ -22,6 +22,7 @@ import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.CollectStalePrefixesTask;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MemberStatus;
+import com.kronotop.cluster.ShardUtil;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.commands.TaskAdminCommandBuilder;
@@ -38,15 +39,24 @@ import com.kronotop.volume.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.LongStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -84,17 +94,97 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertEquals("ERR Wrong number of arguments for 'KR.ADMIN INITIALIZE-CLUSTER' command", actualMessage.content());
     }
 
-    @Test
-    void shouldAddShard() {
-        // Behavior: ADD-SHARD on an initialized cluster replies with the integer 0.
+    private Object addShard(EmbeddedChannel client) {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.addShard().encode(buf);
+        return runCommand(client, buf);
+    }
+
+    @Test
+    void shouldAddShard() {
+        // Behavior: On a cluster initialized with NUM_SHARDS shards (ids 0 to NUM_SHARDS - 1), the first ADD-SHARD
+        // replies with the integer NUM_SHARDS and the new shard is stored with the status INOPERABLE. A second
+        // ADD-SHARD replies with NUM_SHARDS + 1.
+        Object first = addShard(channel);
+        assertInstanceOf(IntegerRedisMessage.class, first);
+        assertEquals(NUM_SHARDS, ((IntegerRedisMessage) first).value());
+
+        ShardStatus status = TransactionUtil.execute(context, tr -> ShardUtil.getShardStatus(context, tr, NUM_SHARDS));
+        assertEquals(ShardStatus.INOPERABLE, status);
+
+        Object second = addShard(channel);
+        assertInstanceOf(IntegerRedisMessage.class, second);
+        assertEquals(NUM_SHARDS + 1, ((IntegerRedisMessage) second).value());
+    }
+
+    @Test
+    void shouldAddShardsConcurrently() throws InterruptedException {
+        // Behavior: On a cluster initialized with NUM_SHARDS shards, eight clients send ADD-SHARD at the same time,
+        // each on its own connection. Every reply is either an integer or the error "Another shard is being added
+        // at the same time", and at least one reply is an integer. The integers are the consecutive ids starting at
+        // NUM_SHARDS and no id is given twice. The cluster ends up with one new shard per integer reply.
+        int clients = 8;
+        List<EmbeddedChannel> channels = new ArrayList<>();
+        for (int i = 0; i < clients; i++) {
+            EmbeddedChannel client = kronotopInstance.newChannel();
+            switchProtocol(client, RESPVersion.RESP3);
+            channels.add(client);
+        }
+
+        ExecutorService executor = Executors.newFixedThreadPool(clients);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(clients);
+        Queue<Object> replies = new ConcurrentLinkedQueue<>();
+        for (EmbeddedChannel client : channels) {
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    replies.add(addShard(client));
+                } catch (Exception e) {
+                    replies.add(e);
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+        startLatch.countDown();
+        assertTrue(doneLatch.await(30, TimeUnit.SECONDS));
+        executor.shutdown();
+        assertEquals(clients, replies.size());
+
+        List<Long> shardIds = new ArrayList<>();
+        for (Object reply : replies) {
+            if (reply instanceof IntegerRedisMessage shardId) {
+                shardIds.add(shardId.value());
+            } else {
+                assertInstanceOf(ErrorRedisMessage.class, reply);
+                assertEquals("ERR Another shard is being added at the same time", ((ErrorRedisMessage) reply).content());
+            }
+        }
+        assertFalse(shardIds.isEmpty());
+        Collections.sort(shardIds);
+        List<Long> expectedShardIds = LongStream.range(NUM_SHARDS, NUM_SHARDS + shardIds.size()).boxed().toList();
+        assertEquals(expectedShardIds, shardIds);
+
+        List<String> shards = TransactionUtil.execute(context, tr -> {
+            List<String> subpath = KronotopDirectory.kronotop().cluster(context.getClusterName()).metadata().shards().toList();
+            return context.getDirectoryLayer().list(tr, subpath).join();
+        });
+        assertEquals(NUM_SHARDS + shardIds.size(), shards.size());
+    }
+
+    @Test
+    void shouldReturnErrorWhenAddShardWithExtraArguments() {
+        // Behavior: ADD-SHARD followed by one more argument is rejected with
+        // "Wrong number of arguments for 'KR.ADMIN ADD-SHARD' command".
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$9\r\nADD-SHARD\r\n$5\r\nextra\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
-        assertInstanceOf(IntegerRedisMessage.class, msg);
-        IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
-        assertEquals(0, actualMessage.value());
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR Wrong number of arguments for 'KR.ADMIN ADD-SHARD' command", actualMessage.content());
     }
 
     @Test
