@@ -28,7 +28,6 @@ import com.kronotop.cluster.MembershipUtil;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.ShardUtil;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
-import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
@@ -54,15 +53,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
         super(service);
     }
 
-    private void initializeIndexMetadata(Transaction tr, int shardId) {
-        List<String> layout = KronotopDirectory.
-                kronotop().cluster(context.getClusterName()).metadata().
-                shards().shard(shardId).maintenance().
-                index().tasks().toList();
-        context.getDirectoryLayer().create(tr, layout).join();
-    }
-
-    private void initializeIndexTaskCounter(Transaction tr) {
+    private void createIndexMaintenanceDirectory(Transaction tr) {
         KronotopDirectoryNode directory = KronotopDirectory.
                 kronotop().
                 cluster(context.getClusterName()).
@@ -73,45 +64,25 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
         context.getDirectoryLayer().create(tr, directory.toList()).join();
     }
 
-    private void initializeBucketMetadataVersionWitness(Transaction tr, int shardId) {
-        KronotopDirectoryNode directory = KronotopDirectory.
-                kronotop().
-                cluster(context.getClusterName()).
-                metadata().
-                shards().
-                shard(shardId).
-                lastSeenVersions();
-        context.getDirectoryLayer().create(tr, directory.toList()).join();
-    }
-
-    private void initializeShardIdCounterKey(Transaction tr, DirectorySubspace subspace, int counter) {
+    private void writeShardIdCounter(Transaction tr, DirectorySubspace subspace, int lastShardId) {
         byte[] shardIdCounterKey = subspace.pack(Tuple.from(ClusterConstants.SHARD_ID_COUNTER_KEY));
-        tr.set(shardIdCounterKey, ByteBuffer.allocate(4).putInt(counter).array());
+        tr.set(shardIdCounterKey, ByteBuffer.allocate(4).putInt(lastShardId).array());
     }
 
-    private void initializeBucketSection(Transaction tr, DirectorySubspace subspace, int shardCount) {
-        for (int shardId = 0; shardId < shardCount; shardId++) {
-            KronotopDirectoryNode directory = KronotopDirectory.
-                    kronotop().
-                    cluster(context.getClusterName()).
-                    metadata().
-                    shards().
-                    shard(shardId);
-            DirectorySubspace shardSubspace = subspace.create(tr, directory.excludeSubspace(subspace)).join();
-            initializeIndexMetadata(tr, shardId);
-            initializeBucketMetadataVersionWitness(tr, shardId);
-            ShardUtil.setShardStatus(tr, ShardStatus.INOPERABLE, shardSubspace);
+    private void createInitialShards(Transaction tr, DirectorySubspace subspace, int shards) {
+        for (int shardId = 0; shardId < shards; shardId++) {
+            ShardUtil.createShard(context, tr, shardId);
         }
-        initializeShardIdCounterKey(tr, subspace, shardCount - 1);
-        initializeIndexTaskCounter(tr);
+        writeShardIdCounter(tr, subspace, shards - 1);
+        createIndexMaintenanceDirectory(tr);
     }
 
-    private void setClusterInitializedTrue(Transaction tr, DirectorySubspace subspace) {
+    private void markClusterInitialized(Transaction tr, DirectorySubspace subspace) {
         byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_INITIALIZED));
         tr.set(key, MembershipUtil.TRUE);
     }
 
-    private void initializeNamespaces(Transaction tr, DirectorySubspace subspace) {
+    private void createNamespaceTombstonesDirectory(Transaction tr, DirectorySubspace subspace) {
         KronotopDirectoryNode directory = KronotopDirectory.
                 kronotop().
                 cluster(context.getClusterName()).
@@ -129,9 +100,9 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
             }
 
             MetadataVersion.write(context, tr, MetadataVersion.CURRENT);
-            initializeNamespaces(tr, clusterMetadataSubspace);
-            initializeBucketSection(tr, clusterMetadataSubspace, arguments.shardCount);
-            setClusterInitializedTrue(tr, clusterMetadataSubspace);
+            createNamespaceTombstonesDirectory(tr, clusterMetadataSubspace);
+            createInitialShards(tr, clusterMetadataSubspace, arguments.shardCount);
+            markClusterInitialized(tr, clusterMetadataSubspace);
             tr.commit().join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof DirectoryAlreadyExistsException ex) {
