@@ -17,6 +17,7 @@
 package com.kronotop.commands;
 
 import io.lettuce.core.codec.RedisCodec;
+import io.lettuce.core.output.IntegerOutput;
 import io.lettuce.core.output.MapOutput;
 import io.lettuce.core.output.StatusOutput;
 import io.lettuce.core.output.StringListOutput;
@@ -136,6 +137,11 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
+    public Command<K, V, Long> addShard() {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.ADD_SHARD);
+        return createCommand(CommandType.KR_ADMIN, new IntegerOutput<>(codec), args);
+    }
+
     public enum CommandType implements ProtocolKeyword {
         KR_ADMIN("KR.ADMIN");
 
@@ -164,7 +170,8 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         DESCRIBE_CLUSTER("DESCRIBE-CLUSTER"),
         ROUTE("ROUTE"),
         DROP_CLUSTER("DROP-CLUSTER"),
-        COLLECT_STALE_PREFIXES("COLLECT-STALE-PREFIXES");
+        COLLECT_STALE_PREFIXES("COLLECT-STALE-PREFIXES"),
+        ADD_SHARD("ADD-SHARD");
 
         public final byte[] bytes;
 

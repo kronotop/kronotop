@@ -1,0 +1,20 @@
+{
+  "ADD-SHARD": {
+    "summary": "Adds a new shard to the cluster.",
+    "complexity": "O(1)",
+    "group": "cluster",
+    "since": "2026.11-2",
+    "arity": -2,
+    "container": "KR.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "WRITE"
+    ],
+    "acl_categories": [],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "Always 0.",
+      "type": "integer"
+    }
+  }
+}

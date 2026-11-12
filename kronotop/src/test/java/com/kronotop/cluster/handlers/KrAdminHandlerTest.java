@@ -85,6 +85,19 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
+    void shouldAddShard() {
+        // Behavior: ADD-SHARD on an initialized cluster replies with the integer 0.
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.addShard().encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(IntegerRedisMessage.class, msg);
+        IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
+        assertEquals(0, actualMessage.value());
+    }
+
+    @Test
     void shouldListMembers() {
         // Behavior: LIST-MEMBERS returns every known member with its status, process id and advertise lists.
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);

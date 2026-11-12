@@ -301,7 +301,8 @@ class CommandHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReturnKrAdminSubcommands() {
-        // Behavior: on the internal server COMMAND INFO KR.ADMIN nests thirteen subcommands and COMMAND DOCS KR.ADMIN|ROUTE lists five arguments
+        // Behavior: on the internal server COMMAND INFO KR.ADMIN nests fourteen subcommands and
+        // COMMAND DOCS KR.ADMIN|ROUTE lists five arguments
         EmbeddedChannel internal = newInternalChannel();
         List<RedisMessage> entries = infoEntries(run(internal, "COMMAND", "INFO", "kr.admin"));
 
@@ -311,7 +312,7 @@ class CommandHandlerTest extends BaseHandlerTest {
         List<String> subcommands = ((ArrayRedisMessage) krAdmin.get(9)).children().stream()
                 .map(sub -> text(((ArrayRedisMessage) sub).children().getFirst()))
                 .toList();
-        assertEquals(13, subcommands.size());
+        assertEquals(14, subcommands.size());
         assertTrue(subcommands.contains("kr.admin|initialize-cluster"));
         assertTrue(subcommands.contains("kr.admin|drop-cluster"));
 
