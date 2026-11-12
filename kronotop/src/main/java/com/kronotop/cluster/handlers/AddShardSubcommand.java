@@ -23,6 +23,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.ClusterConstants;
+import com.kronotop.cluster.ClusterUtil;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.ShardUtil;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
@@ -66,6 +67,7 @@ class AddShardSubcommand extends BaseKrAdminSubcommandHandler implements Subcomm
                 buffer.clear();
                 buffer.putInt(nextShardId);
                 tr.set(key, buffer.array());
+                ClusterUtil.signalTopologyChange(context, tr);
                 tr.commit().join();
 
                 return nextShardId;
