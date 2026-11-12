@@ -32,6 +32,8 @@ import com.kronotop.server.resp3.RedisMessage;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+
 class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
     DescribeClusterSubcommand(RoutingService service) {
@@ -40,7 +42,7 @@ class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements 
 
     @Override
     public void execute(Request request, Response response) {
-        AsyncCommandExecutor.supplyAsync(context, response, () -> {
+        supplyAsync(context, response, () -> {
             if (request.getArguments().size() != 1) {
                 throw new WrongNumberOfArgumentsException(KrAdminMessage.COMMAND, KrAdminSubcommand.DESCRIBE_CLUSTER);
             }

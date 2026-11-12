@@ -18,6 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.AsyncCommandExecutor;
+import com.kronotop.cluster.ClusterUtil;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.internal.ProtocolMessageUtil;
@@ -41,7 +42,7 @@ class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements Sub
         AsyncCommandExecutor.runAsync(context, response, () -> {
             try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 membership.removeMember(tr, arguments.memberId);
-                membership.triggerClusterTopologyWatcher(tr);
+                ClusterUtil.signalTopologyChange(context, tr);
                 tr.commit().join();
             }
         }, response::writeOK);

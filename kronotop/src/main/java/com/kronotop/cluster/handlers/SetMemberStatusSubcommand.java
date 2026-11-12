@@ -18,6 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.AsyncCommandExecutor;
+import com.kronotop.cluster.ClusterUtil;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.RoutingService;
@@ -45,7 +46,7 @@ class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements 
                 Member member = membership.findMember(tr, arguments.memberId);
                 member.setStatus(arguments.memberStatus);
                 membership.updateMember(tr, member);
-                membership.triggerClusterTopologyWatcher(tr);
+                ClusterUtil.signalTopologyChange(context, tr);
                 tr.commit().join();
             }
         }, response::writeOK);

@@ -16,19 +16,14 @@
 
 package com.kronotop.cluster;
 
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.BaseClusterTest;
 import com.kronotop.KronotopException;
 import com.kronotop.KronotopTestInstance;
-import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.network.Address;
 import com.kronotop.transaction.TransactionUtil;
 import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
@@ -295,42 +290,6 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
 
         long secondHeartbeat = membership.getLatestHeartbeat(member);
         assertTrue(secondHeartbeat > firstHeartbeat);
-    }
-
-    @Test
-    void shouldTriggerTopologyWatcherOnMemberChange() {
-        KronotopTestInstance instance = getInstances().getFirst();
-        MembershipService membership = instance.getContext().getService(MembershipService.NAME);
-
-        DirectorySubspace subspace = instance.getContext().getDirectorySubspaceCache()
-                .get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-        byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_TOPOLOGY_CHANGED));
-
-        // Get initial counter value (little-endian 32-bit integer from atomic ADD)
-        Long initialValue = TransactionUtil.execute(instance.getContext(), tr -> {
-            byte[] value = tr.get(key).join();
-            if (value == null) {
-                return 0L;
-            }
-            return (long) ByteBuffer.wrap(value).order(ByteOrder.LITTLE_ENDIAN).getInt();
-        });
-
-        // Trigger topology watcher
-        TransactionUtil.executeThenCommit(instance.getContext(), tr -> {
-            membership.triggerClusterTopologyWatcher(tr);
-            return null;
-        });
-
-        // Verify counter was incremented
-        Long newValue = TransactionUtil.execute(instance.getContext(), tr -> {
-            byte[] value = tr.get(key).join();
-            if (value == null) {
-                return 0L;
-            }
-            return (long) ByteBuffer.wrap(value).order(ByteOrder.LITTLE_ENDIAN).getInt();
-        });
-
-        assertTrue(newValue > initialValue);
     }
 
     @Test

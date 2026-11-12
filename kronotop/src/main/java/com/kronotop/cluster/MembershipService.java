@@ -50,7 +50,6 @@ import java.util.concurrent.locks.LockSupport;
  */
 public class MembershipService extends BaseKronotopService implements KronotopService {
     public static final String NAME = "Membership";
-    private static final byte[] PLUS_ONE = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private static final Logger LOGGER = LoggerFactory.getLogger(MembershipService.class);
     private final JournalService journal;
     private final Context context;
@@ -254,17 +253,6 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             Member member = context.getMember();
             updateMemberStatusAndLeftCluster(member, MemberStatus.STOPPED);
         }
-    }
-
-    /**
-     * Signals a topology change to all members that watch the cluster topology key.
-     *
-     * @param tr the transaction to write with
-     */
-    public void triggerClusterTopologyWatcher(Transaction tr) {
-        DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-        byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_TOPOLOGY_CHANGED));
-        tr.mutate(MutationType.ADD, key, PLUS_ONE);
     }
 
     private void updateMemberStatusAndLeftCluster(Member member, MemberStatus status) {

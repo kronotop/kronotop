@@ -18,6 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.AsyncCommandExecutor;
+import com.kronotop.cluster.ClusterUtil;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.ShardUtil;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
@@ -50,7 +51,7 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
                 } else {
                     ShardUtil.setShardStatus(context, tr, arguments.shardStatus, arguments.shardId);
                 }
-                membership.triggerClusterTopologyWatcher(tr);
+                ClusterUtil.signalTopologyChange(context, tr);
                 tr.commit().join();
             }
         }, response::writeOK);

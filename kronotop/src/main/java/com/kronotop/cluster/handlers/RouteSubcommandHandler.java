@@ -179,7 +179,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
                 } else {
                     throw new KronotopException("Unknown operation kind: " + arguments.operationKind);
                 }
-                membership.triggerClusterTopologyWatcher(tr);
+                ClusterUtil.signalTopologyChange(context, tr);
                 tr.commit().join();
             }
         }, response::writeOK);
