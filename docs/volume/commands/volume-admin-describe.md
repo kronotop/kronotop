@@ -43,6 +43,8 @@ Each value in the `segments` map is a nested map:
 
 Reads the volume's configuration and computes per-segment statistics.
 
+This command works only on a volume opened by the member you are connected to.
+
 It is available on the management port (default 3320).
 
 ## Errors

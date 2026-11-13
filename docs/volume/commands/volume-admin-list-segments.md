@@ -26,6 +26,8 @@ RESP3 array of integers. Each element is a segment ID (`long`). Returns an empty
 
 Loads volume metadata and returns the list of segment IDs as an integer array.
 
+This command works only on a volume opened by the member you are connected to.
+
 It is available on the management port (default 3320).
 
 ## Errors

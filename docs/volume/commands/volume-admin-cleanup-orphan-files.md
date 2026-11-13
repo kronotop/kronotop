@@ -30,6 +30,8 @@ deleted. The absolute paths of successfully deleted files are returned.
 
 Orphan segment files remain on disk after crashes where the metadata entry was removed, but the file was not deleted.
 
+This command works only on a volume opened by the member you are connected to.
+
 It is available on the management port (default 3320).
 
 ## Errors

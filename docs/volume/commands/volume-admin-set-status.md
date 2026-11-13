@@ -26,6 +26,8 @@ Simple string `OK` on success.
 
 Persists the new status. The status input is converted to uppercase before validation.
 
+This command works only on a volume opened by the member you are connected to.
+
 It does not require cluster initialization. It is available on the management port (default 3320).
 
 ## Errors

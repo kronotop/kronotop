@@ -23,6 +23,8 @@ A typical lifecycle:
 Metadata from a completed or stopped run persists until explicitly dropped. A new vacuum cannot start while stale
 metadata exists; run `DROP` first.
 
+Vacuum works only on a volume opened by the member you are connected to.
+
 All subcommands are available on the management port (default 3320).
 
 An invalid subcommand (not START, STOP, DROP, or STATUS) returns `ERR Unknown subcommand: '<operation>'`.
