@@ -222,4 +222,19 @@ class VacuumSubcommandTest extends BaseNetworkedVolumeIntegrationTest {
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
         assertTrue(errorMessage.content().contains("Wrong number of arguments for 'VOLUME.ADMIN VACUUM' command"));
     }
+
+    @Test
+    void shouldReturnErrorWithUnknownSubcommand() {
+        // Behavior: VOLUME.ADMIN VACUUM with the subcommand "pause", which is not one of START, STOP, DROP and
+        // STATUS, is rejected with the error "ERR Unknown subcommand: 'pause'". The value is reported as the
+        // client sent it.
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes("*4\r\n$12\r\nVOLUME.ADMIN\r\n$6\r\nVACUUM\r\n$5\r\npause\r\n$7\r\nshard-1\r\n".getBytes());
+
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR Unknown subcommand: 'pause'", errorMessage.content());
+    }
 }

@@ -38,9 +38,7 @@ class ListSubcommand extends BaseSubcommandHandler implements SubcommandHandler 
     public void execute(Request request, Response response) {
         supplyAsync(context, response, () -> {
             List<RedisMessage> volumes = new ArrayList<>();
-            service.list().forEach(volume -> {
-                volumes.add(bulkString(volume.getConfig().name()));
-            });
+            service.list().forEach(volume -> volumes.add(bulkString(volume.getConfig().name())));
             return volumes;
         }, response::writeArray);
 

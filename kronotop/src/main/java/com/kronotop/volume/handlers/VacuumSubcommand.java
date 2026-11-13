@@ -19,11 +19,9 @@ package com.kronotop.volume.handlers;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketEntryEvacuator;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.internal.StringUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
-import com.kronotop.server.UnknownSubcommandException;
 import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.*;
@@ -63,14 +61,20 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
         if (args.size() < 2) {
             throw new WrongNumberOfArgumentsException(VolumeAdminMessage.COMMAND, VolumeAdminSubcommand.VACUUM);
         }
-        String operation = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(args.get(1)));
+        Operation operation = ProtocolMessageUtil.readEnum(Operation.class, args.get(1), "subcommand");
         switch (operation) {
-            case "START" -> vacuumStart(request, response);
-            case "STOP" -> vacuumStop(request, response);
-            case "DROP" -> vacuumDrop(request, response);
-            case "STATUS" -> vacuumStatus(request, response);
-            default -> throw new UnknownSubcommandException(operation);
+            case START -> vacuumStart(request, response);
+            case STOP -> vacuumStop(request, response);
+            case DROP -> vacuumDrop(request, response);
+            case STATUS -> vacuumStatus(request, response);
         }
+    }
+
+    private enum Operation {
+        START,
+        STOP,
+        DROP,
+        STATUS
     }
 
     private void vacuumStart(Request request, Response response) {
@@ -87,16 +91,12 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
 
     private void vacuumStop(Request request, Response response) {
         Arguments arguments = new Arguments(request.getArguments());
-        runAsync(context, response, () -> {
-            service.findVolume(arguments.volumeName).vacuumStop();
-        }, response::writeOK);
+        runAsync(context, response, () -> service.findVolume(arguments.volumeName).vacuumStop(), response::writeOK);
     }
 
     private void vacuumDrop(Request request, Response response) {
         Arguments arguments = new Arguments(request.getArguments());
-        runAsync(context, response, () -> {
-            service.findVolume(arguments.volumeName).vacuumDrop();
-        }, response::writeOK);
+        runAsync(context, response, () -> service.findVolume(arguments.volumeName).vacuumDrop(), response::writeOK);
     }
 
     private void vacuumStatus(Request request, Response response) {
