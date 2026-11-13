@@ -84,6 +84,43 @@ class VolumeMetadataUtilTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    void shouldOpenVolumeSubspace() {
+        // Behavior: After createVolumeSubspace has created the given volume directory and the transaction is
+        // committed, openVolumeSubspace with the same name and directory returns a subspace whose path is that
+        // directory.
+        KronotopDirectoryNode directory = volumeDirectory();
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeMetadataUtil.createVolumeSubspace(context, tr, VOLUME_NAME, directory);
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            DirectorySubspace volumeSubspace = VolumeMetadataUtil.openVolumeSubspace(context, tr, VOLUME_NAME, directory);
+
+            assertEquals(directory.toList(), volumeSubspace.getPath());
+        }
+    }
+
+    @Test
+    void shouldThrowWhenVolumeSubspaceDoesNotExist() {
+        // Behavior: When the given volume directory has not been created, openVolumeSubspace throws
+        // NoSuchVolumeException with the message "No such volume: '<volume name>'".
+        KronotopDirectoryNode directory = volumeDirectory();
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            NoSuchVolumeException exception = assertThrows(
+                    NoSuchVolumeException.class,
+                    () -> VolumeMetadataUtil.openVolumeSubspace(context, tr, VOLUME_NAME, directory)
+            );
+            assertEquals(
+                    String.format("No such volume: '%s'", VOLUME_NAME),
+                    exception.getMessage()
+            );
+        }
+    }
+
+    @Test
     void shouldCreateNewVolumeMetadata() {
         // Behavior: create on an empty subspace initializes a new volume with a generated ID, READWRITE status
         // and segment 0 as the only segment.

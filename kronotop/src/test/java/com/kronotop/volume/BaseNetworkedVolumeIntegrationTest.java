@@ -21,6 +21,7 @@ import com.google.common.base.Strings;
 import com.kronotop.BaseClusterTestWithTCPServer;
 import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
+import com.kronotop.cluster.ShardUtil;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -29,11 +30,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
-import java.nio.file.Paths;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.UUID;
 
 public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPServer {
     protected final BaseVolumeTestWrapper baseVolumeTestWrapper = new BaseVolumeTestWrapper();
@@ -47,33 +46,19 @@ public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPSe
     protected VolumeConfig volumeConfig;
     protected Prefix prefix = new Prefix("volume-test-prefix".getBytes());
     protected VolumeService volumeService;
-    private VolumeConfigGenerator volumeConfigGenerator;
 
     @BeforeEach
     public void setup() {
         super.setup();
         kronotopInstance = getInstances().getFirst();
-        volumeConfigGenerator = new VolumeConfigGenerator(kronotopInstance.getContext(), SHARD_ID);
         volumeService = kronotopInstance.getContext().getService(VolumeService.NAME);
         channel = kronotopInstance.getChannel();
         context = kronotopInstance.getContext();
         database = kronotopInstance.getContext().getFoundationDB();
 
         try {
-            volumeConfig = volumeConfigGenerator.volumeConfig();
+            volumeConfig = ShardUtil.newShardVolumeConfig(context, SHARD_ID);
             volume = volumeService.openVolume(volumeConfig);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    @Deprecated
-    protected Volume newStandbyVolume(Context standbyContext) {
-        String dataDir = Paths.get(volumeConfigGenerator.getDataDir(), UUID.randomUUID().toString()).toString();
-        VolumeConfig standbyVolumeConfig = volumeConfigGenerator.volumeConfig(dataDir);
-        try {
-            VolumeService standbyVolumeService = standbyContext.getService(VolumeService.NAME);
-            return standbyVolumeService.openVolume(standbyVolumeConfig);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

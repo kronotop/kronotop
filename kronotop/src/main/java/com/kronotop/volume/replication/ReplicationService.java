@@ -23,9 +23,8 @@ import com.kronotop.KronotopService;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.ShardUtil;
 import com.kronotop.internal.ExecutorServiceUtil;
-import com.kronotop.volume.VolumeConfig;
-import com.kronotop.volume.VolumeConfigGenerator;
 import com.kronotop.volume.VolumeNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,8 +118,8 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
                             "A replication watchdog is already registered for shard " + shardId
                     );
                 }
-                VolumeConfig config = new VolumeConfigGenerator(context, shardId).volumeConfig();
-                Supplier<ReplicationTask> factory = () -> new VolumeReplication(context, shardId, config.dataDir());
+                String dataDir = ShardUtil.shardDataDir(context.getDataDir(), shardId).toString();
+                Supplier<ReplicationTask> factory = () -> new VolumeReplication(context, shardId, dataDir);
                 watchDog = new ReplicationWatchDog(shardId, factory);
                 replications.put(shardId, watchDog);
                 executor.submit(watchDog);

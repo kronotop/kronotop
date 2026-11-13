@@ -17,8 +17,11 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.cluster.ShardUtil;
 import com.kronotop.journal.JournalName;
 import com.kronotop.journal.JournalService;
+import com.kronotop.transaction.TransactionUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,8 +39,7 @@ public class VolumeServiceTest extends BaseVolumeTest {
 
     @BeforeEach
     public void setUp() {
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, 1);
-        volumeConfig = generator.volumeConfig();
+        volumeConfig = ShardUtil.newShardVolumeConfig(context, 1);
         service = context.getService(VolumeService.NAME);
     }
 
@@ -58,15 +60,24 @@ public class VolumeServiceTest extends BaseVolumeTest {
 
     @Test
     public void shouldThrowWhenOpenVolumeWithoutMetadata() {
-        // Behavior: The volume directory of the unused shard UNUSED_SHARD_ID is created without volume metadata.
-        // openVolume with the config of that volume fails with NoSuchVolumeException and the message
-        // "No such volume: '<volume name>'".
-        VolumeConfig config = new VolumeConfigGenerator(context, UNUSED_SHARD_ID).volumeConfig();
-        NoSuchVolumeException exception = assertThrows(NoSuchVolumeException.class, () -> service.openVolume(config));
-        assertEquals(
-                String.format("No such volume: '%s'", VolumeNames.format(UNUSED_SHARD_ID)),
-                exception.getMessage()
+        // Behavior: The volume directory of the unused shard UNUSED_SHARD_ID is created with createVolumeSubspace
+        // and committed, but no volume metadata is written. openVolume with a config that points to that directory
+        // fails with NoSuchVolumeException and the message "No such volume: '<volume name>'".
+        String name = VolumeNames.format(UNUSED_SHARD_ID);
+        DirectorySubspace subspace = TransactionUtil.executeThenCommit(context, tr -> VolumeMetadataUtil.createVolumeSubspace(
+                context,
+                tr,
+                name,
+                ShardUtil.getShardVolumeDirectory(context, UNUSED_SHARD_ID)
+        ));
+        VolumeConfig config = new VolumeConfig(
+                subspace,
+                name,
+                ShardUtil.shardDataDir(context.getDataDir(), UNUSED_SHARD_ID).toString(),
+                volumeConfig.segmentSize()
         );
+        NoSuchVolumeException exception = assertThrows(NoSuchVolumeException.class, () -> service.openVolume(config));
+        assertEquals(String.format("No such volume: '%s'", name), exception.getMessage());
     }
 
     @Test
@@ -147,9 +158,11 @@ public class VolumeServiceTest extends BaseVolumeTest {
 
     @Test
     public void shouldThrowWhenOpenSubspaceWithNoSuchVolume() {
-        String name = VolumeNames.format(Integer.MAX_VALUE);
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        // Behavior: No volume directory exists for the unused shard UNUSED_SHARD_ID. openSubspace with the volume
+        // name of that shard fails with NoSuchVolumeException and the message "No such volume: '<volume name>'".
+        String name = VolumeNames.format(UNUSED_SHARD_ID);
+        NoSuchVolumeException exception = assertThrows(
+                NoSuchVolumeException.class,
                 () -> service.openSubspace(name)
         );
         assertEquals(String.format("No such volume: '%s'", name), exception.getMessage());

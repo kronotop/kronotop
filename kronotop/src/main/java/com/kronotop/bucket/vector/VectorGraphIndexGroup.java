@@ -25,8 +25,8 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.VectorIndex;
 import com.kronotop.bucket.index.VectorIndexMaintainer;
+import com.kronotop.cluster.ShardUtil;
 import com.kronotop.transaction.TransactionUtil;
-import com.kronotop.volume.VolumeConfigGenerator;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import io.github.resilience4j.retry.Retry;
 import org.bson.types.ObjectId;
@@ -100,7 +100,7 @@ public class VectorGraphIndexGroup {
      * Resolves the root directory for vector index files of the given shard.
      */
     public static Path resolveVectorDir(Path dataDir, int shardId) {
-        return VolumeConfigGenerator.shardDataDir(dataDir, shardId)
+        return ShardUtil.shardDataDir(dataDir, shardId)
                 .resolve("derived-indexes")
                 .resolve("vector");
     }

@@ -19,12 +19,12 @@ package com.kronotop.bucket;
 import com.kronotop.Context;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceRoutineMetrics;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceWatchDog;
+import com.kronotop.cluster.ShardUtil;
 import com.kronotop.cluster.sharding.impl.AbstractShard;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeAttributes;
 import com.kronotop.volume.VolumeConfig;
-import com.kronotop.volume.VolumeConfigGenerator;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -53,7 +53,7 @@ public class BucketShardImpl extends AbstractShard implements BucketShard {
     public BucketShardImpl(Context context, int id) {
         super(context, id);
 
-        VolumeConfig volumeConfig = new VolumeConfigGenerator(context, id).volumeConfig();
+        VolumeConfig volumeConfig = ShardUtil.newShardVolumeConfig(context, id);
         try {
             Volume volume = volumeService.openVolume(volumeConfig);
             volume.setAttribute(VolumeAttributes.SHARD_ID, id);

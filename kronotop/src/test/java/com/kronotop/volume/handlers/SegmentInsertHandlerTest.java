@@ -19,6 +19,7 @@ package com.kronotop.volume.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopTestInstance;
+import com.kronotop.cluster.ShardUtil;
 import com.kronotop.cluster.client.protocol.InternalCommandBuilder;
 import com.kronotop.cluster.client.protocol.PackedEntry;
 import com.kronotop.cluster.client.protocol.ReplicationCommandType;
@@ -58,9 +59,9 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         KronotopTestInstance secondInstance = addNewInstance();
         // SEGMEN.TINSERT requires an already opened volume to run.
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(secondInstance.getContext(), 1);
+        VolumeConfig secondVolumeConfig = ShardUtil.newShardVolumeConfig(secondInstance.getContext(), 1);
         VolumeService volumeService = secondInstance.getContext().getService(VolumeService.NAME);
-        Volume secondVolume = volumeService.openVolume(generator.volumeConfig());
+        Volume secondVolume = volumeService.openVolume(secondVolumeConfig);
 
 
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();

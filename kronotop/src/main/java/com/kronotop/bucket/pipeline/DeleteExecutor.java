@@ -24,6 +24,7 @@ import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.vector.DeletedVector;
 import com.kronotop.bucket.vector.VectorNodeDeleteHook;
+import com.kronotop.cluster.ShardUtil;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
 import org.bson.types.ObjectId;
@@ -92,10 +93,10 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
                     PostCommitHook postCommitHook = new PostCommitHook(deleteResult);
                     TransactionUtil.addPostCommitHook(postCommitHook, ctx.getSession());
                 } else {
-                    VolumeSubspace subspace = subspaces.computeIfAbsent(shardId, (ignored) -> {
-                        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, shardId);
-                        return new VolumeSubspace(generator.openVolumeSubspace());
-                    });
+                    VolumeSubspace subspace = subspaces.computeIfAbsent(
+                            shardId,
+                            (ignored) -> new VolumeSubspace(ShardUtil.openShardVolumeSubspace(context, shardId))
+                    );
                     volumeFacade.deleteByVersionstampedEntry(subspace, session, entries);
                 }
             }

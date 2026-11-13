@@ -26,7 +26,9 @@ import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.ShardUtil;
 import com.kronotop.core.InfoCollector;
+import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KeyWatcher;
@@ -34,15 +36,13 @@ import com.kronotop.journal.*;
 import com.kronotop.metrics.InfoReport;
 import com.kronotop.server.CommandAlreadyRegisteredException;
 import com.kronotop.server.ServerKind;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.handlers.*;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -228,9 +228,11 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
 
     public DirectorySubspace openSubspace(String volumeName) {
         return subspaceCache.computeIfAbsent(volumeName, ignored -> {
-            int shardId = VolumeNames.parse(volumeName);
-            VolumeConfigGenerator volumeConfigGenerator = new VolumeConfigGenerator(context, shardId);
-            return volumeConfigGenerator.openVolumeSubspace();
+            KronotopDirectoryNode directory = ShardUtil.getShardVolumeDirectory(context, VolumeNames.parse(volumeName));
+            return TransactionUtil.execute(
+                    context,
+                    tr -> VolumeMetadataUtil.openVolumeSubspace(context, tr, volumeName, directory)
+            );
         });
     }
 

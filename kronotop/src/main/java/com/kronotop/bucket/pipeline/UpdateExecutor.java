@@ -32,6 +32,7 @@ import com.kronotop.bucket.vector.CollectedVector;
 import com.kronotop.bucket.vector.DeletedVector;
 import com.kronotop.bucket.vector.VectorNodeAddHook;
 import com.kronotop.bucket.vector.VectorNodeDeleteHook;
+import com.kronotop.cluster.ShardUtil;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
 import org.bson.*;
@@ -299,10 +300,10 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         }
         List<ByteBuffer> documents = ctx.env().documentRetriever().retrieveDocuments(locations);
 
-        VolumeSubspace remoteSubspace = subspaces.computeIfAbsent(remoteShardId, (ignored) -> {
-            VolumeConfigGenerator generator = new VolumeConfigGenerator(context, remoteShardId);
-            return new VolumeSubspace(generator.openVolumeSubspace());
-        });
+        VolumeSubspace remoteSubspace = subspaces.computeIfAbsent(
+                remoteShardId,
+                (ignored) -> new VolumeSubspace(ShardUtil.openShardVolumeSubspace(context, remoteShardId))
+        );
 
         // Pick a local shard from the bucket's shard list
         BucketShard localShard = findLocalBucketShard(ctx);

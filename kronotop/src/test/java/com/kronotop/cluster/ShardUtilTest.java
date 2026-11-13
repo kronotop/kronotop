@@ -24,7 +24,9 @@ import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.directory.Shards;
 import com.kronotop.transaction.TransactionUtil;
+import com.kronotop.volume.NoSuchVolumeException;
 import com.kronotop.volume.VolumeAlreadyExistsException;
+import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.VolumeMetadata;
 import com.kronotop.volume.VolumeMetadataUtil;
 import com.kronotop.volume.VolumeNames;
@@ -64,15 +66,8 @@ class ShardUtilTest extends BaseStandaloneInstanceTest {
         assertTrue(directoryExists(shardDirectory(UNUSED_SHARD_ID).buckets().lastSeenVersions()));
         assertTrue(directoryExists(ShardUtil.getShardVolumeDirectory(context, UNUSED_SHARD_ID)));
 
-        VolumeMetadata volumeMetadata = TransactionUtil.execute(context, tr -> {
-            List<String> volumePath = ShardUtil.getShardVolumeDirectory(context, UNUSED_SHARD_ID).toList();
-            VolumeSubspace volumeSubspace = new VolumeSubspace(context.getDirectoryLayer().open(tr, volumePath).join());
-            return new VolumeMetadata(
-                    VolumeMetadataUtil.readVolumeId(tr, volumeSubspace),
-                    VolumeMetadataUtil.readVolumeStatus(tr, volumeSubspace),
-                    VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace)
-            );
-        });
+        VolumeSubspace volumeSubspace = new VolumeSubspace(ShardUtil.openShardVolumeSubspace(context, UNUSED_SHARD_ID));
+        VolumeMetadata volumeMetadata = TransactionUtil.execute(context, tr -> VolumeMetadataUtil.open(tr, volumeSubspace));
         assertNotEquals(0L, volumeMetadata.id());
         assertEquals(VolumeStatus.READWRITE, volumeMetadata.status());
         assertEquals(List.of(0L), volumeMetadata.segmentIds());
@@ -104,5 +99,39 @@ class ShardUtilTest extends BaseStandaloneInstanceTest {
                     return ShardUtil.createShard(context, tr, UNUSED_SHARD_ID);
                 }));
         assertEquals(String.format("Volume already exists: '%s'", VolumeNames.format(UNUSED_SHARD_ID)), exception.getMessage());
+    }
+
+    @Test
+    void shouldOpenShardVolumeSubspace() {
+        // Behavior: On a cluster initialized with NUM_SHARDS shards, openShardVolumeSubspace for the existing
+        // shard TEST_SHARD_ID returns a subspace whose path is the volume directory of that shard.
+        DirectorySubspace volumeSubspace = ShardUtil.openShardVolumeSubspace(context, TEST_SHARD_ID);
+
+        assertEquals(ShardUtil.getShardVolumeDirectory(context, TEST_SHARD_ID).toList(), volumeSubspace.getPath());
+    }
+
+    @Test
+    void shouldThrowWhenShardVolumeDoesNotExist() {
+        // Behavior: On a cluster initialized with NUM_SHARDS shards, no volume directory exists for the unused id
+        // UNUSED_SHARD_ID. openShardVolumeSubspace for that id fails with NoSuchVolumeException and the message
+        // "No such volume: '<volume name>'".
+        NoSuchVolumeException exception = assertThrows(
+                NoSuchVolumeException.class,
+                () -> ShardUtil.openShardVolumeSubspace(context, UNUSED_SHARD_ID)
+        );
+        assertEquals(String.format("No such volume: '%s'", VolumeNames.format(UNUSED_SHARD_ID)), exception.getMessage());
+    }
+
+    @Test
+    void shouldCreateShardVolumeConfig() {
+        // Behavior: On a cluster initialized with NUM_SHARDS shards, newShardVolumeConfig for the existing shard
+        // TEST_SHARD_ID returns a config with the volume name of the shard, the subspace of its volume directory,
+        // the shard directory under the data directory of the member and the configured volume.segment_size.
+        VolumeConfig config = ShardUtil.newShardVolumeConfig(context, TEST_SHARD_ID);
+
+        assertEquals(VolumeNames.format(TEST_SHARD_ID), config.name());
+        assertEquals(ShardUtil.getShardVolumeDirectory(context, TEST_SHARD_ID).toList(), config.subspace().getPath());
+        assertEquals(ShardUtil.shardDataDir(context.getDataDir(), TEST_SHARD_ID).toString(), config.dataDir());
+        assertEquals(context.getConfig().getLong("volume.segment_size"), config.segmentSize());
     }
 }

@@ -24,8 +24,10 @@ import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
 
+import java.nio.file.Path;
 import java.util.List;
 
 /**
@@ -40,6 +42,49 @@ public class ShardUtil {
                 metadata().
                 volumes().
                 volume(Integer.toString(shardId));
+    }
+
+    /**
+     * Opens the directory subspace of the volume of a shard in a new transaction.
+     *
+     * @param context the Kronotop context
+     * @param shardId the shard ID
+     * @return the directory subspace of the shard volume
+     * @throws NoSuchVolumeException if the volume does not exist
+     */
+    public static DirectorySubspace openShardVolumeSubspace(Context context, int shardId) {
+        return TransactionUtil.execute(context, tr -> VolumeMetadataUtil.openVolumeSubspace(
+                context,
+                tr,
+                VolumeNames.format(shardId),
+                getShardVolumeDirectory(context, shardId)
+        ));
+    }
+
+    /**
+     * Returns the local directory that holds the files of a shard.
+     *
+     * @param dataDir the data directory of the member
+     * @param shardId the shard ID
+     * @return the shard directory under the data directory
+     */
+    public static Path shardDataDir(Path dataDir, int shardId) {
+        return dataDir.resolve("shards").resolve(Integer.toString(shardId));
+    }
+
+    /**
+     * Builds the volume configuration of a shard with its default local directory.
+     *
+     * @param context the Kronotop context
+     * @param shardId the shard ID
+     * @return the configuration of the shard volume
+     * @throws NoSuchVolumeException if the volume does not exist
+     */
+    public static VolumeConfig newShardVolumeConfig(Context context, int shardId) {
+        DirectorySubspace subspace = openShardVolumeSubspace(context, shardId);
+        String dataDir = shardDataDir(context.getDataDir(), shardId).toString();
+        long segmentSize = context.getConfig().getLong("volume.segment_size");
+        return new VolumeConfig(subspace, VolumeNames.format(shardId), dataDir, segmentSize);
     }
 
     public static void setShardStatus(

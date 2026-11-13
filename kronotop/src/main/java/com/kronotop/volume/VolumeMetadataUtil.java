@@ -22,6 +22,7 @@ import com.apple.foundationdb.ReadTransaction;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Tuple;
 import com.google.common.hash.HashCode;
 import com.kronotop.Context;
@@ -61,6 +62,32 @@ public class VolumeMetadataUtil {
         } catch (CompletionException exp) {
             if (exp.getCause() instanceof DirectoryAlreadyExistsException) {
                 throw new VolumeAlreadyExistsException(name);
+            }
+            throw exp;
+        }
+    }
+
+    /**
+     * Opens the directory subspace of an existing volume.
+     *
+     * @param context   the Kronotop context
+     * @param tr        the read transaction to open the directory with
+     * @param name      the name of the volume
+     * @param directory the directory of the volume
+     * @return the directory subspace of the volume
+     * @throws NoSuchVolumeException if the directory does not exist
+     */
+    public static DirectorySubspace openVolumeSubspace(
+            Context context,
+            ReadTransaction tr,
+            String name,
+            KronotopDirectoryNode directory
+    ) {
+        try {
+            return context.getDirectoryLayer().open(tr, directory.toList()).join();
+        } catch (CompletionException exp) {
+            if (exp.getCause() instanceof NoSuchDirectoryException) {
+                throw new NoSuchVolumeException(name);
             }
             throw exp;
         }
