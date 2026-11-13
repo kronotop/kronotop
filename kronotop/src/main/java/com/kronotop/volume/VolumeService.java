@@ -130,18 +130,6 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         scheduler.scheduleAtFixedRate(new PeriodicPrefixInvalidationsCheckerTask(), 5, 5, TimeUnit.MINUTES);
     }
 
-    private void checkAndCreateDataDir(String dataDir) {
-        try {
-            Files.createDirectories(Paths.get(dataDir));
-        } catch (FileAlreadyExistsException e) {
-            LOGGER.error("{} already exists but is not a directory", dataDir, e);
-            throw new KronotopException(e);
-        } catch (IOException e) {
-            LOGGER.error("{} could not be created", dataDir, e);
-            throw new KronotopException(e);
-        }
-    }
-
     /**
      * Opens the volume for the given config, or returns the already open volume that has the same name.
      *
@@ -160,9 +148,6 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                     return volume;
                 }
             }
-            // Open the volume.
-            checkAndCreateDataDir(config.dataDir());
-            // TODO: Create folders for this specific volume in the constructor.
             Volume volume = new Volume(context, config);
             volumes.put(config.name(), volume);
             return volume;
@@ -212,7 +197,9 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Returns an unmodifiable snapshot of the volumes, including closed ones not yet removed.
+     * Lists the volumes opened by this service, including closed ones that are not removed yet.
+     *
+     * @return an unmodifiable snapshot of the volumes
      */
     public List<Volume> list() {
         lock.readLock().lock();

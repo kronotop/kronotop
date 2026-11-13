@@ -44,8 +44,10 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
@@ -148,6 +150,8 @@ public class Volume {
                 .build();
         this.vacuumExecutor = KrExecutors.newBoundedExecutor(1, 1, TimeUnit.MINUTES, vacuumThreadFactory);
 
+        checkAndCreateDataDir(config.dataDir());
+
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeMetadata metadata = VolumeMetadataUtil.open(tr, subspace);
             this.volumeId = metadata.id();
@@ -158,6 +162,18 @@ public class Volume {
             openReadableSegments(metadata.segmentIds());
         } catch (NoSuchVolumeException exp) {
             throw new NoSuchVolumeException(config.name());
+        }
+    }
+
+    private void checkAndCreateDataDir(String dataDir) {
+        try {
+            Files.createDirectories(Paths.get(dataDir));
+        } catch (FileAlreadyExistsException e) {
+            LOGGER.error("{} already exists but is not a directory", dataDir, e);
+            throw new KronotopException(e);
+        } catch (IOException e) {
+            LOGGER.error("{} could not be created", dataDir, e);
+            throw new KronotopException(e);
         }
     }
 
