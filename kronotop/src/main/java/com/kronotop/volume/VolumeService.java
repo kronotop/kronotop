@@ -253,7 +253,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     public long getVolumeId(DirectorySubspace subspace) {
         return volumeIdCache.computeIfAbsent(subspace, ds -> {
             try (Transaction tr = context.getTransactionManager().create()) {
-                return VolumeMetadataMaintainer.readVolumeId(tr, new VolumeSubspace(ds));
+                return VolumeMetadataUtil.readVolumeId(tr, new VolumeSubspace(ds));
             }
         });
     }

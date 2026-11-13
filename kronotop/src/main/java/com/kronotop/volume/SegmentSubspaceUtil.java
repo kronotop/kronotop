@@ -39,7 +39,7 @@ import static com.kronotop.volume.Subspaces.SEGMENT_POSITION_SUBSPACE;
 public class SegmentSubspaceUtil {
 
     public static long findActiveSegmentId(Transaction tr, DirectorySubspace subspace) {
-        List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(tr, new VolumeSubspace(subspace));
+        List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(subspace));
         if (segmentIds.isEmpty()) {
             return 0;
         }

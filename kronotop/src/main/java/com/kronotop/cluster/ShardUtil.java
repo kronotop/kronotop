@@ -24,7 +24,8 @@ import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
-import com.kronotop.volume.VolumeMetadataMaintainer;
+import com.kronotop.volume.VolumeMetadataUtil;
+import com.kronotop.volume.VolumeNames;
 import com.kronotop.volume.VolumeSubspace;
 
 import java.util.List;
@@ -33,6 +34,15 @@ import java.util.List;
  * Static helpers that create shards and read or write the shard status.
  */
 public class ShardUtil {
+
+    public static KronotopDirectoryNode getShardVolumeDirectory(Context context, int shardId) {
+        return KronotopDirectory.
+                kronotop().
+                cluster(context.getClusterName()).
+                metadata().
+                volumes().
+                volume(Integer.toString(shardId));
+    }
 
     public static void setShardStatus(
             Transaction tr,
@@ -119,9 +129,14 @@ public class ShardUtil {
     }
 
     private static void createVolumeMetadata(Context context, Transaction tr, int shardId) {
-        DirectorySubspace volumeSubspace = VolumeMetadataMaintainer.createVolumeSubspace(context, tr, shardId);
+        DirectorySubspace volumeSubspace = VolumeMetadataUtil.createVolumeSubspace(
+                context,
+                tr,
+                VolumeNames.format(shardId),
+                getShardVolumeDirectory(context, shardId)
+        );
         VolumeSubspace vs = new VolumeSubspace(volumeSubspace);
-        VolumeMetadataMaintainer.createOrOpen(tr, vs);
+        VolumeMetadataUtil.createOrOpen(tr, vs);
     }
 
     /**

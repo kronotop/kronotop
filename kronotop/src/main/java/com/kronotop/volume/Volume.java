@@ -149,7 +149,7 @@ public class Volume {
         this.vacuumExecutor = KrExecutors.newBoundedExecutor(1, 1, TimeUnit.MINUTES, vacuumThreadFactory);
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeMetadata metadata = VolumeMetadataMaintainer.createOrOpen(tr, subspace);
+            VolumeMetadata metadata = VolumeMetadataUtil.createOrOpen(tr, subspace);
             this.volumeId = metadata.id();
             this.status = metadata.status();
 
@@ -195,7 +195,7 @@ public class Volume {
     private long computeNextSegmentId() {
         // protected by segmentLock
         try (Transaction tr = context.getTransactionManager().create()) {
-            List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(tr, subspace);
+            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, subspace);
             if (segmentIds.isEmpty()) {
                 return 0L;
             }
@@ -241,7 +241,7 @@ public class Volume {
             }
 
             try (Transaction tr = context.getTransactionManager().create()) {
-                List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(tr, subspace);
+                List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, subspace);
                 if (!segmentIds.contains(writableSegmentId)) {
                     throw new SegmentNotFoundException(writableSegmentId);
                 }
@@ -294,7 +294,7 @@ public class Volume {
 
             try (Transaction tr = context.getTransactionManager().create()) {
                 byte[] segmentIdKey = subspace.packVolumeSegmentIdKey(newSegmentId);
-                tr.set(segmentIdKey, VolumeMetadataMaintainer.NULL_BYTES);
+                tr.set(segmentIdKey, VolumeMetadataUtil.NULL_BYTES);
                 tr.commit().join();
             } catch (RuntimeException e) {
                 try {
@@ -1345,7 +1345,7 @@ public class Volume {
      */
     private void clearSegmentsByPrefix(VolumeSession session) {
         assert session.transaction() != null;
-        List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(session.transaction(), subspace);
+        List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(session.transaction(), subspace);
         for (long segmentId : segmentIds) {
             byte[] begin = SegmentSubspaceUtil.prefixOfVolumePrefix(config.subspace(), segmentId, session.prefix());
             Range range = Range.startsWith(begin);

@@ -69,7 +69,7 @@ public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implemen
             List<RedisMessage> deletedFiles = new ArrayList<>();
             try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 Volume volume = service.findVolume(arguments.volumeName);
-                List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(tr, new VolumeSubspace(volume.getConfig().subspace()));
+                List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(volume.getConfig().subspace()));
                 Set<String> assumedFiles = new HashSet<>();
                 segmentIds.forEach(segmentId -> assumedFiles.add(SegmentUtil.generateFileName(segmentId)));
 

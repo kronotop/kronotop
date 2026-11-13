@@ -55,7 +55,7 @@ class PruneChangeLogSubcommand extends BaseSubcommandHandler implements Subcomma
 
             ChangeLog changeLog = new ChangeLog(context, subspace);
             TransactionUtil.executeThenCommit(context, (tr) -> {
-                List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(tr, new VolumeSubspace(subspace));
+                List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(subspace));
                 Map<Long, Long> maxPositions = new LinkedHashMap<>();
                 for (Long segmentId : segmentIds) {
                     SegmentTailPointer pointer = SegmentSubspaceUtil.locateTailPointer(tr, subspace, segmentId);

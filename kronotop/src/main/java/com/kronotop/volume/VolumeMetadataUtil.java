@@ -25,7 +25,6 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.google.common.hash.HashCode;
 import com.kronotop.Context;
-import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.UUIDUtil;
 
@@ -35,35 +34,33 @@ import java.util.*;
 import java.util.concurrent.CompletionException;
 
 /**
- * Provides static helpers that create the directory of a shard volume and read or initialize the volume metadata
+ * Provides static helpers that create the directory of a volume and read or initialize the volume metadata
  * stored as individual FoundationDB key-value pairs.
  */
-public class VolumeMetadataMaintainer {
+public class VolumeMetadataUtil {
     static final byte[] NULL_BYTES = new byte[]{};
 
-    public static KronotopDirectoryNode getShardVolumeDirectory(Context context, int shardId) {
-        return KronotopDirectory.
-                kronotop().
-                cluster(context.getClusterName()).
-                metadata().
-                volumes().
-                volume(Integer.toString(shardId));
-    }
-
     /**
-     * Creates the directory subspace of the shard volume in the given transaction.
+     * Creates the directory subspace of a volume in the given transaction.
      *
-     * @param tr the transaction to create the directory in. The caller commits it.
-     * @return the directory subspace of the shard volume
-     * @throws VolumeAlreadyExistsException if the volume already exists
+     * @param context   the Kronotop context
+     * @param tr        the transaction to create the directory in. The caller commits it.
+     * @param name      the name of the volume
+     * @param directory the directory of the volume
+     * @return the directory subspace of the volume
+     * @throws VolumeAlreadyExistsException if the directory already exists
      */
-    public static DirectorySubspace createVolumeSubspace(Context context, Transaction tr, int shardId) {
-        KronotopDirectoryNode directory = getShardVolumeDirectory(context, shardId);
+    public static DirectorySubspace createVolumeSubspace(
+            Context context,
+            Transaction tr,
+            String name,
+            KronotopDirectoryNode directory
+    ) {
         try {
             return context.getDirectoryLayer().create(tr, directory.toList()).join();
         } catch (CompletionException exp) {
             if (exp.getCause() instanceof DirectoryAlreadyExistsException) {
-                throw new VolumeAlreadyExistsException(VolumeNames.format(shardId));
+                throw new VolumeAlreadyExistsException(name);
             }
             throw exp;
         }

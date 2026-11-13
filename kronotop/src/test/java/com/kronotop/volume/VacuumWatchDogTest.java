@@ -277,7 +277,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
             assertNotNull(metadata);
             assertEquals(VacuumMetadataStatus.STOPPED, metadata.status());
 
-            List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(tr, volumeSubspace);
+            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace);
             assertTrue(segmentIds.contains(sealedSegmentId));
 
             VacuumMetadata vacuumMetadata = VacuumMetadataUtil.load(tr, volumeSubspace);

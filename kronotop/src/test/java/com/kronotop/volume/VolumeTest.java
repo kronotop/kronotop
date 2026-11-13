@@ -1003,7 +1003,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         assertEquals(VolumeStatus.READONLY, volume.getStatus());
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeStatus status = VolumeMetadataMaintainer.readVolumeStatus(tr, volume.getSubspace());
+            VolumeStatus status = VolumeMetadataUtil.readVolumeStatus(tr, volume.getSubspace());
             assertEquals(VolumeStatus.READONLY, status);
         }
     }
@@ -1190,7 +1190,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     void shouldSetNonZeroIdDuringVolumeInitialization() {
         // Test that volume initialization correctly sets a non-zero ID in VolumeMetadata
         try (Transaction tr = context.getTransactionManager().create()) {
-            long volumeId = VolumeMetadataMaintainer.readVolumeId(tr, new VolumeSubspace(subspace));
+            long volumeId = VolumeMetadataUtil.readVolumeId(tr, new VolumeSubspace(subspace));
 
             // The initialize() method should have set a non-zero ID during volume construction
             assertNotEquals(0, volumeId, "Volume ID should not be 0 after initialization");
@@ -1216,7 +1216,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         // Check how many segments exist after the initial append.
         try (Transaction tr = context.getTransactionManager().create()) {
-            List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(tr, new VolumeSubspace(volume.getConfig().subspace()));
+            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(volume.getConfig().subspace()));
             segmentsAfterInitialAppend = new ArrayList<>(segmentIds);
         }
 
@@ -1238,7 +1238,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         List<Long> segmentsAfterReopen;
         try (Transaction tr = context.getTransactionManager().create()) {
-            List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(tr, new VolumeSubspace(reopenedVolume.getConfig().subspace()));
+            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(reopenedVolume.getConfig().subspace()));
             segmentsAfterReopen = new ArrayList<>(segmentIds);
         }
 

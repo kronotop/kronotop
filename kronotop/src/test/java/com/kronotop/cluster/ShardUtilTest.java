@@ -26,7 +26,7 @@ import com.kronotop.directory.Shards;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.VolumeAlreadyExistsException;
 import com.kronotop.volume.VolumeMetadata;
-import com.kronotop.volume.VolumeMetadataMaintainer;
+import com.kronotop.volume.VolumeMetadataUtil;
 import com.kronotop.volume.VolumeNames;
 import com.kronotop.volume.VolumeStatus;
 import com.kronotop.volume.VolumeSubspace;
@@ -62,15 +62,15 @@ class ShardUtilTest extends BaseStandaloneInstanceTest {
 
         assertTrue(directoryExists(shardDirectory(UNUSED_SHARD_ID).buckets().maintenance().index().tasks()));
         assertTrue(directoryExists(shardDirectory(UNUSED_SHARD_ID).buckets().lastSeenVersions()));
-        assertTrue(directoryExists(VolumeMetadataMaintainer.getShardVolumeDirectory(context, UNUSED_SHARD_ID)));
+        assertTrue(directoryExists(ShardUtil.getShardVolumeDirectory(context, UNUSED_SHARD_ID)));
 
         VolumeMetadata volumeMetadata = TransactionUtil.execute(context, tr -> {
-            List<String> volumePath = VolumeMetadataMaintainer.getShardVolumeDirectory(context, UNUSED_SHARD_ID).toList();
+            List<String> volumePath = ShardUtil.getShardVolumeDirectory(context, UNUSED_SHARD_ID).toList();
             VolumeSubspace volumeSubspace = new VolumeSubspace(context.getDirectoryLayer().open(tr, volumePath).join());
             return new VolumeMetadata(
-                    VolumeMetadataMaintainer.readVolumeId(tr, volumeSubspace),
-                    VolumeMetadataMaintainer.readVolumeStatus(tr, volumeSubspace),
-                    VolumeMetadataMaintainer.loadSegmentIds(tr, volumeSubspace)
+                    VolumeMetadataUtil.readVolumeId(tr, volumeSubspace),
+                    VolumeMetadataUtil.readVolumeStatus(tr, volumeSubspace),
+                    VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace)
             );
         });
         assertNotEquals(0L, volumeMetadata.id());
@@ -95,7 +95,12 @@ class ShardUtilTest extends BaseStandaloneInstanceTest {
         // "Volume already exists: '<volume name>'".
         VolumeAlreadyExistsException exception = assertThrows(VolumeAlreadyExistsException.class,
                 () -> TransactionUtil.execute(context, tr -> {
-                    VolumeMetadataMaintainer.createVolumeSubspace(context, tr, UNUSED_SHARD_ID);
+                    VolumeMetadataUtil.createVolumeSubspace(
+                            context,
+                            tr,
+                            VolumeNames.format(UNUSED_SHARD_ID),
+                            ShardUtil.getShardVolumeDirectory(context, UNUSED_SHARD_ID)
+                    );
                     return ShardUtil.createShard(context, tr, UNUSED_SHARD_ID);
                 }));
         assertEquals(String.format("Volume already exists: '%s'", VolumeNames.format(UNUSED_SHARD_ID)), exception.getMessage());

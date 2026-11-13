@@ -30,7 +30,7 @@ import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.volume.VolumeConfigGenerator;
-import com.kronotop.volume.VolumeMetadataMaintainer;
+import com.kronotop.volume.VolumeMetadataUtil;
 import com.kronotop.volume.VolumeStatus;
 import com.kronotop.volume.VolumeSubspace;
 import com.kronotop.volume.replication.ReplicationUtil;
@@ -79,7 +79,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
 
         VolumeConfigGenerator configGen = new VolumeConfigGenerator(context, shardId);
         VolumeSubspace subspace = new VolumeSubspace(configGen.openVolumeSubspace());
-        VolumeStatus status = VolumeMetadataMaintainer.readVolumeStatus(tr, subspace);
+        VolumeStatus status = VolumeMetadataUtil.readVolumeStatus(tr, subspace);
         if (status != VolumeStatus.READONLY) {
             throw new KronotopException("Volume status must be " + VolumeStatus.READONLY);
         }
