@@ -85,9 +85,10 @@ class VolumeMetadataUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldCreateNewVolumeMetadata() {
-        // Behavior: createOrOpen on an empty subspace initializes a new volume with READWRITE status and segment 0.
+        // Behavior: create on an empty subspace initializes a new volume with a generated ID, READWRITE status
+        // and segment 0 as the only segment.
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeMetadata metadata = VolumeMetadataUtil.createOrOpen(tr, subspace);
+            VolumeMetadata metadata = VolumeMetadataUtil.create(tr, subspace);
             tr.commit().join();
 
             assertNotEquals(0L, metadata.id());
@@ -98,16 +99,17 @@ class VolumeMetadataUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldOpenExistingVolumeMetadata() {
-        // Behavior: createOrOpen on a subspace that already holds volume metadata returns that metadata unchanged.
+        // Behavior: After create has stored volume metadata in a subspace and the transaction is committed,
+        // open on the same subspace returns the same ID, READWRITE status and segment 0 as the only segment.
         long originalId;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeMetadata created = VolumeMetadataUtil.createOrOpen(tr, subspace);
+            VolumeMetadata created = VolumeMetadataUtil.create(tr, subspace);
             originalId = created.id();
             tr.commit().join();
         }
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeMetadata opened = VolumeMetadataUtil.createOrOpen(tr, subspace);
+            VolumeMetadata opened = VolumeMetadataUtil.open(tr, subspace);
 
             assertEquals(originalId, opened.id());
             assertEquals(VolumeStatus.READWRITE, opened.status());
@@ -116,11 +118,20 @@ class VolumeMetadataUtilTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    void shouldThrowWhenVolumeMetadataDoesNotExist() {
+        // Behavior: open on an empty subspace, where no volume metadata has been created, throws
+        // NoSuchVolumeException.
+        try (Transaction tr = context.getTransactionManager().create()) {
+            assertThrows(NoSuchVolumeException.class, () -> VolumeMetadataUtil.open(tr, subspace));
+        }
+    }
+
+    @Test
     void shouldReadVolumeId() {
-        // Behavior: readVolumeId returns the same ID that createOrOpen generated.
+        // Behavior: readVolumeId returns the same ID that create generated.
         long expectedId;
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeMetadata metadata = VolumeMetadataUtil.createOrOpen(tr, subspace);
+            VolumeMetadata metadata = VolumeMetadataUtil.create(tr, subspace);
             expectedId = metadata.id();
             tr.commit().join();
         }
@@ -135,7 +146,7 @@ class VolumeMetadataUtilTest extends BaseStandaloneInstanceTest {
     void shouldLoadSegmentIds() {
         // Behavior: loadSegmentIds returns all registered segments in ascending order.
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeMetadataUtil.createOrOpen(tr, subspace);
+            VolumeMetadataUtil.create(tr, subspace);
 
             tr.set(subspace.packVolumeSegmentIdKey(5L), VolumeMetadataUtil.NULL_BYTES);
             tr.set(subspace.packVolumeSegmentIdKey(3L), VolumeMetadataUtil.NULL_BYTES);
@@ -159,9 +170,9 @@ class VolumeMetadataUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldReadVolumeStatus() {
-        // Behavior: readVolumeStatus returns the status that createOrOpen stored.
+        // Behavior: readVolumeStatus returns the status that create stored.
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeMetadataUtil.createOrOpen(tr, subspace);
+            VolumeMetadataUtil.create(tr, subspace);
             tr.commit().join();
         }
 
@@ -175,7 +186,7 @@ class VolumeMetadataUtilTest extends BaseStandaloneInstanceTest {
     void shouldReadUpdatedVolumeStatus() {
         // Behavior: readVolumeStatus returns READONLY after that status is written directly to the status key.
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeMetadataUtil.createOrOpen(tr, subspace);
+            VolumeMetadataUtil.create(tr, subspace);
             tr.commit().join();
         }
 

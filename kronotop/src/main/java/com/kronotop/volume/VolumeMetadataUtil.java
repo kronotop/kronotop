@@ -66,14 +66,25 @@ public class VolumeMetadataUtil {
         }
     }
 
-    private static VolumeMetadata createInternal(Transaction tr, VolumeSubspace subspace) {
+    /**
+     * Initializes the metadata of a new volume with a generated ID, READWRITE status, and segment 0.
+     *
+     * @param tr       the transaction to use for reading and writing
+     * @param subspace the volume subspace containing the metadata keys
+     * @return the newly created volume metadata
+     * @throws VolumeAlreadyExistsException if the volume metadata already exists
+     */
+    public static VolumeMetadata create(Transaction tr, VolumeSubspace subspace) {
+        byte[] idKey = subspace.packVolumeIdKey();
+        if (tr.get(idKey).join() != null) {
+            throw new VolumeAlreadyExistsException();
+        }
+
         // Volume ID
         UUID uuid = UUID.randomUUID();
         HashCode hashCode = UUIDUtil.hash(uuid);
         long volumeId = hashCode.asLong();
         byte[] idValue = ByteBuffer.allocate(Long.BYTES).putLong(volumeId).array();
-
-        byte[] idKey = subspace.packVolumeIdKey();
         tr.set(idKey, idValue);
 
         // Volume status
@@ -89,41 +100,22 @@ public class VolumeMetadataUtil {
     }
 
     /**
-     * Loads existing volume metadata or initializes a new volume with a generated ID, READWRITE status, and segment 0.
+     * Loads the metadata of an existing volume.
      *
-     * @param tr       the transaction to use for reading and writing
+     * @param tr       the read transaction to use
      * @param subspace the volume subspace containing the metadata keys
-     * @return the loaded or newly created volume metadata
+     * @return the volume metadata
+     * @throws NoSuchVolumeException if the volume metadata does not exist
      */
-    public static VolumeMetadata createOrOpen(Transaction tr, VolumeSubspace subspace) {
-        byte[] idKey = subspace.packVolumeIdKey();
-        byte[] idBytes = tr.get(idKey).join();
-        if (idBytes != null) {
-            // Already initialized
-            long volumeId = ByteBuffer.wrap(idBytes).getLong();
-
-            VolumeStatus status = readVolumeStatus(tr, subspace);
-            List<Long> segmentIds = loadSegmentIds(tr, subspace);
-            return new VolumeMetadata(volumeId, status, segmentIds);
+    public static VolumeMetadata open(ReadTransaction tr, VolumeSubspace subspace) {
+        byte[] idBytes = tr.get(subspace.packVolumeIdKey()).join();
+        if (idBytes == null) {
+            throw new NoSuchVolumeException();
         }
-        return createInternal(tr, subspace);
-    }
-
-    /**
-     * Initializes the metadata of a new volume with a generated ID, READWRITE status, and segment 0.
-     *
-     * @param tr       the transaction to use for reading and writing
-     * @param subspace the volume subspace containing the metadata keys
-     * @return the newly created volume metadata
-     * @throws VolumeAlreadyExistsException if the volume metadata already exists
-     */
-    public static VolumeMetadata create(Transaction tr, VolumeSubspace subspace) {
-        byte[] idKey = subspace.packVolumeIdKey();
-        byte[] idBytes = tr.get(idKey).join();
-        if (idBytes != null) {
-            throw new VolumeAlreadyExistsException();
-        }
-        return createInternal(tr, subspace);
+        long volumeId = ByteBuffer.wrap(idBytes).getLong();
+        VolumeStatus status = readVolumeStatus(tr, subspace);
+        List<Long> segmentIds = loadSegmentIds(tr, subspace);
+        return new VolumeMetadata(volumeId, status, segmentIds);
     }
 
     /**

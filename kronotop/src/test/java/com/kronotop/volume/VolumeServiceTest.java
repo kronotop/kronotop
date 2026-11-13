@@ -57,6 +57,19 @@ public class VolumeServiceTest extends BaseVolumeTest {
     }
 
     @Test
+    public void shouldThrowWhenOpenVolumeWithoutMetadata() {
+        // Behavior: The volume directory of the unused shard UNUSED_SHARD_ID is created without volume metadata.
+        // openVolume with the config of that volume fails with NoSuchVolumeException and the message
+        // "No such volume: '<volume name>'".
+        VolumeConfig config = new VolumeConfigGenerator(context, UNUSED_SHARD_ID).volumeConfig();
+        NoSuchVolumeException exception = assertThrows(NoSuchVolumeException.class, () -> service.openVolume(config));
+        assertEquals(
+                String.format("No such volume: '%s'", VolumeNames.format(UNUSED_SHARD_ID)),
+                exception.getMessage()
+        );
+    }
+
+    @Test
     public void shouldFindExistingVolume() throws IOException {
         Volume volume = service.openVolume(volumeConfig);
         assertDoesNotThrow(() -> service.findVolume(volumeConfig.name()));

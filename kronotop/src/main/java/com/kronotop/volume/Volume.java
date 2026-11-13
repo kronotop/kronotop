@@ -149,15 +149,15 @@ public class Volume {
         this.vacuumExecutor = KrExecutors.newBoundedExecutor(1, 1, TimeUnit.MINUTES, vacuumThreadFactory);
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            VolumeMetadata metadata = VolumeMetadataUtil.createOrOpen(tr, subspace);
+            VolumeMetadata metadata = VolumeMetadataUtil.open(tr, subspace);
             this.volumeId = metadata.id();
             this.status = metadata.status();
-
-            tr.commit().join();
 
             long writableSegmentId = metadata.segmentIds().getLast();
             openWritableSegment(writableSegmentId);
             openReadableSegments(metadata.segmentIds());
+        } catch (NoSuchVolumeException exp) {
+            throw new NoSuchVolumeException(config.name());
         }
     }
 
