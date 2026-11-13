@@ -50,7 +50,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class BaseTest {
+    // The number of shards a test cluster is initialized with. Use it only when a test has to create many
+    // shards. Do not use it as a shard ID.
     public static final int NUM_SHARDS = 7;
+
+    // A shard ID that no test cluster has. Use it when a test needs a shard that does not exist.
+    public static final int UNUSED_SHARD_ID = Integer.MAX_VALUE;
+
+    // The ID of a shard that every initialized test cluster has. Use it when a test needs one existing shard.
+    public static final int TEST_SHARD_ID = 1;
+
     private final String clusterName = UUID.randomUUID().toString();
     private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
 

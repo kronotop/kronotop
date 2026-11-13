@@ -24,6 +24,9 @@ import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
+import com.kronotop.volume.VolumeMetadataMaintainer;
+import com.kronotop.volume.VolumeMetadataUtil;
+import com.kronotop.volume.VolumeSubspace;
 
 import java.util.List;
 
@@ -116,6 +119,12 @@ public class ShardUtil {
         context.getDirectoryLayer().create(tr, directory.toList()).join();
     }
 
+    private static void createVolumeMetadata(Context context, Transaction tr, int shardId) {
+        DirectorySubspace volumeSubspace = VolumeMetadataMaintainer.createVolumeSubspace(context, tr, shardId);
+        VolumeSubspace vs = new VolumeSubspace(volumeSubspace);
+        VolumeMetadataUtil.createOrOpen(tr, vs);
+    }
+
     /**
      * Creates a shard that starts as {@link ShardStatus#INOPERABLE}.
      *
@@ -136,6 +145,7 @@ public class ShardUtil {
         DirectorySubspace shardSubspace = subspace.create(tr, directory.excludeSubspace(subspace)).join();
         createIndexTasksDirectory(context, tr, shardId);
         createLastSeenVersionsDirectory(context, tr, shardId);
+        createVolumeMetadata(context, tr, shardId);
         setShardStatus(tr, ShardStatus.INOPERABLE, shardSubspace);
         return shardSubspace;
     }

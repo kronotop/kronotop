@@ -63,7 +63,6 @@ public class BaseStandaloneInstanceTest extends BaseTest {
 
     protected String TEST_BUCKET = "test-bucket";
     protected String TEST_NAMESPACE;
-    protected int TEST_SHARD_ID = 1;
 
     protected String getConfigFileName() {
         return DEFAULT_CONFIG_FILE_NAME;

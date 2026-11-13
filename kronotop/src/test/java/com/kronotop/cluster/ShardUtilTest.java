@@ -24,8 +24,16 @@ import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.directory.Shards;
 import com.kronotop.transaction.TransactionUtil;
+import com.kronotop.volume.VolumeAlreadyExistsException;
+import com.kronotop.volume.VolumeMetadata;
+import com.kronotop.volume.VolumeMetadataMaintainer;
+import com.kronotop.volume.VolumeMetadataUtil;
+import com.kronotop.volume.VolumeNames;
+import com.kronotop.volume.VolumeStatus;
+import com.kronotop.volume.VolumeSubspace;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.concurrent.CompletionException;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -43,17 +51,32 @@ class ShardUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldCreateShard() {
         // Behavior: On a cluster initialized with NUM_SHARDS shards, createShard is called for the unused id
-        // NUM_SHARDS and the transaction is committed. The returned subspace is the directory of the new shard.
-        // The shard is stored with the status INOPERABLE, and its index task directory and its last seen versions
-        // directory exist.
-        DirectorySubspace shardSubspace = TransactionUtil.executeThenCommit(context, tr -> ShardUtil.createShard(context, tr, NUM_SHARDS));
-        assertEquals(shardDirectory(NUM_SHARDS).toList(), shardSubspace.getPath());
+        // UNUSED_SHARD_ID and the transaction is committed. The returned subspace is the directory of the new shard.
+        // The shard is stored with the status INOPERABLE, and its index task directory, its last seen versions
+        // directory and its volume directory exist. The volume metadata is stored with an ID, the status READWRITE
+        // and segment 0 as the only segment.
+        DirectorySubspace shardSubspace = TransactionUtil.executeThenCommit(context, tr -> ShardUtil.createShard(context, tr, UNUSED_SHARD_ID));
+        assertEquals(shardDirectory(UNUSED_SHARD_ID).toList(), shardSubspace.getPath());
 
-        ShardStatus status = TransactionUtil.execute(context, tr -> ShardUtil.getShardStatus(context, tr, NUM_SHARDS));
+        ShardStatus status = TransactionUtil.execute(context, tr -> ShardUtil.getShardStatus(context, tr, UNUSED_SHARD_ID));
         assertEquals(ShardStatus.INOPERABLE, status);
 
-        assertTrue(directoryExists(shardDirectory(NUM_SHARDS).buckets().maintenance().index().tasks()));
-        assertTrue(directoryExists(shardDirectory(NUM_SHARDS).buckets().lastSeenVersions()));
+        assertTrue(directoryExists(shardDirectory(UNUSED_SHARD_ID).buckets().maintenance().index().tasks()));
+        assertTrue(directoryExists(shardDirectory(UNUSED_SHARD_ID).buckets().lastSeenVersions()));
+        assertTrue(directoryExists(VolumeMetadataMaintainer.getShardVolumeDirectory(context, UNUSED_SHARD_ID)));
+
+        VolumeMetadata volumeMetadata = TransactionUtil.execute(context, tr -> {
+            List<String> volumePath = VolumeMetadataMaintainer.getShardVolumeDirectory(context, UNUSED_SHARD_ID).toList();
+            VolumeSubspace volumeSubspace = new VolumeSubspace(context.getDirectoryLayer().open(tr, volumePath).join());
+            return new VolumeMetadata(
+                    VolumeMetadataUtil.readVolumeId(tr, volumeSubspace),
+                    VolumeMetadataUtil.readVolumeStatus(tr, volumeSubspace),
+                    VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace)
+            );
+        });
+        assertNotEquals(0L, volumeMetadata.id());
+        assertEquals(VolumeStatus.READWRITE, volumeMetadata.status());
+        assertEquals(List.of(0L), volumeMetadata.segmentIds());
     }
 
     @Test
@@ -63,5 +86,19 @@ class ShardUtilTest extends BaseStandaloneInstanceTest {
         CompletionException exception = assertThrows(CompletionException.class,
                 () -> TransactionUtil.execute(context, tr -> ShardUtil.createShard(context, tr, 0)));
         assertInstanceOf(DirectoryAlreadyExistsException.class, exception.getCause());
+    }
+
+    @Test
+    void shouldThrowWhenVolumeAlreadyExists() {
+        // Behavior: On a cluster initialized with NUM_SHARDS shards, the volume directory of the unused id
+        // UNUSED_SHARD_ID is created first, and createShard is then called for the same id in the same
+        // transaction. The createShard call fails with VolumeAlreadyExistsException and the message
+        // "Volume already exists: '<volume name>'".
+        VolumeAlreadyExistsException exception = assertThrows(VolumeAlreadyExistsException.class,
+                () -> TransactionUtil.execute(context, tr -> {
+                    VolumeMetadataMaintainer.createVolumeSubspace(context, tr, UNUSED_SHARD_ID);
+                    return ShardUtil.createShard(context, tr, UNUSED_SHARD_ID);
+                }));
+        assertEquals(String.format("Volume already exists: '%s'", VolumeNames.format(UNUSED_SHARD_ID)), exception.getMessage());
     }
 }
