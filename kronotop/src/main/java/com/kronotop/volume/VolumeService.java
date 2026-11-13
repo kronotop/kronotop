@@ -28,7 +28,6 @@ import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.ShardUtil;
 import com.kronotop.core.InfoCollector;
-import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KeyWatcher;
@@ -36,7 +35,6 @@ import com.kronotop.journal.*;
 import com.kronotop.metrics.InfoReport;
 import com.kronotop.server.CommandAlreadyRegisteredException;
 import com.kronotop.server.ServerKind;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.handlers.*;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -64,7 +62,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     private final ScheduledThreadPoolExecutor scheduler;
     private final Consumer prefixInvalidationsConsumer;
     private final RoutingService routing;
-    private final ConcurrentHashMap<String, DirectorySubspace> subspaceCache;
+    private final ConcurrentHashMap<Integer, DirectorySubspace> subspaceCache;
     private final ConcurrentHashMap<DirectorySubspace, Long> volumeIdCache;
     private final ConcurrentHashMap<DirectorySubspace, byte[]> mutationTriggerKeyCache;
     private final MutationWatcher mutationWatcher;
@@ -226,14 +224,19 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         }
     }
 
+    /**
+     * Returns the directory subspace of the volume of a shard and caches it after the first call.
+     *
+     * @param shardId the shard ID
+     * @return the directory subspace of the shard volume
+     * @throws NoSuchVolumeException if the volume does not exist
+     */
+    public DirectorySubspace openSubspace(int shardId) {
+        return subspaceCache.computeIfAbsent(shardId, ignored -> ShardUtil.openShardVolumeSubspace(context, shardId));
+    }
+
     public DirectorySubspace openSubspace(String volumeName) {
-        return subspaceCache.computeIfAbsent(volumeName, ignored -> {
-            KronotopDirectoryNode directory = ShardUtil.getShardVolumeDirectory(context, VolumeNames.parse(volumeName));
-            return TransactionUtil.execute(
-                    context,
-                    tr -> VolumeMetadataUtil.openVolumeSubspace(context, tr, volumeName, directory)
-            );
-        });
+        return openSubspace(VolumeNames.parse(volumeName));
     }
 
     /**

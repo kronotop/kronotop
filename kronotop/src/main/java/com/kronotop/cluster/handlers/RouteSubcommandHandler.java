@@ -30,6 +30,7 @@ import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.volume.VolumeMetadataUtil;
+import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.VolumeStatus;
 import com.kronotop.volume.VolumeSubspace;
 import com.kronotop.volume.replication.ReplicationUtil;
@@ -76,7 +77,8 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
             throw new KronotopException("Member is not a standby: '" + nextPrimaryOwner.getId() + "'");
         }
 
-        VolumeSubspace subspace = new VolumeSubspace(ShardUtil.openShardVolumeSubspace(context, shardId));
+        VolumeService volumeService = context.getService(VolumeService.NAME);
+        VolumeSubspace subspace = new VolumeSubspace(volumeService.openSubspace(shardId));
         VolumeStatus status = VolumeMetadataUtil.readVolumeStatus(tr, subspace);
         if (status != VolumeStatus.READONLY) {
             throw new KronotopException("Volume status must be " + VolumeStatus.READONLY);

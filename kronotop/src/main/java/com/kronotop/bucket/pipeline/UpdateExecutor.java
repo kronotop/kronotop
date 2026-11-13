@@ -32,7 +32,6 @@ import com.kronotop.bucket.vector.CollectedVector;
 import com.kronotop.bucket.vector.DeletedVector;
 import com.kronotop.bucket.vector.VectorNodeAddHook;
 import com.kronotop.bucket.vector.VectorNodeDeleteHook;
-import com.kronotop.cluster.ShardUtil;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
 import org.bson.*;
@@ -43,23 +42,21 @@ import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Executes document update operations on buckets using ObjectId as the document identifier.
  */
 public final class UpdateExecutor extends BaseExecutor implements Executor<List<ObjectId>> {
-    private final Context context;
     private final boolean strictTypes;
     private final PipelineExecutor executor;
     private final VolumeFacade volumeFacade;
-    private final Map<Integer, VolumeSubspace> subspaces = new ConcurrentHashMap<>();
+    private final VolumeService volumeService;
 
     public UpdateExecutor(Context context, PipelineExecutor executor) {
-        this.context = context;
         this.strictTypes = context.getConfig().getBoolean("bucket.index.strict_types");
         this.executor = executor;
         this.volumeFacade = new VolumeFacade(context);
+        this.volumeService = context.getService(VolumeService.NAME);
     }
 
     /**
@@ -300,10 +297,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         }
         List<ByteBuffer> documents = ctx.env().documentRetriever().retrieveDocuments(locations);
 
-        VolumeSubspace remoteSubspace = subspaces.computeIfAbsent(
-                remoteShardId,
-                (ignored) -> new VolumeSubspace(ShardUtil.openShardVolumeSubspace(context, remoteShardId))
-        );
+        VolumeSubspace remoteSubspace = new VolumeSubspace(volumeService.openSubspace(remoteShardId));
 
         // Pick a local shard from the bucket's shard list
         BucketShard localShard = findLocalBucketShard(ctx);

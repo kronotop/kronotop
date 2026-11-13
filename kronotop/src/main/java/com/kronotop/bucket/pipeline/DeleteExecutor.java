@@ -24,7 +24,6 @@ import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.vector.DeletedVector;
 import com.kronotop.bucket.vector.VectorNodeDeleteHook;
-import com.kronotop.cluster.ShardUtil;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
 import org.bson.types.ObjectId;
@@ -32,21 +31,19 @@ import org.bson.types.ObjectId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Runs a query pipeline and deletes the matching documents across one or more shards.
  */
 public final class DeleteExecutor extends BaseExecutor implements Executor<List<ObjectId>> {
-    private final Context context;
     private final PipelineExecutor executor;
     private final VolumeFacade volumeFacade;
-    private final Map<Integer, VolumeSubspace> subspaces = new ConcurrentHashMap<>();
+    private final VolumeService volumeService;
 
     public DeleteExecutor(Context context, PipelineExecutor executor) {
-        this.context = context;
         this.executor = executor;
         this.volumeFacade = new VolumeFacade(context);
+        this.volumeService = context.getService(VolumeService.NAME);
     }
 
     @Override
@@ -93,10 +90,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
                     PostCommitHook postCommitHook = new PostCommitHook(deleteResult);
                     TransactionUtil.addPostCommitHook(postCommitHook, ctx.getSession());
                 } else {
-                    VolumeSubspace subspace = subspaces.computeIfAbsent(
-                            shardId,
-                            (ignored) -> new VolumeSubspace(ShardUtil.openShardVolumeSubspace(context, shardId))
-                    );
+                    VolumeSubspace subspace = new VolumeSubspace(volumeService.openSubspace(shardId));
                     volumeFacade.deleteByVersionstampedEntry(subspace, session, entries);
                 }
             }

@@ -148,6 +148,29 @@ public class VolumeServiceTest extends BaseVolumeTest {
     }
 
     @Test
+    public void shouldOpenSubspaceByShardId() {
+        // Behavior: openSubspace with the existing shard TEST_SHARD_ID returns a subspace whose path is the volume
+        // directory of that shard. A second call with the same shard ID and a call with the volume name of that
+        // shard both return the same cached instance.
+        DirectorySubspace subspace = service.openSubspace(TEST_SHARD_ID);
+
+        assertEquals(ShardUtil.getShardVolumeDirectory(context, TEST_SHARD_ID).toList(), subspace.getPath());
+        assertSame(subspace, service.openSubspace(TEST_SHARD_ID));
+        assertSame(subspace, service.openSubspace(VolumeNames.format(TEST_SHARD_ID)));
+    }
+
+    @Test
+    public void shouldThrowWhenOpenSubspaceWithUnusedShardId() {
+        // Behavior: No volume directory exists for the unused shard UNUSED_SHARD_ID. openSubspace with that shard
+        // ID fails with NoSuchVolumeException and the message "No such volume: '<volume name>'".
+        NoSuchVolumeException exception = assertThrows(
+                NoSuchVolumeException.class,
+                () -> service.openSubspace(UNUSED_SHARD_ID)
+        );
+        assertEquals(String.format("No such volume: '%s'", VolumeNames.format(UNUSED_SHARD_ID)), exception.getMessage());
+    }
+
+    @Test
     public void shouldThrowWhenOpenSubspaceWithInvalidVolumeName() {
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
