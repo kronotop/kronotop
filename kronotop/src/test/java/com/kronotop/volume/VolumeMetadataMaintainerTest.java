@@ -20,14 +20,23 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.directory.KronotopDirectory;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeMetadataMaintainerTest extends BaseStandaloneInstanceTest {
+    private VolumeSubspace subspace;
+
+    @BeforeEach
+    void setupSubspace() {
+        DirectorySubspace ds = createOrOpenSubspaceUnderCluster("volume-metadata-maintainer-test");
+        subspace = new VolumeSubspace(ds);
+    }
+
     @Test
     void shouldCreateVolumeSubspace() {
         // Behavior: When the shard has no volume directory, createVolumeSubspace creates it in the given
@@ -42,9 +51,9 @@ class VolumeMetadataMaintainerTest extends BaseStandaloneInstanceTest {
                 toList();
 
         try (Transaction tr = context.getTransactionManager().create()) {
-            DirectorySubspace subspace = VolumeMetadataMaintainer.createVolumeSubspace(context, tr, UNUSED_SHARD_ID);
+            DirectorySubspace volumeSubspace = VolumeMetadataMaintainer.createVolumeSubspace(context, tr, UNUSED_SHARD_ID);
 
-            assertEquals(expectedPath, subspace.getPath());
+            assertEquals(expectedPath, volumeSubspace.getPath());
         }
     }
 
@@ -64,6 +73,122 @@ class VolumeMetadataMaintainerTest extends BaseStandaloneInstanceTest {
                     String.format("Volume already exists: '%s'", VolumeNames.format(UNUSED_SHARD_ID)),
                     exception.getMessage()
             );
+        }
+    }
+
+    @Test
+    void shouldCreateNewVolumeMetadata() {
+        // Behavior: createOrOpen on an empty subspace initializes a new volume with READWRITE status and segment 0.
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeMetadata metadata = VolumeMetadataMaintainer.createOrOpen(tr, subspace);
+            tr.commit().join();
+
+            assertNotEquals(0L, metadata.id());
+            assertEquals(VolumeStatus.READWRITE, metadata.status());
+            assertEquals(List.of(0L), metadata.segmentIds());
+        }
+    }
+
+    @Test
+    void shouldOpenExistingVolumeMetadata() {
+        // Behavior: createOrOpen on a subspace that already holds volume metadata returns that metadata unchanged.
+        long originalId;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeMetadata created = VolumeMetadataMaintainer.createOrOpen(tr, subspace);
+            originalId = created.id();
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeMetadata opened = VolumeMetadataMaintainer.createOrOpen(tr, subspace);
+
+            assertEquals(originalId, opened.id());
+            assertEquals(VolumeStatus.READWRITE, opened.status());
+            assertEquals(List.of(0L), opened.segmentIds());
+        }
+    }
+
+    @Test
+    void shouldReadVolumeId() {
+        // Behavior: readVolumeId returns the same ID that createOrOpen generated.
+        long expectedId;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeMetadata metadata = VolumeMetadataMaintainer.createOrOpen(tr, subspace);
+            expectedId = metadata.id();
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            long actualId = VolumeMetadataMaintainer.readVolumeId(tr, subspace);
+            assertEquals(expectedId, actualId);
+        }
+    }
+
+    @Test
+    void shouldLoadSegmentIds() {
+        // Behavior: loadSegmentIds returns all registered segments in ascending order.
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeMetadataMaintainer.createOrOpen(tr, subspace);
+
+            tr.set(subspace.packVolumeSegmentIdKey(5L), VolumeMetadataMaintainer.NULL_BYTES);
+            tr.set(subspace.packVolumeSegmentIdKey(3L), VolumeMetadataMaintainer.NULL_BYTES);
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(tr, subspace);
+            assertEquals(List.of(0L, 3L, 5L), segmentIds);
+        }
+    }
+
+    @Test
+    void shouldReturnEmptyListWhenNoSegmentsExist() {
+        // Behavior: loadSegmentIds returns an empty list when no segment keys have been written.
+        try (Transaction tr = context.getTransactionManager().create()) {
+            List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(tr, subspace);
+            assertTrue(segmentIds.isEmpty());
+        }
+    }
+
+    @Test
+    void shouldReadVolumeStatus() {
+        // Behavior: readVolumeStatus returns the status that createOrOpen stored.
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeMetadataMaintainer.createOrOpen(tr, subspace);
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeStatus status = VolumeMetadataMaintainer.readVolumeStatus(tr, subspace);
+            assertEquals(VolumeStatus.READWRITE, status);
+        }
+    }
+
+    @Test
+    void shouldReadUpdatedVolumeStatus() {
+        // Behavior: readVolumeStatus returns READONLY after that status is written directly to the status key.
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeMetadataMaintainer.createOrOpen(tr, subspace);
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            byte[] statusValue = VolumeStatus.READONLY.toString().getBytes(StandardCharsets.US_ASCII);
+            tr.set(subspace.packVolumeStatusKey(), statusValue);
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeStatus status = VolumeMetadataMaintainer.readVolumeStatus(tr, subspace);
+            assertEquals(VolumeStatus.READONLY, status);
+        }
+    }
+
+    @Test
+    void shouldThrowWhenNoStatusExists() {
+        // Behavior: readVolumeStatus throws IllegalStateException on an empty subspace.
+        try (Transaction tr = context.getTransactionManager().create()) {
+            assertThrows(IllegalStateException.class, () -> VolumeMetadataMaintainer.readVolumeStatus(tr, subspace));
         }
     }
 }

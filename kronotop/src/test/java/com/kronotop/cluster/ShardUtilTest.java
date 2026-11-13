@@ -27,7 +27,6 @@ import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.VolumeAlreadyExistsException;
 import com.kronotop.volume.VolumeMetadata;
 import com.kronotop.volume.VolumeMetadataMaintainer;
-import com.kronotop.volume.VolumeMetadataUtil;
 import com.kronotop.volume.VolumeNames;
 import com.kronotop.volume.VolumeStatus;
 import com.kronotop.volume.VolumeSubspace;
@@ -69,9 +68,9 @@ class ShardUtilTest extends BaseStandaloneInstanceTest {
             List<String> volumePath = VolumeMetadataMaintainer.getShardVolumeDirectory(context, UNUSED_SHARD_ID).toList();
             VolumeSubspace volumeSubspace = new VolumeSubspace(context.getDirectoryLayer().open(tr, volumePath).join());
             return new VolumeMetadata(
-                    VolumeMetadataUtil.readVolumeId(tr, volumeSubspace),
-                    VolumeMetadataUtil.readVolumeStatus(tr, volumeSubspace),
-                    VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace)
+                    VolumeMetadataMaintainer.readVolumeId(tr, volumeSubspace),
+                    VolumeMetadataMaintainer.readVolumeStatus(tr, volumeSubspace),
+                    VolumeMetadataMaintainer.loadSegmentIds(tr, volumeSubspace)
             );
         });
         assertNotEquals(0L, volumeMetadata.id());

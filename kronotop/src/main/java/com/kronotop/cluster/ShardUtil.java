@@ -25,7 +25,6 @@ import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.volume.VolumeMetadataMaintainer;
-import com.kronotop.volume.VolumeMetadataUtil;
 import com.kronotop.volume.VolumeSubspace;
 
 import java.util.List;
@@ -122,7 +121,7 @@ public class ShardUtil {
     private static void createVolumeMetadata(Context context, Transaction tr, int shardId) {
         DirectorySubspace volumeSubspace = VolumeMetadataMaintainer.createVolumeSubspace(context, tr, shardId);
         VolumeSubspace vs = new VolumeSubspace(volumeSubspace);
-        VolumeMetadataUtil.createOrOpen(tr, vs);
+        VolumeMetadataMaintainer.createOrOpen(tr, vs);
     }
 
     /**

@@ -268,7 +268,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
 
         VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
         try (Transaction tr = context.getTransactionManager().create()) {
-            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace);
+            List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(tr, volumeSubspace);
             assertTrue(segmentIds.contains(sealedSegmentId));
         }
 
@@ -283,7 +283,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
             List<KeyValue> statsEntries = tr.getRange(Range.startsWith(volumeSubspace.packSegmentStatsSegmentPrefix(sealedSegmentId))).asList().join();
             assertTrue(statsEntries.isEmpty());
 
-            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace);
+            List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(tr, volumeSubspace);
             assertFalse(segmentIds.contains(sealedSegmentId));
 
             VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, volumeSubspace, sealedSegmentId);
@@ -306,7 +306,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
 
         VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
         try (Transaction tr = context.getTransactionManager().create()) {
-            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace);
+            List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(tr, volumeSubspace);
             assertTrue(segmentIds.contains(sealedSegmentId));
         }
 
@@ -390,7 +390,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
 
         VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
         try (Transaction tr = context.getTransactionManager().create()) {
-            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace);
+            List<Long> segmentIds = VolumeMetadataMaintainer.loadSegmentIds(tr, volumeSubspace);
             assertTrue(segmentIds.contains(sealedSegmentId));
 
             VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, volumeSubspace, sealedSegmentId);
