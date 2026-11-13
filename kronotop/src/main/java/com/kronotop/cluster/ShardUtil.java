@@ -24,9 +24,7 @@ import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
-import com.kronotop.volume.VolumeMetadataUtil;
-import com.kronotop.volume.VolumeNames;
-import com.kronotop.volume.VolumeSubspace;
+import com.kronotop.volume.*;
 
 import java.util.List;
 
@@ -136,7 +134,11 @@ public class ShardUtil {
                 getShardVolumeDirectory(context, shardId)
         );
         VolumeSubspace vs = new VolumeSubspace(volumeSubspace);
-        VolumeMetadataUtil.createOrOpen(tr, vs);
+        try {
+            VolumeMetadataUtil.create(tr, vs);
+        } catch (VolumeAlreadyExistsException exp) {
+            throw new VolumeAlreadyExistsException(VolumeNames.format(shardId));
+        }
     }
 
     /**

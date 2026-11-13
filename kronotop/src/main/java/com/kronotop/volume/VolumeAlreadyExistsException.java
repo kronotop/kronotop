@@ -22,4 +22,8 @@ public class VolumeAlreadyExistsException extends KronotopException {
     public VolumeAlreadyExistsException(String name) {
         super("Volume already exists: '" + name + "'");
     }
+
+    public VolumeAlreadyExistsException() {
+        super();
+    }
 }
