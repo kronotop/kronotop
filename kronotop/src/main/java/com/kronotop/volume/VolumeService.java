@@ -143,11 +143,14 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Opens a volume for the config. Returns the already open volume when one with the same name exists.
+     * Opens the volume for the given config, or returns the already open volume that has the same name.
      *
-     * @throws IOException if the data directory or the volume cannot be created
+     * @param config the config of the volume to open
+     * @return the open volume
+     * @throws IOException       if the volume cannot be opened
+     * @throws KronotopException if the data directory cannot be created
      */
-    public Volume newVolume(VolumeConfig config) throws IOException {
+    public Volume openVolume(VolumeConfig config) throws IOException {
         lock.writeLock().lock();
         try {
             if (volumes.containsKey(config.name())) {
@@ -157,7 +160,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                     return volume;
                 }
             }
-            // Create a new volume.
+            // Open the volume.
             checkAndCreateDataDir(config.dataDir());
             // TODO: Create folders for this specific volume in the constructor.
             Volume volume = new Volume(context, config);

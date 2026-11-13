@@ -246,7 +246,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         volume.close();
 
         {
-            Volume reopenedVolume = service.newVolume(volume.getConfig());
+            Volume reopenedVolume = service.openVolume(volume.getConfig());
             List<ByteBuffer> retrievedEntries = new ArrayList<>();
             try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
@@ -298,7 +298,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         volume.close();
 
         {
-            Volume reopenedVolume = service.newVolume(volume.getConfig());
+            Volume reopenedVolume = service.openVolume(volume.getConfig());
 
             ByteBuffer[] secondEntries = getEntries(2);
             AppendResult result;
@@ -946,7 +946,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();
         long segmentId = segmentAnalysis.getFirst().segmentId();
 
-        Volume standby = service.newVolume(config);
+        Volume standby = service.openVolume(config);
         PackedEntry[] packedEntries = new PackedEntry[]{
                 new PackedEntry(0, first),
                 new PackedEntry(3, second)
@@ -1106,7 +1106,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();
         long segmentId = segmentAnalysis.getFirst().segmentId();
 
-        Volume standby = service.newVolume(config);
+        Volume standby = service.openVolume(config);
         standby.setStatus(VolumeStatus.READONLY);
         PackedEntry[] packedEntries = new PackedEntry[]{
                 new PackedEntry(0, first),
@@ -1226,7 +1226,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         volume.close();
 
         // Reopen the volume (this calls openSegments in constructor)
-        Volume reopenedVolume = service.newVolume(volume.getConfig());
+        Volume reopenedVolume = service.openVolume(volume.getConfig());
 
         // Append new data to the reopened volume
         ByteBuffer[] newEntries = getEntries(3);
@@ -2319,7 +2319,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
 
         // Reopen the volume
-        Volume reopenedVolume = service.newVolume(volume.getConfig());
+        Volume reopenedVolume = service.openVolume(volume.getConfig());
 
         // Append a new entry to prefix A on the reopened volume
         ByteBuffer entryA3 = getEntry();

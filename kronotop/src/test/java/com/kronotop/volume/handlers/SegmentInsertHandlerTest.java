@@ -60,7 +60,7 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // SEGMEN.TINSERT requires an already opened volume to run.
         VolumeConfigGenerator generator = new VolumeConfigGenerator(secondInstance.getContext(), 1);
         VolumeService volumeService = secondInstance.getContext().getService(VolumeService.NAME);
-        Volume secondVolume = volumeService.newVolume(generator.volumeConfig());
+        Volume secondVolume = volumeService.openVolume(generator.volumeConfig());
 
 
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();

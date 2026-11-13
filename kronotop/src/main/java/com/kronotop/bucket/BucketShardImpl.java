@@ -55,7 +55,7 @@ public class BucketShardImpl extends AbstractShard implements BucketShard {
 
         VolumeConfig volumeConfig = new VolumeConfigGenerator(context, id).volumeConfig();
         try {
-            Volume volume = volumeService.newVolume(volumeConfig);
+            Volume volume = volumeService.openVolume(volumeConfig);
             volume.setAttribute(VolumeAttributes.SHARD_ID, id);
             this.volume = volume;
         } catch (IOException e) {

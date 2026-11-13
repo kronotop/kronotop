@@ -242,7 +242,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
 
         VolumeConfig volumeConfig = volume.getConfig();
         volume.close();
-        volume = service.newVolume(volumeConfig);
+        volume = service.openVolume(volumeConfig);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volumeConfig.subspace());

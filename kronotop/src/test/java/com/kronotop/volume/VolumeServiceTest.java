@@ -49,15 +49,16 @@ public class VolumeServiceTest extends BaseVolumeTest {
     }
 
     @Test
-    public void shouldCreateNewVolume() throws IOException {
-        Volume volume = service.newVolume(volumeConfig);
+    public void shouldOpenVolume() throws IOException {
+        // Behavior: When the service has no open volume for the config, openVolume returns a non-null volume.
+        Volume volume = service.openVolume(volumeConfig);
         assertNotNull(volume);
         volume.close();
     }
 
     @Test
     public void shouldFindExistingVolume() throws IOException {
-        Volume volume = service.newVolume(volumeConfig);
+        Volume volume = service.openVolume(volumeConfig);
         assertDoesNotThrow(() -> service.findVolume(volumeConfig.name()));
         volume.close();
     }
@@ -69,20 +70,20 @@ public class VolumeServiceTest extends BaseVolumeTest {
 
     @Test
     public void shouldThrowClosedVolumeExceptionWhenVolumeClosed() throws IOException {
-        Volume volume = service.newVolume(volumeConfig);
+        Volume volume = service.openVolume(volumeConfig);
         volume.close();
         assertThrows(ClosedVolumeException.class, () -> service.findVolume(volumeConfig.name()));
     }
 
     @Test
     public void shouldCloseVolume() throws IOException {
-        service.newVolume(volumeConfig);
+        service.openVolume(volumeConfig);
         assertDoesNotThrow(() -> service.closeVolume(volumeConfig.name()));
     }
 
     @Test
     public void shouldRegisterVolumeInList() throws IOException {
-        Volume volume = service.newVolume(volumeConfig);
+        Volume volume = service.openVolume(volumeConfig);
         try {
             boolean found = false;
             for (Volume v : service.list()) {
@@ -99,7 +100,7 @@ public class VolumeServiceTest extends BaseVolumeTest {
 
     @Test
     public void shouldRemoveEntriesWhenPrefixInvalidated() throws IOException {
-        Volume volume = service.newVolume(volumeConfig);
+        Volume volume = service.openVolume(volumeConfig);
 
         ByteBuffer entry = ByteBuffer.wrap("entry".getBytes());
         try {

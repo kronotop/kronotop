@@ -61,7 +61,7 @@ public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPSe
 
         try {
             volumeConfig = volumeConfigGenerator.volumeConfig();
-            volume = volumeService.newVolume(volumeConfig);
+            volume = volumeService.openVolume(volumeConfig);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -73,7 +73,7 @@ public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPSe
         VolumeConfig standbyVolumeConfig = volumeConfigGenerator.volumeConfig(dataDir);
         try {
             VolumeService standbyVolumeService = standbyContext.getService(VolumeService.NAME);
-            return standbyVolumeService.newVolume(standbyVolumeConfig);
+            return standbyVolumeService.openVolume(standbyVolumeConfig);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

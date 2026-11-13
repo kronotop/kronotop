@@ -46,7 +46,7 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
         VolumeConfigGenerator generator = new VolumeConfigGenerator(context, 1);
         VolumeConfig volumeConfig = generator.volumeConfig();
         service = context.getService(VolumeService.NAME);
-        volume = service.newVolume(volumeConfig);
+        volume = service.openVolume(volumeConfig);
     }
 
     @BeforeEach
