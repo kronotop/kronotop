@@ -88,8 +88,7 @@ writes.
          2# "standbys" =>
             1) "a3f18b2e74d9c5601f82e4a7b390d612c8f7e149"
          3# "status" => "READWRITE"
-         4# "linked_volumes" =>
-            1) "shard-0"
+         4# "linked_volume" => "shard-0"
    ```
 
 `ROUTE SET PRIMARY` also accepts `*` for the shard ID to assign the same member as primary across all
@@ -107,7 +106,7 @@ For full argument and error details, see
 Five read-only commands answer different questions:
 
 - [`DESCRIBE-CLUSTER`](commands/kr-admin-describe-cluster.md): full topology, every shard's primary,
-  standbys, status, and linked volumes.
+  standbys, status, and linked volume.
 - [`DESCRIBE-SHARD`](commands/kr-admin-describe-shard.md): the same per-shard detail for a single shard.
 - [`LIST-MEMBERS`](commands/kr-admin-list-members.md): every registered member with its host, ports,
   status, and last heartbeat.
@@ -122,8 +121,7 @@ Five read-only commands answer different questions:
 2# "standbys" =>
    1) "a3f18b2e74d9c5601f82e4a7b390d612c8f7e149"
 3# "status" => "READWRITE"
-4# "linked_volumes" =>
-   1) "shard-0"
+4# "linked_volume" => "shard-0"
 ```
 
 ---

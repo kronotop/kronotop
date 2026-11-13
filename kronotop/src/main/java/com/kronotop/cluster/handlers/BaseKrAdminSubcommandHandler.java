@@ -62,7 +62,7 @@ public class BaseKrAdminSubcommandHandler {
     }
 
     /**
-     * Returns the primary, standbys, status and linked volumes of a shard as reply fields.
+     * Returns the primary, standbys, status and linked volume of a shard as reply fields.
      *
      * @param tr      the transaction to read with
      * @param shardId the shard ID
@@ -90,11 +90,8 @@ public class BaseKrAdminSubcommandHandler {
         ShardStatus status = ShardUtil.getShardStatus(tr, shardSubspace);
         shard.put(bulkString("status"), bulkString(status.name()));
 
-        // TODO: This is not sufficient but it works for now.
-        // Ideally, we should get this info from FDB, re-generating the volume name is not good.
-        List<RedisMessage> linkedVolumes = new ArrayList<>();
-        linkedVolumes.add(bulkString(VolumeNames.format(shardId)));
-        shard.put(bulkString("linked_volumes"), new ArrayRedisMessage(linkedVolumes));
+        // The volume is created alongside the shard, so it's safe to generate the name here.
+        shard.put(bulkString("linked_volume"), bulkString(VolumeNames.format(shardId)));
 
         return shard;
     }

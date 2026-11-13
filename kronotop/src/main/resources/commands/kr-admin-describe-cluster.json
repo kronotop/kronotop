@@ -49,13 +49,9 @@
                 "description": "READWRITE, READONLY or INOPERABLE.",
                 "type": "string"
               },
-              "linked_volumes": {
-                "description": "Volume names in the format shard-<id>.",
-                "type": "array",
-                "items": {
-                  "description": "A volume name.",
-                  "type": "string"
-                }
+              "linked_volume": {
+                "description": "Volume name in the format shard-<id>.",
+                "type": "string"
               }
             }
           }

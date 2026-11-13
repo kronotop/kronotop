@@ -130,7 +130,7 @@ kronotop-primary:3320> KR.ADMIN DESCRIBE-CLUSTER
       1# "primary" => "f627bf46f8627333a064de5c388d0316cc223a54"
       2# "standbys" => 1) "e159f73fb21cd6ac80639b2cc1e087e8330cd947"
       3# "status" => "READWRITE"
-      4# "linked_volumes" => 1) "shard-0"
+      4# "linked_volume" => "shard-0"
 ```
 
 Now connect to the client port and try inserting and querying a document:

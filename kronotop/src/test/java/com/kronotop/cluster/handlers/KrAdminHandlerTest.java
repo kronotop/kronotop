@@ -618,7 +618,8 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldDescribeClusterShardStructure() {
-        // Behavior: Each shard in DESCRIBE-CLUSTER contains primary, standbys, status, and linked_volumes.
+        // Behavior: Each shard in DESCRIBE-CLUSTER contains exactly four fields: primary, standbys, status and
+        // linked_volume.
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.describeCluster().encode(buf);
@@ -647,7 +648,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                         shardKeys.add(((FullBulkStringRedisMessage) sk).content().toString(StandardCharsets.UTF_8))
                 );
 
-                assertEquals(Set.of("primary", "standbys", "status", "linked_volumes"), shardKeys);
+                assertEquals(Set.of("primary", "standbys", "status", "linked_volume"), shardKeys);
             });
         });
     }
@@ -667,6 +668,9 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldDescribeShard() {
+        // Behavior: DESCRIBE-SHARD for shard 1, which has a primary and no standbys, returns a map with exactly
+        // four fields. primary is a non-empty member id, standbys is an empty array, status is READWRITE and
+        // linked_volume is the name of the shard volume as a single string.
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
@@ -675,8 +679,10 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        List<String> keys = new ArrayList<>();
         actualMessage.children().forEach((messageKey, messageValue) -> {
             FullBulkStringRedisMessage key = (FullBulkStringRedisMessage) messageKey;
+            keys.add(key.content().toString(StandardCharsets.UTF_8));
             switch (key.content().toString(StandardCharsets.UTF_8)) {
                 case "primary" -> {
                     FullBulkStringRedisMessage value = (FullBulkStringRedisMessage) messageValue;
@@ -690,14 +696,13 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                     FullBulkStringRedisMessage value = (FullBulkStringRedisMessage) messageValue;
                     assertEquals(ShardStatus.READWRITE.name(), value.content().toString(StandardCharsets.UTF_8));
                 }
-                case "linked_volumes" -> {
-                    ArrayRedisMessage value = (ArrayRedisMessage) messageValue;
-                    assertEquals(1, value.children().size());
-                    FullBulkStringRedisMessage item = (FullBulkStringRedisMessage) value.children().getFirst();
-                    assertEquals(volume.getConfig().name(), item.content().toString(StandardCharsets.UTF_8));
+                case "linked_volume" -> {
+                    FullBulkStringRedisMessage value = (FullBulkStringRedisMessage) messageValue;
+                    assertEquals(volume.getConfig().name(), value.content().toString(StandardCharsets.UTF_8));
                 }
             }
         });
+        assertEquals(Set.of("primary", "standbys", "status", "linked_volume"), Set.copyOf(keys));
     }
 
     @Test

@@ -21,16 +21,16 @@ KR.ADMIN DESCRIBE-SHARD <shard-id>
 
 RESP3 map with the following fields:
 
-| Field            | Type             | Description                                                   |
-|------------------|------------------|---------------------------------------------------------------|
-| `primary`        | string           | Member ID of the primary route, or empty string if unassigned |
-| `standbys`       | array of strings | Member IDs of standby routes                                  |
-| `status`         | string           | `READWRITE`, `READONLY`, or `INOPERABLE`                      |
-| `linked_volumes` | array of strings | Volume names in the format `shard-<id>` (e.g. `shard-1`)      |
+| Field           | Type             | Description                                                   |
+|-----------------|------------------|---------------------------------------------------------------|
+| `primary`       | string           | Member ID of the primary route, or empty string if unassigned |
+| `standbys`      | array of strings | Member IDs of standby routes                                  |
+| `status`        | string           | `READWRITE`, `READONLY`, or `INOPERABLE`                      |
+| `linked_volume` | string           | Volume name in the format `shard-<id>` (e.g. `shard-1`)       |
 
 ## Behavior
 
-Reads and returns shard metadata: primary route, standbys, status, and linked volumes. Returns the same per-shard
+Reads and returns shard metadata: primary route, standbys, status, and linked volume. Returns the same per-shard
 structure used by `DESCRIBE-CLUSTER`, but for a single shard.
 
 Requires cluster initialization.
@@ -59,8 +59,7 @@ Cluster errors:
 1# "primary" => "006cdc459c59e600c76494e8388857fc3cba2fa8"
 2# "standbys" => (empty array)
 3# "status" => "READWRITE"
-4# "linked_volumes" =>
-   1) "shard-1"
+4# "linked_volume" => "shard-1"
 ```
 
 **Describe a shard with standbys:**
@@ -72,6 +71,5 @@ Cluster errors:
    1) "a3f18b2e74d9c5601f82e4a7b390d612c8f7e149"
    2) "e72b4f91d8a36c05429e1fd7b583a0e64d912c37"
 3# "status" => "READWRITE"
-4# "linked_volumes" =>
-   1) "shard-0"
+4# "linked_volume" => "shard-0"
 ```
