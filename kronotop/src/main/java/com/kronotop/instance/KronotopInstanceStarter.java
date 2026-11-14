@@ -19,8 +19,11 @@ package com.kronotop.instance;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
+import com.apple.foundationdb.FDBException;
+import com.kronotop.ConfigException;
 import com.kronotop.Context;
 import com.kronotop.cluster.Member;
+import com.kronotop.cluster.MemberAlreadyRunningException;
 import com.kronotop.network.Address;
 import com.kronotop.network.NetworkConfigUtil;
 import com.typesafe.config.Config;
@@ -38,6 +41,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
+import java.net.BindException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -46,6 +50,7 @@ import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
+import static com.google.common.base.Throwables.getCausalChain;
 import static com.google.common.base.Throwables.getRootCause;
 
 /*
@@ -67,6 +72,8 @@ plates into philosophical consideration. If I have seen further it is by standin
 public class KronotopInstanceStarter implements Callable<Integer> {
     private static final Logger LOGGER = LoggerFactory.getLogger(KronotopInstanceStarter.class);
     private static final List<String> NETWORK_INTERFACES = List.of("external", "internal");
+    // FoundationDB error code of no_cluster_file_found.
+    private static final int NO_CLUSTER_FILE_FOUND = 1515;
 
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show help.")
     private boolean helpRequested;
@@ -223,8 +230,24 @@ public class KronotopInstanceStarter implements Callable<Integer> {
         });
     }
 
-    private static void logFailure(String message, Exception e) {
-        if (LOGGER.isDebugEnabled()) {
+    static boolean isExpectedFailure(Throwable failure) {
+        for (Throwable cause : getCausalChain(failure)) {
+            if (cause instanceof ConfigException
+                    || cause instanceof com.typesafe.config.ConfigException
+                    || cause instanceof MemberAlreadyRunningException
+                    || cause instanceof BindException
+                    || cause instanceof UnsatisfiedLinkError) {
+                return true;
+            }
+            if (cause instanceof FDBException fdbException && fdbException.getCode() == NO_CLUSTER_FILE_FOUND) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void logFailure(String message, Throwable e) {
+        if (LOGGER.isDebugEnabled() || !isExpectedFailure(e)) {
             LOGGER.error(message, e);
         } else {
             LOGGER.error("{}: {}", message, getRootCause(e).getMessage());
@@ -234,7 +257,7 @@ public class KronotopInstanceStarter implements Callable<Integer> {
     private static void applyLogLevel(String name) {
         Level level = Level.toLevel(name, null);
         if (level == null) {
-            throw new IllegalArgumentException("Unknown log level: '" + name + "'");
+            throw new ConfigException("Unknown log level: '" + name + "'");
         }
         LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
         context.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).setLevel(level);
@@ -266,7 +289,7 @@ public class KronotopInstanceStarter implements Callable<Integer> {
             kronotopInstance.start();
             greeting(kronotopInstance);
             return 0;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             logFailure("Failed to start Kronotop instance", e);
             return 1;
         }

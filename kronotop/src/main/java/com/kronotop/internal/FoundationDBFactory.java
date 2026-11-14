@@ -20,12 +20,14 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDB;
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.NetworkOptions;
+import com.kronotop.ConfigException;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * The FoundationDBFactory class provides a static method for creating a new FoundationDB Database instance.
@@ -57,10 +59,8 @@ public class FoundationDBFactory {
         int apiVersion = DEFAULT_FDB_API_VERSION;
         try {
             apiVersion = config.getInt("foundationdb.apiversion");
-        } catch (ConfigException.Missing e) {
-            LOGGER.warn(String.format(
-                    "foundationdb.apiversion is missing. Setting the default version: %d", DEFAULT_FDB_API_VERSION)
-            );
+        } catch (com.typesafe.config.ConfigException.Missing e) {
+            LOGGER.warn("foundationdb.apiversion is missing. Setting the default version: {}", DEFAULT_FDB_API_VERSION);
         }
 
         // Validate API Version here
@@ -81,6 +81,12 @@ public class FoundationDBFactory {
             FoundationDBFactory.database = fdb.open(clusterFile);
         }
         return database;
+    }
+
+    static void checkClientLibrary(String path) {
+        if (!Files.exists(Path.of(path))) {
+            throw new ConfigException("No such FoundationDB client library: '" + path + "'");
+        }
     }
 
     /**
@@ -174,6 +180,12 @@ public class FoundationDBFactory {
                 String fdbc = config.getString("foundationdb.fdbc");
                 System.setProperty("FDB_LIBRARY_PATH_FDB_C", fdbc);
             }
+        }
+
+        // fdb-java ignores a failed libfdb_c load, so a wrong library path is rejected here.
+        String fdbc = System.getProperty("FDB_LIBRARY_PATH_FDB_C");
+        if (fdbc != null) {
+            checkClientLibrary(fdbc);
         }
 
         // We couldn't find libfdb_c. Let's try to make a guess.

@@ -16,6 +16,8 @@
 
 package com.kronotop.instance;
 
+import com.apple.foundationdb.FDBException;
+import com.kronotop.cluster.MemberAlreadyRunningException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigFactory;
@@ -24,9 +26,11 @@ import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 
 import java.io.IOException;
+import java.net.BindException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -127,6 +131,40 @@ class KronotopInstanceStarterTest {
         // Behavior: --check-config with --netty-transport set to "bogus", which is neither nio nor epoll, returns
         // exit code 1.
         assertEquals(1, parse("--netty-transport", "bogus", "--check-config").call());
+    }
+
+    @Test
+    void shouldTreatConfigErrorsAsExpectedFailures() {
+        // Behavior: a Kronotop ConfigException and a HOCON ConfigException both count as expected startup failures,
+        // so the starter logs them without a stack trace.
+        assertTrue(KronotopInstanceStarter.isExpectedFailure(
+                new com.kronotop.ConfigException("network.external.port is mandatory")));
+        assertTrue(KronotopInstanceStarter.isExpectedFailure(new ConfigException.Generic("unbalanced braces")));
+    }
+
+    @Test
+    void shouldTreatWrappedStartupErrorsAsExpectedFailures() {
+        // Behavior: an FDBException with code 1515 (no cluster file found) wrapped in a CompletionException, and a
+        // MemberAlreadyRunningException, a BindException and an UnsatisfiedLinkError each wrapped in a
+        // RuntimeException, count as expected startup failures.
+        assertTrue(KronotopInstanceStarter.isExpectedFailure(
+                new CompletionException(new FDBException("No cluster file found", 1515))));
+        assertTrue(KronotopInstanceStarter.isExpectedFailure(
+                new RuntimeException(new MemberAlreadyRunningException("member-id"))));
+        assertTrue(KronotopInstanceStarter.isExpectedFailure(
+                new RuntimeException(new BindException("Address already in use"))));
+        assertTrue(KronotopInstanceStarter.isExpectedFailure(
+                new RuntimeException(new UnsatisfiedLinkError("Library not loaded"))));
+    }
+
+    @Test
+    void shouldTreatOtherErrorsAsUnexpectedFailures() {
+        // Behavior: an IllegalStateException, and an FDBException with code 1020 (transaction conflict) wrapped in
+        // a CompletionException, do not count as expected startup failures, so the starter logs them with a stack
+        // trace.
+        assertFalse(KronotopInstanceStarter.isExpectedFailure(new IllegalStateException("unexpected state")));
+        assertFalse(KronotopInstanceStarter.isExpectedFailure(
+                new CompletionException(new FDBException("Transaction not committed", 1020))));
     }
 
     @Test

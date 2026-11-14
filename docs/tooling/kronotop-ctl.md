@@ -23,7 +23,7 @@ docker run --rm -it --network kronotop \
 
 ## bootstrap
 
-Bootstraps a new Kronotop cluster. It connects to the first primary node and initializes the cluster. After the
+`bootstrap` sets up a new Kronotop cluster. It connects to the first primary node and initializes the cluster. After the
 shards are discovered, it assigns their primary and standby owners and opens them for read-write traffic.
 
 Addresses use the internal port (default 3320).
@@ -31,7 +31,7 @@ Addresses use the internal port (default 3320).
 `--shards` sets how many shards the cluster gets. The default is 1. Shard ids start at 0 and must be lower than
 the shard count.
 
-Single-node cluster:
+For a single-node cluster:
 
 ```bash
 kronotop-ctl bootstrap \
@@ -39,7 +39,7 @@ kronotop-ctl bootstrap \
   --primary localhost:3320=0,1,2
 ```
 
-Multi-node cluster with primary and standby assignments:
+For a multi-node cluster with primary and standby assignments:
 
 ```bash
 kronotop-ctl bootstrap \

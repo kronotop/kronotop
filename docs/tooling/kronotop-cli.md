@@ -5,13 +5,13 @@ description: "Interactive command-line client for Kronotop."
 
 `kronotop-cli` is the command-line client for Kronotop. It runs in three modes:
 
-- **Interactive mode**: started when no command is given. Provides a prompt with colorized output.
-- **One-shot mode**: pass a command as arguments, get the reply, and exit. Use `-r` and `-i` to repeat it at an
+- Interactive mode starts when no command is given. It gives you a prompt with colorized output.
+- One-shot mode takes a command as arguments, prints the reply, and exits. `-r` and `-i` repeat the command at an
   interval.
-- **Script mode**: execute commands from a file with `-f`.
+- Script mode runs commands from a file given with `-f`.
 
-Sessions use RESP3 by default; switch to RESP2 with `-2`. Replies can be formatted as JSON, CSV, or raw output.
-TLS connections are supported.
+Sessions use RESP3 by default, and `-2` switches to RESP2. `kronotop-cli` can print replies as JSON, CSV, or raw
+output, and it can connect over TLS.
 
 `kronotop-cli` also sets the session attributes `input_type`, `reply_type`, and `object_id_format` automatically,
 so document replies are human-readable by default.
@@ -59,7 +59,7 @@ with status 1.
 
 In interactive mode, `AUTH` and `HELLO` with the `AUTH` option are not saved to the history file.
 
-## One-Shot Mode
+## One-shot mode
 
 Pass a command after the options to execute it once and exit:
 
@@ -68,11 +68,12 @@ kronotop-cli -p 5484 BUCKET.QUERY orders '{"qty": {"$gte": 1}}'
 ```
 
 Each shell argument becomes one command argument, so wrap JSON documents or anything containing spaces in
-quotes. The escape sequences `\n`, `\r`, `\t`, and `\xHH` inside arguments are processed before the command
-is sent.
+quotes. `kronotop-cli` processes the escape sequences `\n`, `\r`, `\t`, and `\xHH` inside arguments before it sends
+the command.
 
 `-r` executes the same command N times. `-i` adds a wait between runs, and sub-second values are allowed.
-Responses are separated by the `-D` delimiter, a newline by default. Useful for watching cluster state:
+The `-D` delimiter separates the responses, and it is a newline by default. Repeating a command is useful for
+watching cluster state:
 
 ```bash
 kronotop-cli -p 3320 -r 10 -i 0.5 KR.ADMIN DESCRIBE-CLUSTER
@@ -85,14 +86,14 @@ When stdout is not a terminal, replies switch to raw formatting, which is easier
 kronotop-cli -p 5484 --json BUCKET.QUERY orders '{"qty": {"$gte": 1}}'
 ```
 
-## Script Mode
+## Script mode
 
 `-f` executes commands from a file, one command per line. Blank lines and lines starting with `#` are skipped.
-Execution stops at the first error: the failing line number is printed to stderr and the exit code is non-zero.
-If the error happens inside an open transaction, the transaction is rolled back automatically before the script
-aborts.
+Execution stops at the first error. `kronotop-cli` prints the failing line number to stderr and exits with a
+non-zero code. If the error happens inside an open transaction, the transaction is rolled back automatically before
+the script aborts.
 
-Two directives are handled by the client itself:
+The client handles two directives itself:
 
 - `.echo <text>`: prints the text. The `$TIMESTAMP` variable expands to the current time.
 - `.sleep <duration>`: pauses the script. Accepts `ms`, `s`, `m`, and `h` units, for example `100ms` or `2s`.
