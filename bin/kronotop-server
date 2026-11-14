@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+#
+  # Launcher script for the Kronotop server
+#
+
+set -euo pipefail
+
+# Follow symlinks so the script still finds its home when it is linked from another directory, such as /usr/bin.
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+    DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+    SOURCE="$(readlink "$SOURCE")"
+    case "$SOURCE" in
+        /*) ;;
+        *) SOURCE="$DIR/$SOURCE" ;;
+    esac
+done
+KRONOTOP_HOME="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
+
+# Installed layout keeps the jar in lib/. In the source tree, use the shaded jar under kronotop/target and skip the
+# original-* jar produced by maven-shade-plugin.
+JAR="$KRONOTOP_HOME/lib/kronotop.jar"
+if [ ! -f "$JAR" ]; then
+    JAR=$(find "$KRONOTOP_HOME/kronotop/target" -maxdepth 1 -name 'kronotop-*.jar' ! -name 'original-*' 2>/dev/null | head -1 || true)
+fi
+
+if [ -z "$JAR" ]; then
+    echo "Error: Kronotop jar not found. Run './mvnw clean package -DskipTests' first." >&2
+    exit 1
+fi
+
+# Default JVM options (can be overridden via KRONOTOP_OPTS)
+DEFAULT_JAVA_OPTS="--sun-misc-unsafe-memory-access=allow --add-opens jdk.unsupported/sun.misc=ALL-UNNAMED --enable-native-access=ALL-UNNAMED --add-modules jdk.incubator.vector"
+
+JAVA_OPTS="${KRONOTOP_OPTS:-$DEFAULT_JAVA_OPTS}"
+
+# -D arguments are JVM system properties and must come before -jar. Everything else goes to the server.
+JVM_ARGS=()
+SERVER_ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        -D*) JVM_ARGS+=("$arg") ;;
+        *) SERVER_ARGS+=("$arg") ;;
+    esac
+done
+
+# The ${array[@]+...} form keeps empty arrays working under set -u on bash 3.2 (macOS).
+# JAVA_OPTS holds several flags, so it must stay unquoted and split into words.
+# shellcheck disable=SC2086
+exec java $JAVA_OPTS ${JVM_ARGS[@]+"${JVM_ARGS[@]}"} -jar "$JAR" ${SERVER_ARGS[@]+"${SERVER_ARGS[@]}"}

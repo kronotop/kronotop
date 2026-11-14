@@ -198,14 +198,16 @@ The full test suite is slow. Prefer targeted module or class-level runs unless y
 
 FoundationDB must be running first (`fdbcli --exec status`).
 
-Use the launcher script to start a node. It locates the server jar under `kronotop/target` and applies the required
-JVM flags:
+Use the launcher script to start a node. It finds the server jar, applies the required JVM flags and also works through
+a symlink. In the source tree it uses the jar under `kronotop/target`. In an installed layout it uses `lib/kronotop.jar`
+next to `bin/`. The script passes `-D` arguments to the JVM before `-jar`, wherever they appear on the command line.
+All other arguments go to the server. Run `./bin/kronotop-server --help` to list the options.
 
 ```
-./bin/kronotop
+./bin/kronotop-server
 ```
 
-To run the jar directly, pass the JVM flags explicitly:
+To run the jar directly, pass the JVM flags explicitly and put any `-D` argument before `-jar`:
 
 ```
 java --sun-misc-unsafe-memory-access=allow \
@@ -218,15 +220,15 @@ java --sun-misc-unsafe-memory-access=allow \
 On startup the node binds two ports: the client port `5484` and the internal/admin port `3320`.
 
 By default, Kronotop connects to the local FoundationDB using its default cluster file (
-`/usr/local/etc/foundationdb/fdb.cluster`
-on macOS, `/etc/foundationdb/fdb.cluster` on Linux). To use a different cluster file, set `foundationdb.clusterfile`:
+`/usr/local/etc/foundationdb/fdb.cluster` on macOS, `/etc/foundationdb/fdb.cluster` on Linux). To use a different cluster 
+file, pass `--fdb-cluster-file`:
 
 ```
-./bin/kronotop -Dfoundationdb.clusterfile=/path/to/fdb.cluster
+./bin/kronotop-server --fdb-cluster-file /path/to/fdb.cluster
 ```
 
 Kronotop writes local data (volumes and segments) to a `kronotop-data` directory in the current working directory by
-default. Override it with `-Ddata_dir=/path/to/data`.
+default. Override it with `--data-dir /path/to/data`.
 
 ## Bootstrapping the Cluster
 
@@ -294,24 +296,24 @@ OK
 ## Running Multiple Nodes Locally
 
 To run more than one node on the same machine against the same FoundationDB, give each node its own ports and data
-directory with `-D` overrides. The bootstrap assignment refers to the internal port.
+directory with command line options. The bootstrap assignment refers to the internal port.
 
 Node 1 (primary):
 
 ```
-./bin/kronotop \
-  -Dnetwork.external.port=5484 \
-  -Dnetwork.internal.port=3320 \
-  -Ddata_dir=/tmp/kronotop/node1
+./bin/kronotop-server \
+  --external-port 5484 \
+  --internal-port 3320 \
+  --data-dir /tmp/kronotop/node1
 ```
 
 Node 2 (standby):
 
 ```
-./bin/kronotop \
-  -Dnetwork.external.port=5485 \
-  -Dnetwork.internal.port=3322 \
-  -Ddata_dir=/tmp/kronotop/node2
+./bin/kronotop-server \
+  --external-port 5485 \
+  --internal-port 3322 \
+  --data-dir /tmp/kronotop/node2
 ```
 
 Then bootstrap with both nodes:
@@ -324,14 +326,15 @@ java -jar kronotop-ctl/target/kronotop-ctl-2026.11-1.jar bootstrap \
 
 ## Configuration Overrides
 
-Kronotop reads its defaults from a built-in HOCON configuration. There are two ways to override values at startup:
+Kronotop reads its defaults from a built-in HOCON configuration. There are three ways to override values at startup:
 
-- Supply a full config file: `-Dconfig.file=/path/to/kronotop.conf`. Only the values you change need to appear in it.
+- Supply a config file: `-c /path/to/kronotop.conf`. Only the values you change need to appear in it.
 - Override individual parameters: `-Dnetwork.external.port=6000`, `-Dcluster.name=dev`, and so on. The property name
   matches the dotted config path.
+- Use command line options for the common settings, such as `--data-dir`, `--cluster-name` and `--external-port`.
 
-`-D` overrides take precedence over a config file. See the [Configuration Reference](docs/config.md) for the full
-list of parameters.
+Command line options take precedence over `-D` overrides, and `-D` overrides take precedence over a config file. See
+the [Configuration Reference](docs/config.md) for the full list of options and parameters.
 
 ## Docker Alternative
 

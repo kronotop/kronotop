@@ -1,32 +1,19 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 set -eu;
 
-# Default JVM options (can be overridden via KRONOTOP_OPTS)
-DEFAULT_JAVA_OPTS="--sun-misc-unsafe-memory-access=allow --add-opens jdk.unsupported/sun.misc=ALL-UNNAMED --enable-native-access=ALL-UNNAMED --add-modules jdk.incubator.vector"
-JAVA_OPTS="${KRONOTOP_OPTS:-$DEFAULT_JAVA_OPTS}"
 FDB_CLUSTER_FILE="${KR_HOME}/fdb.cluster"
 
 # Kronotop binds to the wildcard address inside the container, so it cannot guess
-# the addresses other members and clients use to reach it. Turn the comma separated
-# KRONOTOP_EXTERNAL_ADVERTISE and KRONOTOP_INTERNAL_ADVERTISE lists into indexed
-# system properties.
+# the addresses other members and clients use to reach it. Pass the comma separated
+# KRONOTOP_EXTERNAL_ADVERTISE and KRONOTOP_INTERNAL_ADVERTISE lists when they are set.
 ADVERTISE_OPTS=""
-add_advertise() {
-    i=0
-    old_ifs="$IFS"
-    IFS=','
-    for address in $2; do
-        if [ -n "$address" ]; then
-            ADVERTISE_OPTS="${ADVERTISE_OPTS} -Dnetwork.$1.advertise.${i}=${address}"
-            i=$((i + 1))
-        fi
-    done
-    IFS="$old_ifs"
-}
-
-add_advertise external "${KRONOTOP_EXTERNAL_ADVERTISE:-}"
-add_advertise internal "${KRONOTOP_INTERNAL_ADVERTISE:-}"
+if [ -n "${KRONOTOP_EXTERNAL_ADVERTISE:-}" ]; then
+    ADVERTISE_OPTS="${ADVERTISE_OPTS} --external-advertise ${KRONOTOP_EXTERNAL_ADVERTISE}"
+fi
+if [ -n "${KRONOTOP_INTERNAL_ADVERTISE:-}" ]; then
+    ADVERTISE_OPTS="${ADVERTISE_OPTS} --internal-advertise ${KRONOTOP_INTERNAL_ADVERTISE}"
+fi
 
 # Only the node with KRONOTOP_INIT_FDB configures a new FoundationDB cluster.
 # The other nodes wait until the cluster is ready.
@@ -69,4 +56,4 @@ if [ -n "${KRONOTOP_BOOTSTRAP:-}" ]; then
     ) &
 fi
 
-exec java $JAVA_OPTS $ADVERTISE_OPTS -Dlog.level=INFO -Dnetwork.external.host=0.0.0.0 -Dnetwork.internal.host=0.0.0.0 -Ddata_dir=/var/kronotop -jar ${KR_HOME}/kronotop.jar
+exec kronotop-server --log-level INFO --external-host 0.0.0.0 --internal-host 0.0.0.0 --data-dir /var/kronotop $ADVERTISE_OPTS

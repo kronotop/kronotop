@@ -17,7 +17,6 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <picocli.version>4.7.6</picocli.version>
         <jline.version>3.26.3</jline.version>
     </properties>
 

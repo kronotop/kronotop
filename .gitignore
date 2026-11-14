@@ -34,3 +34,6 @@ AGENTS.md
 
 dependency-reduced-pom.xml
 *.iml
+
+# scripts
+docker/kronotop-server

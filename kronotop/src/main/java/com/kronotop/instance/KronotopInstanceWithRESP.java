@@ -21,6 +21,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
 import com.kronotop.network.Address;
 import com.kronotop.server.*;
+import com.typesafe.config.Config;
 
 import java.net.UnknownHostException;
 import java.util.LinkedHashMap;
@@ -39,8 +40,8 @@ public class KronotopInstanceWithRESP extends KronotopInstance {
     private static final String NETTY_TRANSPORT_EPOLL = "epoll";
     private static final String DEFAULT_NETTY_TRANSPORT = NETTY_TRANSPORT_NIO;
 
-    public KronotopInstanceWithRESP() {
-        super();
+    public KronotopInstanceWithRESP(Config config) {
+        super(config);
     }
 
     /**

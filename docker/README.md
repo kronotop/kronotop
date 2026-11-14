@@ -6,15 +6,16 @@
 ./mvnw clean install -DskipTests
 ```
 
-**2-** Copy the JAR files to `docker` folder:
+**2-** Copy the JAR files and the launcher script to `docker` folder:
 
 ```
 cp kronotop/target/kronotop-2026.11-1.jar docker/kronotop.jar
 cp kronotop-ctl/target/kronotop-ctl-2026.11-1.jar docker/kronotop-ctl.jar
 cp kronotop-cli/target/kronotop-cli-2026.11-1.jar docker/kronotop-cli.jar
+cp bin/kronotop-server docker/kronotop-server
 ```
 
-Go to `docker` folder after copying the JARs.
+Go to `docker` folder after copying the files.
 
 **3-** Build the image, you may want to change the `tag`.
 

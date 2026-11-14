@@ -25,6 +25,9 @@ property name matches the dotted config path:
 java -Dnetwork.external.port=6000 -Dcluster.name=production -jar kronotop.jar
 ```
 
+Put `-D` properties before `-jar`. Anything after the jar name goes to Kronotop as a command line option and does not
+set a system property.
+
 This is useful for per-member overrides in a multi-node cluster where each member needs a different bind address or port
 without maintaining separate config files:
 
@@ -49,6 +52,46 @@ List values such as `advertise` use an index suffix, one property per entry: `ad
 `-D` overrides take precedence over both `reference.conf` defaults and any config file supplied via `-Dconfig.file`. You
 can combine both approaches: use a shared config file for cluster-wide settings and `-D` flags for member-specific
 values.
+
+## Command Line Options
+
+The server has options for the most common settings. Each option sets one config path. Set the rest in the config file
+or with `-D`.
+
+| Option                          | Config path                                                        | Description                                                                                            |
+|---------------------------------|--------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| -c, --config \<file>            |                                                                    | Config file. Same as `-Dconfig.file`.                                                                    |
+| --data-dir \<path>              | data_dir                                                           | Data directory.                                                                                        |
+| --cluster-name \<name>          | cluster.name                                                       | Cluster name.                                                                                          |
+| --fdb-cluster-file \<path>      | foundationdb.clusterfile                                           | FoundationDB cluster file.                                                                             |
+| --fdbc \<path>                  | foundationdb.fdbc                                                  | Path to the libfdb_c library.                                                                          |
+| --external-host \<host>         | network.external.host                                              | Bind host of the client listener.                                                                      |
+| --external-port \<port>         | network.external.port                                              | Bind port of the client listener.                                                                      |
+| --internal-host \<host>         | network.internal.host                                              | Bind host of the internal listener.                                                                    |
+| --internal-port \<port>         | network.internal.port                                              | Bind port of the internal listener.                                                                    |
+| --external-advertise \<list>    | network.external.advertise                                         | Comma separated list of advertised client addresses.                                                   |
+| --internal-advertise \<list>    | network.internal.advertise                                         | Comma separated list of advertised internal addresses.                                                 |
+| --netty-transport \<nio\|epoll> | network.external.netty.transport, network.internal.netty.transport | Transport for both listeners.                                                                          |
+| --log-level \<level>            |                                                                    | Log level.                                                                                             |
+| --check-config                  |                                                                    | Load the config, check the network settings, then exit. The exit code is 1 when the config is invalid. |
+| --print-config                  |                                                                    | Print the resolved config, then exit.                                                                  |
+| -h, --help                      |                                                                    | Show help.                                                                                             |
+| -v, --version                   |                                                                    | Print version information and exit.                                                                    |
+
+The same two-node setup with options:
+
+```bash
+# Node 1
+java -jar kronotop.jar --external-host 10.0.0.1 --external-advertise 10.0.0.1:5484 \
+     --internal-host 10.0.0.1 --internal-advertise 10.0.0.1:3320 --data-dir /data/node1
+
+# Node 2
+java -jar kronotop.jar --external-host 10.0.0.2 --external-advertise 10.0.0.2:5484 \
+     --internal-host 10.0.0.2 --internal-advertise 10.0.0.2:3320 --data-dir /data/node2
+```
+
+Values are applied in this order, and each source overrides the ones before it: `reference.conf` defaults, the config
+file, `-D` system properties, command line options.
 
 ---
 

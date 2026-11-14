@@ -14,8 +14,9 @@ RUN curl -fsSL -o /tmp/$FOUNDATIONDB_CLIENTS_RPM https://github.com/apple/founda
     rpm -i --nodeps /tmp/$FOUNDATIONDB_CLIENTS_RPM && \
     rm /tmp/$FOUNDATIONDB_CLIENTS_RPM
 
-COPY *.jar $KR_HOME/
-COPY start.sh $KR_HOME/bin/
+COPY kronotop.jar $KR_HOME/lib/
+COPY kronotop-cli.jar kronotop-ctl.jar $KR_HOME/
+COPY start.sh kronotop-server $KR_HOME/bin/
 COPY kronotop-cli.sh $KR_HOME/bin/kronotop-cli
 RUN chmod +x $KR_HOME/bin/kronotop-cli
 
