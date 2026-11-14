@@ -969,6 +969,10 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldStartCollectStalePrefixesTask() {
+        // Behavior: With 500 stale prefixes registered so the task is still running, START returns OK and
+        // TASK.ADMIN LIST shows cluster:collect-stale-prefixes-task among the registered tasks.
+        createStalePrefixes(500);
+
         {
             KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
             ByteBuf buf = Unpooled.buffer();
@@ -1002,6 +1006,9 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             }
             assertTrue(found);
         }
+
+        // Cleanup: stop the running task
+        runCollectStalePrefixes("STOP");
     }
 
     @Test
@@ -1072,8 +1079,35 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         return false;
     }
 
+    private Object runCollectStalePrefixes(String operation) {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.collectStalePrefixes(operation).encode(buf);
+        return runCommand(channel, buf);
+    }
+
+    @Test
+    void shouldReturnErrorWhenStoppingCompletedCollectStalePrefixesTask() {
+        // Behavior: No stale prefixes are registered, so the task started by START finishes its scan right
+        // away and removes itself from the task registry. Once TASK.ADMIN LIST no longer shows the task,
+        // STOP returns "ERR No such task: 'cluster:collect-stale-prefixes-task'".
+        Object startMsg = runCollectStalePrefixes("START");
+        assertInstanceOf(SimpleStringRedisMessage.class, startMsg);
+        assertEquals(Response.OK, ((SimpleStringRedisMessage) startMsg).content());
+
+        await().atMost(5, TimeUnit.SECONDS).until(() -> !hasCollectStalePrefixesTask());
+
+        Object stopMsg = runCollectStalePrefixes("STOP");
+        assertInstanceOf(ErrorRedisMessage.class, stopMsg);
+        assertEquals("ERR No such task: 'cluster:collect-stale-prefixes-task'", ((ErrorRedisMessage) stopMsg).content());
+    }
+
     @Test
     void shouldStartThenStopCollectStalePrefixesTask() {
+        // Behavior: With 500 stale prefixes registered so the task is still running, START returns OK. A STOP
+        // sent while the task runs returns OK, and TASK.ADMIN LIST no longer shows the task.
+        createStalePrefixes(500);
+
         {
             KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
             ByteBuf buf = Unpooled.buffer();
@@ -1103,6 +1137,10 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldRemoveCollectStalePrefixesTask() {
+        // Behavior: With 500 stale prefixes registered so the task is still running, START returns OK. A REMOVE
+        // sent while the task runs returns OK, and TASK.ADMIN LIST no longer shows the task.
+        createStalePrefixes(500);
+
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();

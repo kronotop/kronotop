@@ -47,7 +47,7 @@ journal for downstream cleanup.
 
 Progress is tracked via a progress marker stored persistently, allowing the task to resume from where it left off if
 restarted. The task auto-completes when a batch returns zero entries, and removes its own metadata upon natural
-completion.
+completion. The task also leaves the task registry at that point, so a later `STOP` or `REMOVE` returns `No such task`.
 
 Task ownership is validated using both member ID and process ID. If the original member has been removed from the
 cluster

@@ -34,12 +34,14 @@ import com.kronotop.journal.JournalName;
 import com.kronotop.journal.JournalService;
 import com.kronotop.task.BaseTask;
 import com.kronotop.task.Task;
+import com.kronotop.task.TaskService;
 import com.kronotop.task.handlers.TaskNames;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -50,6 +52,7 @@ public class CollectStalePrefixesTask extends BaseTask implements Task {
     private final int batchSize;
     private final Context context;
     private final JournalService journal;
+    private final TaskService taskService;
     private final CountDownLatch latch = new CountDownLatch(1);
     private final DirectorySubspace subspace;
     private volatile boolean shutdown;
@@ -61,6 +64,7 @@ public class CollectStalePrefixesTask extends BaseTask implements Task {
     protected CollectStalePrefixesTask(Context context, int batchSize) {
         this.context = context;
         this.journal = context.getService(JournalService.NAME);
+        this.taskService = context.getService(TaskService.NAME);
         this.batchSize = batchSize;
         this.subspace = TransactionUtil.executeThenCommit(context, (tr) -> {
             DirectorySubspace subspace = openTaskSubspace(tr);
@@ -109,16 +113,17 @@ public class CollectStalePrefixesTask extends BaseTask implements Task {
     }
 
     public static void removeMetadata(Context context) {
-        TransactionUtil.executeThenCommit(context, (tr) -> {
-            KronotopDirectoryNode node = KronotopDirectory.
-                    kronotop().
-                    cluster(context.getClusterName()).
-                    metadata().
-                    tasks().
-                    task(NAME);
-            context.getDirectoryLayer().removeIfExists(tr, node.toList()).join();
-            return null;
-        });
+        TransactionUtil.retry(10, Duration.ofMillis(100)).executeRunnable(() ->
+                TransactionUtil.executeThenCommit(context, (tr) -> {
+                    KronotopDirectoryNode node = KronotopDirectory.
+                            kronotop().
+                            cluster(context.getClusterName()).
+                            metadata().
+                            tasks().
+                            task(NAME);
+                    context.getDirectoryLayer().removeIfExists(tr, node.toList()).join();
+                    return null;
+                }));
     }
 
     private DirectorySubspace openTaskSubspace(Transaction tr) {
@@ -201,7 +206,10 @@ public class CollectStalePrefixesTask extends BaseTask implements Task {
                 }
 
                 if (total == 0) {
+                    // Metadata goes first. A START that runs in between would write new metadata,
+                    // and this task would delete it.
                     cleanupMetadata();
+                    taskService.onTaskCompleted(this);
                     break;
                 }
             }

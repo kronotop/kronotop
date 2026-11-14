@@ -173,6 +173,44 @@ class TaskServiceTest extends BaseClusterTest {
     }
 
     @Test
+    void shouldRemoveTaskFromRegistryWhenTaskCompletes() {
+        // Behavior: A task that never reports isFinished() is executed and blocks, so it stays in the
+        // registry. When it is released, it calls onTaskCompleted(this) and getTask() for its name starts
+        // to throw TaskNotFoundException.
+        KronotopInstance instance = getInstances().getFirst();
+        TaskService service = instance.getContext().getService(TaskService.NAME);
+
+        SelfCompletingTask task = new SelfCompletingTask(service, "SelfCompletingTest");
+        service.execute(task);
+        assertSame(task, service.getTask("SelfCompletingTest"));
+
+        task.finish();
+
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+                assertThrows(TaskNotFoundException.class, () -> service.getTask("SelfCompletingTest"))
+        );
+    }
+
+    @Test
+    void shouldKeepRegisteredTaskWhenAnotherInstanceWithSameNameCompletes() {
+        // Behavior: A task is executed and blocks, so it stays in the registry. onTaskCompleted() is called
+        // with a second task instance that has the same name but was never registered. getTask() still
+        // returns the first instance.
+        KronotopInstance instance = getInstances().getFirst();
+        TaskService service = instance.getContext().getService(TaskService.NAME);
+
+        SelfCompletingTask registered = new SelfCompletingTask(service, "SameNameTest");
+        service.execute(registered);
+
+        service.onTaskCompleted(new SelfCompletingTask(service, "SameNameTest"));
+
+        assertSame(registered, service.getTask("SameNameTest"));
+
+        // Cleanup
+        service.shutdownAndRemoveTask("SameNameTest");
+    }
+
+    @Test
     void shouldTrackTaskStats() {
         KronotopInstance instance = getInstances().getFirst();
         TaskService service = instance.getContext().getService(TaskService.NAME);
@@ -215,5 +253,50 @@ class TaskServiceTest extends BaseClusterTest {
             }
             return false;
         });
+    }
+
+    private static class SelfCompletingTask extends BaseTask {
+        private final TaskService service;
+        private final String name;
+        private final CountDownLatch release = new CountDownLatch(1);
+
+        SelfCompletingTask(TaskService service, String name) {
+            this.service = service;
+            this.name = name;
+        }
+
+        void finish() {
+            release.countDown();
+        }
+
+        @Override
+        public void task() {
+            try {
+                release.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            service.onTaskCompleted(this);
+        }
+
+        @Override
+        public String name() {
+            return name;
+        }
+
+        @Override
+        public boolean isFinished() {
+            return false;
+        }
+
+        @Override
+        public void cleanupMetadata() {
+        }
+
+        @Override
+        public void shutdown() {
+            finish();
+        }
     }
 }

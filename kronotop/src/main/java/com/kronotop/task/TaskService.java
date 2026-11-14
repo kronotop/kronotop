@@ -159,6 +159,15 @@ public class TaskService extends CommandHandlerService implements KronotopServic
         tasks.remove(name, runner);
     }
 
+    /**
+     * Removes a completed task from the registry if it is the instance registered under its name.
+     *
+     * @param task the task that completed its work; must not be null
+     */
+    public void onTaskCompleted(@Nonnull Task task) {
+        tasks.computeIfPresent(task.name(), (name, runner) -> runner.task == task ? null : runner);
+    }
+
     @Override
     public void shutdown() {
         tasks.forEach((name, runner) -> {
@@ -194,6 +203,8 @@ public class TaskService extends CommandHandlerService implements KronotopServic
         }
     }
 
+    // Removes tasks that stopped without completing, for example after an exception. Completed tasks remove
+    // themselves with onTaskCompleted. If we need to restart failed tasks later, this is the place to do it.
     class Cleanup implements Runnable {
         @Override
         public void run() {
