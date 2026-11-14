@@ -589,7 +589,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         });
     }
 
-    // --- Numeric Widening Integration Tests ---
+    // Numeric Widening Integration Tests
 
     @Test
     void shouldWidenInt32FieldToInt64InCompoundIndexDuringBackgroundBuild() {

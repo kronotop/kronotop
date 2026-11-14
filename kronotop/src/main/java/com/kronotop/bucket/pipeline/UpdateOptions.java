@@ -169,7 +169,7 @@ public final class UpdateOptions {
             }
         }
 
-        // --- fluent ops ---
+        // fluent ops
         public Builder set(String field, BsonValue value) {
             requireField(field);
             setOps.put(field, value);
@@ -200,7 +200,6 @@ public final class UpdateOptions {
             return this;
         }
 
-        // --- build ---
         public UpdateOptions build() {
             if (!unsetOps.isEmpty()) {
                 unsetOps.forEach(setOps::remove);

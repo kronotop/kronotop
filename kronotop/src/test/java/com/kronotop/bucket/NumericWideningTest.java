@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class NumericWideningTest {
 
-    // --- canWiden tests ---
+    // canWiden tests
 
     @Test
     void shouldAllowInt32ToInt64Widening() {
@@ -93,7 +93,7 @@ class NumericWideningTest {
         assertFalse(NumericWidening.canWiden(BsonType.DOUBLE, BsonType.INT64));
     }
 
-    // --- widenValue tests ---
+    // widenValue tests
 
     @Test
     void shouldWidenInt32ToInt64Value() {
@@ -183,7 +183,7 @@ class NumericWideningTest {
         assertEquals(42, result);
     }
 
-    // --- commonType tests ---
+    // commonType tests
 
     @Test
     void shouldReturnInt64ForInt32AndInt64() {
@@ -244,7 +244,7 @@ class NumericWideningTest {
         assertNull(NumericWidening.commonType(BsonType.BOOLEAN, BsonType.DOUBLE));
     }
 
-    // --- isNumericBsonType tests ---
+    // isNumericBsonType tests
 
     @Test
     void shouldIdentifyNumericTypes() {
@@ -261,7 +261,7 @@ class NumericWideningTest {
         assertFalse(NumericWidening.isNumericBsonType(BsonType.DATE_TIME));
     }
 
-    // --- promoteToComparable tests ---
+    // promoteToComparable tests
 
     @Test
     void shouldPromoteInt32ToInt64() {
@@ -309,7 +309,7 @@ class NumericWideningTest {
         assertNull(NumericWidening.promoteToComparable(42L, BsonType.INT64, BsonType.DOUBLE));
     }
 
-    // --- extractNumericValue tests ---
+    // extractNumericValue tests
 
     @Test
     void shouldExtractInt32Value() {

@@ -1041,7 +1041,7 @@ class PredicateEvaluatorTest {
                     new ResidualPredicate(1, "value", Operator.LTE, lit(new DoubleVal(3.14))), toView(buffer.duplicate()), Collections.emptyList()));
         }
 
-        // --- Cross-type ordering operators (numeric widening) ---
+        // Cross-type ordering operators (numeric widening)
 
         @Test
         void shouldCompareInt32WithInt64AllOrderingOperators() {
@@ -1302,7 +1302,7 @@ class PredicateEvaluatorTest {
                     new ResidualPredicate(1, "value", Operator.LTE, lit(new DoubleVal(40.5))), toView(reverseBuffer.duplicate()), Collections.emptyList()));
         }
 
-        // --- Boundary tests ---
+        // Boundary tests
 
         @Test
         void shouldCompareInt32MaxValueWithInt64Operand() {
@@ -2640,7 +2640,7 @@ class PredicateEvaluatorTest {
                     new ResidualPredicate(1, "ids", Operator.LT, lit(new Int64Val(1500000000L))), toView(buffer), Collections.emptyList()));
         }
 
-        // --- Array + numeric widening ---
+        // Array + numeric widening
 
         @Test
         void shouldMatchInt32ArrayWithInt64Operand() {

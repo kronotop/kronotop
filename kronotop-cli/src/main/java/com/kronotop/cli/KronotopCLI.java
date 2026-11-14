@@ -204,6 +204,27 @@ public class KronotopCLI implements Callable<Integer> {
         builder.variable(LineReader.COMPLETION_STYLE_LIST_BACKGROUND, "bg:default");
     }
 
+    private static String askPassword() {
+        String prompt = "Please input password: ";
+        Console console = System.console();
+        if (console != null) {
+            char[] typed = console.readPassword(prompt);
+            return typed == null ? null : new String(typed);
+        }
+        System.err.print(prompt);
+        try {
+            return new BufferedReader(new InputStreamReader(System.in)).readLine();
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private static void failOnError(String step, RespValue reply) throws IOException {
+        if (reply instanceof RespValue.SimpleError(String code, String message)) {
+            throw new IOException(step + " failed: " + (code + " " + message).strip());
+        }
+    }
+
     @Override
     public Integer call() {
         commandLineParser = new CommandLineParser(quotedInput);
@@ -332,27 +353,6 @@ public class KronotopCLI implements Callable<Integer> {
             throw e;
         }
         connected = true;
-    }
-
-    private static String askPassword() {
-        String prompt = "Please input password: ";
-        Console console = System.console();
-        if (console != null) {
-            char[] typed = console.readPassword(prompt);
-            return typed == null ? null : new String(typed);
-        }
-        System.err.print(prompt);
-        try {
-            return new BufferedReader(new InputStreamReader(System.in)).readLine();
-        } catch (IOException e) {
-            return null;
-        }
-    }
-
-    private static void failOnError(String step, RespValue reply) throws IOException {
-        if (reply instanceof RespValue.SimpleError(String code, String message)) {
-            throw new IOException(step + " failed: " + (code + " " + message).strip());
-        }
     }
 
     private void authenticate() throws IOException {

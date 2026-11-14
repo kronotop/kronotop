@@ -74,7 +74,7 @@ class VectorGraphIndexRegistryTest extends BaseStandaloneInstanceTest {
                 () -> new VectorGraphIndexGroup(context, metadata, index));
     }
 
-    // --- forEachGroup() ---
+    // forEachGroup()
 
     @Test
     void shouldIterateGroups() {
@@ -98,7 +98,7 @@ class VectorGraphIndexRegistryTest extends BaseStandaloneInstanceTest {
         assertEquals(0, visits.get());
     }
 
-    // --- get() ---
+    // get()
 
     @Test
     void shouldReturnNullWhenNamespaceDoesNotExist() {
@@ -127,7 +127,7 @@ class VectorGraphIndexRegistryTest extends BaseStandaloneInstanceTest {
         assertSame(group, registry.get("ns", "bucket", 1L));
     }
 
-    // --- computeIfAbsent() ---
+    // computeIfAbsent()
 
     @Test
     void shouldCreateAndStoreNewGroup() {
@@ -184,7 +184,7 @@ class VectorGraphIndexRegistryTest extends BaseStandaloneInstanceTest {
         assertSame(group2, registry.get("ns", "bucket", 2L));
     }
 
-    // --- remove(namespace, bucket, indexId) ---
+    // remove(namespace, bucket, indexId)
 
     @Test
     void shouldRemoveSingleGroupAndReturnTrue() {
@@ -223,7 +223,7 @@ class VectorGraphIndexRegistryTest extends BaseStandaloneInstanceTest {
         assertSame(survivor, registry.get("ns", "bucket", 2L));
     }
 
-    // --- remove(namespace, bucket) ---
+    // remove(namespace, bucket)
 
     @Test
     void shouldRemoveAllIndexesUnderBucket() {
@@ -250,7 +250,7 @@ class VectorGraphIndexRegistryTest extends BaseStandaloneInstanceTest {
         assertSame(survivor, registry.get("ns", "bucketB", 1L));
     }
 
-    // --- remove(prefix) ---
+    // remove(prefix)
 
     @Test
     void shouldRemoveAllNamespacesMatchingPrefix() {
@@ -292,7 +292,7 @@ class VectorGraphIndexRegistryTest extends BaseStandaloneInstanceTest {
         assertSame(group, registry.get("cluster1.ns-a", "b1", 1L));
     }
 
-    // --- closeAll() ---
+    // closeAll()
 
     @Test
     void shouldClearEntireRegistry() {

@@ -538,7 +538,7 @@ public class VectorGraphIndexGroup {
      * on-heap index stays in place, so the flush maintainer can try again.
      *
      * @param dataDir the data directory of the member
-     * @param index         the on-heap index to flush
+     * @param index   the on-heap index to flush
      * @return true if the index was written and replaced by an on-disk index, false if it was
      * empty or the flush failed
      */

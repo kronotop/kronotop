@@ -16,10 +16,8 @@
 
 package com.kronotop.cluster;
 
-import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.BaseKronotopService;
 import com.kronotop.Context;
@@ -27,7 +25,6 @@ import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
 import com.kronotop.core.InfoCollector;
 import com.kronotop.directory.KronotopDirectoryNode;
-import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KeyWatcher;

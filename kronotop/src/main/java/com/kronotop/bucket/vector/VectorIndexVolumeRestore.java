@@ -60,7 +60,7 @@ public final class VectorIndexVolumeRestore {
      * @param context                  server context
      * @param metadata                 metadata of the bucket that owns the index
      * @param vectorIndex              the vector index
-     * @param dataDir            the data directory of the member
+     * @param dataDir                  the data directory of the member
      * @param readChunksPerTransaction number of chunks read in one transaction
      * @throws IOException if the index directory cannot be created or a file cannot be written
      */

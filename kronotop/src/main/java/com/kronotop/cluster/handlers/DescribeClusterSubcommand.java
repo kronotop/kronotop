@@ -17,7 +17,6 @@
 package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.MetadataVersion;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;

@@ -548,7 +548,7 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
         return getMapValue(response, "plan");
     }
 
-    // --- Collation tests ---
+    // Collation tests
 
     private void createBucketInline(String bucketName) {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);

@@ -52,10 +52,10 @@ public final class VectorIndexSyncBacklog {
     /**
      * Queues a sync task for every flushed graph of the index that is not synced and still complete on disk.
      *
-     * @param context       the server context
-     * @param metadata      the metadata of the bucket that owns the index
-     * @param vectorIndex   the vector index
-     * @param dataDir the data directory of the member
+     * @param context     the server context
+     * @param metadata    the metadata of the bucket that owns the index
+     * @param vectorIndex the vector index
+     * @param dataDir     the data directory of the member
      * @return the number of sync tasks queued
      */
     public static int enqueue(

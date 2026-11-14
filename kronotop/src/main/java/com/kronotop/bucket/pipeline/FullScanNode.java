@@ -96,7 +96,7 @@ public class FullScanNode extends AbstractScanNode implements ScanNode {
                 shouldReverse
         );
 
-        // Phase 1: Collect all document locations
+        // Collect all document locations
         List<DocumentLocation> locations = new ArrayList<>();
         for (KeyValue indexEntry : indexEntries) {
             DocumentLocation location = ctx.env().documentRetriever().extractDocumentLocationFromIndexScan(idIndexSubspace, indexEntry);
@@ -110,10 +110,10 @@ public class FullScanNode extends AbstractScanNode implements ScanNode {
             return;
         }
 
-        // Phase 2: Batch retrieve all documents
+        // Batch retrieve all documents
         List<ByteBuffer> documents = ctx.env().documentRetriever().retrieveDocuments(locations);
 
-        // Phase 3: Filter and write results
+        // Filter and write results
         PersistedEntrySink sink = ctx.sinks().loadOrCreatePersistedEntrySink(id());
         ObjectId lastObjectId = null;
         List<BqlValue> parameters = ctx.getParameters();

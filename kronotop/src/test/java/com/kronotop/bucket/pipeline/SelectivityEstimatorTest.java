@@ -1023,7 +1023,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         return null;
     }
 
-    // --- Compound index selectivity tests ---
+    // Compound index selectivity tests
 
     private Histogram buildCompoundHistogramWithRange(int catStart, int catEnd, int priceStart, int priceEnd) {
         TreeSet<BsonValue> values = new TreeSet<>(BSONUtil::compareBsonValues);

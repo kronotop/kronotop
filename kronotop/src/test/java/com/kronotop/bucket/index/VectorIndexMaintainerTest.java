@@ -530,7 +530,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
                 "Should return null when vector field is BsonNull");
     }
 
-    // --- findIndexedObjectIds tests ---
+    // findIndexedObjectIds tests
 
     private void indexObjectIds(VectorIndex vectorIndex, BucketMetadata metadata, ObjectId... objectIds) {
         AppendedEntry[] entries = getAppendedEntries();

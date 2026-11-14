@@ -1069,7 +1069,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
-    // --- Projection tests ---
+    // Projection tests
 
     @Test
     void shouldQueryCommittedDataWithSnapshotRead() {
@@ -1435,7 +1435,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         assertFalse(doc.containsKey("age"), "Second page (via ADVANCE) should also not include 'age'");
     }
 
-    // --- Collation tests ---
+    // Collation tests
 
     @Test
     void shouldSliceArrayWithProjection() {

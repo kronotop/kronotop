@@ -3,63 +3,56 @@ title: "Volume Operations Guide"
 description: "This guide covers routine storage maintenance tasks that reclaim disk space after data deletion."
 ---
 
-This guide covers routine storage maintenance tasks that reclaim disk space after data deletion. It is intended for
-cluster administrators.
+This guide covers routine storage maintenance tasks that reclaim disk space after data is deleted. It is for cluster
+administrators.
 
----
+## How storage cleanup works
 
-## How Storage Cleanup Works
+When documents are deleted or updated, Kronotop removes or replaces their metadata in FoundationDB right away. Internal
+prefix references can still become orphaned over time.
 
-When documents are deleted or updated, the metadata in FoundationDB is removed or replaced immediately. However,
-internal prefix references may become orphaned over time.
+The collect stale prefixes admin task scans all prefix references in FoundationDB, finds the ones that no longer point
+to valid data, and clears them. Until they are cleared, stale references skew the garbage percentage.
 
-The **Collect stale prefixes** admin task scans all prefix references in FoundationDB, identifies those that no longer
-point to valid data, and clears them. Stale references skew garbage percentage calculations until cleared.
+The task does not run automatically. An administrator has to start it.
 
-This task does not run automatically. It must be triggered explicitly by an administrator.
+## Stale prefix cleanup
 
----
+A *prefix* is the internal grouping key that ties stored entries to their logical owner, a bucket. When a bucket or
+namespace is deleted, the data and metadata it owned become orphaned, and the prefix references in FoundationDB are not
+always cleaned up automatically.
 
-## Stale Prefix Cleanup
+The `COLLECT-STALE-PREFIXES` task scans all prefix references, finds the ones whose targets are missing or invalid, and
+clears them. The associated data then becomes eligible for garbage collection.
 
-A *prefix* is the internal grouping key that associates stored entries with their logical owner (a bucket). When a
-bucket or namespace is deleted, the data and metadata it owned become orphaned, but the prefix references in
-FoundationDB are not automatically cleaned up in every case.
-
-The `COLLECT-STALE-PREFIXES` task scans all prefix references, detects those whose targets are missing or invalid, and
-clears them. This makes the associated data eligible for garbage collection.
-
-**Starting the task:**
+Start the task:
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES START
 OK
 ```
 
-The task runs in the background using batch-priority transactions, so it does not compete with user-facing traffic for
-FoundationDB resources. It processes prefixes in batches of 10,000 and tracks its progress internally, allowing it to
-resume from where it left off if restarted.
+The task runs in the background with batch-priority transactions, so it does not compete with user traffic for
+FoundationDB resources. It processes prefixes in batches of 10,000 and records its progress, so it can resume where it
+left off after a restart.
 
-The task auto-completes when all prefixes have been scanned. No manual stop is required under normal circumstances.
-
-**Stopping the task (if needed):**
+The task completes on its own after it scans all prefixes, and under normal conditions you do not need to stop it. To
+stop it early:
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES STOP
 OK
 ```
 
-Only one instance of the task can run at a time. For full argument details and error conditions, see
+Only one instance of the task can run at a time. For argument details and error conditions, see
 [KR.ADMIN COLLECT-STALE-PREFIXES](../admin/cluster/commands/kr-admin-collect-stale-prefixes.md).
 
----
+## Namespace purge considerations
 
-## Namespace Purge Considerations
+`NAMESPACE PURGE` permanently deletes a namespace's FoundationDB directory. It does not clean up volume data, so the
+bytes on disk and any orphaned prefix references stay until you reclaim them.
 
-`NAMESPACE PURGE` permanently deletes a namespace's FoundationDB directory, but it does **not** clean up volume data.
-The bytes on the disk and any orphaned prefix references remain until explicitly reclaimed.
-
-After purging a namespace, run the stale prefix scan to clean up orphaned references:
+After you purge a namespace, run the stale prefix scan to clean up orphaned references:
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES START
@@ -67,111 +60,106 @@ OK
 # Wait for the task to complete
 ```
 
-For single-bucket deletion, `BUCKET.PURGE` handles its own prefix cleanup immediately, so `COLLECT-STALE-PREFIXES` is
-not
-required.
+When you delete a single bucket, `BUCKET.PURGE` cleans up its prefix immediately, so you do not need
+`COLLECT-STALE-PREFIXES`.
 
-**Prefer per-bucket deletion over namespace purge.** When possible, delete buckets individually with
-`BUCKET.REMOVE` + `BUCKET.PURGE` before dropping the namespace. This approach is cleaner because `BUCKET.PURGE`
-handles prefix cleanup inline. No separate `COLLECT-STALE-PREFIXES` pass is needed. Reserve `NAMESPACE PURGE` for cases
-where the namespace contains too many buckets to delete one by one, or when the namespace must be removed urgently
-regardless of cleanup cost.
+Prefer deleting buckets one by one over a namespace purge. When possible, delete each bucket with `BUCKET.REMOVE` and
+`BUCKET.PURGE` before you drop the namespace. `BUCKET.PURGE` cleans up prefixes inline, so you skip the separate
+`COLLECT-STALE-PREFIXES` pass. Use `NAMESPACE PURGE` when the namespace has too many buckets to delete one by one, or
+when you must remove it urgently whatever the cleanup cost.
 
----
+## Vacuuming segments
 
-## Vacuuming Segments
+Delete and update operations leave unreachable data in segments over time. Collecting stale prefixes makes this garbage
+visible but does not free disk space. Vacuum frees it: it moves the live entries out of high-garbage segments into the
+current writable segment and deletes the empty segment files.
 
-Over time, delete and update operations leave unreachable data in segments. Collecting stale prefixes makes this garbage
-visible, but does not free disk space. Vacuum is the step that actually reclaims it: live entries are evacuated from
-high-garbage segments into the current writable segment, and the emptied segment files are destroyed.
+Run vacuum after `COLLECT-STALE-PREFIXES` has completed and `VOLUME.ADMIN DESCRIBE` shows high `garbage_percentage`
+values on one or more segments.
 
-**When to run:** After `COLLECT-STALE-PREFIXES` has completed and `VOLUME.ADMIN DESCRIBE` shows elevated
-`garbage_percentage` values on one or more segments.
+A typical run has three steps:
 
-**Typical workflow:**
-
-1. **Start vacuum** on a volume, specifying a garbage threshold. Only segments whose garbage percentage exceeds this
-   value will be processed:
+1. Start vacuum on a volume with a garbage threshold. Only segments whose garbage percentage is above this value are
+   processed:
    ```kronotop
    127.0.0.1:3320> VOLUME.ADMIN VACUUM START shard-0 30
    OK
    ```
 
-2. **Monitor progress.** Vacuum auto-completes when all eligible segments are processed:
+2. Monitor progress. Vacuum completes on its own after it processes all eligible segments:
    ```kronotop
    127.0.0.1:3320> VOLUME.ADMIN VACUUM STATUS shard-0
    ```
 
-3. **Drop metadata** after the run finishes. This is required before starting a new vacuum on the same volume:
+3. Drop the metadata after the run finishes. You must do this before you start a new vacuum on the same volume:
    ```kronotop
    127.0.0.1:3320> VOLUME.ADMIN VACUUM DROP shard-0
    OK
    ```
 
-**Stopping early (if needed):**
+To stop vacuum early:
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN VACUUM STOP shard-0
 OK
 ```
 
-After stopping, run `DROP` to clear the metadata before starting a new vacuum.
+After you stop it, run `DROP` to clear the metadata before you start a new vacuum.
 
-Only one vacuum can run on a given volume at a time. Vacuum runs in the background and does not compete with user-facing
-traffic.
+Only one vacuum can run on a volume at a time. Vacuum runs in the background and does not compete with user traffic.
 
-For full argument details, error conditions, and status output format, see
+For argument details, error conditions, and the status output format, see
 [VOLUME.ADMIN VACUUM](commands/volume-admin-vacuum.md).
 
----
+## Recommended maintenance procedure
 
-## Recommended Maintenance Procedure
+Follow these steps after a namespace purge or during periodic maintenance:
 
-Follow this checklist after namespace purges or periodic maintenance:
-
-1. **Run stale prefix cleanup**
+1. Run stale prefix cleanup:
    ```kronotop
    127.0.0.1:3320> KR.ADMIN COLLECT-STALE-PREFIXES START
    OK
    ```
-   Wait for the task to auto-complete. It processes in the background and does not require monitoring.
+   Wait for the task to complete. It runs in the background and needs no monitoring.
 
-2. **List all volumes**
+2. List the volumes on each member:
    ```kronotop
    127.0.0.1:3320> VOLUME.ADMIN LIST
    1) shard-0
    2) shard-1
    ...
    ```
+   The list shows only the volumes open on the connected member. Run it on every member, or use
+   `KR.ADMIN DESCRIBE-CLUSTER` to see which member owns each volume.
 
-3. **Inspect each volume**
+3. Inspect each volume:
    ```kronotop
    127.0.0.1:3320> VOLUME.ADMIN DESCRIBE shard-0
    ```
-   Check `garbage_percentage` values per segment.
+   Check the `garbage_percentage` value of each segment.
 
-4. **Vacuum high-garbage volumes**
+4. Vacuum the volumes with high garbage:
    ```kronotop
    127.0.0.1:3320> VOLUME.ADMIN VACUUM START shard-0 30
    OK
    ```
-   Run this for each volume where `garbage_percentage` exceeds your chosen threshold. Wait for completion, then drop
-   the metadata:
+   Run this for each volume whose `garbage_percentage` is above your threshold. Wait for it to complete, then drop the
+   metadata:
    ```kronotop
    127.0.0.1:3320> VOLUME.ADMIN VACUUM DROP shard-0
    OK
    ```
 
-5. **Re-inspect volumes**
+5. Inspect the volumes again:
    ```kronotop
    127.0.0.1:3320> VOLUME.ADMIN DESCRIBE shard-0
    ```
-   Confirm that the stale segment has been evacuated and deleted.
+   Confirm that vacuum evacuated and deleted the stale segment.
 
-6. **Clean up orphan files (optional)**
+6. Optionally, clean up orphan files:
    ```kronotop
    127.0.0.1:3320> VOLUME.ADMIN CLEANUP-ORPHAN-FILES shard-0
    ```
-   Run this if you suspect leftover files from crashes or interrupted operations.
+   Run this if you suspect files left behind by crashes or interrupted operations.
 
-7. **Repeat steps 3–6 for each volume** on each cluster member as needed.
+7. Repeat steps 3 to 6 for each volume on each cluster member as needed.

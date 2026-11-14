@@ -77,7 +77,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
         metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
     }
 
-    // --- Pass cases ---
+    // Pass cases
 
     @Test
     void shouldPassWhenNoSortByField() {
@@ -215,7 +215,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
         assertTrue(ex.getMessage().contains("RESULTSORT"));
     }
 
-    // --- Reject with "create an index" ---
+    // Reject with "create an index"
 
     @Test
     void shouldRejectFullScanWhenNoSortFieldIndex() {
@@ -279,7 +279,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
         assertTrue(ex.getMessage().contains("create an index on 'x'"));
     }
 
-    // --- Compound index prefix range edge cases ---
+    // Compound index prefix range edge cases
 
     @Test
     void shouldRejectThreeFieldCompoundWhenMiddleRangeAndNoSeparateIndex() {
@@ -363,7 +363,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
         assertTrue(ex.getMessage().contains("create an index on 'age'"));
     }
 
-    // --- Compound index: prefix scans with residual filtering ---
+    // Compound index: prefix scans with residual filtering
 
     @Test
     void shouldPassWhenCompoundIndexAllEqFilters() {
@@ -448,7 +448,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
         assertDoesNotThrow(() -> planAndValidate("{ 'a': { '$lt': 10 }, 'b': 2 }", null));
     }
 
-    // --- Collation mismatch with hasSortFieldIndex ---
+    // Collation mismatch with hasSortFieldIndex
 
     @Test
     void shouldRejectSortByWhenCollationMismatchOnStringIndex() {
@@ -522,7 +522,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
         assertTrue(ex.getMessage().contains("use a collation that matches the index"));
     }
 
-    // --- Collation mismatch with providesSortOrder(PhysicalTrue) ---
+    // Collation mismatch with providesSortOrder(PhysicalTrue)
 
     @Test
     void shouldRejectTrueNodeSortByWhenCollationMismatch() {

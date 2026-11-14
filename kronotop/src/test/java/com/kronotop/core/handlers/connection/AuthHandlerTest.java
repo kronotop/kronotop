@@ -20,9 +20,9 @@ import com.kronotop.BaseHandlerTest;
 import com.kronotop.BaseTest;
 import com.kronotop.commands.redis.RedisCommandBuilder;
 import com.kronotop.server.Response;
+import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import com.kronotop.server.SessionAttributes;
 import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.protocol.CommandType;
 import io.netty.buffer.ByteBuf;
@@ -32,9 +32,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AuthHandlerTest extends BaseHandlerTest {
 

@@ -345,18 +345,18 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
         ExecutionState state = ctx.getOrCreateExecutionState(id());
         PersistedEntrySink sink = ctx.sinks().loadOrCreatePersistedEntrySink(id());
 
-        // Phase 1: Check if all children are exhausted
+        // Check if all children are exhausted
         if (checkAndPropagateExhaustion(ctx)) {
             return;
         }
 
-        // Phase 2: Collect results from all child nodes
+        // Collect results from all child nodes
         ChildCollectionResult collected = collectChildResults(ctx);
 
-        // Phase 3: Apply cross-advance deduplication filter
+        // Apply cross-advance deduplication filter
         Roaring64Bitmap union = applyDeduplicationFilter(ctx, state, collected);
 
-        // Phase 4: Write results and rewind children for excess
+        // Write results and rewind children for excess
         writeResultsAndRewindChildren(ctx, state, sink, union, collected.result(), collected.bitmaps());
 
         // Cleanup: Release memory from child sinks

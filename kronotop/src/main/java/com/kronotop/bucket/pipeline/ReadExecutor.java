@@ -75,7 +75,7 @@ public final class ReadExecutor extends BaseExecutor implements Executor<List<By
                     yield applyLimit(ctx, resultSortIfNeeded(ctx, result));
                 }
                 case DocumentLocationSink documentLocationSink -> {
-                    // Phase 1: Deduplicate by ObjectId only when a multi-key index produced the results
+                    // Deduplicate by ObjectId only when a multi-key index produced the results
                     if (ctx.isScannedIndexMultiKey()) {
                         documentLocationSink.dedupByObjectId();
                     }
@@ -84,12 +84,12 @@ public final class ReadExecutor extends BaseExecutor implements Executor<List<By
                         yield result;
                     }
 
-                    // Phase 2: Batch retrieve all documents
+                    // Batch retrieve all documents
                     List<ByteBuffer> documents = ctx.env().documentRetriever().retrieveDocuments(documentLocationSink.entries());
 
                     result.addAll(documents);
 
-                    // Phase 3: Apply in-memory sorting if needed
+                    // Apply in-memory sorting if needed
                     yield applyLimit(ctx, resultSortIfNeeded(ctx, result));
                 }
             };

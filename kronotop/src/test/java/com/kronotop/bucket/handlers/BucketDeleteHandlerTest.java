@@ -503,7 +503,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
-    // --- Numeric Widening Tests ---
+    // Numeric Widening Tests
 
     @Test
     void shouldThrowUnsupportedArgumentExceptionWhenUsingSortBy() {
@@ -910,7 +910,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
-    // --- Vector Index Tests ---
+    // Vector Index Tests
 
     @Test
     void shouldDeleteWidenedInt32DocumentViaInt64IndexRangeScan() {
@@ -1194,7 +1194,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
-    // --- Collation tests ---
+    // Collation tests
 
     @Test
     void shouldNotAffectVectorIndexWhenDeletedDocHasNoVectorField() {

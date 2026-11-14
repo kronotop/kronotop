@@ -102,7 +102,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
     }
 
-    // --- setEntry tests ---
+    // setEntry tests
 
     @Test
     void shouldSetCompoundIndexEntry() {
@@ -174,7 +174,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertNull(unpacked.get(2));
     }
 
-    // --- setEntry BSON type coverage ---
+    // setEntry BSON type coverage
 
     @Test
     void shouldSetMultipleEntriesForSameIndex() {
@@ -236,7 +236,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
     }
 
-    // --- insertEntry tests ---
+    // insertEntry tests
 
     @Test
     void shouldInsertCompoundIndexEntry() {
@@ -291,7 +291,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
     }
 
-    // --- dropEntry tests ---
+    // dropEntry tests
 
     @Test
     void shouldDropCompoundIndexEntry() {
@@ -434,7 +434,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
     }
 
-    // --- updateIndexEntry tests ---
+    // updateIndexEntry tests
 
     @Test
     void shouldUpdateCompoundIndexEntryMetadata() {
@@ -535,7 +535,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
     }
 
-    // --- extractFieldValues (BsonDocument) tests ---
+    // extractFieldValues (BsonDocument) tests
 
     @Test
     void shouldExtractFieldValuesFromDocument() {
@@ -763,7 +763,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertNull(result.get(0).get(1));
     }
 
-    // --- extractFieldValues (ByteBuffer) tests ---
+    // extractFieldValues (ByteBuffer) tests
 
     @Test
     void shouldExtractFieldValuesFromByteBuffer() {
@@ -849,7 +849,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertTrue(result.isEmpty());
     }
 
-    // --- Three-field compound index test ---
+    // Three-field compound index test
 
     @Test
     void shouldHandleThreeFieldCompoundIndex() {
@@ -904,7 +904,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
     }
 
-    // --- findIndexedObjectIds tests ---
+    // findIndexedObjectIds tests
 
     private Set<ObjectId> findIndexedObjectIds(DirectorySubspace indexSubspace, ObjectId... objectIds) {
         try (Transaction tr = context.getTransactionManager().create()) {

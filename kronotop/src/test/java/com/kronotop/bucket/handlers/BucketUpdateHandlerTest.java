@@ -1609,7 +1609,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
                 "Error message should mention the selector and actual type");
     }
 
-    // --- Numeric Widening Integration Tests ---
+    // Numeric Widening Integration Tests
 
     @Test
     void shouldUpdateWithOrQueryBatchAndAdvance() {
@@ -2198,7 +2198,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
-    // --- Vector Index Tests ---
+    // Vector Index Tests
 
     @Test
     void shouldWidenInt32UpsertValueInInt64Index() {
@@ -2586,7 +2586,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(0.3f, decoded.vector()[2], 0.001f);
     }
 
-    // --- Collation tests ---
+    // Collation tests
 
     @Test
     void shouldWriteMutationLogOnUpsertWithVectorField() {

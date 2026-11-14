@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SelectorCalculatorTest {
 
-    // --- extractIndexValueFromBqlValue: ObjectIdVal ---
+    // extractIndexValueFromBqlValue: ObjectIdVal
 
     @Test
     void shouldExtractObjectIdFromObjectIdVal() {
@@ -40,7 +40,7 @@ class SelectorCalculatorTest {
         assertArrayEquals(objectId.toByteArray(), (byte[]) result);
     }
 
-    // --- extractIndexValueFromBqlValue: other types for completeness ---
+    // extractIndexValueFromBqlValue: other types for completeness
 
     @Test
     void shouldExtractStringFromStringVal() {

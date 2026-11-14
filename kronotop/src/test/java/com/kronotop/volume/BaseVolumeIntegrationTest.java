@@ -27,10 +27,10 @@ import org.junit.jupiter.api.BeforeEach;
 import java.io.IOException;
 
 public class BaseVolumeIntegrationTest extends BaseVolumeTest {
+    protected final Prefix volumeTestPrefix = new Prefix("volume-test-prefix".getBytes());
     protected Volume volume;
     protected VolumeService service;
     protected DirectorySubspace subspace;
-    protected final Prefix volumeTestPrefix = new Prefix("volume-test-prefix".getBytes());
 
     void setupVolumeTestEnv() throws IOException {
         // Creating the global prefixes subspace is required for volume integration tests.

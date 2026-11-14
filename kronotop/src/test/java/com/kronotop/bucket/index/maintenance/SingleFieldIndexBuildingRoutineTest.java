@@ -646,7 +646,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         });
     }
 
-    // --- Numeric Widening Integration Tests ---
+    // Numeric Widening Integration Tests
 
     @Test
     void shouldWidenInt32ValuesToInt64IndexDuringBackgroundBuild() {

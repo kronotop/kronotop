@@ -70,13 +70,6 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
         }
     }
 
-    private enum Operation {
-        START,
-        STOP,
-        DROP,
-        STATUS
-    }
-
     private void vacuumStart(Request request, Response response) {
         StartArguments arguments = new StartArguments(request.getArguments());
         runAsync(context, response, () -> {
@@ -130,6 +123,13 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
             result.put(wrapBytes(SEGMENTS_BYTES), new ArrayRedisMessage(segmentList));
             return result;
         }, response::writeMap);
+    }
+
+    private enum Operation {
+        START,
+        STOP,
+        DROP,
+        STATUS
     }
 
     private static class Arguments {

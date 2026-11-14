@@ -201,7 +201,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         }
     }
 
-    // --- Collation hierarchy tests ---
+    // Collation hierarchy tests
 
     @Test
     void shouldUseIndexCollationOverBucketCollation() {
@@ -312,7 +312,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         }
     }
 
-    // --- Range query tests with ICU-sensitive data ---
+    // Range query tests with ICU-sensitive data
 
     @Test
     void shouldRangeScanIncludeAccentedCharactersWithCollatedIndex() {
@@ -390,7 +390,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         }
     }
 
-    // --- Compound index collation tests ---
+    // Compound index collation tests
 
     @Test
     void shouldMatchWithCollatedCompoundIndexEqQuery() {
@@ -480,7 +480,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         }
     }
 
-    // --- SECONDARY (strength=2) tests ---
+    // SECONDARY (strength=2) tests
 
     @Test
     void shouldMatchCaseInsensitivelyButDistinguishAccentsWithSecondaryFullScan() {
@@ -671,7 +671,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         }
     }
 
-    // --- TERTIARY (strength=3) tests ---
+    // TERTIARY (strength=3) tests
 
     @Test
     void shouldMatchExactlyWithTertiaryFullScan() {
@@ -859,7 +859,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         }
     }
 
-    // --- $ne (not-equal) with collation tests ---
+    // $ne (not-equal) with collation tests
 
     @Test
     void shouldExcludeCollationEquivalentStringsWithNeAndPrimaryFullScan() {
@@ -1007,7 +1007,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         }
     }
 
-    // --- $in/$nin with collation tests ---
+    // $in/$nin with collation tests
 
     @Test
     void shouldMatchCollationEquivalentStringsWithInAndPrimaryFullScan() {
@@ -1229,7 +1229,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         }
     }
 
-    // --- SORTBY with collation tests ---
+    // SORTBY with collation tests
 
     @Test
     void shouldSortByAscOnCollatedSingleFieldIndexFrenchPrimary() {
@@ -1606,7 +1606,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         }
     }
 
-    // --- Numeric ordering (numericOrdering=true) tests ---
+    // Numeric ordering (numericOrdering=true) tests
 
     @Test
     void shouldMatchExactWithEqAndNumericOrderingFullScan() {
@@ -2203,7 +2203,7 @@ class CollationIntegrationTest extends BasePipelineTest {
                 "ICU numeric ordering does not interpret exponent notation. 'e' is a literal separator; digit groups are compared independently: 1 < 2 (first group), so 1e5 < 2e3. Both sort before '10' and '20' because 'e' precedes digit-only strings");
     }
 
-    // --- Collation mismatch with rewritePhysicalTrue / sortBy ---
+    // Collation mismatch with rewritePhysicalTrue / sortBy
 
     @Test
     void shouldNotUseCollationMismatchedIndexForSortInEmptyQuery() {

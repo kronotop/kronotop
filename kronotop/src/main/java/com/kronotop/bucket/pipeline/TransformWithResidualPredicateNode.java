@@ -74,11 +74,11 @@ public class TransformWithResidualPredicateNode extends AbstractPipelineNode imp
                         break;
                     }
 
-                    // Phase 2: Batch retrieve all documents
+                    // Batch retrieve all documents
                     List<ByteBuffer> documents = ctx.env().documentRetriever()
                             .retrieveDocuments(documentLocationSink.entries());
 
-                    // Phase 3: Filter and write
+                    // Filter and write
                     for (int i = 0; i < documents.size(); i++) {
                         ByteBuffer document = documents.get(i);
                         DocumentLocation location = documentLocationSink.entries().get(i);

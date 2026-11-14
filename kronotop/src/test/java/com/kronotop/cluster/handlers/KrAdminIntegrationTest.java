@@ -53,7 +53,7 @@ class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTest {
                 kronotopInstance.getContext().getShardRegistry().getShardIds().equals(expectedShardIds)
         );
     }
-    
+
     private void assertInitializeClusterError(String expectedError, String... arguments) {
         List<String> rawArgs = new ArrayList<>(List.of("INITIALIZE-CLUSTER"));
         rawArgs.addAll(List.of(arguments));

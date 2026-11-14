@@ -1177,7 +1177,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertNull(keyTuple.get(0), "Indexed value should be null");
     }
 
-    // --- Compound Index Tests ---
+    // Compound Index Tests
 
     @Test
     void shouldUpdateCardinalityCorrectlyForMultikeyIndexWithNulls() {
@@ -1511,7 +1511,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertTrue(typeValues.contains("english"), "Should have 'english' entry");
     }
 
-    // --- Vector Index Tests ---
+    // Vector Index Tests
 
     @Test
     void shouldDeduplicateMultiKeyCompoundIndexEntries() {
@@ -1669,7 +1669,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(3, entries.size(), "Should have 3 vector index entries");
     }
 
-    // --- Numeric Widening Integration Tests ---
+    // Numeric Widening Integration Tests
 
     @Test
     void shouldUpdateVectorIndexCardinalityAfterInsertion() {

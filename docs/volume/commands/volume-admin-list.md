@@ -22,8 +22,15 @@ an empty array if no volumes are open.
 
 ## Behavior
 
-Returns all volume names managed by the connected member. This command does not require cluster initialization.
-It is available on the management port (default 3320).
+Returns the names of the volumes that are open on the connected member. A member opens a volume only when it is the
+primary or a standby of the volume's shard. A shard created with
+[KR.ADMIN ADD-SHARD](../../admin/cluster/commands/kr-admin-add-shard.md) does not appear here until routing assigns it
+to this member. See [Volume Lifecycle](../index.md#volume-lifecycle).
+
+To see every volume in the cluster, use
+[KR.ADMIN DESCRIBE-CLUSTER](../../admin/cluster/commands/kr-admin-describe-cluster.md).
+
+This command does not require cluster initialization. It is available on the management port (default 3320).
 
 ## Errors
 

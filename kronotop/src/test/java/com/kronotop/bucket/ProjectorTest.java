@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ProjectorTest {
 
-    // --- $ Positional Operator ---
+    // $ Positional Operator
 
     private static BsonArray intArray(int... values) {
         BsonArray array = new BsonArray();
@@ -178,7 +178,7 @@ class ProjectorTest {
         assertTrue(grades.isEmpty());
     }
 
-    // --- Validation ---
+    // Validation
 
     @Test
     void shouldProjectMultipleDocumentsWithPositional() {
@@ -354,7 +354,7 @@ class ProjectorTest {
         assertEquals(87, grades.get(0).asInt32().getValue());
     }
 
-    // --- Validation ---
+    // Validation
 
     @Test
     void shouldOmitPositionalFieldWhenFieldDoesNotExist() {
@@ -402,7 +402,7 @@ class ProjectorTest {
                 Projector.project(List.of(), spec));
     }
 
-    // --- _id handling ---
+    // _id handling
 
     @Test
     void shouldRejectMixedInclusionExclusion() {
@@ -470,7 +470,7 @@ class ProjectorTest {
         assertEquals(30, result.getInt32("age").getValue());
     }
 
-    // --- Empty spec ---
+    // Empty spec
 
     @Test
     void shouldExcludeIdWhenExplicit() {
@@ -488,7 +488,7 @@ class ProjectorTest {
         assertEquals("Alice", result.getString("name").getValue());
     }
 
-    // --- Basic inclusion/exclusion ---
+    // Basic inclusion/exclusion
 
     @Test
     void shouldReturnAllFieldsWhenSpecIsEmpty() {
@@ -588,7 +588,7 @@ class ProjectorTest {
         assertFalse(result.getDocument("a").getDocument("b").containsKey("d"));
     }
 
-    // --- Dot-notation exclusion ---
+    // Dot-notation exclusion
 
     @Test
     void shouldIncludeNestedField() {
@@ -684,7 +684,7 @@ class ProjectorTest {
         assertEquals("Alice", result.getString("name").getValue());
     }
 
-    // --- Multiple documents ---
+    // Multiple documents
 
     @Test
     void shouldNotMutateOriginalDocumentOnNestedExclusion() {
@@ -726,7 +726,7 @@ class ProjectorTest {
         assertFalse(results.get(1).containsKey("age"));
     }
 
-    // --- Exclusion through array intermediates ---
+    // Exclusion through array intermediates
 
     @Test
     void shouldSkipMissingFieldGracefully() {
@@ -834,7 +834,7 @@ class ProjectorTest {
         assertTrue(original.getArray("items").get(0).asDocument().containsKey("name"));
     }
 
-    // --- Inclusion through array intermediates ---
+    // Inclusion through array intermediates
 
     @Test
     void shouldExcludeNestedFieldGracefullyWhenArrayElementLacksField() {
@@ -957,7 +957,7 @@ class ProjectorTest {
         assertEquals("b", items.get(1).asDocument().getString("name").getValue());
     }
 
-    // --- $slice Operator ---
+    // $slice Operator
 
     @Test
     void shouldIncludeNestedFieldGracefullyWhenArrayFieldIsMissing() {
