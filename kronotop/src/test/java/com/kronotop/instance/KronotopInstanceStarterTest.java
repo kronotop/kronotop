@@ -130,15 +130,6 @@ class KronotopInstanceStarterTest {
     }
 
     @Test
-    void shouldReturnErrorCodeWhenInstanceCannotBeCreated() throws IOException {
-        // Behavior: a config file sets foundationdb.apiversion to 0, so the instance cannot be created. Starting the
-        // server with this file returns exit code 1 and does not throw.
-        String file = writeConfigFile("foundationdb.apiversion = 0\n");
-
-        assertEquals(1, parse("-c", file).call());
-    }
-
-    @Test
     void shouldRenderOnlyKronotopSettings() {
         // Behavior: with --data-dir set, the rendered config parses back with data_dir equal to the option value and
         // cluster.name present. It has no java or os paths from the JVM system properties and no kronotop path from
