@@ -160,24 +160,25 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
                 if (!membership.isMemberRegistered(tr, arguments.memberId)) {
                     throw new MemberNotRegisteredException(arguments.memberId);
                 }
-                if (arguments.operationKind.equals(OperationKind.SET)) {
-                    if (arguments.allShards) {
-                        for (int shardId : getShardIds()) {
-                            setRouteForShard(tr, arguments, shardId);
+                switch (arguments.operationKind) {
+                    case SET -> {
+                        if (arguments.allShards) {
+                            for (int shardId : getShardIds()) {
+                                setRouteForShard(tr, arguments, shardId);
+                            }
+                        } else {
+                            setRouteForShard(tr, arguments, arguments.shardId);
                         }
-                    } else {
-                        setRouteForShard(tr, arguments, arguments.shardId);
                     }
-                } else if (arguments.operationKind.equals(OperationKind.UNSET)) {
-                    if (arguments.allShards) {
-                        for (int shardId : getShardIds()) {
-                            unsetRouteForShard(tr, arguments, shardId);
+                    case UNSET -> {
+                        if (arguments.allShards) {
+                            for (int shardId : getShardIds()) {
+                                unsetRouteForShard(tr, arguments, shardId);
+                            }
+                        } else {
+                            unsetRouteForShard(tr, arguments, arguments.shardId);
                         }
-                    } else {
-                        unsetRouteForShard(tr, arguments, arguments.shardId);
                     }
-                } else {
-                    throw new KronotopException("Unknown operation kind: " + arguments.operationKind);
                 }
                 ClusterUtil.signalTopologyChange(context, tr);
                 tr.commit().join();
