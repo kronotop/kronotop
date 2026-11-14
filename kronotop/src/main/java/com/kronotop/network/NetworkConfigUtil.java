@@ -22,6 +22,8 @@ import com.typesafe.config.Config;
 import java.util.List;
 
 public class NetworkConfigUtil {
+    public static final String NETTY_TRANSPORT_NIO = "nio";
+    public static final String NETTY_TRANSPORT_EPOLL = "epoll";
 
     /**
      * Reads the bind host of the given network interface from the configuration.
@@ -63,5 +65,30 @@ public class NetworkConfigUtil {
         } catch (com.typesafe.config.ConfigException.WrongType exp) {
             throw new ConfigException(configPath + " must be a list of strings");
         }
+    }
+
+    /**
+     * Reads the Netty transport of the given network interface from the configuration.
+     *
+     * @param config           the configuration to read
+     * @param networkInterface the network interface, "external" or "internal"
+     * @return the configured transport, or "nio" when it is not set
+     * @throws ConfigException if the value is not a string, or is not "nio" or "epoll"
+     */
+    public static String getNettyTransport(Config config, String networkInterface) {
+        String configPath = String.format("network.%s.netty.transport", networkInterface);
+        String transport;
+        try {
+            transport = config.getString(configPath);
+        } catch (com.typesafe.config.ConfigException.Missing exp) {
+            // Default value is "nio"
+            return NETTY_TRANSPORT_NIO;
+        } catch (com.typesafe.config.ConfigException.WrongType exp) {
+            throw new ConfigException(configPath + " must be a string");
+        }
+        if (!transport.equals(NETTY_TRANSPORT_NIO) && !transport.equals(NETTY_TRANSPORT_EPOLL)) {
+            throw new ConfigException(String.format("Invalid %s: '%s'", configPath, transport));
+        }
+        return transport;
     }
 }

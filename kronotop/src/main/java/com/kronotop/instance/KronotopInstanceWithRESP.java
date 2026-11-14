@@ -20,6 +20,7 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
 import com.kronotop.network.Address;
+import com.kronotop.network.NetworkConfigUtil;
 import com.kronotop.server.*;
 import com.typesafe.config.Config;
 
@@ -36,10 +37,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * @see KronotopInstance
  */
 public class KronotopInstanceWithRESP extends KronotopInstance {
-    private static final String NETTY_TRANSPORT_NIO = "nio";
-    private static final String NETTY_TRANSPORT_EPOLL = "epoll";
-    private static final String DEFAULT_NETTY_TRANSPORT = NETTY_TRANSPORT_NIO;
-
     public KronotopInstanceWithRESP(Config config) {
         super(config);
     }
@@ -54,25 +51,15 @@ public class KronotopInstanceWithRESP extends KronotopInstance {
      */
     private RESPServer initializeRESPServer(ServerKind kind) {
         checkNotNull(member);
-        String nettyTransport = DEFAULT_NETTY_TRANSPORT;
-
-        String transportConfigPath = String.format("network.%s.netty.transport", kind.toString().toLowerCase());
-        if (config.hasPath(transportConfigPath)) {
-            nettyTransport = config.getString(transportConfigPath);
-        }
+        String nettyTransport = NetworkConfigUtil.getNettyTransport(config, kind.toString().toLowerCase());
 
         CommandHandlerRegistry handlers = context.getHandlers(kind);
         TLSConfig tlsConfig = TLSConfig.fromConfig(config, kind);
         NettyConfig nettyConfig = NettyConfig.fromConfig(config, kind);
-        RESPServer server;
-        if (nettyTransport.equals(NETTY_TRANSPORT_NIO)) {
-            server = new NioRESPServer(context, handlers, tlsConfig, nettyConfig, kind);
-        } else if (nettyTransport.equals(NETTY_TRANSPORT_EPOLL)) {
-            server = new EpollRESPServer(context, handlers, tlsConfig, nettyConfig, kind);
-        } else {
-            throw new KronotopException(String.format("Invalid %s: %s", transportConfigPath, nettyTransport));
+        if (nettyTransport.equals(NetworkConfigUtil.NETTY_TRANSPORT_EPOLL)) {
+            return new EpollRESPServer(context, handlers, tlsConfig, nettyConfig, kind);
         }
-        return server;
+        return new NioRESPServer(context, handlers, tlsConfig, nettyConfig, kind);
     }
 
     @Override

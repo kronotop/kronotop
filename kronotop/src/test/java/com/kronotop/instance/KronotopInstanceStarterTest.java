@@ -78,6 +78,16 @@ class KronotopInstanceStarterTest {
     }
 
     @Test
+    void shouldDropEmptyAdvertiseEntries() {
+        // Behavior: --external-advertise with the value "10.0.0.1:5484,,10.0.0.2:5484" has an empty entry between
+        // two commas. The empty entry is dropped, and network.external.advertise holds the two addresses in the
+        // given order.
+        Config config = parse("--external-advertise", "10.0.0.1:5484,,10.0.0.2:5484").buildConfig();
+
+        assertEquals(List.of("10.0.0.1:5484", "10.0.0.2:5484"), config.getStringList("network.external.advertise"));
+    }
+
+    @Test
     void shouldPreferOptionsOverConfigFile() throws IOException {
         // Behavior: a config file sets cluster.name and data_dir, and --cluster-name is also given. The option value
         // wins for cluster.name, and data_dir keeps the value from the config file.
@@ -113,9 +123,26 @@ class KronotopInstanceStarterTest {
     }
 
     @Test
+    void shouldFailCheckConfigOnInvalidNettyTransport() {
+        // Behavior: --check-config with --netty-transport set to "bogus", which is neither nio nor epoll, returns
+        // exit code 1.
+        assertEquals(1, parse("--netty-transport", "bogus", "--check-config").call());
+    }
+
+    @Test
+    void shouldReturnErrorCodeWhenInstanceCannotBeCreated() throws IOException {
+        // Behavior: a config file sets foundationdb.apiversion to 0, so the instance cannot be created. Starting the
+        // server with this file returns exit code 1 and does not throw.
+        String file = writeConfigFile("foundationdb.apiversion = 0\n");
+
+        assertEquals(1, parse("-c", file).call());
+    }
+
+    @Test
     void shouldRenderOnlyKronotopSettings() {
         // Behavior: with --data-dir set, the rendered config parses back with data_dir equal to the option value and
-        // cluster.name present, and it has no java or os paths from the JVM system properties.
+        // cluster.name present. It has no java or os paths from the JVM system properties and no kronotop path from
+        // the build properties.
         KronotopInstanceStarter starter = parse("--data-dir", "/tmp/kronotop-render");
 
         Config rendered = ConfigFactory.parseString(starter.renderConfig(starter.buildConfig()));
@@ -124,6 +151,7 @@ class KronotopInstanceStarterTest {
         assertTrue(rendered.hasPath("cluster.name"));
         assertFalse(rendered.hasPath("java"));
         assertFalse(rendered.hasPath("os"));
+        assertFalse(rendered.hasPath("kronotop"));
     }
 
     @Test

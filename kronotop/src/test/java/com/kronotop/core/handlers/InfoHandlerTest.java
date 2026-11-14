@@ -139,8 +139,8 @@ class InfoHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void shouldReadBuildInfoFromApplicationProperties() {
-        // Behavior: version, git commit and build time come from application.properties;
+    void shouldReadBuildInfoFromBuildProperties() {
+        // Behavior: version, git commit and build time come from kronotop-build.properties;
         // a missing or unresolved value is reported as unknown, never null
         String info = runInfo(getChannel(), "server");
 

@@ -220,7 +220,7 @@
                 </configuration>
             </plugin>
             <plugin>
-                <!-- Expose git commit and build time to application.properties via resource filtering -->
+                <!-- Expose git commit and build time to kronotop-build.properties via resource filtering -->
                 <groupId>io.github.git-commit-id</groupId>
                 <artifactId>git-commit-id-maven-plugin</artifactId>
                 <executions>

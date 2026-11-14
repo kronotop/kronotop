@@ -75,12 +75,12 @@ public class InfoReport {
 
     private static Properties loadBuildProperties() {
         Properties props = new Properties();
-        try (InputStream in = InfoReport.class.getClassLoader().getResourceAsStream("application.properties")) {
+        try (InputStream in = InfoReport.class.getClassLoader().getResourceAsStream("kronotop-build.properties")) {
             if (in != null) {
                 props.load(in);
             }
         } catch (IOException e) {
-            LOGGER.warn("Failed to load application.properties", e);
+            LOGGER.warn("Failed to load kronotop-build.properties", e);
         }
         return props;
     }

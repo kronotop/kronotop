@@ -123,7 +123,7 @@ public class KronotopInstanceStarter implements Callable<Integer> {
 
     private static Properties loadApplicationProperties() {
         Properties props = new Properties();
-        try (InputStream in = KronotopInstance.class.getClassLoader().getResourceAsStream("application.properties")) {
+        try (InputStream in = KronotopInstance.class.getClassLoader().getResourceAsStream("kronotop-build.properties")) {
             props.load(in);
         } catch (IOException exp) {
             LOGGER.error("Failed to load application properties", exp);
@@ -245,7 +245,12 @@ public class KronotopInstanceStarter implements Callable<Integer> {
             NetworkConfigUtil.getHost(config, networkInterface);
             NetworkConfigUtil.getPort(config, networkInterface);
             NetworkConfigUtil.getAdvertise(config, networkInterface);
+            NetworkConfigUtil.getNettyTransport(config, networkInterface);
         }
+    }
+
+    private static List<String> withoutBlanks(List<String> values) {
+        return values == null ? null : values.stream().filter(value -> !value.isBlank()).toList();
     }
 
     private static void putIfSet(Map<String, Object> overrides, String path, Object value) {
@@ -255,9 +260,9 @@ public class KronotopInstanceStarter implements Callable<Integer> {
     }
 
     private static int start(Config config) {
-        KronotopInstance kronotopInstance = new KronotopInstanceWithRESP(config);
-        Runtime.getRuntime().addShutdownHook(createShutdownHook(kronotopInstance));
         try {
+            KronotopInstance kronotopInstance = new KronotopInstanceWithRESP(config);
+            Runtime.getRuntime().addShutdownHook(createShutdownHook(kronotopInstance));
             kronotopInstance.start();
             greeting(kronotopInstance);
             return 0;
@@ -282,10 +287,10 @@ public class KronotopInstanceStarter implements Callable<Integer> {
         putIfSet(overrides, "foundationdb.fdbc", fdbc);
         putIfSet(overrides, "network.external.host", externalHost);
         putIfSet(overrides, "network.external.port", externalPort);
-        putIfSet(overrides, "network.external.advertise", externalAdvertise);
+        putIfSet(overrides, "network.external.advertise", withoutBlanks(externalAdvertise));
         putIfSet(overrides, "network.internal.host", internalHost);
         putIfSet(overrides, "network.internal.port", internalPort);
-        putIfSet(overrides, "network.internal.advertise", internalAdvertise);
+        putIfSet(overrides, "network.internal.advertise", withoutBlanks(internalAdvertise));
         for (String networkInterface : NETWORK_INTERFACES) {
             putIfSet(overrides, "network." + networkInterface + ".netty.transport", nettyTransport);
         }
