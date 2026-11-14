@@ -126,9 +126,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
 
     @Override
     public void start() {
-        Attribute<Boolean> clusterInitialized = context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
-        clusterInitialized.set(isClusterInitialized_internal());
-        if (!clusterInitialized.get()) {
+        if (!refreshClusterInitialized()) {
             executor.execute(new ClusterInitializationWatcher());
         } else {
             loadRoutingTableFromFoundationDB(true);
@@ -187,6 +185,12 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
             }
         }
         return false;
+    }
+
+    private boolean refreshClusterInitialized() {
+        boolean clusterInitialized = isClusterInitialized_internal();
+        context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED).set(clusterInitialized);
+        return clusterInitialized;
     }
 
     private Set<Member> memberIdsToMembers(Transaction tr, Set<String> memberIds) {
@@ -333,7 +337,6 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                 return;
             }
 
-            boolean clusterInitialized;
             while (!shutdown) {
                 DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
                 byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_INITIALIZED));
@@ -341,24 +344,20 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                 try (Transaction tr = context.getTransactionManager().create()) {
                     CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
                     tr.commit().join();
-                    try {
-                        clusterInitialized = isClusterInitialized_internal();
-                        context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED).set(clusterInitialized);
-                        if (clusterInitialized) {
-                            keyWatcher.unwatch(key);
+                    if (!refreshClusterInitialized()) {
+                        try {
+                            watcher.join();
+                        } catch (CancellationException e) {
+                            LOGGER.debug("Cluster initialization watcher has been cancelled");
                             return;
                         }
-                        watcher.join();
-                    } catch (CancellationException e) {
-                        LOGGER.debug("Cluster initialization watcher has been cancelled");
-                        return;
+                        if (!refreshClusterInitialized()) {
+                            continue;
+                        }
                     }
-                    clusterInitialized = isClusterInitialized_internal();
-                    context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED).set(clusterInitialized);
-                    if (clusterInitialized) {
-                        executor.execute(new RoutingEventsWatcher());
-                        return;
-                    }
+                    keyWatcher.unwatch(key);
+                    executor.execute(new RoutingEventsWatcher());
+                    return;
                 } catch (Exception exp) {
                     LOGGER.error("Error while waiting for cluster initialization", exp);
                     LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(1));
