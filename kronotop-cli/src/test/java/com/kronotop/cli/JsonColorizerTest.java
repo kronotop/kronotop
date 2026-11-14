@@ -17,11 +17,15 @@
 package com.kronotop.cli;
 
 import org.jline.terminal.Terminal;
-import org.jline.terminal.TerminalBuilder;
+import org.jline.terminal.impl.DumbTerminal;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -39,11 +43,14 @@ class JsonColorizerTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        terminal = TerminalBuilder.builder()
-                .type("xterm-256color")
-                .streams(System.in, System.out)
-                .build();
+        terminal = new DumbTerminal("test", "xterm-256color",
+                new ByteArrayInputStream(new byte[0]), new ByteArrayOutputStream(), StandardCharsets.UTF_8);
         colorizer = new JsonColorizer(terminal);
+    }
+
+    @AfterEach
+    void tearDown() throws IOException {
+        terminal.close();
     }
 
     private boolean containsColorCode(String result, String colorCode) {
