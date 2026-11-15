@@ -113,7 +113,6 @@ public abstract class AbstractScanNode extends AbstractPipelineNode implements S
     }
 
     protected SingleFieldScanSetup setupSingleFieldScan(QueryContext ctx, SingleFieldIndexDefinition index) {
-        ctx.setScannedIndexField(index.selector());
         ctx.setScannedIndexIsMultiKey(index.multiKey());
 
         SingleFieldIndex indexRecord = ctx.metadata().singleFieldIndexes().getIndex(index.selector(), IndexSelectionPolicy.READ);

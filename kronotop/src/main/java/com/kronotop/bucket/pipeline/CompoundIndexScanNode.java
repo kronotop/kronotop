@@ -68,15 +68,6 @@ public class CompoundIndexScanNode extends AbstractScanNode implements ScanNode 
 
     @Override
     public void execute(QueryContext ctx, Transaction tr) {
-        // Set scannedIndexField for SORTBY optimization if the compound index provides natural order
-        String sortByField = ctx.options().getSortByField();
-        if (sortByField != null) {
-            String naturalSortField = determineNaturalSortField(sortByField);
-            if (naturalSortField != null) {
-                ctx.setScannedIndexField(naturalSortField);
-            }
-        }
-
         CompoundIndex compoundIndex = ctx.metadata().compoundIndexes().getIndexByName(index.name(), IndexSelectionPolicy.READ);
         if (compoundIndex == null) {
             throw new IllegalStateException("Compound index not found: " + index.name());

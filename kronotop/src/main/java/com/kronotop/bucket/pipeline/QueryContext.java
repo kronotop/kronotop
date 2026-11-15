@@ -93,12 +93,6 @@ public class QueryContext {
     private PipelineEnv env;
 
     /**
-     * The field used by the driving index scan. Used to determine if in-memory sorting is needed
-     * when the SORTBY field differs from the scanned field.
-     */
-    private String scannedIndexField;
-
-    /**
      * Tracks whether any scan node used a multi-key index. Used to conditionally
      * enable ObjectId deduplication in executors.
      */
@@ -251,23 +245,6 @@ public class QueryContext {
      */
     public Session getSession() {
         return session;
-    }
-
-    /**
-     * Returns the field used by the driving index scan, or null if not set.
-     */
-    public String getScannedIndexField() {
-        return scannedIndexField;
-    }
-
-    /**
-     * Sets the field used by the driving index scan. Should only be set once
-     * by the first executing scan node.
-     */
-    public void setScannedIndexField(String field) {
-        if (this.scannedIndexField == null) {
-            this.scannedIndexField = field;
-        }
     }
 
     /**

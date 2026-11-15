@@ -71,9 +71,6 @@ public class FullScanNode extends AbstractScanNode implements ScanNode {
 
     @Override
     public void execute(QueryContext ctx, Transaction tr) {
-        // Track which field this scan uses for SORTBY optimization (primary index = _id)
-        ctx.setScannedIndexField(PrimaryIndex.SELECTOR);
-
         SingleFieldIndex indexRecord = ctx.metadata().singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         if (indexRecord == null) {
             throw new IllegalStateException("Index not found for selector: " + PrimaryIndex.SELECTOR);
