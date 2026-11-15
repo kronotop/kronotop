@@ -2483,6 +2483,56 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldCloseCursorWhenInWithSortByResultSetEnds() {
+        // Behavior: With an index on age, $in on age with SORTBY age matches 3 of 5 documents.
+        // With BATCH 2, BUCKET.QUERY returns ages 10 and 30 and keeps the cursor open.
+        // BUCKET.ADVANCE returns age 50 and cursor_id -1. A later BUCKET.ADVANCE with the old id fails.
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
+                "age-idx",
+                "age",
+                BsonType.INT32,
+                false,
+                IndexStatus.WAITING
+        );
+        createIndexThenWaitForReadiness(ageIndex);
+
+        List<byte[]> documents = Arrays.asList(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Charlie\", \"age\": 30}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 10}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Eve\", \"age\": 50}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 20}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Diana\", \"age\": 40}")
+        );
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        Object first = queryWithLimit(cmd, "{\"age\": {\"$in\": [30, 10, 50]}}",
+                BucketQueryArgs.Builder.batch(2).sortBy("age", "ASC"));
+        int cursorId = extractCursorId(first);
+        assertNotEquals(-1, cursorId);
+        assertEquals(List.of(10, 30), agesOf(extractEntries(first)));
+
+        Object second = advance(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, second);
+        assertEquals(-1, extractCursorId(second));
+        assertEquals(List.of(50), agesOf(extractEntries(second)));
+
+        Object afterClose = advance(cmd, cursorId);
+        assertInstanceOf(ErrorRedisMessage.class, afterClose);
+        assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
+    }
+
+    private List<Integer> agesOf(List<BsonDocument> entries) {
+        List<Integer> ages = new ArrayList<>();
+        for (BsonDocument doc : entries) {
+            ages.add(doc.getInt32("age").getValue());
+        }
+        return ages;
+    }
+
+    @Test
     void shouldApplyLimitWithSelectiveFilterOnFullScan() {
         // Behavior: With a selective residual filter on a full scan, LIMIT caps the total
         // across rounds. Rescan and cursor rewind return every match exactly once, no more than LIMIT.

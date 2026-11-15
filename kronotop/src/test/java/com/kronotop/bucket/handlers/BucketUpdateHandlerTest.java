@@ -3186,6 +3186,15 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldRejectTailableWithClose() {
+        // Behavior: BUCKET.UPDATE rejects TAILABLE and CLOSE in the same command with an exact ERR reply.
+        Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_UPDATE,
+                List.of("test-bucket", "{}", "{\"$set\":{\"a\":1}}", "TAILABLE", "CLOSE"));
+
+        assertErrorReply("ERR TAILABLE argument cannot be used with CLOSE", response);
+    }
+
+    @Test
     void shouldUpdateInGivenNamespace() {
         // Behavior: NAMESPACE runs the update in the given namespace. Documents in the session's
         // current namespace stay untouched.
