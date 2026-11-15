@@ -335,6 +335,15 @@ public class NamespaceUtil {
         }
     }
 
+    private static void createInternalLeaves(Context context, Transaction tr, List<String> namespaceSubpath) {
+        for (DataModelKind kind : DataModelKind.values()) {
+            List<String> dataStructureSubpath = new ArrayList<>(namespaceSubpath);
+            dataStructureSubpath.add(Namespace.INTERNAL_LEAF);
+            dataStructureSubpath.add(kind.name().toLowerCase());
+            context.getDirectoryLayer().create(tr, dataStructureSubpath).join();
+        }
+    }
+
     private static void ensureIntermediateMetadata(Context context, Transaction tr, List<String> subpath) {
         for (int i = 1; i < subpath.size(); i++) {
             List<String> intermediateSubpath = subpath.subList(0, i);
@@ -343,6 +352,7 @@ public class NamespaceUtil {
             NamespaceMetadata metadata = readMetadata(tr, dottedNamespace(intermediateSubpath), subspace);
             if (metadata.id() == null) {
                 createMetadata(context, tr, subspace, intermediateSubpath);
+                createInternalLeaves(context, tr, intermediateFdbPath);
             }
         }
     }
@@ -380,12 +390,7 @@ public class NamespaceUtil {
             createMetadata(context, tr, subspace, subpath);
 
             // Create the internal leaves
-            for (DataModelKind kind : DataModelKind.values()) {
-                List<String> dataStructureSubpath = new ArrayList<>(namespaceSubpath);
-                dataStructureSubpath.add(Namespace.INTERNAL_LEAF);
-                dataStructureSubpath.add(kind.name().toLowerCase());
-                context.getDirectoryLayer().create(tr, dataStructureSubpath).join();
-            }
+            createInternalLeaves(context, tr, namespaceSubpath);
         } catch (CompletionException e) {
             if (e.getCause() instanceof DirectoryAlreadyExistsException) {
                 throw new NamespaceAlreadyExistsException(dottedNamespace(subpath));

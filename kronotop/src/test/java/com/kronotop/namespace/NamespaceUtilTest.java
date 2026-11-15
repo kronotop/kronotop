@@ -31,6 +31,7 @@ import com.kronotop.server.SessionAttributes;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -400,6 +401,46 @@ class NamespaceUtilTest extends BaseHandlerTest {
     }
 
     @Test
+    void shouldOpenDataStructureSubspacesOfEveryIntermediateNamespace() {
+        // Behavior: After creating "deepleaf.a.b.c", the intermediate namespaces "deepleaf", "deepleaf.a" and
+        // "deepleaf.a.b" open a subspace for every DataModelKind.
+        NamespaceUtil.create(context, "deepleaf.a.b.c");
+
+        for (String intermediate : List.of("deepleaf", "deepleaf.a", "deepleaf.a.b")) {
+            assertThat(openDataStructureSubspaces(intermediate)).doesNotContainValue(null);
+        }
+    }
+
+    @Test
+    void shouldOpenDataStructureSubspacesOfIntermediateNamespaceAfterChildIsRemoved() {
+        // Behavior: After creating "purgeleaf.child" and then removing it, the intermediate namespace "purgeleaf"
+        // still opens a subspace for every DataModelKind.
+        NamespaceUtil.create(context, "purgeleaf.child");
+
+        // Emulate the purge behavior.
+        NamespaceUtil.setRemoved(context, "purgeleaf.child");
+        NamespaceUtil.remove(context, "purgeleaf.child");
+
+        assertThat(NamespaceUtil.exists(context, List.of("purgeleaf", "child"))).isFalse();
+        assertThat(openDataStructureSubspaces("purgeleaf")).doesNotContainValue(null);
+    }
+
+    @Test
+    void shouldKeepDataStructureSubspacesOfExistingNamespaceUsedAsIntermediate() {
+        // Behavior: Creating "preleaf.parent.child" under the existing namespace "preleaf.parent" succeeds and
+        // keeps the prefix of every DataModelKind subspace of "preleaf.parent".
+        NamespaceUtil.create(context, "preleaf.parent");
+        Map<DataModelKind, DirectorySubspace> before = openDataStructureSubspaces("preleaf.parent");
+
+        NamespaceUtil.create(context, "preleaf.parent.child");
+        Map<DataModelKind, DirectorySubspace> after = openDataStructureSubspaces("preleaf.parent");
+
+        for (DataModelKind kind : DataModelKind.values()) {
+            assertThat(after.get(kind).pack()).isEqualTo(before.get(kind).pack());
+        }
+    }
+
+    @Test
     void shouldCreateSingleLevelNamespaceWithoutIntermediateProcessing() {
         // Behavior: A single-level namespace has no intermediates to process
         NamespaceUtil.create(context, "singlelevel");
@@ -443,6 +484,16 @@ class NamespaceUtilTest extends BaseHandlerTest {
                 namespaces().
                 namespace(subpath).
                 toList();
+    }
+
+    private Map<DataModelKind, DirectorySubspace> openDataStructureSubspaces(String namespace) {
+        Map<DataModelKind, DirectorySubspace> subspaces = new EnumMap<>(DataModelKind.class);
+        try (Transaction tr = context.getTransactionManager().create()) {
+            for (DataModelKind kind : DataModelKind.values()) {
+                subspaces.put(kind, NamespaceUtil.open(tr, context, namespace, kind));
+            }
+        }
+        return subspaces;
     }
 
     private String resolveAfterMove(DirectorySubspace movedSubspace) {
