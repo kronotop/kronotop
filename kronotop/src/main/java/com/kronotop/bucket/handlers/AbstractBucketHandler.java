@@ -344,7 +344,7 @@ public abstract class AbstractBucketHandler implements Handler {
      *
      * @param session       the client session containing the default batch size
      * @param updateOptions optional update configuration for UPDATE operations
-     * @param arguments     parsed command arguments containing batch size and sort options
+     * @param arguments     the parsed command arguments
      * @return configured query options
      */
     QueryOptions buildQueryOptions(Session session, UpdateOptions updateOptions, QueryArguments arguments) {
@@ -376,6 +376,10 @@ public abstract class AbstractBucketHandler implements Handler {
 
         if (arguments.getCollation() != null) {
             builder.collation(arguments.getCollation());
+        }
+
+        if (arguments.isTailable()) {
+            builder.tailable(arguments.isTailable());
         }
         return builder.build();
     }
@@ -517,7 +521,8 @@ public abstract class AbstractBucketHandler implements Handler {
     }
 
     /**
-     * Removes the query context from the session when the LIMIT budget is used up.
+     * Removes the query context from the session when the LIMIT budget is used up or a non-tailable
+     * cursor reaches the end of its result set.
      *
      * @param ctx       the query context of the current cursor
      * @param session   the client session that owns the cursor
@@ -535,8 +540,8 @@ public abstract class AbstractBucketHandler implements Handler {
     }
 
     /**
-     * Removes the query context from the session when the client asked to close the cursor
-     * or the LIMIT budget is used up.
+     * Removes the query context from the session when the client asked to close the cursor, the
+     * LIMIT budget is used up, or a non-tailable cursor reaches the end of its result set.
      *
      * @param ctx       the query context of the current cursor
      * @param session   the client session that owns the cursor
@@ -552,7 +557,7 @@ public abstract class AbstractBucketHandler implements Handler {
             BucketOperation operation,
             boolean close
     ) {
-        if (close || ctx.isLimitReached()) {
+        if (close || ctx.isLimitReached() || (!ctx.options().isTailable() && ctx.isExhausted())) {
             Map<Integer, QueryContext> contexts = findQueryContext(session, operation);
             contexts.remove(cursorId);
             return true;

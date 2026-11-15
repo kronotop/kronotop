@@ -142,6 +142,12 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                     }
                     arguments.setClose(true);
                 }
+                case TAILABLE -> {
+                    if (!supportedArguments.contains(QueryArgumentKey.TAILABLE)) {
+                        throw new UnsupportedArgumentException(QueryArgumentKey.TAILABLE);
+                    }
+                    arguments.setTailable(true);
+                }
             }
         }
         return arguments;

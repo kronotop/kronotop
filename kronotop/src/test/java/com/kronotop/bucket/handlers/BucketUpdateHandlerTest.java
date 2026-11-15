@@ -3093,6 +3093,86 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(30, BsonHelper.getInteger(all.getFirst(), "age"));
     }
 
+    @Test
+    void shouldReturnMinusOneWhenUpdateResultSetEndsInFirstCall() {
+        // Behavior: When fewer documents match than BATCH, BUCKET.UPDATE updates all of them and
+        // returns cursor_id -1.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertDocumentsAndGetObjectIds(identicalDocuments(3));
+
+        Object msg = updateWithArgs(cmd, "{}", "{\"$set\": {\"status\": \"updated\"}}",
+                BucketQueryArgs.Builder.batch(10));
+        assertEquals(-1, extractCursorId(msg));
+        assertEquals(3, extractObjectIds(msg).size());
+
+        List<BsonDocument> all = queryAll(cmd);
+        assertEquals(3, all.size());
+        assertEquals(3, idsWithStatus(all).size());
+    }
+
+    @Test
+    void shouldKeepUpdateCursorOpenWhenTailableIsGiven() {
+        // Behavior: With TAILABLE, BUCKET.UPDATE keeps the cursor open after it updates every
+        // matching document. The response carries a cursor_id other than -1.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertDocumentsAndGetObjectIds(identicalDocuments(3));
+
+        Object msg = updateWithArgs(cmd, "{}", "{\"$set\": {\"status\": \"updated\"}}",
+                BucketQueryArgs.Builder.batch(10).tailable());
+        assertNotEquals(-1, extractCursorId(msg));
+        assertEquals(3, extractObjectIds(msg).size());
+    }
+
+    @Test
+    void shouldCloseUpdateCursorWhenLastBatchIsPartial() {
+        // Behavior: With 7 matching documents and BATCH 5, ADVANCE UPDATE updates the last 2
+        // documents and returns cursor_id -1. A later ADVANCE UPDATE with the old id fails.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertDocumentsAndGetObjectIds(identicalDocuments(7));
+
+        Object first = updateWithArgs(cmd, "{}", "{\"$set\": {\"status\": \"updated\"}}",
+                BucketQueryArgs.Builder.batch(5));
+        int cursorId = extractCursorId(first);
+        assertNotEquals(-1, cursorId);
+        assertEquals(5, extractObjectIds(first).size());
+
+        Object second = advanceUpdate(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, second);
+        assertEquals(-1, extractCursorId(second));
+        assertEquals(2, extractObjectIds(second).size());
+
+        Object afterClose = advanceUpdate(cmd, cursorId);
+        assertInstanceOf(ErrorRedisMessage.class, afterClose);
+        assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
+
+        List<BsonDocument> all = queryAll(cmd);
+        assertEquals(7, all.size());
+        assertEquals(7, idsWithStatus(all).size());
+    }
+
+    @Test
+    void shouldReturnMinusOneWhenUpsertFindsNoMatch() {
+        // Behavior: An upsert that matches no document inserts one document and returns its
+        // ObjectId with cursor_id -1.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        Object msg = updateWithArgs(cmd, "{\"name\": \"x\"}", "{\"$set\": {\"age\": 30}, \"upsert\": true}",
+                BucketQueryArgs.Builder.batch(10));
+        assertEquals(-1, extractCursorId(msg));
+        assertEquals(1, extractObjectIds(msg).size());
+
+        List<BsonDocument> all = queryAll(cmd);
+        assertEquals(1, all.size());
+        assertEquals("x", BsonHelper.getString(all.getFirst(), "name"));
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource("duplicateArguments")
     void shouldRejectDuplicateArguments(String name, List<String> rawArgs, String expectedError) {

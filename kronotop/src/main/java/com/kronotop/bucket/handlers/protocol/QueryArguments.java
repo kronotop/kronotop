@@ -19,17 +19,10 @@ package com.kronotop.bucket.handlers.protocol;
 import com.kronotop.bucket.Collation;
 
 /**
- * Holds optional query arguments parsed from bucket commands (QUERY, DELETE, UPDATE).
- * All fields are optional and populated during protocol message parsing.
+ * Holds the optional arguments parsed from BUCKET.QUERY, BUCKET.DELETE and BUCKET.UPDATE.
+ * A field keeps its default value when its argument is not given.
  *
- * <p>Supported arguments:</p>
- * <ul>
- *   <li>BATCH n - maximum documents to return per batch</li>
- *   <li>LIMIT n - maximum documents to return in total</li>
- *   <li>SORTBY field ASC|DESC - sort field and direction</li>
- *   <li>NAMESPACE path - namespace to use instead of the session's current one</li>
- *   <li>CLOSE - close the cursor when the command returns</li>
- * </ul>
+ * @see QueryArgumentKey
  */
 public class QueryArguments {
     private int batch;
@@ -42,6 +35,7 @@ public class QueryArguments {
     private Collation collation;
     private String namespace;
     private boolean close;
+    private boolean tailable;
 
     /**
      * Returns the batch size, or 0 if not specified.
@@ -148,5 +142,13 @@ public class QueryArguments {
 
     public void setClose(boolean close) {
         this.close = close;
+    }
+
+    public void setTailable(boolean tailable) {
+        this.tailable = tailable;
+    }
+
+    public boolean isTailable() {
+        return tailable;
     }
 }

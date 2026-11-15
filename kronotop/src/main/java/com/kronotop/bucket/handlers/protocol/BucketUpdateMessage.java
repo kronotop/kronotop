@@ -34,7 +34,8 @@ public class BucketUpdateMessage extends AbstractBucketMessage implements Protoc
             QueryArgumentKey.COLLATION,
             QueryArgumentKey.LIMIT,
             QueryArgumentKey.NAMESPACE,
-            QueryArgumentKey.CLOSE
+            QueryArgumentKey.CLOSE,
+            QueryArgumentKey.TAILABLE
     );
     private final Request request;
     private String bucket;

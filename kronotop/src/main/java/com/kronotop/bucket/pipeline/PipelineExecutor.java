@@ -59,7 +59,6 @@ public class PipelineExecutor {
      * @throws IllegalStateException if an unknown node type is encountered
      */
     private void executePipelineNode(Transaction tr, QueryContext ctx, PipelineNode node) {
-        ctx.setCurrentNodeId(node.id());
         switch (node) {
             case ScanNode scanNode -> scanNode.execute(ctx, tr);
             case LogicalNode logicalNode -> {

@@ -740,6 +740,62 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldReturnMinusOneWhenDeleteResultSetEndsInFirstCall() {
+        // Behavior: When fewer documents match than BATCH, BUCKET.DELETE deletes all of them and
+        // returns cursor_id -1.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertDocumentsAndGetObjectIds(identicalDocuments(3));
+
+        Object msg = deleteWithArgs(cmd, "{}", BucketQueryArgs.Builder.batch(10));
+        assertEquals(-1, extractCursorId(msg));
+        assertEquals(3, extractObjectIds(msg).size());
+
+        assertEquals(0, queryAll(cmd).size());
+    }
+
+    @Test
+    void shouldKeepDeleteCursorOpenWhenTailableIsGiven() {
+        // Behavior: With TAILABLE, BUCKET.DELETE keeps the cursor open after it deletes every
+        // matching document. The response carries a cursor_id other than -1.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertDocumentsAndGetObjectIds(identicalDocuments(3));
+
+        Object msg = deleteWithArgs(cmd, "{}", BucketQueryArgs.Builder.batch(10).tailable());
+        assertNotEquals(-1, extractCursorId(msg));
+        assertEquals(3, extractObjectIds(msg).size());
+    }
+
+    @Test
+    void shouldCloseDeleteCursorWhenLastBatchIsPartial() {
+        // Behavior: With 7 matching documents and BATCH 5, ADVANCE DELETE deletes the last 2
+        // documents and returns cursor_id -1. A later ADVANCE DELETE with the old id fails.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertDocumentsAndGetObjectIds(identicalDocuments(7));
+
+        Object first = deleteWithArgs(cmd, "{}", BucketQueryArgs.Builder.batch(5));
+        int cursorId = extractCursorId(first);
+        assertNotEquals(-1, cursorId);
+        assertEquals(5, extractObjectIds(first).size());
+
+        Object second = advanceDelete(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, second);
+        assertEquals(-1, extractCursorId(second));
+        assertEquals(2, extractObjectIds(second).size());
+
+        Object afterClose = advanceDelete(cmd, cursorId);
+        assertInstanceOf(ErrorRedisMessage.class, afterClose);
+        assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
+
+        assertEquals(0, queryAll(cmd).size());
+    }
+
+    @Test
     void shouldCloseDeleteCursorWhenCloseArgumentIsGiven() {
         // Behavior: With CLOSE, BUCKET.DELETE deletes the first batch, returns cursor_id -1, leaves
         // no cursor in the session, and does not touch the remaining documents.

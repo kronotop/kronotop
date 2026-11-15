@@ -62,6 +62,8 @@ public class QueryOptions {
 
     private final Collation collation;
 
+    private final boolean tailable;
+
     private QueryOptions(Builder builder) {
         this.sortByField = builder.sortByField;
         this.sortDirection = builder.sortDirection;
@@ -71,6 +73,7 @@ public class QueryOptions {
         this.batch = builder.batch;
         this.update = builder.update;
         this.collation = builder.collation;
+        this.tailable = builder.tailable;
     }
 
     /**
@@ -155,6 +158,10 @@ public class QueryOptions {
         return collation;
     }
 
+    public boolean isTailable() {
+        return tailable;
+    }
+
     /**
      * Builder for {@link QueryOptions}. Call {@link #build()} to create the immutable instance.
      */
@@ -191,6 +198,8 @@ public class QueryOptions {
          * Batch size. Defaults to {@value QueryContext#DEFAULT_BATCH}.
          */
         private int batch = QueryContext.DEFAULT_BATCH;
+
+        private boolean tailable;
 
         /**
          * Sets the field name to use for sorting results.
@@ -276,6 +285,11 @@ public class QueryOptions {
 
         public Builder collation(Collation collation) {
             this.collation = collation;
+            return this;
+        }
+
+        public Builder tailable(boolean tailable) {
+            this.tailable = tailable;
             return this;
         }
 

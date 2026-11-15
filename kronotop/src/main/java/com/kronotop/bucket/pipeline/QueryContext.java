@@ -84,7 +84,6 @@ public class QueryContext {
     private final List<BqlValue> parameters;
     private final Session session;
     private BucketMetadata metadata;
-    private int currentNodeId;
 
     /**
      * Pipeline environment providing access to services and utilities.
@@ -232,14 +231,6 @@ public class QueryContext {
         relations.put(childId, parentId);
     }
 
-    public void setCurrentNodeId(int currentNodeId) {
-        this.currentNodeId = currentNodeId;
-    }
-
-    public int currentNodeId() {
-        return currentNodeId;
-    }
-
     /**
      * Returns the session associated with this query context.
      */
@@ -355,13 +346,6 @@ public class QueryContext {
     }
 
     /**
-     * Returns the total number of documents returned to the client so far.
-     */
-    public int getReturnedCount() {
-        return returnedCount;
-    }
-
-    /**
      * Adds the number of documents returned in the latest batch to the running total.
      */
     public void addReturnedCount(int n) {
@@ -404,6 +388,23 @@ public class QueryContext {
      */
     public boolean isLimitReached() {
         return limitReached;
+    }
+
+    /**
+     * Returns whether the query has no more documents to return.
+     *
+     * @return true if the result set has ended, false otherwise
+     */
+    public boolean isExhausted() {
+        if (plan == null) {
+            return true;
+        }
+        ExecutionState state = executionStates.get(plan.id());
+        if (state == null) {
+            // This should never happen but return true to stop the execution here.
+            return true;
+        }
+        return state.isExhausted();
     }
 }
 

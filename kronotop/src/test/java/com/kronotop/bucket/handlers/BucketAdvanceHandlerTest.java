@@ -2428,6 +2428,90 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldCloseCursorWhenLastBatchIsPartial() {
+        // Behavior: With 12 matching documents and BATCH 5, the third round returns the last 2
+        // documents and cursor_id -1. A later BUCKET.ADVANCE with the old id fails.
+        insertDocumentsAndGetObjectIds(identicalDocuments(12));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(5));
+        int cursorId = extractCursorId(first);
+        assertNotEquals(-1, cursorId);
+        assertEquals(5, extractEntries(first).size());
+
+        Object second = advance(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, second);
+        assertEquals(cursorId, extractCursorId(second));
+        assertEquals(5, extractEntries(second).size());
+
+        Object third = advance(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, third);
+        assertEquals(-1, extractCursorId(third));
+        assertEquals(2, extractEntries(third).size());
+
+        Object afterClose = advance(cmd, cursorId);
+        assertInstanceOf(ErrorRedisMessage.class, afterClose);
+        assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
+    }
+
+    @Test
+    void shouldReturnNewDocumentsFromTailableCursor() {
+        // Behavior: A TAILABLE cursor stays open after the result set ends. BUCKET.ADVANCE returns
+        // no entries while nothing is new, and returns documents inserted after that.
+        insertDocumentsAndGetObjectIds(identicalDocuments(3));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(10).tailable());
+        int cursorId = extractCursorId(first);
+        assertNotEquals(-1, cursorId);
+        assertEquals(3, extractEntries(first).size());
+
+        Object second = advance(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, second);
+        assertEquals(cursorId, extractCursorId(second));
+        assertEquals(0, extractEntries(second).size());
+
+        Set<ObjectId> newIds = insertDocumentsAndGetObjectIds(identicalDocuments(2)).keySet();
+
+        Object third = advance(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, third);
+        assertEquals(cursorId, extractCursorId(third));
+        List<ObjectId> returnedIds = new ArrayList<>();
+        appendIds(extractEntries(third), returnedIds);
+        assertEquals(2, returnedIds.size());
+        assertTrue(newIds.containsAll(returnedIds));
+    }
+
+    @Test
+    void shouldCloseCursorOnEmptyRoundWhenLastBatchIsFull() {
+        // Behavior: With 10 matching documents and BATCH 5, the second round returns a full batch
+        // and keeps the cursor open. The third round returns no entries and cursor_id -1.
+        insertDocumentsAndGetObjectIds(identicalDocuments(10));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(5));
+        int cursorId = extractCursorId(first);
+        assertNotEquals(-1, cursorId);
+        assertEquals(5, extractEntries(first).size());
+
+        Object second = advance(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, second);
+        assertEquals(cursorId, extractCursorId(second));
+        assertEquals(5, extractEntries(second).size());
+
+        Object third = advance(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, third);
+        assertEquals(-1, extractCursorId(third));
+        assertEquals(0, extractEntries(third).size());
+    }
+
+    @Test
     void shouldApplyLimitWithSelectiveFilterOnFullScan() {
         // Behavior: With a selective residual filter on a full scan, LIMIT caps the total
         // across rounds. Rescan and cursor rewind return every match exactly once, no more than LIMIT.

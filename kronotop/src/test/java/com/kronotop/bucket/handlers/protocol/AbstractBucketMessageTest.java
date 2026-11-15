@@ -36,6 +36,45 @@ class AbstractBucketMessageTest {
     private final TestBucketMessage message = new TestBucketMessage();
 
     @Test
+    void shouldParseTailableArgument() {
+        // Behavior: TAILABLE takes no value and sets the tailable flag.
+        Request request = new TestRequest("bucket", "{}", "TAILABLE");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.TAILABLE);
+
+        QueryArguments args = message.parseCommonQueryArguments(request, 2, supported);
+
+        assertTrue(args.isTailable());
+    }
+
+    @Test
+    void shouldThrowWhenTailableIsGivenTwice() {
+        // Behavior: A repeated TAILABLE throws IllegalCommandArgumentException.
+        Request request = new TestRequest("bucket", "{}", "TAILABLE", "TAILABLE");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.TAILABLE);
+
+        IllegalCommandArgumentException ex = assertThrows(
+                IllegalCommandArgumentException.class,
+                () -> message.parseCommonQueryArguments(request, 2, supported)
+        );
+
+        assertEquals("Duplicate argument: 'TAILABLE'", ex.getMessage());
+    }
+
+    @Test
+    void shouldThrowWhenTailableNotSupported() {
+        // Behavior: Using TAILABLE when not in the supported set throws UnsupportedArgumentException.
+        Request request = new TestRequest("bucket", "{}", "TAILABLE");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.BATCH);
+
+        UnsupportedArgumentException ex = assertThrows(
+                UnsupportedArgumentException.class,
+                () -> message.parseCommonQueryArguments(request, 2, supported)
+        );
+
+        assertEquals("'TAILABLE' is an unsupported argument", ex.getMessage());
+    }
+
+    @Test
     void shouldParseBatchArgument() {
         // Behavior: BATCH followed by a positive integer sets the batch size.
         Request request = new TestRequest("bucket", "{}", "BATCH", "10");

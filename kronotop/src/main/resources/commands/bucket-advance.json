@@ -23,7 +23,7 @@
           "additionalProperties": false,
           "properties": {
             "cursor_id": {
-              "description": "The cursor ID for the next BUCKET.ADVANCE. -1 means the LIMIT was reached and the cursor no longer exists.",
+              "description": "The cursor ID for the next BUCKET.ADVANCE. -1 means the cursor no longer exists, because the result set ended or the LIMIT was reached.",
               "type": "integer"
             },
             "entries": {
@@ -42,7 +42,7 @@
           "additionalProperties": false,
           "properties": {
             "cursor_id": {
-              "description": "The cursor ID for the next BUCKET.ADVANCE. -1 means the LIMIT was reached and the cursor no longer exists.",
+              "description": "The cursor ID for the next BUCKET.ADVANCE. -1 means the cursor no longer exists, because the result set ended or the LIMIT was reached.",
               "type": "integer"
             },
             "object_ids": {

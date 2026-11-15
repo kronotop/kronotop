@@ -25,4 +25,5 @@ public enum QueryArgumentKey {
     COLLATION,
     NAMESPACE,
     CLOSE,
+    TAILABLE
 }

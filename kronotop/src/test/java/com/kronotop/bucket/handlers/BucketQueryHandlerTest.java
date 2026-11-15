@@ -2177,6 +2177,101 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldReturnMinusOneWhenResultSetEndsInFirstQuery() {
+        // Behavior: When fewer documents match than BATCH, BUCKET.QUERY returns all of them and
+        // cursor_id -1, and leaves no cursor in the session.
+        List<byte[]> documents = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            documents.add(TEST_DOCUMENT);
+        }
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(10)).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        assertEquals(-1, extractCursorId(msg));
+        assertEquals(3, extractEntries(msg).size());
+
+        ByteBuf cursorsBuf = Unpooled.buffer();
+        cmd.cursors("QUERY").encode(cursorsBuf);
+        Object cursors = runCommand(channel, cursorsBuf);
+        assertInstanceOf(MapRedisMessage.class, cursors);
+        MapRedisMessage queryCursors = (MapRedisMessage) findInMapMessage((MapRedisMessage) cursors, "QUERY");
+        assertTrue(queryCursors.children().isEmpty());
+    }
+
+    @Test
+    void shouldKeepCursorOpenWhenTailableIsGiven() {
+        // Behavior: With TAILABLE, BUCKET.QUERY keeps the cursor open after it returns every
+        // matching document. The response carries a cursor_id other than -1.
+        List<byte[]> documents = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            documents.add(TEST_DOCUMENT);
+        }
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(10).tailable()).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        assertNotEquals(-1, extractCursorId(msg));
+        assertEquals(3, extractEntries(msg).size());
+    }
+
+    @Test
+    void shouldReturnMinusOneWhenNoDocumentMatches() {
+        // Behavior: When the bucket has documents but none matches the filter, BUCKET.QUERY returns
+        // no entries and cursor_id -1.
+        List<byte[]> documents = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            documents.add(TEST_DOCUMENT);
+        }
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{\"one\": \"missing\"}", BucketQueryArgs.Builder.batch(10)).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        assertEquals(-1, extractCursorId(msg));
+        assertEquals(0, extractEntries(msg).size());
+    }
+
+    @Test
+    void shouldReturnMinusOneWhenFilterCanMatchNothing() {
+        // Behavior: A filter with an empty $in can match nothing. BUCKET.QUERY returns no entries
+        // and cursor_id -1.
+        List<byte[]> documents = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            documents.add(TEST_DOCUMENT);
+        }
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{\"one\": {\"$in\": []}}", BucketQueryArgs.Builder.batch(10)).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        assertEquals(-1, extractCursorId(msg));
+        assertEquals(0, extractEntries(msg).size());
+    }
+
+    @Test
     void shouldApplyLimitWithResultSort() {
         // Behavior: LIMIT caps the total documents across rounds. RESULTSORT sorts each round's
         // entries in memory before the effective batch is cut. The round that fills the LIMIT
