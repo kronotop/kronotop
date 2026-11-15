@@ -75,6 +75,24 @@ class AbstractBucketMessageTest {
     }
 
     @Test
+    void shouldThrowWhenTailableAndCloseAreGivenTogether() {
+        // Behavior: TAILABLE and CLOSE in the same command throw IllegalCommandArgumentException,
+        // in either order.
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.TAILABLE, QueryArgumentKey.CLOSE);
+
+        for (String[] flags : new String[][]{{"TAILABLE", "CLOSE"}, {"CLOSE", "TAILABLE"}}) {
+            Request request = new TestRequest("bucket", "{}", flags[0], flags[1]);
+
+            IllegalCommandArgumentException ex = assertThrows(
+                    IllegalCommandArgumentException.class,
+                    () -> message.parseCommonQueryArguments(request, 2, supported)
+            );
+
+            assertEquals("TAILABLE argument cannot be used with CLOSE", ex.getMessage());
+        }
+    }
+
+    @Test
     void shouldParseBatchArgument() {
         // Behavior: BATCH followed by a positive integer sets the batch size.
         Request request = new TestRequest("bucket", "{}", "BATCH", "10");

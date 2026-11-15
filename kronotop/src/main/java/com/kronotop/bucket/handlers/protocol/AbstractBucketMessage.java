@@ -20,6 +20,7 @@ package com.kronotop.bucket.handlers.protocol;
 import com.kronotop.bucket.handlers.CollationHelper;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.StringUtil;
+import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
@@ -149,6 +150,9 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                     arguments.setTailable(true);
                 }
             }
+        }
+        if (arguments.isTailable() && arguments.isClose()) {
+            throw new IllegalCommandArgumentException("TAILABLE argument cannot be used with CLOSE");
         }
         return arguments;
     }

@@ -78,14 +78,14 @@
         "type": "pure-token",
         "token": "TAILABLE",
         "optional": true,
-        "summary": "Keep the cursor open after the result set ends."
+        "summary": "Keep the cursor open after the result set ends. Cannot be used with CLOSE."
       },
       {
         "name": "close",
         "type": "pure-token",
         "token": "CLOSE",
         "optional": true,
-        "summary": "Close the cursor when the command returns."
+        "summary": "Close the cursor when the command returns. Cannot be used with TAILABLE."
       }
     ]
   }

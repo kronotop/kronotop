@@ -104,7 +104,10 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
                         "ERR Unknown argument: 'BOGUS'"),
                 arguments("NAMESPACE without value",
                         List.of("test-bucket", "{}", "NAMESPACE"),
-                        "ERR NAMESPACE argument must be followed by a namespace")
+                        "ERR NAMESPACE argument must be followed by a namespace"),
+                arguments("TAILABLE with CLOSE",
+                        List.of("test-bucket", "{}", "TAILABLE", "CLOSE"),
+                        "ERR TAILABLE argument cannot be used with CLOSE")
         );
     }
 
@@ -2402,8 +2405,8 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidArguments")
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
-        // Behavior: BUCKET.QUERY rejects a keyword without its value, an unusable value or an
-        // unknown keyword with an exact ERR reply.
+        // Behavior: BUCKET.QUERY rejects a keyword without its value, an unusable value, an
+        // unknown keyword or two keywords that cannot be used together with an exact ERR reply.
         Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_QUERY, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);
