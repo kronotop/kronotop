@@ -792,11 +792,12 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
 
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceUpdate(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<ObjectId> advancedIds = extractObjectIds(msg);
             if (advancedIds.isEmpty()) {
@@ -890,11 +891,12 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
 
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceUpdate(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<ObjectId> advancedIds = extractObjectIds(msg);
             if (advancedIds.isEmpty()) {

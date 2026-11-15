@@ -979,12 +979,13 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
 
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceUpdate(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
 
             List<ObjectId> objectIds = extractObjectIds(msg);
+            cursorId = extractCursorId(msg);
 
             // If no more entries, we're done
             if (objectIds.isEmpty()) {

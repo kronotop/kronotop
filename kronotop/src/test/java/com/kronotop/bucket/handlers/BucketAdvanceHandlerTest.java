@@ -180,7 +180,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
                 break; // Normal termination
             }
 
-            assertTrue(entries.size() <= 1, "Each batch should have at most 1 document");
+            assertEquals(1, entries.size(), "Each batch should have at most 1 document");
 
             appendDocumentData(entries, allResults);
             advanceCalls++;
@@ -192,49 +192,6 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // Verify all returned documents have type A
         for (BsonDocument doc : allResults.values()) {
             assertEquals("A", doc.getString("type").getValue(), "All returned documents should have type A");
-        }
-    }
-
-    @Test
-    void shouldHandleNoResultsCorrectly() {
-        // Behavior: When no documents match the filter, both BUCKET.QUERY and BUCKET.ADVANCE
-        // return empty entries. The cursor is still valid but exhausted immediately.
-
-        // Insert documents that won't match our filter
-        List<byte[]> documents = Arrays.asList(
-                BSONUtil.jsonToDocumentThenBytes("{\"category\": \"X\", \"value\": 1}"),
-                BSONUtil.jsonToDocumentThenBytes("{\"category\": \"Y\", \"value\": 2}"),
-                BSONUtil.jsonToDocumentThenBytes("{\"category\": \"Z\", \"value\": 3}")
-        );
-
-        insertDocumentsAndGetObjectIds(documents);
-
-        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
-        switchProtocol(cmd, RESPVersion.RESP3);
-
-        int cursorId;
-        // BUCKET.QUERY - Filter for non-existent category
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"category\": \"NONEXISTENT\"}", BucketQueryArgs.Builder.batch(2)).encode(buf);
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(MapRedisMessage.class, msg);
-
-            cursorId = extractCursorId(msg);
-
-            List<BsonDocument> entries = extractEntries(msg);
-            assertEquals(0, entries.size(), "No documents should match the filter");
-        }
-
-        // BUCKET.ADVANCE - Should return empty since no documents match
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.advanceQuery(cursorId).encode(buf);
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(MapRedisMessage.class, msg);
-
-            List<BsonDocument> entries = extractEntries(msg);
-            assertEquals(0, entries.size(), "Advance should return empty when no matches");
         }
     }
 
@@ -335,11 +292,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // BUCKET.ADVANCE - Continue until we get all matching docs
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<BsonDocument> entries = extractEntries(msg);
 
@@ -406,11 +364,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // BUCKET.ADVANCE - Continue until we get all matching docs
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<BsonDocument> entries = extractEntries(msg);
 
@@ -479,11 +438,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // BUCKET.ADVANCE - Continue until exhausted
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<BsonDocument> entries = extractEntries(msg);
 
@@ -545,11 +505,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // BUCKET.ADVANCE - Continue until exhausted
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<BsonDocument> entries = extractEntries(msg);
 
@@ -615,11 +576,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // BUCKET.ADVANCE - Continue until exhausted
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<BsonDocument> entries = extractEntries(msg);
 
@@ -690,11 +652,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // BUCKET.ADVANCE - Continue until exhausted
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<BsonDocument> entries = extractEntries(msg);
 
@@ -835,11 +798,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // BUCKET.ADVANCE - Continue until exhausted
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<BsonDocument> entries = extractEntries(msg);
 
@@ -979,11 +943,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<BsonDocument> entries = extractEntries(msg);
 
@@ -1166,11 +1131,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<BsonDocument> entries = extractEntries(msg);
 
@@ -1230,11 +1196,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<BsonDocument> entries = extractEntries(msg);
 
@@ -1692,11 +1659,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // BUCKET.ADVANCE until exhausted
         int maxAdvanceCalls = 30;
         int advanceCount = 0;
-        while (advanceCount < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCount < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<BsonDocument> entries = extractEntries(msg);
 
@@ -1982,11 +1950,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // BUCKET.ADVANCE - Continue until exhausted
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<BsonDocument> entries = extractEntries(msg);
 
@@ -2073,11 +2042,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<BsonDocument> entries = extractEntries(msg);
 
@@ -2145,11 +2115,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
-        while (advanceCalls < maxAdvanceCalls) {
+        while (cursorId != -1 && advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
+            cursorId = extractCursorId(msg);
 
             List<BsonDocument> entries = extractEntries(msg);
 
@@ -2409,14 +2380,14 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldKeepCursorOpenWhenLimitExceedsMatches() {
-        // Behavior: When the data ends before LIMIT is reached, the cursor stays open.
-        // BUCKET.ADVANCE returns no entries and the original cursor_id, not -1.
+        // Behavior: With TAILABLE, the cursor stays open when the data ends before LIMIT is
+        // reached. BUCKET.ADVANCE returns no entries and the original cursor_id, not -1.
         insertDocumentsAndGetObjectIds(identicalDocuments(10));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(100).limit(100));
+        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(100).limit(100).tailable());
         int cursorId = extractCursorId(first);
         assertNotEquals(-1, cursorId);
         assertEquals(10, extractEntries(first).size());

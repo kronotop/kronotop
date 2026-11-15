@@ -2415,7 +2415,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldReportOpenCursorInInfo() {
-        // Behavior: a QUERY without LIMIT leaves its cursor open on the session, and INFO bucket
+        // Behavior: a QUERY with TAILABLE leaves its cursor open on the session, and INFO bucket
         // reports it in open_cursors. The INSERT and QUERY calls are counted in bucket_inserts
         // and bucket_queries
         insertDocumentsAndGetObjectIds(List.of(TEST_DOCUMENT));
@@ -2423,11 +2423,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(TEST_BUCKET, "{}").encode(buf);
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.tailable()).encode(buf);
         assertInstanceOf(MapRedisMessage.class, runCommand(channel, buf));
         // Same shape again: first QUERY is a plan cache miss, second one is a hit
         ByteBuf secondBuf = Unpooled.buffer();
-        cmd.query(TEST_BUCKET, "{}").encode(secondBuf);
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.tailable()).encode(secondBuf);
         assertInstanceOf(MapRedisMessage.class, runCommand(channel, secondBuf));
 
         ByteBuf infoBuf = Unpooled.buffer();
