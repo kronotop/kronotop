@@ -279,19 +279,19 @@ class CommandMetadataLoaderTest {
     }
 
     @Test
-    void shouldDefineTailableArgumentForCursorCommands() {
-        // Behavior: the commands that open a cursor list TAILABLE, BUCKET.EXPLAIN does not list it
+    void shouldDefineKeepOpenArgumentForCursorCommands() {
+        // Behavior: the commands that open a cursor list KEEPOPEN, BUCKET.EXPLAIN does not list it
         Map<String, CommandMetadata> commands = CommandMetadataLoader.load().get(ServerKind.EXTERNAL);
 
         for (String name : List.of("BUCKET.QUERY", "BUCKET.DELETE", "BUCKET.UPDATE")) {
-            boolean hasTailable = commands.get(name).arguments().stream()
-                    .anyMatch(argument -> "TAILABLE".equals(argument.token()));
-            assertTrue(hasTailable, name);
+            boolean hasKeepOpen = commands.get(name).arguments().stream()
+                    .anyMatch(argument -> "KEEPOPEN".equals(argument.token()));
+            assertTrue(hasKeepOpen, name);
         }
 
-        boolean explainHasTailable = commands.get("BUCKET.EXPLAIN").arguments().stream()
-                .anyMatch(argument -> "TAILABLE".equals(argument.token()));
-        assertFalse(explainHasTailable);
+        boolean explainHasKeepOpen = commands.get("BUCKET.EXPLAIN").arguments().stream()
+                .anyMatch(argument -> "KEEPOPEN".equals(argument.token()));
+        assertFalse(explainHasKeepOpen);
     }
 
     @Test

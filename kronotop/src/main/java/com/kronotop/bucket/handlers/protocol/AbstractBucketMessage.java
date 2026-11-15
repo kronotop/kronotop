@@ -143,16 +143,16 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                     }
                     arguments.setClose(true);
                 }
-                case TAILABLE -> {
-                    if (!supportedArguments.contains(QueryArgumentKey.TAILABLE)) {
-                        throw new UnsupportedArgumentException(QueryArgumentKey.TAILABLE);
+                case KEEPOPEN -> {
+                    if (!supportedArguments.contains(QueryArgumentKey.KEEPOPEN)) {
+                        throw new UnsupportedArgumentException(QueryArgumentKey.KEEPOPEN);
                     }
-                    arguments.setTailable(true);
+                    arguments.setKeepOpen(true);
                 }
             }
         }
-        if (arguments.isTailable() && arguments.isClose()) {
-            throw new IllegalCommandArgumentException("TAILABLE argument cannot be used with CLOSE");
+        if (arguments.isKeepOpen() && arguments.isClose()) {
+            throw new IllegalCommandArgumentException("KEEPOPEN argument cannot be used with CLOSE");
         }
         return arguments;
     }

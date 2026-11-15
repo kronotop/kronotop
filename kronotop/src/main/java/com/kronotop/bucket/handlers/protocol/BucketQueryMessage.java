@@ -35,7 +35,7 @@ public class BucketQueryMessage extends AbstractBucketMessage implements Protoco
             QueryArgumentKey.LIMIT,
             QueryArgumentKey.NAMESPACE,
             QueryArgumentKey.CLOSE,
-            QueryArgumentKey.TAILABLE
+            QueryArgumentKey.KEEPOPEN
     );
     private final Request request;
     private byte[] query;

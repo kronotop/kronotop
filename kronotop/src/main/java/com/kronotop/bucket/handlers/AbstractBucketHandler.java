@@ -377,8 +377,8 @@ public abstract class AbstractBucketHandler implements Handler {
             builder.collation(arguments.getCollation());
         }
 
-        if (arguments.isTailable()) {
-            builder.tailable(arguments.isTailable());
+        if (arguments.isKeepOpen()) {
+            builder.keepOpen(arguments.isKeepOpen());
         }
         return builder.build();
     }
@@ -466,10 +466,10 @@ public abstract class AbstractBucketHandler implements Handler {
 
         BqlExpr expr = BqlParser.parse(query);
         // $or, and $in on an indexed field, run as several scans. Once every scan reaches its end,
-        // ADVANCE does not read them again. A TAILABLE cursor would stay open and never return new
+        // ADVANCE does not read them again. A KEEPOPEN cursor would stay open and never return new
         // documents. The query decides, so the command is rejected with or without an index.
-        if (arguments.isTailable() && containsOrOrIn(expr)) {
-            throw new IllegalCommandArgumentException("TAILABLE argument cannot be used with $or or $in");
+        if (arguments.isKeepOpen() && containsOrOrIn(expr)) {
+            throw new IllegalCommandArgumentException("KEEPOPEN argument cannot be used with $or or $in");
         }
         session.setQuery(expr);
         List<BqlValue> parameters = ParameterExtractor.extract(expr);
@@ -543,8 +543,8 @@ public abstract class AbstractBucketHandler implements Handler {
     }
 
     /**
-     * Removes the query context from the session when the LIMIT budget is used up or a non-tailable
-     * cursor reaches the end of its result set.
+     * Removes the query context from the session when the LIMIT budget is used up or a cursor
+     * without KEEPOPEN reaches the end of its result set.
      *
      * @param ctx       the query context of the current cursor
      * @param session   the client session that owns the cursor
@@ -563,7 +563,7 @@ public abstract class AbstractBucketHandler implements Handler {
 
     /**
      * Removes the query context from the session when the client asked to close the cursor, the
-     * LIMIT budget is used up, or a non-tailable cursor reaches the end of its result set.
+     * LIMIT budget is used up, or a cursor without KEEPOPEN reaches the end of its result set.
      *
      * @param ctx       the query context of the current cursor
      * @param session   the client session that owns the cursor
@@ -579,7 +579,7 @@ public abstract class AbstractBucketHandler implements Handler {
             BucketOperation operation,
             boolean close
     ) {
-        if (close || ctx.isLimitReached() || (!ctx.options().isTailable() && ctx.isExhausted())) {
+        if (close || ctx.isLimitReached() || (!ctx.options().isKeepOpen() && ctx.isExhausted())) {
             Map<Integer, QueryContext> contexts = findQueryContext(session, operation);
             contexts.remove(cursorId);
             return true;

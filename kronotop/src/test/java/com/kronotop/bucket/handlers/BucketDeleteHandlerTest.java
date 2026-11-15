@@ -756,29 +756,29 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldKeepDeleteCursorOpenWhenTailableIsGiven() {
-        // Behavior: With TAILABLE, BUCKET.DELETE keeps the cursor open after it deletes every
+    void shouldKeepDeleteCursorOpenWhenKeepOpenIsGiven() {
+        // Behavior: With KEEPOPEN, BUCKET.DELETE keeps the cursor open after it deletes every
         // matching document. The response carries a cursor_id other than -1.
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
         insertDocumentsAndGetObjectIds(identicalDocuments(3));
 
-        Object msg = deleteWithArgs(cmd, "{}", BucketQueryArgs.Builder.batch(10).tailable());
+        Object msg = deleteWithArgs(cmd, "{}", BucketQueryArgs.Builder.batch(10).keepOpen());
         assertNotEquals(-1, extractCursorId(msg));
         assertEquals(3, extractObjectIds(msg).size());
     }
 
     @Test
-    void shouldKeepTailableDeleteCursorOpenOnAdvance() {
-        // Behavior: A TAILABLE delete cursor stays open after it deletes every matching document.
+    void shouldKeepKeepOpenDeleteCursorOpenOnAdvance() {
+        // Behavior: A KEEPOPEN delete cursor stays open after it deletes every matching document.
         // ADVANCE DELETE returns no ids and the original cursor_id, not -1.
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
         insertDocumentsAndGetObjectIds(identicalDocuments(3));
 
-        Object first = deleteWithArgs(cmd, "{}", BucketQueryArgs.Builder.batch(10).tailable());
+        Object first = deleteWithArgs(cmd, "{}", BucketQueryArgs.Builder.batch(10).keepOpen());
         int cursorId = extractCursorId(first);
         assertNotEquals(-1, cursorId);
         assertEquals(3, extractObjectIds(first).size());
@@ -1422,21 +1422,21 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldRejectTailableWithClose() {
-        // Behavior: BUCKET.DELETE rejects TAILABLE and CLOSE in the same command with an exact ERR reply.
+    void shouldRejectKeepOpenWithClose() {
+        // Behavior: BUCKET.DELETE rejects KEEPOPEN and CLOSE in the same command with an exact ERR reply.
         Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_DELETE,
-                List.of("test-bucket", "{}", "TAILABLE", "CLOSE"));
+                List.of("test-bucket", "{}", "KEEPOPEN", "CLOSE"));
 
-        assertErrorReply("ERR TAILABLE argument cannot be used with CLOSE", response);
+        assertErrorReply("ERR KEEPOPEN argument cannot be used with CLOSE", response);
     }
 
     @Test
-    void shouldRejectTailableWithOr() {
-        // Behavior: BUCKET.DELETE rejects TAILABLE with a query that has $or with an exact ERR reply.
+    void shouldRejectKeepOpenWithOr() {
+        // Behavior: BUCKET.DELETE rejects KEEPOPEN with a query that has $or with an exact ERR reply.
         Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_DELETE,
-                List.of("test-bucket", "{\"$or\": [{\"a\": 1}, {\"b\": 2}]}", "TAILABLE"));
+                List.of("test-bucket", "{\"$or\": [{\"a\": 1}, {\"b\": 2}]}", "KEEPOPEN"));
 
-        assertErrorReply("ERR TAILABLE argument cannot be used with $or or $in", response);
+        assertErrorReply("ERR KEEPOPEN argument cannot be used with $or or $in", response);
     }
 
     @Test

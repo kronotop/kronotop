@@ -61,7 +61,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
     private static final String COLLATION_BUCKET = "collation-bucket";
-    private static final String TAILABLE_WITH_OR_OR_IN_ERROR = "ERR TAILABLE argument cannot be used with $or or $in";
+    private static final String KEEPOPEN_WITH_OR_OR_IN_ERROR = "ERR KEEPOPEN argument cannot be used with $or or $in";
 
     static Stream<Arguments> duplicateArguments() {
         return Stream.of(
@@ -106,24 +106,24 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
                 arguments("NAMESPACE without value",
                         List.of("test-bucket", "{}", "NAMESPACE"),
                         "ERR NAMESPACE argument must be followed by a namespace"),
-                arguments("TAILABLE with CLOSE",
-                        List.of("test-bucket", "{}", "TAILABLE", "CLOSE"),
-                        "ERR TAILABLE argument cannot be used with CLOSE"),
-                arguments("TAILABLE with $or",
-                        List.of("test-bucket", "{\"$or\": [{\"a\": 1}, {\"b\": 2}]}", "TAILABLE"),
-                        TAILABLE_WITH_OR_OR_IN_ERROR),
-                arguments("TAILABLE with $in",
-                        List.of("test-bucket", "{\"a\": {\"$in\": [1, 2]}}", "TAILABLE"),
-                        TAILABLE_WITH_OR_OR_IN_ERROR),
-                arguments("TAILABLE with $or inside $and",
-                        List.of("test-bucket", "{\"$and\": [{\"a\": 1}, {\"$or\": [{\"b\": 1}, {\"b\": 2}]}]}", "TAILABLE"),
-                        TAILABLE_WITH_OR_OR_IN_ERROR),
-                arguments("TAILABLE with $in inside $elemMatch",
-                        List.of("test-bucket", "{\"a\": {\"$elemMatch\": {\"$in\": [1, 2]}}}", "TAILABLE"),
-                        TAILABLE_WITH_OR_OR_IN_ERROR),
-                arguments("TAILABLE with $in inside $not",
-                        List.of("test-bucket", "{\"a\": {\"$not\": {\"$in\": [1, 2]}}}", "TAILABLE"),
-                        TAILABLE_WITH_OR_OR_IN_ERROR)
+                arguments("KEEPOPEN with CLOSE",
+                        List.of("test-bucket", "{}", "KEEPOPEN", "CLOSE"),
+                        "ERR KEEPOPEN argument cannot be used with CLOSE"),
+                arguments("KEEPOPEN with $or",
+                        List.of("test-bucket", "{\"$or\": [{\"a\": 1}, {\"b\": 2}]}", "KEEPOPEN"),
+                        KEEPOPEN_WITH_OR_OR_IN_ERROR),
+                arguments("KEEPOPEN with $in",
+                        List.of("test-bucket", "{\"a\": {\"$in\": [1, 2]}}", "KEEPOPEN"),
+                        KEEPOPEN_WITH_OR_OR_IN_ERROR),
+                arguments("KEEPOPEN with $or inside $and",
+                        List.of("test-bucket", "{\"$and\": [{\"a\": 1}, {\"$or\": [{\"b\": 1}, {\"b\": 2}]}]}", "KEEPOPEN"),
+                        KEEPOPEN_WITH_OR_OR_IN_ERROR),
+                arguments("KEEPOPEN with $in inside $elemMatch",
+                        List.of("test-bucket", "{\"a\": {\"$elemMatch\": {\"$in\": [1, 2]}}}", "KEEPOPEN"),
+                        KEEPOPEN_WITH_OR_OR_IN_ERROR),
+                arguments("KEEPOPEN with $in inside $not",
+                        List.of("test-bucket", "{\"a\": {\"$not\": {\"$in\": [1, 2]}}}", "KEEPOPEN"),
+                        KEEPOPEN_WITH_OR_OR_IN_ERROR)
         );
     }
 
@@ -2225,8 +2225,8 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldKeepCursorOpenWhenTailableIsGiven() {
-        // Behavior: With TAILABLE, BUCKET.QUERY keeps the cursor open after it returns every
+    void shouldKeepCursorOpenWhenKeepOpenIsGiven() {
+        // Behavior: With KEEPOPEN, BUCKET.QUERY keeps the cursor open after it returns every
         // matching document. The response carries a cursor_id other than -1.
         List<byte[]> documents = new ArrayList<>();
         for (int i = 0; i < 3; i++) {
@@ -2238,7 +2238,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(10).tailable()).encode(buf);
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(10).keepOpen()).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -2247,8 +2247,8 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldAcceptTailableWithAndAndNin() {
-        // Behavior: BUCKET.QUERY accepts TAILABLE with a query that has $and, $gt and $nin. With 2
+    void shouldAcceptKeepOpenWithAndAndNin() {
+        // Behavior: BUCKET.QUERY accepts KEEPOPEN with a query that has $and, $gt and $nin. With 2
         // matching documents and BATCH 10, it returns both and a cursor_id other than -1.
         insertDocumentsAndGetObjectIds(List.of(
                 BSONUtil.jsonToDocumentThenBytes("{\"age\": 30}"),
@@ -2260,7 +2260,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         cmd.query(TEST_BUCKET, "{\"$and\": [{\"age\": {\"$gt\": 10}}, {\"age\": {\"$nin\": [20]}}]}",
-                BucketQueryArgs.Builder.batch(10).tailable()).encode(buf);
+                BucketQueryArgs.Builder.batch(10).keepOpen()).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -2444,7 +2444,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     @MethodSource("invalidArguments")
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
         // Behavior: BUCKET.QUERY rejects a keyword without its value, an unusable value, an
-        // unknown keyword, two keywords that cannot be used together, or TAILABLE with a query
+        // unknown keyword, two keywords that cannot be used together, or KEEPOPEN with a query
         // that has $or or $in, with an exact ERR reply.
         Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_QUERY, rawArgs);
 
@@ -2454,7 +2454,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldReportOpenCursorInInfo() {
-        // Behavior: a QUERY with TAILABLE leaves its cursor open on the session, and INFO bucket
+        // Behavior: a QUERY with KEEPOPEN leaves its cursor open on the session, and INFO bucket
         // reports it in open_cursors. The INSERT and QUERY calls are counted in bucket_inserts
         // and bucket_queries
         insertDocumentsAndGetObjectIds(List.of(TEST_DOCUMENT));
@@ -2462,11 +2462,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.tailable()).encode(buf);
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.keepOpen()).encode(buf);
         assertInstanceOf(MapRedisMessage.class, runCommand(channel, buf));
         // Same shape again: first QUERY is a plan cache miss, second one is a hit
         ByteBuf secondBuf = Unpooled.buffer();
-        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.tailable()).encode(secondBuf);
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.keepOpen()).encode(secondBuf);
         assertInstanceOf(MapRedisMessage.class, runCommand(channel, secondBuf));
 
         ByteBuf infoBuf = Unpooled.buffer();

@@ -36,34 +36,34 @@ class AbstractBucketMessageTest {
     private final TestBucketMessage message = new TestBucketMessage();
 
     @Test
-    void shouldParseTailableArgument() {
-        // Behavior: TAILABLE takes no value and sets the tailable flag.
-        Request request = new TestRequest("bucket", "{}", "TAILABLE");
-        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.TAILABLE);
+    void shouldParseKeepOpenArgument() {
+        // Behavior: KEEPOPEN takes no value and sets the keepOpen flag.
+        Request request = new TestRequest("bucket", "{}", "KEEPOPEN");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.KEEPOPEN);
 
         QueryArguments args = message.parseCommonQueryArguments(request, 2, supported);
 
-        assertTrue(args.isTailable());
+        assertTrue(args.isKeepOpen());
     }
 
     @Test
-    void shouldThrowWhenTailableIsGivenTwice() {
-        // Behavior: A repeated TAILABLE throws IllegalCommandArgumentException.
-        Request request = new TestRequest("bucket", "{}", "TAILABLE", "TAILABLE");
-        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.TAILABLE);
+    void shouldThrowWhenKeepOpenIsGivenTwice() {
+        // Behavior: A repeated KEEPOPEN throws IllegalCommandArgumentException.
+        Request request = new TestRequest("bucket", "{}", "KEEPOPEN", "KEEPOPEN");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.KEEPOPEN);
 
         IllegalCommandArgumentException ex = assertThrows(
                 IllegalCommandArgumentException.class,
                 () -> message.parseCommonQueryArguments(request, 2, supported)
         );
 
-        assertEquals("Duplicate argument: 'TAILABLE'", ex.getMessage());
+        assertEquals("Duplicate argument: 'KEEPOPEN'", ex.getMessage());
     }
 
     @Test
-    void shouldThrowWhenTailableNotSupported() {
-        // Behavior: Using TAILABLE when not in the supported set throws UnsupportedArgumentException.
-        Request request = new TestRequest("bucket", "{}", "TAILABLE");
+    void shouldThrowWhenKeepOpenNotSupported() {
+        // Behavior: Using KEEPOPEN when not in the supported set throws UnsupportedArgumentException.
+        Request request = new TestRequest("bucket", "{}", "KEEPOPEN");
         Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.BATCH);
 
         UnsupportedArgumentException ex = assertThrows(
@@ -71,16 +71,16 @@ class AbstractBucketMessageTest {
                 () -> message.parseCommonQueryArguments(request, 2, supported)
         );
 
-        assertEquals("'TAILABLE' is an unsupported argument", ex.getMessage());
+        assertEquals("'KEEPOPEN' is an unsupported argument", ex.getMessage());
     }
 
     @Test
-    void shouldThrowWhenTailableAndCloseAreGivenTogether() {
-        // Behavior: TAILABLE and CLOSE in the same command throw IllegalCommandArgumentException,
+    void shouldThrowWhenKeepOpenAndCloseAreGivenTogether() {
+        // Behavior: KEEPOPEN and CLOSE in the same command throw IllegalCommandArgumentException,
         // in either order.
-        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.TAILABLE, QueryArgumentKey.CLOSE);
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.KEEPOPEN, QueryArgumentKey.CLOSE);
 
-        for (String[] flags : new String[][]{{"TAILABLE", "CLOSE"}, {"CLOSE", "TAILABLE"}}) {
+        for (String[] flags : new String[][]{{"KEEPOPEN", "CLOSE"}, {"CLOSE", "KEEPOPEN"}}) {
             Request request = new TestRequest("bucket", "{}", flags[0], flags[1]);
 
             IllegalCommandArgumentException ex = assertThrows(
@@ -88,7 +88,7 @@ class AbstractBucketMessageTest {
                     () -> message.parseCommonQueryArguments(request, 2, supported)
             );
 
-            assertEquals("TAILABLE argument cannot be used with CLOSE", ex.getMessage());
+            assertEquals("KEEPOPEN argument cannot be used with CLOSE", ex.getMessage());
         }
     }
 

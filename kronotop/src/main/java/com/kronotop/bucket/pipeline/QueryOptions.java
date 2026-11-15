@@ -62,7 +62,7 @@ public class QueryOptions {
 
     private final Collation collation;
 
-    private final boolean tailable;
+    private final boolean keepOpen;
 
     private QueryOptions(Builder builder) {
         this.sortByField = builder.sortByField;
@@ -73,7 +73,7 @@ public class QueryOptions {
         this.batch = builder.batch;
         this.update = builder.update;
         this.collation = builder.collation;
-        this.tailable = builder.tailable;
+        this.keepOpen = builder.keepOpen;
     }
 
     /**
@@ -158,8 +158,8 @@ public class QueryOptions {
         return collation;
     }
 
-    public boolean isTailable() {
-        return tailable;
+    public boolean isKeepOpen() {
+        return keepOpen;
     }
 
     /**
@@ -199,7 +199,7 @@ public class QueryOptions {
          */
         private int batch = QueryContext.DEFAULT_BATCH;
 
-        private boolean tailable;
+        private boolean keepOpen;
 
         /**
          * Sets the field name to use for sorting results.
@@ -288,8 +288,8 @@ public class QueryOptions {
             return this;
         }
 
-        public Builder tailable(boolean tailable) {
-            this.tailable = tailable;
+        public Builder keepOpen(boolean keepOpen) {
+            this.keepOpen = keepOpen;
             return this;
         }
 

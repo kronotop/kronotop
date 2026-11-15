@@ -3115,8 +3115,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldKeepUpdateCursorOpenWhenTailableIsGiven() {
-        // Behavior: With TAILABLE, BUCKET.UPDATE keeps the cursor open after it updates every
+    void shouldKeepUpdateCursorOpenWhenKeepOpenIsGiven() {
+        // Behavior: With KEEPOPEN, BUCKET.UPDATE keeps the cursor open after it updates every
         // matching document. The response carries a cursor_id other than -1.
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
@@ -3124,7 +3124,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         insertDocumentsAndGetObjectIds(identicalDocuments(3));
 
         Object msg = updateWithArgs(cmd, "{}", "{\"$set\": {\"status\": \"updated\"}}",
-                BucketQueryArgs.Builder.batch(10).tailable());
+                BucketQueryArgs.Builder.batch(10).keepOpen());
         assertNotEquals(-1, extractCursorId(msg));
         assertEquals(3, extractObjectIds(msg).size());
     }
@@ -3186,21 +3186,21 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldRejectTailableWithClose() {
-        // Behavior: BUCKET.UPDATE rejects TAILABLE and CLOSE in the same command with an exact ERR reply.
+    void shouldRejectKeepOpenWithClose() {
+        // Behavior: BUCKET.UPDATE rejects KEEPOPEN and CLOSE in the same command with an exact ERR reply.
         Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_UPDATE,
-                List.of("test-bucket", "{}", "{\"$set\":{\"a\":1}}", "TAILABLE", "CLOSE"));
+                List.of("test-bucket", "{}", "{\"$set\":{\"a\":1}}", "KEEPOPEN", "CLOSE"));
 
-        assertErrorReply("ERR TAILABLE argument cannot be used with CLOSE", response);
+        assertErrorReply("ERR KEEPOPEN argument cannot be used with CLOSE", response);
     }
 
     @Test
-    void shouldRejectTailableWithOr() {
-        // Behavior: BUCKET.UPDATE rejects TAILABLE with a query that has $or with an exact ERR reply.
+    void shouldRejectKeepOpenWithOr() {
+        // Behavior: BUCKET.UPDATE rejects KEEPOPEN with a query that has $or with an exact ERR reply.
         Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_UPDATE,
-                List.of("test-bucket", "{\"$or\": [{\"a\": 1}, {\"b\": 2}]}", "{\"$set\":{\"a\":1}}", "TAILABLE"));
+                List.of("test-bucket", "{\"$or\": [{\"a\": 1}, {\"b\": 2}]}", "{\"$set\":{\"a\":1}}", "KEEPOPEN"));
 
-        assertErrorReply("ERR TAILABLE argument cannot be used with $or or $in", response);
+        assertErrorReply("ERR KEEPOPEN argument cannot be used with $or or $in", response);
     }
 
     @Test

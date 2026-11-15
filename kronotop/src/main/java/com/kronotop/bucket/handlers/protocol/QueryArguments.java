@@ -35,7 +35,7 @@ public class QueryArguments {
     private Collation collation;
     private String namespace;
     private boolean close;
-    private boolean tailable;
+    private boolean keepOpen;
 
     /**
      * Returns the batch size, or 0 if not specified.
@@ -144,11 +144,11 @@ public class QueryArguments {
         this.close = close;
     }
 
-    public void setTailable(boolean tailable) {
-        this.tailable = tailable;
+    public void setKeepOpen(boolean keepOpen) {
+        this.keepOpen = keepOpen;
     }
 
-    public boolean isTailable() {
-        return tailable;
+    public boolean isKeepOpen() {
+        return keepOpen;
     }
 }

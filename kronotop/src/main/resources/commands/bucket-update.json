@@ -108,9 +108,9 @@
         "summary": "The namespace to run the command in. Defaults to the session's current namespace."
       },
       {
-        "name": "tailable",
+        "name": "keepopen",
         "type": "pure-token",
-        "token": "TAILABLE",
+        "token": "KEEPOPEN",
         "optional": true,
         "summary": "Keep the cursor open after the result set ends. Cannot be used with CLOSE."
       },
@@ -119,7 +119,7 @@
         "type": "pure-token",
         "token": "CLOSE",
         "optional": true,
-        "summary": "Close the cursor when the command returns. Cannot be used with TAILABLE."
+        "summary": "Close the cursor when the command returns. Cannot be used with KEEPOPEN."
       }
     ]
   }

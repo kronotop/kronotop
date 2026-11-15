@@ -2380,14 +2380,14 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldKeepCursorOpenWhenLimitExceedsMatches() {
-        // Behavior: With TAILABLE, the cursor stays open when the data ends before LIMIT is
+        // Behavior: With KEEPOPEN, the cursor stays open when the data ends before LIMIT is
         // reached. BUCKET.ADVANCE returns no entries and the original cursor_id, not -1.
         insertDocumentsAndGetObjectIds(identicalDocuments(10));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(100).limit(100).tailable());
+        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(100).limit(100).keepOpen());
         int cursorId = extractCursorId(first);
         assertNotEquals(-1, cursorId);
         assertEquals(10, extractEntries(first).size());
@@ -2428,15 +2428,15 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldReturnNewDocumentsFromTailableCursor() {
-        // Behavior: A TAILABLE cursor stays open after the result set ends. BUCKET.ADVANCE returns
+    void shouldReturnNewDocumentsFromKeepOpenCursor() {
+        // Behavior: A KEEPOPEN cursor stays open after the result set ends. BUCKET.ADVANCE returns
         // no entries while nothing is new, and returns documents inserted after that.
         insertDocumentsAndGetObjectIds(identicalDocuments(3));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(10).tailable());
+        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(10).keepOpen());
         int cursorId = extractCursorId(first);
         assertNotEquals(-1, cursorId);
         assertEquals(3, extractEntries(first).size());

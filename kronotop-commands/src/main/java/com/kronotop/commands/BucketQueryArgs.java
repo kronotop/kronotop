@@ -29,7 +29,7 @@ public class BucketQueryArgs {
     private String collation;
     private String namespace;
     private boolean close;
-    private boolean tailable;
+    private boolean keepOpen;
 
     public BucketQueryArgs limit(int limit) {
         this.limit = limit;
@@ -73,8 +73,8 @@ public class BucketQueryArgs {
         return this;
     }
 
-    public BucketQueryArgs tailable() {
-        this.tailable = true;
+    public BucketQueryArgs keepOpen() {
+        this.keepOpen = true;
         return this;
     }
 
@@ -116,8 +116,8 @@ public class BucketQueryArgs {
             args.add(namespace);
         }
 
-        if (tailable) {
-            args.add("TAILABLE");
+        if (keepOpen) {
+            args.add("KEEPOPEN");
         }
 
         if (close) {
@@ -161,8 +161,8 @@ public class BucketQueryArgs {
             return new BucketQueryArgs().close();
         }
 
-        public static BucketQueryArgs tailable() {
-            return new BucketQueryArgs().tailable();
+        public static BucketQueryArgs keepOpen() {
+            return new BucketQueryArgs().keepOpen();
         }
     }
 }
