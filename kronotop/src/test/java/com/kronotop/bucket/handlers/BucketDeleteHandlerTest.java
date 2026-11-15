@@ -1431,6 +1431,15 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldRejectTailableWithOr() {
+        // Behavior: BUCKET.DELETE rejects TAILABLE with a query that has $or with an exact ERR reply.
+        Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_DELETE,
+                List.of("test-bucket", "{\"$or\": [{\"a\": 1}, {\"b\": 2}]}", "TAILABLE"));
+
+        assertErrorReply("ERR TAILABLE argument cannot be used with $or or $in", response);
+    }
+
+    @Test
     void shouldDeleteInGivenNamespace() {
         // Behavior: NAMESPACE runs the delete in the given namespace. Documents in the session's
         // current namespace stay untouched.

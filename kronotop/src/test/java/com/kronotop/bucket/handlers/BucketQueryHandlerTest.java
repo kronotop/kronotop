@@ -61,6 +61,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
     private static final String COLLATION_BUCKET = "collation-bucket";
+    private static final String TAILABLE_WITH_OR_OR_IN_ERROR = "ERR TAILABLE argument cannot be used with $or or $in";
 
     static Stream<Arguments> duplicateArguments() {
         return Stream.of(
@@ -107,7 +108,22 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
                         "ERR NAMESPACE argument must be followed by a namespace"),
                 arguments("TAILABLE with CLOSE",
                         List.of("test-bucket", "{}", "TAILABLE", "CLOSE"),
-                        "ERR TAILABLE argument cannot be used with CLOSE")
+                        "ERR TAILABLE argument cannot be used with CLOSE"),
+                arguments("TAILABLE with $or",
+                        List.of("test-bucket", "{\"$or\": [{\"a\": 1}, {\"b\": 2}]}", "TAILABLE"),
+                        TAILABLE_WITH_OR_OR_IN_ERROR),
+                arguments("TAILABLE with $in",
+                        List.of("test-bucket", "{\"a\": {\"$in\": [1, 2]}}", "TAILABLE"),
+                        TAILABLE_WITH_OR_OR_IN_ERROR),
+                arguments("TAILABLE with $or inside $and",
+                        List.of("test-bucket", "{\"$and\": [{\"a\": 1}, {\"$or\": [{\"b\": 1}, {\"b\": 2}]}]}", "TAILABLE"),
+                        TAILABLE_WITH_OR_OR_IN_ERROR),
+                arguments("TAILABLE with $in inside $elemMatch",
+                        List.of("test-bucket", "{\"a\": {\"$elemMatch\": {\"$in\": [1, 2]}}}", "TAILABLE"),
+                        TAILABLE_WITH_OR_OR_IN_ERROR),
+                arguments("TAILABLE with $in inside $not",
+                        List.of("test-bucket", "{\"a\": {\"$not\": {\"$in\": [1, 2]}}}", "TAILABLE"),
+                        TAILABLE_WITH_OR_OR_IN_ERROR)
         );
     }
 
@@ -2231,6 +2247,28 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldAcceptTailableWithAndAndNin() {
+        // Behavior: BUCKET.QUERY accepts TAILABLE with a query that has $and, $gt and $nin. With 2
+        // matching documents and BATCH 10, it returns both and a cursor_id other than -1.
+        insertDocumentsAndGetObjectIds(List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"age\": 30}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"age\": 40}")
+        ));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{\"$and\": [{\"age\": {\"$gt\": 10}}, {\"age\": {\"$nin\": [20]}}]}",
+                BucketQueryArgs.Builder.batch(10).tailable()).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        assertNotEquals(-1, extractCursorId(msg));
+        assertEquals(2, extractEntries(msg).size());
+    }
+
+    @Test
     void shouldReturnMinusOneWhenNoDocumentMatches() {
         // Behavior: When the bucket has documents but none matches the filter, BUCKET.QUERY returns
         // no entries and cursor_id -1.
@@ -2406,7 +2444,8 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     @MethodSource("invalidArguments")
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
         // Behavior: BUCKET.QUERY rejects a keyword without its value, an unusable value, an
-        // unknown keyword or two keywords that cannot be used together with an exact ERR reply.
+        // unknown keyword, two keywords that cannot be used together, or TAILABLE with a query
+        // that has $or or $in, with an exact ERR reply.
         Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_QUERY, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);
