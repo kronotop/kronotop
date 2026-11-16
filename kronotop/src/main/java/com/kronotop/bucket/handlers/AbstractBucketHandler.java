@@ -85,6 +85,10 @@ public abstract class AbstractBucketHandler implements Handler {
         return new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(input.getBytes(StandardCharsets.UTF_8)));
     }
 
+    private static boolean isDone(QueryContext ctx) {
+        return ctx.isLimitReached() || ctx.isExhausted();
+    }
+
     /**
      * Returns the input type of the request's session.
      *
@@ -561,9 +565,5 @@ public abstract class AbstractBucketHandler implements Handler {
         int cursorId = session.nextCursorId();
         findQueryContext(session, operation).put(cursorId, ctx);
         return cursorId;
-    }
-
-    private static boolean isDone(QueryContext ctx) {
-        return ctx.isLimitReached() || ctx.isExhausted();
     }
 }

@@ -48,7 +48,7 @@ class CommandHighlighterTest {
         assertEquals(expected, actual, "Style mismatch at index " + index + " (char: '" + str.charAt(index) + "')");
     }
 
-    // ==================== Command Style Tests ====================
+    // Command Style Tests
 
     @Test
     void shouldColorCommandBlueAndBold() {
@@ -71,7 +71,7 @@ class CommandHighlighterTest {
         assertStyleAt(result, 2, COMMAND_STYLE); // t
     }
 
-    // ==================== JSON Key Style Tests ====================
+    // JSON Key Style Tests
 
     @Test
     void shouldColorJsonKeyBlue() {
@@ -98,7 +98,7 @@ class CommandHighlighterTest {
         assertStyleAt(result, 8, KEY_STYLE);  // n
     }
 
-    // ==================== JSON String Value Tests ====================
+    // JSON String Value Tests
 
     @Test
     void shouldColorStringValueGreen() {
@@ -117,7 +117,7 @@ class CommandHighlighterTest {
         assertStyleAt(result, 20, STRING_STYLE); // "
     }
 
-    // ==================== JSON Number Tests ====================
+    // JSON Number Tests
 
     @Test
     void shouldColorNumberYellow() {
@@ -141,7 +141,7 @@ class CommandHighlighterTest {
         assertStyleAt(result, 13, NUMBER_STYLE); // 5
     }
 
-    // ==================== JSON Boolean Tests ====================
+    // JSON Boolean Tests
 
     @Test
     void shouldColorBooleanTrueMagenta() {
@@ -170,7 +170,7 @@ class CommandHighlighterTest {
         assertStyleAt(result, 16, BOOLEAN_STYLE); // e
     }
 
-    // ==================== JSON Null Tests ====================
+    // JSON Null Tests
 
     @Test
     void shouldColorNullRed() {
@@ -184,7 +184,7 @@ class CommandHighlighterTest {
         assertStyleAt(result, 15, NULL_STYLE); // l
     }
 
-    // ==================== Operator Tests ====================
+    // Operator Tests
 
     @Test
     void shouldColorOperatorMagentaBold() {
@@ -202,7 +202,7 @@ class CommandHighlighterTest {
         assertStyleAt(result, 28, OPERATOR_STYLE); // "
     }
 
-    // ==================== Regression Tests (No Hangs) ====================
+    // Regression Tests (No Hangs)
 
     @Test
     @Timeout(value = 1, unit = TimeUnit.SECONDS)
@@ -237,7 +237,7 @@ class CommandHighlighterTest {
         assertNotNull(result);
     }
 
-    // ==================== Content Preservation Tests ====================
+    // Content Preservation Tests
 
     @Test
     void shouldPreserveTextContent() {
@@ -261,7 +261,7 @@ class CommandHighlighterTest {
         assertEquals("  GET key", result.toString());
     }
 
-    // ==================== Malformed Token Tests ====================
+    // Malformed Token Tests
 
     @Test
     void shouldTreatNumberFollowedByLettersAsIdentifier() {

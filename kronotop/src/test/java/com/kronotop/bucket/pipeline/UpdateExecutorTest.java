@@ -665,7 +665,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         return values;
     }
 
-    // ==================== UPSERT TESTS ====================
+    // UPSERT TESTS
 
     @Test
     void shouldUpsertWithPrimaryAndSecondaryIndexes() {
@@ -1861,7 +1861,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         assertEquals(1, nullResults.size(), "Should find document via null query");
     }
 
-    // ==================== UPSERT WITH $elemMatch TESTS ====================
+    // UPSERT WITH $elemMatch TESTS
 
     @Test
     void shouldIgnoreElemMatchOnUpsert() {
@@ -2126,7 +2126,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         assertTrue(nullResults.getFirst().contains("\"name\": \"Developer\""), "Should be Developer's document");
     }
 
-    // ==================== COMPOUND INDEX UPDATE TESTS ====================
+    // COMPOUND INDEX UPDATE TESTS
 
     @Test
     void shouldUpdateAffectedCompoundIndexWhenOneFieldModified() {
@@ -2536,7 +2536,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         assertTrue(ageQuery.isEmpty(), "Should not find any document with age 30");
     }
 
-    // ==================== CROSS-NUMERIC-TYPE POSITIONAL OPERATOR TESTS ====================
+    // CROSS-NUMERIC-TYPE POSITIONAL OPERATOR TESTS
 
     @Test
     void shouldUpdateWithPositionalOperatorWhenQueryUsesInt32AndDocumentHasInt64() {

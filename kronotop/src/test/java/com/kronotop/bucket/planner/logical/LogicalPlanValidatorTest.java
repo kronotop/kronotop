@@ -46,9 +46,7 @@ class LogicalPlanValidatorTest {
         planner = new LogicalPlanner();
     }
 
-    // ============================================================================
     // Valid Plan Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Valid Plan Tests")
@@ -117,9 +115,7 @@ class LogicalPlanValidatorTest {
         }
     }
 
-    // ============================================================================
     // Structural Validation Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Structural Validation Tests")
@@ -235,9 +231,7 @@ class LogicalPlanValidatorTest {
         }
     }
 
-    // ============================================================================
     // Operator Compatibility Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Operator Compatibility Tests")
@@ -352,9 +346,7 @@ class LogicalPlanValidatorTest {
         }
     }
 
-    // ============================================================================
     // Optimization Quality Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Optimization Quality Tests")
@@ -441,9 +433,7 @@ class LogicalPlanValidatorTest {
         }
     }
 
-    // ============================================================================
-    // Empty Container Tests  
-    // ============================================================================
+    // Empty Container Tests
 
     @Nested
     @DisplayName("Empty Container Tests")
@@ -479,9 +469,7 @@ class LogicalPlanValidatorTest {
     }
 
 
-    // ============================================================================
     // Integration Tests with LogicalPlanner
-    // ============================================================================
 
     @Nested
     @DisplayName("Integration Tests with LogicalPlanner")
@@ -625,9 +613,7 @@ class LogicalPlanValidatorTest {
         }
     }
 
-    // ============================================================================
     // Validation Result Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Validation Result Tests")

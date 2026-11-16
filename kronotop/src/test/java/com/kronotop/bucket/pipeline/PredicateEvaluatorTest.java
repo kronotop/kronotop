@@ -62,7 +62,7 @@ class PredicateEvaluatorTest {
     }
 
 
-    // ==================== evaluateComparison Tests ====================
+    // evaluateComparison Tests
 
     @Nested
     @DisplayName("String Comparisons")
@@ -588,7 +588,7 @@ class PredicateEvaluatorTest {
         }
     }
 
-    // ==================== testResidualPredicate Tests ====================
+    // testResidualPredicate Tests
 
     @Nested
     @DisplayName("testResidualPredicate - String Fields")
@@ -2372,7 +2372,7 @@ class PredicateEvaluatorTest {
             assertFalse(PredicateEvaluator.testResidualPredicate(predicate, toView(buffer), Collections.emptyList()));
         }
 
-        // ==================== Array Comparison Operators ====================
+        // Array Comparison Operators
 
         @Test
         void shouldMatchArrayWithEqWhenAnyElementEquals() {
@@ -3194,7 +3194,7 @@ class PredicateEvaluatorTest {
         }
     }
 
-    // ==================== Parameterized Predicate Tests ====================
+    // Parameterized Predicate Tests
 
     @Nested
     @DisplayName("testResidualPredicate - Parameterized Execution")
@@ -3513,7 +3513,7 @@ class PredicateEvaluatorTest {
         }
     }
 
-    // ==================== Collation-aware String Comparisons ====================
+    // Collation-aware String Comparisons
 
     @Nested
     @DisplayName("Collation-aware String Comparisons")

@@ -28,7 +28,6 @@ import com.kronotop.bucket.index.SingleFieldIndexUtil;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.server.RESPVersion;
-import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;

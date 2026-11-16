@@ -281,10 +281,10 @@ class ArrayFiltersIntegrationTest extends BasePipelineTest {
         }
     }
 
-    // ==================== INDEXED ARRAY TESTS ====================
-    // These tests verify comparison operators on array fields with multikey indexes.
-    // With multikey indexes, each array element has its own index entry, enabling
-    // RangeScanNode execution path instead of FullScanNode with PredicateEvaluator.
+    // INDEXED ARRAY TESTS
+    // Tests for comparison operators on array fields with multikey indexes. A multikey
+    // index has one entry per array element, so these queries run through RangeScanNode
+    // instead of FullScanNode with PredicateEvaluator.
 
     /**
      * Test data for indexed array tests:

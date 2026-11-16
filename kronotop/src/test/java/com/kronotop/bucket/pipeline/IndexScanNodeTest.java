@@ -810,9 +810,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         }
     }
 
-    // ============================================================================
     // Numeric Widening Tests
-    // ============================================================================
 
     @Test
     void shouldFindDocumentsViaIndexScanWhenInt32EqPredicateMatchesInt64Index() {

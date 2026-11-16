@@ -42,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class SortByIntegrationTest extends BasePipelineTest {
 
-    // ==================== SORTBY with Single Field Index ====================
+    // SORTBY with Single Field Index
 
     @Test
     void shouldSortByIndexedFieldAscending() {
@@ -118,7 +118,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Results should be sorted by age DESC");
     }
 
-    // ==================== SORTBY Index Preference ====================
+    // SORTBY Index Preference
 
     @Test
     void shouldPreferSortByIndexOverMoreSelectiveIndex() {
@@ -166,7 +166,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Results should be sorted by createdAt ASC");
     }
 
-    // ==================== SORTBY with Compound Indexes ====================
+    // SORTBY with Compound Indexes
 
     @Test
     void shouldSortByCompoundIndexFieldAscending() {
@@ -358,7 +358,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Results should be sorted by c DESC via three-field compound index");
     }
 
-    // ==================== Sort-aware single-filter compound index selection ====================
+    // Sort-aware single-filter compound index selection
 
     @Test
     void shouldSortBySingleFilterWithCompoundIndexAscending() {
@@ -638,7 +638,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Results should be sorted by created_at DESC via correct compound index");
     }
 
-    // ==================== SORTBY with $ne ====================
+    // SORTBY with $ne
 
     @Test
     void shouldSortByWithNeAscending() {
@@ -697,7 +697,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         assertTrue(ex.getMessage().contains("RESULTSORT"));
     }
 
-    // ==================== SORTBY with $nin ====================
+    // SORTBY with $nin
 
     @Test
     void shouldSortByWithNinAscending() {
@@ -781,7 +781,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Results should be sorted by age DESC, excluding $nin values");
     }
 
-    // ==================== SORTBY with $in ====================
+    // SORTBY with $in
 
     @Test
     void shouldSortByWithInAscending() {
@@ -937,7 +937,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         assertTrue(ex.getMessage().contains("RESULTSORT"));
     }
 
-    // ==================== SORTBY Validation ====================
+    // SORTBY Validation
 
     @Test
     void shouldRejectSortByWithNor() {

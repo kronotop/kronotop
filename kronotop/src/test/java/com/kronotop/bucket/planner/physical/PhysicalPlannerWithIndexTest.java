@@ -52,9 +52,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Single Index Tests - All Operators
-    // ============================================================================
 
     @Nested
     @DisplayName("Single Index Operator Tests")
@@ -262,9 +260,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Fallback to FullScan Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Fallback to FullScan Tests")
@@ -463,9 +459,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // AND Combinations: Index + Index, Index + FullScan
-    // ============================================================================
 
     @Nested
     @DisplayName("AND Combination Tests")
@@ -605,9 +599,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // OR Combinations: Index + Index, Index + FullScan
-    // ============================================================================
 
     @Nested
     @DisplayName("OR Combination Tests")
@@ -750,9 +742,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Complex Nested Queries with Mixed Index Usage
-    // ============================================================================
 
     @Nested
     @DisplayName("Complex Nested Query Tests")
@@ -889,9 +879,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Performance and Edge Cases
-    // ============================================================================
 
     @Nested
     @DisplayName("Performance and Edge Cases")
@@ -1041,9 +1029,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Primary Index IN/NIN Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Primary Index IN/NIN Tests")
@@ -1126,9 +1112,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Numeric Widening Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Numeric Widening Tests")

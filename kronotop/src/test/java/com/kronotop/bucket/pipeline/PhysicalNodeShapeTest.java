@@ -48,7 +48,7 @@ class PhysicalNodeShapeTest {
         return new PhysicalFilter(nextId(), selector, op, operand);
     }
 
-    // === Basic Hash Properties ===
+    // Basic Hash Properties
 
     @Test
     void shouldProduceSameHashForSameStructure() {
@@ -135,7 +135,7 @@ class PhysicalNodeShapeTest {
         assertNotEquals(hashInt32, hashInt64);
     }
 
-    // === Order Independence for AND/OR ===
+    // Order Independence for AND/OR
 
     @Test
     void shouldProduceSameHashForAndWithDifferentChildOrder() {
@@ -201,7 +201,7 @@ class PhysicalNodeShapeTest {
         assertEquals(hash1, hash2);
     }
 
-    // === Array Operators ($in, $nin, $all) ===
+    // Array Operators ($in, $nin, $all)
 
     @Test
     void shouldProduceSameHashForInWithDifferentValues() {
@@ -307,7 +307,7 @@ class PhysicalNodeShapeTest {
         assertNotEquals(hashIn, hashNin);
     }
 
-    // === Range Scan Specifics ===
+    // Range Scan Specifics
 
     @Test
     void shouldProduceSameHashForRangeScanWithDifferentBoundValues() {
@@ -422,7 +422,7 @@ class PhysicalNodeShapeTest {
         assertEquals(hash1, hash2);
     }
 
-    // === Wrapper Nodes (IndexScan, FullScan) ===
+    // Wrapper Nodes (IndexScan, FullScan)
 
     @Test
     void shouldIncludeNodeTypeInHashForIndexScan() {
@@ -482,7 +482,7 @@ class PhysicalNodeShapeTest {
         assertEquals(hash1, hash2);
     }
 
-    // === Special Cases ===
+    // Special Cases
 
     @Test
     void shouldHandlePhysicalTrue() {
@@ -564,7 +564,7 @@ class PhysicalNodeShapeTest {
         assertNotEquals(hash1, hash2);
     }
 
-    // === Index Intersection ===
+    // Index Intersection
 
     @Test
     void shouldProduceSameHashForIndexIntersectionWithDifferentFilterOrder() {
@@ -631,7 +631,7 @@ class PhysicalNodeShapeTest {
         assertEquals(hash1, hash2);
     }
 
-    // === Compound Index Scan ===
+    // Compound Index Scan
 
     @Test
     void shouldProduceSameHashForCompoundIndexScanWithDifferentFilterOrder() {
@@ -771,7 +771,7 @@ class PhysicalNodeShapeTest {
         assertNotEquals(hashScan, hashAnd);
     }
 
-    // === Size and Exists operators ===
+    // Size and Exists operators
 
     @Test
     void shouldProduceSameHashForSizeWithDifferentValues() {
@@ -799,7 +799,7 @@ class PhysicalNodeShapeTest {
         assertEquals(hashTrue, hashFalse);
     }
 
-    // === Complex Nested Structures ===
+    // Complex Nested Structures
 
     @Test
     void shouldProduceSameHashForComplexStructureWithDifferentValues() {
@@ -836,7 +836,7 @@ class PhysicalNodeShapeTest {
         assertNotEquals(hash2, hash3);
     }
 
-    // === Deep Nesting and Complex Plans ===
+    // Deep Nesting and Complex Plans
 
     @Test
     void shouldHandleDeeplyNestedAndOr() {
@@ -1010,7 +1010,7 @@ class PhysicalNodeShapeTest {
         assertEquals(hash1, hash2);
     }
 
-    // === Real-world Query Pattern Tests ===
+    // Real-world Query Pattern Tests
 
     @Test
     void shouldHandleTypicalUserSearchQuery() {
@@ -1093,7 +1093,7 @@ class PhysicalNodeShapeTest {
         assertEquals(hash1, hash2);
     }
 
-    // === Ordering Consistency Tests ===
+    // Ordering Consistency Tests
 
     @Test
     void shouldMaintainConsistentOrderingForSiblingFilters() {
@@ -1171,7 +1171,7 @@ class PhysicalNodeShapeTest {
         assertNotEquals(hashAndOne, hashAndTwo);
     }
 
-    // === ObjectId Type ===
+    // ObjectId Type
 
     @Test
     void shouldProduceSameHashForObjectIdWithDifferentValues() {
@@ -1230,7 +1230,7 @@ class PhysicalNodeShapeTest {
         assertEquals(hash1, hash2);
     }
 
-    // === Edge Cases ===
+    // Edge Cases
 
     @Test
     void shouldHandleSingleChildAnd() {
@@ -1302,13 +1302,10 @@ class PhysicalNodeShapeTest {
         assertEquals(hash1, hash2);
     }
 
-    // =========================================================================
     // Integration Tests: QueryShape and PhysicalNodeShape Ordering Alignment
-    // =========================================================================
-    // These tests verify that the relative ordering of children when sorted by
-    // hash is the same between QueryShape and PhysicalNodeShape. This is critical
-    // for plan caching where ParameterExtractor uses QueryShape and
-    // PhysicalPlanParameterBinder uses PhysicalNodeShape.
+    // Children sorted by hash must keep the same relative order in QueryShape and
+    // PhysicalNodeShape. Plan caching depends on this, because ParameterExtractor uses
+    // QueryShape and PhysicalPlanParameterBinder uses PhysicalNodeShape.
 
     @Test
     void shouldPreserveRelativeOrderingForDifferentSelectors() {
@@ -1500,7 +1497,7 @@ class PhysicalNodeShapeTest {
                 "QueryShape and PhysicalNodeShape must produce same relative ordering for array operators");
     }
 
-    // === Helper methods for ordering tests ===
+    // Helper methods for ordering tests
 
     /**
      * Returns the sorted indices based on QueryShape hash.
@@ -1548,11 +1545,9 @@ class PhysicalNodeShapeTest {
         }
     }
 
-    // =========================================================================
     // computeForBinding Tests
-    // =========================================================================
-    // These tests verify that computeForBinding produces hashes that match
-    // QueryShape's ordering by skipping wrapper node type prefixes.
+    // computeForBinding skips wrapper node type prefixes, so its hashes give the same
+    // order as QueryShape.
 
     @Test
     void shouldComputeForBindingSkipIndexScanPrefix() {
@@ -1852,9 +1847,7 @@ class PhysicalNodeShapeTest {
         return Arrays.stream(indices).mapToInt(Integer::intValue).toArray();
     }
 
-    // =========================================================================
     // hashRangeScanForBinding Tests
-    // =========================================================================
 
     @Test
     void shouldComputeForBindingSkipRangeScanPrefix() {
@@ -1923,9 +1916,7 @@ class PhysicalNodeShapeTest {
                 "computeForBinding should produce different hashes for different inclusivity");
     }
 
-    // =========================================================================
     // hashIndexIntersectionForBinding Tests
-    // =========================================================================
 
     @Test
     void shouldComputeForBindingSkipIndexIntersectionPrefix() {
@@ -1995,9 +1986,7 @@ class PhysicalNodeShapeTest {
                 "computeForBinding should produce same hash for AND and IndexIntersection with same filters");
     }
 
-    // =========================================================================
     // hashCompoundIndexScanForBinding Tests
-    // =========================================================================
 
     @Test
     void shouldComputeForBindingSkipCompoundIndexScanPrefix() {
@@ -2079,9 +2068,7 @@ class PhysicalNodeShapeTest {
                 "computeForBinding should produce same hash for AND and CompoundIndexScan with same filters");
     }
 
-    // =========================================================================
     // hashLogicalForBinding Tests
-    // =========================================================================
 
     @Test
     void shouldComputeForBindingUseSameLogicalHashForWrappedAndBareChildren() {

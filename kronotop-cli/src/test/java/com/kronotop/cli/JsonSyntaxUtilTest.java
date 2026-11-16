@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class JsonSyntaxUtilTest {
 
-    // ==================== isValidTokenEnd Tests ====================
+    // isValidTokenEnd Tests
 
     @Test
     void shouldReturnTrueForEndOfString() {
@@ -55,7 +55,7 @@ class JsonSyntaxUtilTest {
         assertFalse(JsonSyntaxUtil.isValidTokenEnd("123a", 3));
     }
 
-    // ==================== scanNumberEnd Tests ====================
+    // scanNumberEnd Tests
 
     @Test
     void shouldScanInteger() {
@@ -91,7 +91,7 @@ class JsonSyntaxUtilTest {
         assertEquals(3, JsonSyntaxUtil.scanNumberEnd("123}", 0));
     }
 
-    // ==================== parseString Tests ====================
+    // parseString Tests
 
     @Test
     void shouldParseDoubleQuotedString() {
@@ -133,7 +133,7 @@ class JsonSyntaxUtilTest {
         assertEquals(12, result.endPos());
     }
 
-    // ==================== isFollowedByColon Tests ====================
+    // isFollowedByColon Tests
 
     @Test
     void shouldReturnTrueWhenFollowedByColon() {
@@ -151,7 +151,7 @@ class JsonSyntaxUtilTest {
         assertFalse(JsonSyntaxUtil.isFollowedByColon("key", 3));
     }
 
-    // ==================== scanIdentifierEnd Tests ====================
+    // scanIdentifierEnd Tests
 
     @Test
     void shouldScanAlphanumericIdentifier() {
@@ -171,7 +171,7 @@ class JsonSyntaxUtilTest {
         assertEquals(5, JsonSyntaxUtil.scanIdentifierEnd("hello}", 0));
     }
 
-    // ==================== scanOperatorEnd Tests ====================
+    // scanOperatorEnd Tests
 
     @Test
     void shouldScanOperator() {
@@ -190,7 +190,7 @@ class JsonSyntaxUtilTest {
         assertEquals(3, JsonSyntaxUtil.scanOperatorEnd("$gt ", 0));
     }
 
-    // ==================== isJsonComplete Tests ====================
+    // isJsonComplete Tests
 
     @Test
     void shouldReturnTrueForEmptyBraces() {

@@ -1186,7 +1186,7 @@ class BSONUpdateUtilTest {
         assertTrue(ex.getMessage().contains("No array filter found for identifier 'foo'"));
     }
 
-    // ==================== Filtered Positional Operator Tests ====================
+    // Filtered Positional Operator Tests
 
     @Test
     void shouldSetFieldWithFilteredPositionalOperator() {
@@ -1551,7 +1551,7 @@ class BSONUpdateUtilTest {
         assertTrue(result.newValues().containsKey("items.price"));
     }
 
-    // ==================== Extended Type Support Tests ====================
+    // Extended Type Support Tests
 
     @Test
     void shouldFilterWithDateTimeOperand() {
@@ -1792,7 +1792,7 @@ class BSONUpdateUtilTest {
         assertFalse(updatedFlags.get(2).asBoolean().getValue()); // was true, now false
     }
 
-    // ==================== $in and $nin Operator Tests ====================
+    // $in and $nin Operator Tests
 
     @Test
     void shouldUpdateArrayElementsMatchingInOperator() {
@@ -2054,7 +2054,7 @@ class BSONUpdateUtilTest {
         assertEquals(999, values.get(2).asInt32().getValue());
     }
 
-    // ==================== $all Operator Tests ====================
+    // $all Operator Tests
 
     @Test
     void shouldUpdateArrayElementsMatchingAllOperator() {
@@ -2134,7 +2134,7 @@ class BSONUpdateUtilTest {
         assertEquals(0, data.get(1).asArray().get(0).asInt32().getValue());
     }
 
-    // ==================== $size Operator Tests ====================
+    // $size Operator Tests
 
     @Test
     void shouldUpdateArrayElementsMatchingSizeOperator() {
@@ -2207,7 +2207,7 @@ class BSONUpdateUtilTest {
         assertFalse(items.get(1).containsKey("matched"));
     }
 
-    // ==================== $exists Operator Tests ====================
+    // $exists Operator Tests
 
     @Test
     void shouldUpdateArrayElementsWithExistsTrue() {
@@ -2278,7 +2278,7 @@ class BSONUpdateUtilTest {
         assertFalse(people.get(2).containsKey("noAge"));
     }
 
-    // ==================== Edge Case Tests ====================
+    // Edge Case Tests
 
     @Test
     void shouldHandleNestedArraysWithFilter() {
@@ -2386,7 +2386,7 @@ class BSONUpdateUtilTest {
         assertTrue(values.get(4).asBoolean().getValue());
     }
 
-    // ==================== POSITIONAL OPERATOR newValues TESTS ====================
+    // POSITIONAL OPERATOR newValues TESTS
 
     @Test
     void shouldReturnActualArrayInNewValuesWhenUsingPositionalFilterOperator() {

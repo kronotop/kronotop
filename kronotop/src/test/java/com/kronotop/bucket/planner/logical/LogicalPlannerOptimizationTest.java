@@ -43,9 +43,7 @@ class LogicalPlannerOptimizationTest {
         planner = new LogicalPlanner();
     }
 
-    // ============================================================================
     // Contradiction Detection Transform Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Contradiction Detection Transform Tests")
@@ -222,9 +220,7 @@ class LogicalPlannerOptimizationTest {
         }
     }
 
-    // ============================================================================
     // Tautology Elimination Transform Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Tautology Elimination Transform Tests")
@@ -354,9 +350,7 @@ class LogicalPlannerOptimizationTest {
         }
     }
 
-    // ============================================================================
     // Constant Folding Transform Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Constant Folding Transform Tests")
@@ -550,9 +544,7 @@ class LogicalPlannerOptimizationTest {
         }
     }
 
-    // ============================================================================
     // Transform Pipeline Integration Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Transform Pipeline Integration Tests")
@@ -685,9 +677,7 @@ class LogicalPlannerOptimizationTest {
         }
     }
 
-    // ============================================================================
     // Edge Cases and Error Conditions
-    // ============================================================================
 
     @Nested
     @DisplayName("Edge Cases and Error Conditions")

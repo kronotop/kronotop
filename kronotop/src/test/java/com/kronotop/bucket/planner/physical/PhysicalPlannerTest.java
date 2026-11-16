@@ -36,9 +36,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
-    // ============================================================================
     // Basic Transposition Tests - All LogicalNode Types
-    // ============================================================================
 
     @Test
     @DisplayName("Simple status query should work")
@@ -59,9 +57,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
         assertEquals("ACTIVE", extractValue(filter.operand()));
     }
 
-    // ============================================================================
     // Full Scan vs Index Scan Tests (ignoring indexed cases per user request)
-    // ============================================================================
 
     @Nested
     @DisplayName("Basic Transposition Tests")
@@ -172,9 +168,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Complex Nested Query Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Scan Strategy Tests")
@@ -228,9 +222,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Field Reuse Optimization Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Complex Nested Query Tests")
@@ -374,9 +366,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Edge Cases and Error Handling
-    // ============================================================================
 
     @Nested
     @DisplayName("Field Reuse Optimization Tests")
@@ -436,9 +426,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
         }
     }
 
-    // ============================================================================
-    // Performance Optimization Tests  
-    // ============================================================================
+    // Performance Optimization Tests
 
     @Nested
     @DisplayName("Edge Cases and Error Handling")
@@ -530,9 +518,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Integration Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Performance Optimization Tests")
@@ -616,9 +602,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Original Test (preserved)
-    // ============================================================================
 
     @Nested
     @DisplayName("Integration Tests")

@@ -315,7 +315,7 @@ class ParameterExtractorTest {
         assertInstanceOf(BooleanVal.class, params.get(2));
     }
 
-    // ===== Missing BqlValue Types =====
+    // Missing BqlValue Types
 
     @Test
     void shouldExtractInt64Val() {
@@ -361,7 +361,7 @@ class ParameterExtractorTest {
         assertTrue(((BooleanVal) params.get(0)).value());
     }
 
-    // ===== Deep Nesting (3+ levels) =====
+    // Deep Nesting (3+ levels)
 
     @Test
     void shouldExtractFromThreeLevelNesting_AndOrAnd() {
@@ -408,7 +408,7 @@ class ParameterExtractorTest {
         assertEquals(10, ((Int32Val) params2.get(3)).value()); // a
     }
 
-    // ===== $elemMatch with Complex Inner Queries =====
+    // $elemMatch with Complex Inner Queries
 
     @Test
     void shouldExtractFromElemMatchWithNestedAnd() {
@@ -435,7 +435,7 @@ class ParameterExtractorTest {
         assertEquals(80, ((Int32Val) params.get(0)).value());
     }
 
-    // ===== $not with Array Operators =====
+    // $not with Array Operators
 
     @Test
     void shouldExtractFromNotWithIn() {
@@ -457,7 +457,7 @@ class ParameterExtractorTest {
         assertEquals("urgent", ((StringVal) params.get(1)).value());
     }
 
-    // ===== Range Queries =====
+    // Range Queries
 
     @Test
     void shouldExtractFromExplicitRangeQuery() {
@@ -489,7 +489,7 @@ class ParameterExtractorTest {
         assertEquals(650, ((Int32Val) params2.get(1)).value()); // $lte
     }
 
-    // ===== Many Children in AND/OR (5+ children) =====
+    // Many Children in AND/OR (5+ children)
 
     @Test
     void shouldExtractFromAndWithFiveChildren() {
@@ -538,7 +538,7 @@ class ParameterExtractorTest {
         assertEquals(30, ((Int32Val) params2.get(4)).value()); // c
     }
 
-    // ===== Array Operator Edge Cases =====
+    // Array Operator Edge Cases
 
     @Test
     void shouldExtractFromEmptyInArray() {
@@ -579,7 +579,7 @@ class ParameterExtractorTest {
         assertEquals(0, params.size());
     }
 
-    // ===== $size Edge Cases =====
+    // $size Edge Cases
 
     @Test
     void shouldExtractSizeZero() {
@@ -598,7 +598,7 @@ class ParameterExtractorTest {
         assertEquals(1000000, ((Int32Val) params.get(0)).value());
     }
 
-    // ===== Complex Real-World Pattern =====
+    // Complex Real-World Pattern
 
     @Test
     void shouldExtractFromEcommerceStyleQuery() {
@@ -667,7 +667,7 @@ class ParameterExtractorTest {
         assertEquals("Sony", ((StringVal) params2.get(5)).value());
     }
 
-    // ===== Hash Collision Robustness =====
+    // Hash Collision Robustness
 
     @Test
     void shouldProduceDeterministicOrderForSimilarStructures() {
@@ -703,7 +703,7 @@ class ParameterExtractorTest {
         assertEquals(3, params.size());
     }
 
-    // ===== Combined Edge Cases =====
+    // Combined Edge Cases
 
     @Test
     void shouldExtractFromNotWithExists() {
@@ -721,7 +721,7 @@ class ParameterExtractorTest {
         assertEquals(25, ((Int32Val) params.get(0)).value());
     }
 
-    // ===== Identical-Shape Siblings Edge Case =====
+    // Identical-Shape Siblings Edge Case
 
     @Test
     void shouldPreserveInsertionOrderForIdenticalShapeSiblings() {

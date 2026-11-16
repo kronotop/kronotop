@@ -40,7 +40,7 @@ import java.util.List;
  */
 public class PredicateEvaluator {
 
-    // ==================== String Collation Helpers ====================
+    // String Collation Helpers
 
     private static int compareStrings(String a, String b, Collator collator) {
         return collator != null ? collator.compare(a, b) : a.compareTo(b);
@@ -50,7 +50,7 @@ public class PredicateEvaluator {
         return collator != null ? collator.equals(a, b) : a.equals(b);
     }
 
-    // ==================== Entry Points ====================
+    // Entry Points
 
     private static boolean resolveExistsOperand(Object resolvedOperand) {
         if (resolvedOperand instanceof Boolean b) {
@@ -320,7 +320,7 @@ public class PredicateEvaluator {
         };
     }
 
-    // ==================== BqlValue Comparison ====================
+    // BqlValue Comparison
 
     /**
      * Matches a single value from $in/$nin/$all against one list element. A regex element is a matcher:
@@ -422,7 +422,7 @@ public class PredicateEvaluator {
         return compareByResult(op, Arrays.compare(actual, expected));
     }
 
-    // ==================== Numeric Widening Helpers ====================
+    // Numeric Widening Helpers
 
     @SuppressWarnings("unchecked")
     private static boolean numericCrossTypeCompare(BsonValue bsonValue, BsonType operandType, Operator op, Object operandJavaValue) {
@@ -483,7 +483,7 @@ public class PredicateEvaluator {
         };
     }
 
-    // ==================== Generic Comparison Methods ====================
+    // Generic Comparison Methods
 
     /**
      * Evaluates a comparison between two values using the specified operator.

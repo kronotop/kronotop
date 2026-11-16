@@ -33,7 +33,7 @@ class MultiLineParserTest {
         parser = new MultiLineParser();
     }
 
-    // ==================== parse() with ACCEPT_LINE context ====================
+    // parse() with ACCEPT_LINE context
 
     @Test
     void shouldThrowEOFErrorForUnclosedBrace() {
@@ -97,7 +97,7 @@ class MultiLineParserTest {
         assertNotNull(result);
     }
 
-    // ==================== parse() with other contexts ====================
+    // parse() with other contexts
 
     @Test
     void shouldNotThrowForIncompleteInCompleteContext() {
@@ -113,7 +113,7 @@ class MultiLineParserTest {
         assertNotNull(result);
     }
 
-    // ==================== Delegate methods ====================
+    // Delegate methods
 
     @Test
     void shouldDelegateIsEscapeChar() {
@@ -144,7 +144,7 @@ class MultiLineParserTest {
         assertNotNull(command);
     }
 
-    // ==================== Multi-line scenarios ====================
+    // Multi-line scenarios
 
     @Test
     void shouldThrowEOFErrorForMultiLineIncomplete() {
@@ -178,7 +178,7 @@ class MultiLineParserTest {
         assertThrows(EOFError.class, () ->
                 parser.parse(input, input.length(), Parser.ParseContext.ACCEPT_LINE));
     }
-    // ==================== getCommand() ====================
+    // getCommand()
 
     @Test
     void shouldReturnDottedCommandName() {

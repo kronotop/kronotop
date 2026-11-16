@@ -436,10 +436,8 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
-    // ========================================================================
     // FULL SCAN INTEGRATION TESTS
-    // Tests for non-indexed field queries that require full bucket scans
-    // ========================================================================
+    // Queries on fields without an index, which need a full bucket scan.
 
     @Test
     void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_LT() {

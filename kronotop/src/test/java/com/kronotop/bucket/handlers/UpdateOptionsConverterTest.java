@@ -120,7 +120,7 @@ class UpdateOptionsConverterTest {
         });
     }
 
-    // ==================== array_filters Tests ====================
+    // array_filters Tests
 
     @Test
     void shouldConvertArrayFiltersWithOperator() {
@@ -253,7 +253,7 @@ class UpdateOptionsConverterTest {
         }
     }
 
-    // ==================== Extended Type Support Tests ====================
+    // Extended Type Support Tests
 
     @Test
     void shouldConvertArrayFilterWithDateTimeOperand() {
@@ -388,7 +388,7 @@ class UpdateOptionsConverterTest {
         assertEquals(5, actualDoc.getInt32("level").getValue());
     }
 
-    // ==================== $in, $nin Operator Tests ====================
+    // $in, $nin Operator Tests
 
     @Test
     void shouldConvertArrayFilterWithInOperator() {
@@ -450,7 +450,7 @@ class UpdateOptionsConverterTest {
         assertEquals(90, actualArray.get(1).asInt32().getValue());
     }
 
-    // ==================== $all, $size, $exists Operator Tests ====================
+    // $all, $size, $exists Operator Tests
 
     @Test
     void shouldConvertArrayFilterWithAllOperator() {
@@ -554,7 +554,7 @@ class UpdateOptionsConverterTest {
         assertEquals(false, filter.operand());
     }
 
-    // ==================== Upsert Tests ====================
+    // Upsert Tests
 
     @Test
     void shouldParseUpsertTrue() {

@@ -272,7 +272,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         assertSame(aboveRangeNode, selected);
     }
 
-    // ==================== RangeScan Tests ====================
+    // RangeScan Tests
 
     @Test
     void shouldHandleEqualSelectivity() {
@@ -539,7 +539,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         assertSame(rangeNode, selected);
     }
 
-    // ==================== Input Validation Tests ====================
+    // Input Validation Tests
 
     @Test
     void shouldPreferIndexScanOverRangeScanWhenMoreSelective() {
@@ -584,7 +584,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         );
     }
 
-    // ==================== Missing Statistics Tests ====================
+    // Missing Statistics Tests
 
     @Test
     void shouldThrowExceptionWhenChildrenIsEmpty() {
@@ -623,7 +623,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         assertSame(scoreNode, selected);
     }
 
-    // ==================== Operator Coverage Tests ====================
+    // Operator Coverage Tests
 
     @Test
     void shouldReturnUnknownWhenHistogramIsNull() {
@@ -740,7 +740,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         assertSame(ltNode, selected);
     }
 
-    // ==================== Type Mismatch Tests ====================
+    // Type Mismatch Tests
 
     @Test
     void shouldReturnUnknownForNEOperator() {
@@ -771,7 +771,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         assertSame(gtNode, selected);
     }
 
-    // ==================== Single/Edge Node Tests ====================
+    // Single/Edge Node Tests
 
     @Test
     void shouldReturnUnknownWhenValueTypeDoesNotMatchIndex() {
@@ -823,7 +823,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         assertSame(node, selected);
     }
 
-    // ==================== Integration Test via BUCKET.EXPLAIN ====================
+    // Integration Test via BUCKET.EXPLAIN
 
     @Test
     void shouldReturnFirstNodeWhenAllHaveUnknownSelectivity() {
@@ -853,7 +853,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         assertSame(scoreNode, selectedReversed);
     }
 
-    // ==================== Parameterized Execution Tests ====================
+    // Parameterized Execution Tests
 
     @Test
     void shouldSelectMoreSelectiveIndexViaExplainCommand() {

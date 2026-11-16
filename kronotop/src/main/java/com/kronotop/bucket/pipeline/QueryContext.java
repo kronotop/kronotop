@@ -409,12 +409,12 @@ public class QueryContext {
         return state.isExhausted();
     }
 
-    public void setUpdatedOnce(boolean updatedOnce) {
-        this.updatedOnce = updatedOnce;
-    }
-
     public boolean isUpdatedOnce() {
         return updatedOnce;
+    }
+
+    public void setUpdatedOnce(boolean updatedOnce) {
+        this.updatedOnce = updatedOnce;
     }
 }
 

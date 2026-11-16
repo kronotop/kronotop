@@ -1960,7 +1960,7 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         assertFalse(orderD.containsKey("note"), "Order D should NOT have note field");
     }
 
-    // ==================== $ Positional Operator Tests ====================
+    // $ Positional Operator Tests
 
     @Test
     void shouldUpdateFirstMatchingArrayElementWithPositionalOperator() {

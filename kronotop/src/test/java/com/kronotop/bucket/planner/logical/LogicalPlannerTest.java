@@ -72,9 +72,7 @@ class LogicalPlannerTest {
         return operand;
     }
 
-    // ============================================================================
     // Core Conversion Tests - All Operators
-    // ============================================================================
 
     @Nested
     @DisplayName("Selector Operator Conversion Tests")
@@ -263,9 +261,7 @@ class LogicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Logical Operator Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Logical Operator Conversion Tests")
@@ -397,9 +393,7 @@ class LogicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Complex Nested Query Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Complex Nested Query Tests")
@@ -668,9 +662,7 @@ class LogicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Transform Pipeline Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Transform Pipeline Tests")
@@ -942,9 +934,7 @@ class LogicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Edge Cases and Error Handling
-    // ============================================================================
 
     @Nested
     @DisplayName("Edge Cases and Error Handling")
@@ -1161,9 +1151,7 @@ class LogicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Property-Based Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Property-Based Tests")
@@ -1264,9 +1252,7 @@ class LogicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Performance Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Performance Tests")
@@ -1341,9 +1327,7 @@ class LogicalPlannerTest {
         }
     }
 
-    // ============================================================================
     // Contradiction Detection Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Contradiction Detection Tests")
@@ -1465,9 +1449,7 @@ class LogicalPlannerTest {
         }
     }
 
-    // ============================================================================
-    // Redundancy Elimination Tests  
-    // ============================================================================
+    // Redundancy Elimination Tests
 
     @Nested
     @DisplayName("Redundancy Elimination Tests")

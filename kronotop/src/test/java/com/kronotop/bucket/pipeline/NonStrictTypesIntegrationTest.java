@@ -844,7 +844,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult);
     }
 
-    // ==================== $elemMatch with Non-Strict Types ====================
+    // $elemMatch with Non-Strict Types
 
     @Test
     void shouldMatchElemMatchOnDocArrayWhenQueryTypeMismatchesIndex() {
@@ -1490,7 +1490,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertTrue(result2.getFirst().contains("\"name\": \"Mixed2\""));
     }
 
-    // ==================== Numeric Widening: INT32 vs INT64 Range Operators ====================
+    // Numeric Widening: INT32 vs INT64 Range Operators
 
     @Test
     void shouldFindInt32ValuesViaFullScanWhenQueryingInt32IndexWithInt64GtPredicate() {
@@ -1571,7 +1571,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult);
     }
 
-    // ==================== Numeric Widening: INT64 vs DECIMAL128 Range Operators ====================
+    // Numeric Widening: INT64 vs DECIMAL128 Range Operators
 
     @Test
     void shouldFindInt64ValuesViaFullScanWhenQueryingInt64IndexWithDecimal128GtPredicate() {
@@ -1625,7 +1625,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult);
     }
 
-    // ==================== Numeric Widening: DOUBLE vs DECIMAL128 Range Operators ====================
+    // Numeric Widening: DOUBLE vs DECIMAL128 Range Operators
 
     @Test
     void shouldFindDoubleValuesViaFullScanWhenQueryingDoubleIndexWithDecimal128GtePredicate() {
@@ -1653,7 +1653,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult);
     }
 
-    // ==================== Numeric Widening: $ne Operator ====================
+    // Numeric Widening: $ne Operator
 
     @Test
     void shouldExcludeInt32ValueViaFullScanWhenQueryingInt32IndexWithDoubleNePredicate() {
@@ -1707,7 +1707,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult);
     }
 
-    // ==================== Numeric Widening: INT64 vs DOUBLE via DECIMAL128 Common Type ====================
+    // Numeric Widening: INT64 vs DOUBLE via DECIMAL128 Common Type
 
     @Test
     void shouldFindInt64ValuesViaFullScanWhenQueryingInt64IndexWithDoubleLtPredicate() {
@@ -1735,7 +1735,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult);
     }
 
-    // ==================== Numeric Widening: $in/$nin with Cross-Numeric Types ====================
+    // Numeric Widening: $in/$nin with Cross-Numeric Types
 
     @Test
     void shouldMatchInt32ValuesWithDoubleInListViaFullScan() {
@@ -1817,7 +1817,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertTrue(actualResult.getFirst().contains("\"name\": \"Alice\""));
     }
 
-    // ==================== Numeric Widening: Array Elements ====================
+    // Numeric Widening: Array Elements
 
     @Test
     void shouldMatchArrayWithInt32ElementsViaFullScanWhenQueryingWithDoublePredicate() {
@@ -1853,7 +1853,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertTrue(actualResult.stream().anyMatch(r -> r.contains("\"name\": \"Bob\"")));
     }
 
-    // ==================== Compound Index: Numeric Widening ====================
+    // Compound Index: Numeric Widening
 
     @Test
     void shouldFindDocumentsViaCompoundIndexWhenInt32PredicateMatchesInt64FieldsNonStrict() {
@@ -1934,7 +1934,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertEquals(List.of("{\"x\": 42.0, \"y\": 1.5, \"name\": \"Alice\"}"), actualResult);
     }
 
-    // ==================== Numeric Widening: $eq Operator ====================
+    // Numeric Widening: $eq Operator
 
     @Test
     void shouldMatchInt32ValueWithInt64EqPredicate() {
@@ -2075,7 +2075,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertEquals(List.of("{\"value\": 200, \"name\": \"Bob\"}"), actualResult);
     }
 
-    // ==================== Numeric Widening: INT32 vs INT64 Gap Fillers ====================
+    // Numeric Widening: INT32 vs INT64 Gap Fillers
 
     @Test
     void shouldFindInt32ValuesWithInt64LtPredicate() {
@@ -2201,7 +2201,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertTrue(actualResult.getFirst().contains("\"name\": \"Alice\""));
     }
 
-    // ==================== Numeric Widening: INT32 vs DOUBLE Gap Fillers ====================
+    // Numeric Widening: INT32 vs DOUBLE Gap Fillers
 
     @Test
     void shouldFindInt32ValuesWithDoubleGtePredicate() {
@@ -2312,7 +2312,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertTrue(actualResult.getFirst().contains("\"name\": \"Bob\""));
     }
 
-    // ==================== Numeric Widening: INT32 vs DECIMAL128 Gap Fillers ====================
+    // Numeric Widening: INT32 vs DECIMAL128 Gap Fillers
 
     @Test
     void shouldFindInt32ValuesWithDecimal128GtPredicate() {
@@ -2400,7 +2400,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertTrue(actualResult.stream().anyMatch(r -> r.contains("\"name\": \"Diana\"")));
     }
 
-    // ==================== Numeric Widening: INT64 vs DECIMAL128 Gap Fillers ====================
+    // Numeric Widening: INT64 vs DECIMAL128 Gap Fillers
 
     @Test
     void shouldFindInt64ValuesWithDecimal128GtePredicate() {
@@ -2530,7 +2530,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertTrue(actualResult.getFirst().contains("\"name\": \"Bob\""));
     }
 
-    // ==================== Numeric Widening: DOUBLE vs DECIMAL128 Gap Fillers ====================
+    // Numeric Widening: DOUBLE vs DECIMAL128 Gap Fillers
 
     @Test
     void shouldFindDoubleValuesWithDecimal128GtPredicate() {
@@ -2685,7 +2685,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertTrue(actualResult.getFirst().contains("\"name\": \"Bob\""));
     }
 
-    // ==================== Numeric Widening: INT64 vs DOUBLE via DECIMAL128 Gap Fillers ====================
+    // Numeric Widening: INT64 vs DOUBLE via DECIMAL128 Gap Fillers
 
     @Test
     void shouldFindInt64ValuesWithDoubleGtPredicateViaDecimal128() {
@@ -2790,7 +2790,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertTrue(actualResult.getFirst().contains("\"name\": \"Bob\""));
     }
 
-    // ==================== $all with Numeric Widening ====================
+    // $all with Numeric Widening
 
     @Test
     void shouldMatchAllWithInt64ValuesAgainstInt32ArrayElements() {
@@ -2889,7 +2889,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertTrue(actualResult.stream().anyMatch(r -> r.contains("\"name\": \"Charlie\"")));
     }
 
-    // ==================== $not with Numeric Widening ====================
+    // $not with Numeric Widening
 
     @Test
     void shouldMatchNotGtWithInt64PredicateOnInt32Documents() {
@@ -2960,7 +2960,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertTrue(actualResult.stream().anyMatch(r -> r.contains("\"name\": \"Charlie\"")));
     }
 
-    // ==================== $or with Mixed Type Predicates ====================
+    // $or with Mixed Type Predicates
 
     @Test
     void shouldMatchOrWithNumericAndStringPredicates() {
@@ -3037,7 +3037,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         assertTrue(actualResult.stream().anyMatch(r -> r.contains("\"name\": \"Diana\"")));
     }
 
-    // ==================== RESULTSORT with Mixed Numeric Types ====================
+    // RESULTSORT with Mixed Numeric Types
 
     @Test
     void shouldResultSortAscOnFieldWithMixedNumericTypes() {

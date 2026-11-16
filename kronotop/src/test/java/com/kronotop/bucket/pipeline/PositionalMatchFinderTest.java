@@ -37,7 +37,7 @@ class PositionalMatchFinderTest {
         return BSONUtil.toByteBuffer(doc);
     }
 
-    // ==================== Basic Matching Tests ====================
+    // Basic Matching Tests
 
     @Nested
     @DisplayName("Basic Equality Matching")
@@ -103,7 +103,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== Comparison Operator Tests ====================
+    // Comparison Operator Tests
 
     @Nested
     @DisplayName("Comparison Operators")
@@ -205,7 +205,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== Scalar Array Tests ====================
+    // Scalar Array Tests
 
     @Nested
     @DisplayName("Scalar Array Matching")
@@ -247,7 +247,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== $in Operator Tests ====================
+    // $in Operator Tests
 
     @Nested
     @DisplayName("$in Operator")
@@ -273,7 +273,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== $and Operator Tests ====================
+    // $and Operator Tests
 
     @Nested
     @DisplayName("$and Operator")
@@ -304,7 +304,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== $elemMatch Tests ====================
+    // $elemMatch Tests
 
     @Nested
     @DisplayName("$elemMatch Operator")
@@ -357,7 +357,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== $regex Operator Tests ====================
+    // $regex Operator Tests
 
     @Nested
     @DisplayName("$regex Operator")
@@ -494,7 +494,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== Edge Cases ====================
+    // Edge Cases
 
     @Nested
     @DisplayName("Edge Cases")
@@ -636,7 +636,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== Multiple Positional Fields Tests ====================
+    // Multiple Positional Fields Tests
 
     @Nested
     @DisplayName("Multiple Positional Fields")
@@ -671,7 +671,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== $nin Operator Tests ====================
+    // $nin Operator Tests
 
     @Nested
     @DisplayName("$nin Operator")
@@ -716,7 +716,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== $exists Operator Tests ====================
+    // $exists Operator Tests
 
     @Nested
     @DisplayName("$exists Operator")
@@ -761,7 +761,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== $not Operator Tests ====================
+    // $not Operator Tests
 
     @Nested
     @DisplayName("$not Operator")
@@ -790,7 +790,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== $exists inside $elemMatch Tests ====================
+    // $exists inside $elemMatch Tests
 
     @Nested
     @DisplayName("$exists inside $elemMatch")
@@ -816,7 +816,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== $in inside $elemMatch Tests ====================
+    // $in inside $elemMatch Tests
 
     @Nested
     @DisplayName("$in inside $elemMatch")
@@ -847,7 +847,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== Nested $elemMatch Tests ====================
+    // Nested $elemMatch Tests
 
     @Nested
     @DisplayName("Nested $elemMatch")
@@ -887,7 +887,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== $or Operator Tests ====================
+    // $or Operator Tests
 
     @Nested
     @DisplayName("$or Operator")
@@ -1030,7 +1030,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== Cross-Numeric-Type Matching Tests ====================
+    // Cross-Numeric-Type Matching Tests
 
     @Nested
     @DisplayName("Cross-Numeric-Type Matching")
@@ -1193,7 +1193,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== $or Mixed with Non-Array Predicates ====================
+    // $or Mixed with Non-Array Predicates
 
     @Nested
     @DisplayName("$or Mixed with Non-Array Predicates")
@@ -1224,7 +1224,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== $all Operator Tests ====================
+    // $all Operator Tests
 
     @Nested
     @DisplayName("All Operator")
@@ -1313,7 +1313,7 @@ class PositionalMatchFinderTest {
         }
     }
 
-    // ==================== $size Operator Tests ====================
+    // $size Operator Tests
 
     @Nested
     @DisplayName("Size Operator")

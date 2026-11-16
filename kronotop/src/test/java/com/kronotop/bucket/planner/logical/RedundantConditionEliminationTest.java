@@ -53,9 +53,7 @@ class RedundantConditionEliminationTest {
         return operand;
     }
 
-    // ============================================================================
     // Duplicate Condition Elimination Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Duplicate Condition Elimination Tests")
@@ -153,9 +151,7 @@ class RedundantConditionEliminationTest {
         }
     }
 
-    // ============================================================================
     // Numeric Range Redundancy Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Numeric Range Redundancy Elimination Tests")
@@ -329,9 +325,7 @@ class RedundantConditionEliminationTest {
         }
     }
 
-    // ============================================================================
     // Set Operation Redundancy Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Set Operation Redundancy Elimination Tests")
@@ -388,9 +382,7 @@ class RedundantConditionEliminationTest {
         }
     }
 
-    // ============================================================================
     // Mixed Redundancy Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Mixed Redundancy Elimination Tests")
@@ -531,9 +523,7 @@ class RedundantConditionEliminationTest {
         }
     }
 
-    // ============================================================================
     // Edge Cases and Non-Redundant Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Edge Cases and Non-Redundant Condition Tests")
@@ -661,9 +651,7 @@ class RedundantConditionEliminationTest {
         }
     }
 
-    // ============================================================================
     // Integration with Other Transforms Tests
-    // ============================================================================
 
     @Nested
     @DisplayName("Integration with Other Transforms")

@@ -65,7 +65,7 @@ class PhysicalPlanParameterBinderTest {
         return bindings.values().stream().mapToInt(List::size).sum();
     }
 
-    // ===== Basic Single-Value Operator Tests =====
+    // Basic Single-Value Operator Tests
 
     @Test
     void shouldBindSingleParameterFromPhysicalFilterEq() {
@@ -180,7 +180,7 @@ class PhysicalPlanParameterBinderTest {
         assertTrue(bindings.isEmpty());
     }
 
-    // ===== Array Operator Tests ($in, $nin, $all) =====
+    // Array Operator Tests ($in, $nin, $all)
 
     @Test
     void shouldBindAllValuesFromInOperator() {
@@ -285,7 +285,7 @@ class PhysicalPlanParameterBinderTest {
         }
     }
 
-    // ===== RangeScan Tests (Occurrence Values) =====
+    // RangeScan Tests (Occurrence Values)
 
     @Test
     void shouldBindBothBoundsFromRangeScan() {
@@ -334,7 +334,7 @@ class PhysicalPlanParameterBinderTest {
         assertBinding(bindings, rangeScan.id(), 0, 0, 0);
     }
 
-    // ===== Wrapper Node Tests (IndexScan, FullScan) =====
+    // Wrapper Node Tests (IndexScan, FullScan)
 
     @Test
     void shouldDelegateToWrappedNodeForIndexScan() {
@@ -385,7 +385,7 @@ class PhysicalPlanParameterBinderTest {
         assertBindingCount(bindings, innerFilter.id(), 3);
     }
 
-    // ===== Logical Node Canonical Ordering Tests (AND/OR) =====
+    // Logical Node Canonical Ordering Tests (AND/OR)
 
     @Test
     void shouldBindAndChildrenInCanonicalOrder() {
@@ -534,7 +534,7 @@ class PhysicalPlanParameterBinderTest {
         assertEquals(5, getTotalBindingCount(bindings));
     }
 
-    // ===== Not and ElemMatch Tests =====
+    // Not and ElemMatch Tests
 
     @Test
     void shouldRecurseToChildForNot() {
@@ -599,7 +599,7 @@ class PhysicalPlanParameterBinderTest {
         assertEquals(2, getTotalBindingCount(bindings));
     }
 
-    // ===== PhysicalTrue/PhysicalFalse Tests =====
+    // PhysicalTrue/PhysicalFalse Tests
 
     @Test
     void shouldProduceNoBindingsFromPhysicalTrue() {
@@ -623,7 +623,7 @@ class PhysicalPlanParameterBinderTest {
         assertTrue(bindings.isEmpty());
     }
 
-    // ===== IndexIntersection Tests =====
+    // IndexIntersection Tests
 
     @Test
     void shouldBindIndexIntersectionFiltersInCanonicalOrder() {
@@ -683,7 +683,7 @@ class PhysicalPlanParameterBinderTest {
         assertEquals(paramIdxAge1, paramIdxAge2, "Parameter index for 'age' should be the same");
     }
 
-    // ===== CompoundIndexScan Tests =====
+    // CompoundIndexScan Tests
 
     @Test
     void shouldBindCompoundIndexScanFiltersInCanonicalOrder() {
@@ -773,7 +773,7 @@ class PhysicalPlanParameterBinderTest {
         assertEquals(3, getTotalBindingCount(bindings));
     }
 
-    // ===== Deep Nesting Tests =====
+    // Deep Nesting Tests
 
     @Test
     void shouldBindThreeLevelNestedAndOrAnd() {
@@ -843,7 +843,7 @@ class PhysicalPlanParameterBinderTest {
         assertEquals(paramIdxB1, paramIdxB2, "Parameter index for 'b' should be the same");
     }
 
-    // ===== Identical-Shape Siblings Tests (Critical) =====
+    // Identical-Shape Siblings Tests (Critical)
 
     @Test
     void shouldPreserveInsertionOrderForIdenticalShapeSiblingsInAnd() {
@@ -888,7 +888,7 @@ class PhysicalPlanParameterBinderTest {
         assertTrue(paramIdx1 != paramIdx2, "Different filters should have different param indices");
     }
 
-    // ===== Integration Tests (ParameterExtractor Alignment) =====
+    // Integration Tests (ParameterExtractor Alignment)
 
     @Test
     void shouldMatchParameterExtractorOrderForSimpleAnd() {
@@ -967,7 +967,7 @@ class PhysicalPlanParameterBinderTest {
         assertEquals(extractedParams.size(), getTotalBindingCount(bindings));
     }
 
-    // ===== Real-World Query Pattern Tests =====
+    // Real-World Query Pattern Tests
 
     @Test
     void shouldBindTypicalUserSearchQuery() {
@@ -1016,7 +1016,7 @@ class PhysicalPlanParameterBinderTest {
         assertEquals(5, getTotalBindingCount(bindings));
     }
 
-    // ===== Additional Edge Cases =====
+    // Additional Edge Cases
 
     @Test
     void shouldHandleNestedElemMatchWithMultipleFilters() {
@@ -1122,7 +1122,7 @@ class PhysicalPlanParameterBinderTest {
         assertTrue(bindings.isEmpty());
     }
 
-    // ===== Mixed Scan Types Tests =====
+    // Mixed Scan Types Tests
 
     @Test
     void shouldBindMixedScanTypesInAnd() {
@@ -1416,13 +1416,10 @@ class PhysicalPlanParameterBinderTest {
         assertBindingCount(bindings, filter.id(), 0);
     }
 
-    // =========================================================================
     // Wrapper Node Ordering Fix Tests
-    // =========================================================================
-    // These tests verify the fix for the bug where NODE_INDEX_SCAN and NODE_FULL_SCAN
-    // prefixes in PhysicalNodeShape.compute() caused parameter binding order to differ
-    // from ParameterExtractor's order. The fix uses computeForBinding() which skips
-    // wrapper prefixes to match QueryShape's ordering.
+    // Tests for a parameter binding bug. The NODE_INDEX_SCAN and NODE_FULL_SCAN prefixes
+    // in PhysicalNodeShape.compute() made the binding order differ from ParameterExtractor's
+    // order. computeForBinding() skips these wrapper prefixes, so the order matches QueryShape.
 
     @Test
     void shouldProduceSameOrderForIndexScanAndFullScanWrappingSameFilter() {
@@ -1766,9 +1763,7 @@ class PhysicalPlanParameterBinderTest {
         assertEquals(extractedParams.size(), getTotalBindingCount(bindings));
     }
 
-    // =========================================================================
     // Duplicate Values Test (Fix for $nin with duplicate values)
-    // =========================================================================
 
     @Test
     void shouldBindCorrectParameterIndexForDuplicateValuesInNin() {

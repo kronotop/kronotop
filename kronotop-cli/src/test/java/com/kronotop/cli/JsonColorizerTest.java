@@ -65,7 +65,7 @@ class JsonColorizerTest {
         return s.replaceAll("\u001B\\[[;\\d]*m", "");
     }
 
-    // ==================== Null/Empty Input Tests ====================
+    // Null/Empty Input Tests
 
     @Test
     void shouldReturnNullForNullInput() {
@@ -79,7 +79,7 @@ class JsonColorizerTest {
         assertEquals("", colorizer.colorize(""));
     }
 
-    // ==================== Content Preservation Tests ====================
+    // Content Preservation Tests
 
     @Test
     void shouldPreserveSimpleObject() {
@@ -121,7 +121,7 @@ class JsonColorizerTest {
         assertEquals(input, result);
     }
 
-    // ==================== Key Colorization Tests ====================
+    // Key Colorization Tests
 
     @Test
     void shouldColorizeKeyBlue() {
@@ -137,7 +137,7 @@ class JsonColorizerTest {
         assertTrue(containsColorCode(result, ANSI_BLUE), "Single-quoted key should be colored blue");
     }
 
-    // ==================== String Value Colorization Tests ====================
+    // String Value Colorization Tests
 
     @Test
     void shouldColorizeStringValueGreen() {
@@ -160,7 +160,7 @@ class JsonColorizerTest {
         assertTrue(containsColorCode(result, ANSI_GREEN), "Array strings should be colored green");
     }
 
-    // ==================== Number Colorization Tests ====================
+    // Number Colorization Tests
 
     @Test
     void shouldColorizeIntegerYellow() {
@@ -190,7 +190,7 @@ class JsonColorizerTest {
         assertTrue(containsColorCode(result, ANSI_YELLOW), "Scientific notation should be colored yellow");
     }
 
-    // ==================== Boolean Colorization Tests ====================
+    // Boolean Colorization Tests
 
     @Test
     void shouldColorizeTrueMagenta() {
@@ -206,7 +206,7 @@ class JsonColorizerTest {
         assertTrue(containsColorCode(result, ANSI_MAGENTA), "false should be colored magenta");
     }
 
-    // ==================== Null Colorization Tests ====================
+    // Null Colorization Tests
 
     @Test
     void shouldColorizeNullRed() {
@@ -215,7 +215,7 @@ class JsonColorizerTest {
         assertTrue(containsColorCode(result, ANSI_RED), "null should be colored red");
     }
 
-    // ==================== Complex JSON Tests ====================
+    // Complex JSON Tests
 
     @Test
     void shouldColorizeComplexJson() {
@@ -256,7 +256,7 @@ class JsonColorizerTest {
         assertTrue(containsColorCode(result, ANSI_RED), "Null should be red");
     }
 
-    // ==================== Edge Cases ====================
+    // Edge Cases
 
     @Test
     void shouldHandleEmptyObject() {
@@ -339,7 +339,7 @@ class JsonColorizerTest {
         assertEquals(input, stripAnsi(result));
     }
 
-    // ==================== Malformed Token Tests ====================
+    // Malformed Token Tests
 
     @Test
     void shouldTreatNumberFollowedByLettersAsIdentifier() {

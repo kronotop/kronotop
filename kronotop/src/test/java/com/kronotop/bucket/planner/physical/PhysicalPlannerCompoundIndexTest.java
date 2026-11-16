@@ -290,7 +290,7 @@ class PhysicalPlannerCompoundIndexTest extends BasePhysicalPlannerTest {
         assertEquals(Operator.GT, scan.filters().getFirst().op());
     }
 
-    // ==================== Sort-aware compound index selection ====================
+    // Sort-aware compound index selection
 
     @Test
     void shouldEmitCompoundIndexScanForSingleEqFilterWithSortBy() {
@@ -509,7 +509,7 @@ class PhysicalPlannerCompoundIndexTest extends BasePhysicalPlannerTest {
         assertInstanceOf(PhysicalCompoundIndexScan.class, result);
     }
 
-    // ==================== Leading prefix range scans ====================
+    // Leading prefix range scans
 
     @Test
     void shouldEmitCompoundScanForSingleRangeOnFirstField() {
@@ -550,9 +550,7 @@ class PhysicalPlannerCompoundIndexTest extends BasePhysicalPlannerTest {
         assertEquals(Operator.GT, scan.filters().getFirst().op());
     }
 
-    // ============================================================================
     // Numeric Widening Tests
-    // ============================================================================
 
     @Test
     void shouldEmitCompoundIndexScanWhenInt32PredicateMatchesInt64Field() {

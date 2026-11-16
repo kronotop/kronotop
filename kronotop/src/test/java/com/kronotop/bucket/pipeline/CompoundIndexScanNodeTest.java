@@ -838,7 +838,7 @@ class CompoundIndexScanNodeTest extends BasePipelineTest {
         }
     }
 
-    // ==================== Leading prefix scans ====================
+    // Leading prefix scans
 
     @Test
     void shouldReturnDocumentsMatchingSingleEqOnFirstField() {
@@ -1096,9 +1096,7 @@ class CompoundIndexScanNodeTest extends BasePipelineTest {
         return values;
     }
 
-    // ============================================================================
     // Numeric Widening Tests
-    // ============================================================================
 
     @Test
     void shouldFindDocumentsViaCompoundIndexScanWhenInt32PredicateMatchesInt64Fields() {

@@ -44,7 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
  */
 class ResultSortIntegrationTest extends BasePipelineTest {
 
-    // ==================== RESULTSORT with Non-Indexed Field Tests ====================
+    // RESULTSORT with Non-Indexed Field Tests
 
     @Test
     void shouldResultSortByNonIndexedFieldAscending() {
@@ -124,7 +124,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Results should be sorted by score DESC (in-memory)");
     }
 
-    // ==================== RESULTSORT with Different Data Types ====================
+    // RESULTSORT with Different Data Types
 
     @Test
     void shouldResultSortByStringFieldAscending() {
@@ -202,7 +202,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Results should be sorted by price DESC");
     }
 
-    // ==================== RESULTSORT with Null Values ====================
+    // RESULTSORT with Null Values
 
     @Test
     void shouldResultSortWithNullValuesFirst() {
@@ -286,7 +286,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Null values should sort last when DESC");
     }
 
-    // ==================== RESULTSORT with Mixed Types (Type Bracketing) ====================
+    // RESULTSORT with Mixed Types (Type Bracketing)
 
     @Test
     void shouldResultSortByTypeBracketingOrderWithMixedTypes() {
@@ -424,7 +424,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Values should be sorted by type first, then by value within same type");
     }
 
-    // ==================== RESULTSORT with $or and Indexes ====================
+    // RESULTSORT with $or and Indexes
 
     @Test
     void shouldResultSortOrQueryResults() {
@@ -478,7 +478,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "$or results should be sorted by price ASC");
     }
 
-    // ==================== RESULTSORT with Full Scan ====================
+    // RESULTSORT with Full Scan
 
     @Test
     void shouldResultSortByFieldWithFullScan() {
@@ -519,7 +519,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Results should be sorted by rank ASC");
     }
 
-    // ==================== RESULTSORT with Missing Field Semantics ====================
+    // RESULTSORT with Missing Field Semantics
 
     @Test
     void shouldReturnNaturalOrderWhenResultSortFieldMissingFromAllDocuments() {
@@ -725,7 +725,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Explicit null and missing field should be treated equally");
     }
 
-    // ==================== RESULTSORT with Deeply Nested Field ====================
+    // RESULTSORT with Deeply Nested Field
 
     @Test
     void shouldResultSortByDeeplyNestedField() {
@@ -825,7 +825,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Results should be sorted by departments.products.price ASC");
     }
 
-    // ==================== RESULTSORT with Compound Indexes ====================
+    // RESULTSORT with Compound Indexes
 
     @Test
     void shouldSortByNonIndexedFieldWithCompoundIndex() {
@@ -870,7 +870,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Results should be sorted by non-indexed score field ASC");
     }
 
-    // ==================== RESULTSORT with $or and BATCH ====================
+    // RESULTSORT with $or and BATCH
 
     @Test
     @Disabled("RESULTSORT top-K across OR branches not yet implemented")
@@ -927,7 +927,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Should return true top-4 by salary DESC across all OR branches");
     }
 
-    // ==================== RESULTSORT with Collation Tests ====================
+    // RESULTSORT with Collation Tests
 
     @Test
     void shouldResultSortRespectBucketCollationCaseInsensitiveASC() {
