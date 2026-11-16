@@ -106,7 +106,10 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
     }
 
     private void handleNoMatch(Transaction tr, QueryContext ctx) {
-        if (ctx.options().update().upsert()) {
+        // Upsert only when the scan has ended and no earlier round matched or upserted a document.
+        // A round can also be empty because its scan budget ran out, or after an earlier round
+        // updated documents.
+        if (ctx.options().update().upsert() && !ctx.isUpdatedOnce() && ctx.isExhausted()) {
             try {
                 executeUpsert(tr, ctx);
             } catch (IOException e) {
@@ -178,6 +181,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             updateAffectedIndexes(ctx, tr, updateResultContainers, affectedPaths);
             updateUnaffectedIndexes(ctx, tr, updateResultContainers, affectedPaths);
 
+            ctx.setUpdatedOnce(true);
             return new ArrayList<>(updateResultContainers.keySet());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -667,6 +671,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         // Store the upsert result for ObjectId resolution after commit
         ctx.setUpsertResult(new UpsertResult(objectId));
         ctx.addReturnedCount(1);
+        ctx.setUpdatedOnce(true);
     }
 
     private void setVectorIndexesForUpsert(

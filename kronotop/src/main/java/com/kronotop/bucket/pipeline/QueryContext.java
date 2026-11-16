@@ -139,6 +139,8 @@ public class QueryContext {
      */
     private boolean limitReached;
 
+    private boolean updatedOnce;
+
     /**
      * Constructs a new QueryContext with parameters for parameterized query execution.
      *
@@ -405,6 +407,14 @@ public class QueryContext {
             return true;
         }
         return state.isExhausted();
+    }
+
+    public void setUpdatedOnce(boolean updatedOnce) {
+        this.updatedOnce = updatedOnce;
+    }
+
+    public boolean isUpdatedOnce() {
+        return updatedOnce;
     }
 }
 

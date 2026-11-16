@@ -21,6 +21,7 @@ import com.kronotop.bucket.BsonHelper;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.commands.BucketCommandBuilder;
+import com.kronotop.commands.BucketQueryArgs;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
@@ -33,6 +34,8 @@ import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -450,5 +453,104 @@ class BucketUpdateHandlerWithUpsertTest extends BaseBucketHandlerTest {
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
         assertTrue(errorMessage.content().contains("_id field is immutable"),
                 "Should return error about _id immutability");
+    }
+
+    @Test
+    void shouldNotUpsertOnEmptyAdvanceWhenEarlierRoundMatched() {
+        // Behavior: Two documents match the filter and BATCH is 2. BUCKET.UPDATE with upsert updates both
+        // and keeps the cursor open. The next BUCKET.ADVANCE UPDATE matches nothing. It returns no ids and
+        // cursor_id -1, and the bucket still has 2 documents.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertRaw("{\"kind\": \"a\"}", "{\"kind\": \"a\"}");
+
+        Object first = run(cmd.update(
+                TEST_BUCKET,
+                "{\"kind\": \"a\"}",
+                "{\"$set\": {\"seen\": true}, \"upsert\": true}",
+                BucketQueryArgs.Builder.batch(2)
+        ));
+        assertEquals(2, extractObjectIds(first).size(), "First round should update both documents");
+        int cursorId = extractCursorId(first);
+        assertNotEquals(-1, cursorId, "Cursor should stay open after a full batch");
+
+        Object second = run(cmd.advanceUpdate(cursorId));
+        assertEquals(0, extractObjectIds(second).size(), "Empty round should return no ids");
+        assertEquals(-1, extractCursorId(second), "Empty round should close the cursor");
+
+        assertEquals(2, countDocuments(cmd), "Empty round should not insert a document");
+    }
+
+    @Test
+    void shouldUpsertOnceWhenNoDocumentMatchesAcrossRounds() {
+        // Behavior: The bucket holds 50,000 documents and none match the filter. BUCKET.UPDATE with
+        // upsert uses up its scan budget and keeps the cursor open. After BUCKET.ADVANCE UPDATE runs
+        // until cursor_id is -1, the bucket holds exactly one upserted document.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertUnmatchedDocuments(50_000);
+
+        Object reply = run(cmd.update(
+                TEST_BUCKET,
+                "{\"age\": {\"$gt\": 100}}",
+                "{\"$set\": {\"marker\": \"upserted\"}, \"upsert\": true}"
+        ));
+        int cursorId = extractCursorId(reply);
+        assertNotEquals(-1, cursorId, "Cursor should stay open when the scan budget runs out");
+        advanceUpdateUntilClosed(cmd, cursorId);
+
+        List<BsonDocument> upserted = queryAllMatching(cmd, "{\"marker\": \"upserted\"}");
+        assertEquals(1, upserted.size(), "Rounds without a match should upsert one document in total");
+    }
+
+    @Test
+    void shouldNotUpsertWhenMatchIsBeyondFirstRoundScanBudget() {
+        // Behavior: The bucket holds 50,000 documents that do not match the filter, then one that does.
+        // BUCKET.UPDATE with upsert uses up its scan budget without a match and keeps the cursor open.
+        // After BUCKET.ADVANCE UPDATE runs until cursor_id is -1, the matching document is the only
+        // one that carries the update. No document is upserted.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertUnmatchedDocuments(50_000);
+        insertRaw("{\"age\": 200}");
+
+        Object reply = run(cmd.update(
+                TEST_BUCKET,
+                "{\"age\": {\"$gt\": 100}}",
+                "{\"$set\": {\"marker\": \"updated\"}, \"upsert\": true}"
+        ));
+        int cursorId = extractCursorId(reply);
+        assertNotEquals(-1, cursorId, "Cursor should stay open when the scan budget runs out");
+        advanceUpdateUntilClosed(cmd, cursorId);
+
+        List<BsonDocument> updated = queryAllMatching(cmd, "{\"marker\": \"updated\"}");
+        assertEquals(1, updated.size(), "Only the matching document should carry the update");
+        assertEquals(200, BsonHelper.getInteger(updated.get(0), "age"), "The updated document should be the matching one");
+    }
+
+    private void insertUnmatchedDocuments(int count) {
+        byte[] document = BSONUtil.jsonToDocumentThenBytes("{\"age\": 1}");
+        insertDocumentsAndGetObjectIds(Collections.nCopies(count, document), 1_000);
+    }
+
+    private void advanceUpdateUntilClosed(BucketCommandBuilder<String, String> cmd, int cursorId) {
+        while (cursorId != -1) {
+            cursorId = extractCursorId(run(cmd.advanceUpdate(cursorId)));
+        }
+    }
+
+    private List<BsonDocument> queryAllMatching(BucketCommandBuilder<String, String> cmd, String query) {
+        Object reply = run(cmd.query(TEST_BUCKET, query));
+        List<BsonDocument> entries = new ArrayList<>(extractEntries(reply));
+        int cursorId = extractCursorId(reply);
+        while (cursorId != -1) {
+            reply = run(cmd.advanceQuery(cursorId));
+            entries.addAll(extractEntries(reply));
+            cursorId = extractCursorId(reply);
+        }
+        return entries;
     }
 }
