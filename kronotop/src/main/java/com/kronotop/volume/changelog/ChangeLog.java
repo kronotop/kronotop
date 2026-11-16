@@ -30,6 +30,7 @@ import com.kronotop.volume.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.StampedLock;
@@ -319,8 +320,11 @@ public class ChangeLog {
 
     private long computeWatermark() {
         // protected by watermarkLock
-        if (!inFlightSequenceNumbers.isEmpty()) {
-            return inFlightSequenceNumbers.first() - 1;
+        try {
+            if (!inFlightSequenceNumbers.isEmpty()) {
+                return inFlightSequenceNumbers.first() - 1;
+            }
+        } catch (NoSuchElementException ignored) {
         }
         return lastGeneratedSequenceNumber;
     }
