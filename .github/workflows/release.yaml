@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   jars:
@@ -29,3 +30,28 @@ jobs:
             kronotop/target/kronotop-[0-9]*.jar
             kronotop-cli/target/kronotop-cli-[0-9]*.jar
             kronotop-ctl/target/kronotop-ctl-[0-9]*.jar
+
+      - name: Prepare Docker build context
+        run: |
+          cp kronotop/target/kronotop-[0-9]*.jar docker/kronotop.jar
+          cp kronotop-ctl/target/kronotop-ctl-[0-9]*.jar docker/kronotop-ctl.jar
+          cp kronotop-cli/target/kronotop-cli-[0-9]*.jar docker/kronotop-cli.jar
+          cp bin/kronotop-server docker/kronotop-server
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: docker
+          platforms: linux/amd64
+          provenance: false
+          push: true
+          tags: |
+            ghcr.io/kronotop/kronotop:latest
+            ghcr.io/kronotop/kronotop:${{ github.event.release.tag_name }}

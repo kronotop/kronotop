@@ -20,7 +20,7 @@ Go to `docker` folder after copying the files.
 **3-** Build the image, you may want to change the `tag`.
 
 ```
-docker build -t ghcr.io/kronotop/kronotop:latest --platform=linux/amd64 .
+docker build -t ghcr.io/kronotop/kronotop:latest --platform=linux/amd64 --provenance=false .
 ```
 
 **4-** Push the image to GitHub Container Registry:
