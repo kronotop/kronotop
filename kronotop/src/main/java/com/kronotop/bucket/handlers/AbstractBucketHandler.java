@@ -22,7 +22,8 @@ import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.bql.ParameterExtractor;
-import com.kronotop.bucket.bql.ast.*;
+import com.kronotop.bucket.bql.ast.BqlExpr;
+import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.handlers.protocol.QueryArguments;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
@@ -376,10 +377,6 @@ public abstract class AbstractBucketHandler implements Handler {
         if (arguments.getCollation() != null) {
             builder.collation(arguments.getCollation());
         }
-
-        if (arguments.isKeepOpen()) {
-            builder.keepOpen(arguments.isKeepOpen());
-        }
         return builder.build();
     }
 
@@ -424,23 +421,6 @@ public abstract class AbstractBucketHandler implements Handler {
         findLocalShard(metadata);
     }
 
-    private static boolean containsOrOrIn(BqlExpr expr) {
-        return switch (expr) {
-            case BqlOr _, BqlIn _ -> true;
-            case BqlAnd(List<BqlExpr> children) -> {
-                for (BqlExpr child : children) {
-                    if (containsOrOrIn(child)) {
-                        yield true;
-                    }
-                }
-                yield false;
-            }
-            case BqlNot(BqlExpr child) -> containsOrOrIn(child);
-            case BqlElemMatch(String _, BqlExpr child) -> containsOrOrIn(child);
-            default -> false;
-        };
-    }
-
     /**
      * Creates a query context by parsing the BQL query, building an execution plan, and
      * assembling query options from the request arguments.
@@ -465,12 +445,6 @@ public abstract class AbstractBucketHandler implements Handler {
         QueryOptions options = buildQueryOptions(session, updateOptions, arguments);
 
         BqlExpr expr = BqlParser.parse(query);
-        // $or, and $in on an indexed field, run as several scans. Once every scan reaches its end,
-        // ADVANCE does not read them again. A KEEPOPEN cursor would stay open and never return new
-        // documents. The query decides, so the command is rejected with or without an index.
-        if (arguments.isKeepOpen() && containsOrOrIn(expr)) {
-            throw new IllegalCommandArgumentException("KEEPOPEN argument cannot be used with $or or $in");
-        }
         session.setQuery(expr);
         List<BqlValue> parameters = ParameterExtractor.extract(expr);
 
@@ -543,8 +517,8 @@ public abstract class AbstractBucketHandler implements Handler {
     }
 
     /**
-     * Removes the query context from the session when the LIMIT budget is used up or a cursor
-     * without KEEPOPEN reaches the end of its result set.
+     * Removes the query context from the session when the LIMIT budget is used up or the cursor
+     * reaches the end of its result set.
      *
      * @param ctx       the query context of the current cursor
      * @param session   the client session that owns the cursor
@@ -563,7 +537,7 @@ public abstract class AbstractBucketHandler implements Handler {
 
     /**
      * Removes the query context from the session when the client asked to close the cursor, the
-     * LIMIT budget is used up, or a cursor without KEEPOPEN reaches the end of its result set.
+     * LIMIT budget is used up, or the cursor reaches the end of its result set.
      *
      * @param ctx       the query context of the current cursor
      * @param session   the client session that owns the cursor
@@ -579,7 +553,7 @@ public abstract class AbstractBucketHandler implements Handler {
             BucketOperation operation,
             boolean close
     ) {
-        if (close || ctx.isLimitReached() || (!ctx.options().isKeepOpen() && ctx.isExhausted())) {
+        if (close || ctx.isLimitReached() || ctx.isExhausted()) {
             Map<Integer, QueryContext> contexts = findQueryContext(session, operation);
             contexts.remove(cursorId);
             return true;

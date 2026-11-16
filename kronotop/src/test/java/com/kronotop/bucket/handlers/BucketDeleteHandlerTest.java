@@ -756,40 +756,6 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldKeepDeleteCursorOpenWhenKeepOpenIsGiven() {
-        // Behavior: With KEEPOPEN, BUCKET.DELETE keeps the cursor open after it deletes every
-        // matching document. The response carries a cursor_id other than -1.
-        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
-        switchProtocol(cmd, RESPVersion.RESP3);
-
-        insertDocumentsAndGetObjectIds(identicalDocuments(3));
-
-        Object msg = deleteWithArgs(cmd, "{}", BucketQueryArgs.Builder.batch(10).keepOpen());
-        assertNotEquals(-1, extractCursorId(msg));
-        assertEquals(3, extractObjectIds(msg).size());
-    }
-
-    @Test
-    void shouldKeepKeepOpenDeleteCursorOpenOnAdvance() {
-        // Behavior: A KEEPOPEN delete cursor stays open after it deletes every matching document.
-        // ADVANCE DELETE returns no ids and the original cursor_id, not -1.
-        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
-        switchProtocol(cmd, RESPVersion.RESP3);
-
-        insertDocumentsAndGetObjectIds(identicalDocuments(3));
-
-        Object first = deleteWithArgs(cmd, "{}", BucketQueryArgs.Builder.batch(10).keepOpen());
-        int cursorId = extractCursorId(first);
-        assertNotEquals(-1, cursorId);
-        assertEquals(3, extractObjectIds(first).size());
-
-        Object second = advanceDelete(cmd, cursorId);
-        assertInstanceOf(MapRedisMessage.class, second);
-        assertEquals(cursorId, extractCursorId(second));
-        assertEquals(0, extractObjectIds(second).size());
-    }
-
-    @Test
     void shouldCloseDeleteCursorWhenLastBatchIsPartial() {
         // Behavior: With 7 matching documents and BATCH 5, ADVANCE DELETE deletes the last 2
         // documents and returns cursor_id -1. A later ADVANCE DELETE with the old id fails.
@@ -1419,24 +1385,6 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());
-    }
-
-    @Test
-    void shouldRejectKeepOpenWithClose() {
-        // Behavior: BUCKET.DELETE rejects KEEPOPEN and CLOSE in the same command with an exact ERR reply.
-        Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_DELETE,
-                List.of("test-bucket", "{}", "KEEPOPEN", "CLOSE"));
-
-        assertErrorReply("ERR KEEPOPEN argument cannot be used with CLOSE", response);
-    }
-
-    @Test
-    void shouldRejectKeepOpenWithOr() {
-        // Behavior: BUCKET.DELETE rejects KEEPOPEN with a query that has $or with an exact ERR reply.
-        Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_DELETE,
-                List.of("test-bucket", "{\"$or\": [{\"a\": 1}, {\"b\": 2}]}", "KEEPOPEN"));
-
-        assertErrorReply("ERR KEEPOPEN argument cannot be used with $or or $in", response);
     }
 
     @Test

@@ -67,30 +67,20 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
         assertTrue(hasKey(mapMessage, "plan"));
     }
 
-    private void assertUnsupportedArgument(BucketQueryArgs args, String expectedError) {
+    @Test
+    void shouldRejectCloseArgument() {
+        // Behavior: BUCKET.EXPLAIN rejects CLOSE because it never opens a cursor.
         insertDocumentsAndGetObjectIds(List.of(TEST_DOCUMENT));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.explain(TEST_BUCKET, "{}", args).encode(buf);
+        cmd.explain(TEST_BUCKET, "{}", BucketQueryArgs.Builder.close()).encode(buf);
         Object msg = runCommand(channel, buf);
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
-        assertEquals(expectedError, ((ErrorRedisMessage) msg).content());
-    }
-
-    @Test
-    void shouldRejectCloseArgument() {
-        // Behavior: BUCKET.EXPLAIN rejects CLOSE because it never opens a cursor.
-        assertUnsupportedArgument(BucketQueryArgs.Builder.close(), "ERR 'CLOSE' is an unsupported argument");
-    }
-
-    @Test
-    void shouldRejectKeepOpenArgument() {
-        // Behavior: BUCKET.EXPLAIN rejects KEEPOPEN because it never opens a cursor.
-        assertUnsupportedArgument(BucketQueryArgs.Builder.keepOpen(), "ERR 'KEEPOPEN' is an unsupported argument");
+        assertEquals("ERR 'CLOSE' is an unsupported argument", ((ErrorRedisMessage) msg).content());
     }
 
     @Test

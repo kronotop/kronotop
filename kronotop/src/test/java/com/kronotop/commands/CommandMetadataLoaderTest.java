@@ -254,7 +254,7 @@ class CommandMetadataLoaderTest {
         assertNotNull(query);
         assertEquals(CommandGroup.BUCKET, query.group());
         assertEquals(-3, query.arity());
-        assertEquals(11, query.arguments().size());
+        assertEquals(10, query.arguments().size());
         assertEquals("SORTBY", query.arguments().get(2).token());
 
         CommandMetadata zset = commands.get("ZSET");
@@ -276,22 +276,6 @@ class CommandMetadataLoaderTest {
         boolean explainHasClose = commands.get("BUCKET.EXPLAIN").arguments().stream()
                 .anyMatch(argument -> "CLOSE".equals(argument.token()));
         assertFalse(explainHasClose);
-    }
-
-    @Test
-    void shouldDefineKeepOpenArgumentForCursorCommands() {
-        // Behavior: the commands that open a cursor list KEEPOPEN, BUCKET.EXPLAIN does not list it
-        Map<String, CommandMetadata> commands = CommandMetadataLoader.load().get(ServerKind.EXTERNAL);
-
-        for (String name : List.of("BUCKET.QUERY", "BUCKET.DELETE", "BUCKET.UPDATE")) {
-            boolean hasKeepOpen = commands.get(name).arguments().stream()
-                    .anyMatch(argument -> "KEEPOPEN".equals(argument.token()));
-            assertTrue(hasKeepOpen, name);
-        }
-
-        boolean explainHasKeepOpen = commands.get("BUCKET.EXPLAIN").arguments().stream()
-                .anyMatch(argument -> "KEEPOPEN".equals(argument.token()));
-        assertFalse(explainHasKeepOpen);
     }
 
     @Test

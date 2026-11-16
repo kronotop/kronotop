@@ -46,4 +46,4 @@ done
 # JAVA_OPTS and KRONOTOP_OPTS hold several flags, so they must stay unquoted and split into words.
 # shellcheck disable=SC2086
 
-exec java -Dkronotop.server ${KRONOTOP_OPTS:-} $JAVA_OPTS ${JVM_ARGS[@]+"${JVM_ARGS[@]}"} -jar "$JAR" ${SERVER_ARGS[@]+"${SERVER_ARGS[@]}"}
+exec java -Dkronotop.server ${KRONOTOP_OPTS:-} $JAVA_OPTS ${JVM_ARGS[@]+"${JVM_ARGS[@]}"} -jar "$JAR" ${SERVER_ARGS[@]+"${SERVER_ARGS[@]}"} 2> >(grep -v "Using incubator modules" >&2)

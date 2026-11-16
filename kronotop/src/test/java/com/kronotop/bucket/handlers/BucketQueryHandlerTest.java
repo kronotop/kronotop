@@ -61,7 +61,6 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
     private static final String COLLATION_BUCKET = "collation-bucket";
-    private static final String KEEPOPEN_WITH_OR_OR_IN_ERROR = "ERR KEEPOPEN argument cannot be used with $or or $in";
 
     static Stream<Arguments> duplicateArguments() {
         return Stream.of(
@@ -105,25 +104,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
                         "ERR Unknown argument: 'BOGUS'"),
                 arguments("NAMESPACE without value",
                         List.of("test-bucket", "{}", "NAMESPACE"),
-                        "ERR NAMESPACE argument must be followed by a namespace"),
-                arguments("KEEPOPEN with CLOSE",
-                        List.of("test-bucket", "{}", "KEEPOPEN", "CLOSE"),
-                        "ERR KEEPOPEN argument cannot be used with CLOSE"),
-                arguments("KEEPOPEN with $or",
-                        List.of("test-bucket", "{\"$or\": [{\"a\": 1}, {\"b\": 2}]}", "KEEPOPEN"),
-                        KEEPOPEN_WITH_OR_OR_IN_ERROR),
-                arguments("KEEPOPEN with $in",
-                        List.of("test-bucket", "{\"a\": {\"$in\": [1, 2]}}", "KEEPOPEN"),
-                        KEEPOPEN_WITH_OR_OR_IN_ERROR),
-                arguments("KEEPOPEN with $or inside $and",
-                        List.of("test-bucket", "{\"$and\": [{\"a\": 1}, {\"$or\": [{\"b\": 1}, {\"b\": 2}]}]}", "KEEPOPEN"),
-                        KEEPOPEN_WITH_OR_OR_IN_ERROR),
-                arguments("KEEPOPEN with $in inside $elemMatch",
-                        List.of("test-bucket", "{\"a\": {\"$elemMatch\": {\"$in\": [1, 2]}}}", "KEEPOPEN"),
-                        KEEPOPEN_WITH_OR_OR_IN_ERROR),
-                arguments("KEEPOPEN with $in inside $not",
-                        List.of("test-bucket", "{\"a\": {\"$not\": {\"$in\": [1, 2]}}}", "KEEPOPEN"),
-                        KEEPOPEN_WITH_OR_OR_IN_ERROR)
+                        "ERR NAMESPACE argument must be followed by a namespace")
         );
     }
 
@@ -2225,50 +2206,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldKeepCursorOpenWhenKeepOpenIsGiven() {
-        // Behavior: With KEEPOPEN, BUCKET.QUERY keeps the cursor open after it returns every
-        // matching document. The response carries a cursor_id other than -1.
-        List<byte[]> documents = new ArrayList<>();
-        for (int i = 0; i < 3; i++) {
-            documents.add(TEST_DOCUMENT);
-        }
-        insertDocumentsAndGetObjectIds(documents);
-
-        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
-        switchProtocol(cmd, RESPVersion.RESP3);
-
-        ByteBuf buf = Unpooled.buffer();
-        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(10).keepOpen()).encode(buf);
-        Object msg = runCommand(channel, buf);
-        assertInstanceOf(MapRedisMessage.class, msg);
-
-        assertNotEquals(-1, extractCursorId(msg));
-        assertEquals(3, extractEntries(msg).size());
-    }
-
-    @Test
-    void shouldAcceptKeepOpenWithAndAndNin() {
-        // Behavior: BUCKET.QUERY accepts KEEPOPEN with a query that has $and, $gt and $nin. With 2
-        // matching documents and BATCH 10, it returns both and a cursor_id other than -1.
-        insertDocumentsAndGetObjectIds(List.of(
-                BSONUtil.jsonToDocumentThenBytes("{\"age\": 30}"),
-                BSONUtil.jsonToDocumentThenBytes("{\"age\": 40}")
-        ));
-
-        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
-        switchProtocol(cmd, RESPVersion.RESP3);
-
-        ByteBuf buf = Unpooled.buffer();
-        cmd.query(TEST_BUCKET, "{\"$and\": [{\"age\": {\"$gt\": 10}}, {\"age\": {\"$nin\": [20]}}]}",
-                BucketQueryArgs.Builder.batch(10).keepOpen()).encode(buf);
-        Object msg = runCommand(channel, buf);
-        assertInstanceOf(MapRedisMessage.class, msg);
-
-        assertNotEquals(-1, extractCursorId(msg));
-        assertEquals(2, extractEntries(msg).size());
-    }
-
-    @Test
     void shouldReturnMinusOneWhenNoDocumentMatches() {
         // Behavior: When the bucket has documents but none matches the filter, BUCKET.QUERY returns
         // no entries and cursor_id -1.
@@ -2443,9 +2380,8 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidArguments")
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
-        // Behavior: BUCKET.QUERY rejects a keyword without its value, an unusable value, an
-        // unknown keyword, two keywords that cannot be used together, or KEEPOPEN with a query
-        // that has $or or $in, with an exact ERR reply.
+        // Behavior: BUCKET.QUERY rejects a keyword without its value, an unusable value, or an
+        // unknown keyword with an exact ERR reply.
         Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_QUERY, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);
@@ -2454,19 +2390,19 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldReportOpenCursorInInfo() {
-        // Behavior: a QUERY with KEEPOPEN leaves its cursor open on the session, and INFO bucket
-        // reports it in open_cursors. The INSERT and QUERY calls are counted in bucket_inserts
-        // and bucket_queries
-        insertDocumentsAndGetObjectIds(List.of(TEST_DOCUMENT));
+        // Behavior: With 2 documents and BATCH 1, a QUERY returns a full batch and leaves its
+        // cursor open on the session. INFO bucket reports the cursor in open_cursors and counts
+        // the INSERT and QUERY calls in bucket_inserts and bucket_queries.
+        insertDocumentsAndGetObjectIds(List.of(TEST_DOCUMENT, TEST_DOCUMENT));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.keepOpen()).encode(buf);
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(1)).encode(buf);
         assertInstanceOf(MapRedisMessage.class, runCommand(channel, buf));
         // Same shape again: first QUERY is a plan cache miss, second one is a hit
         ByteBuf secondBuf = Unpooled.buffer();
-        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.keepOpen()).encode(secondBuf);
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(1)).encode(secondBuf);
         assertInstanceOf(MapRedisMessage.class, runCommand(channel, secondBuf));
 
         ByteBuf infoBuf = Unpooled.buffer();

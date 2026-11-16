@@ -27,8 +27,5 @@ public class BucketExplainMessage extends BucketQueryMessage {
         if (getArguments().isClose()) {
             throw new UnsupportedArgumentException(QueryArgumentKey.CLOSE);
         }
-        if (getArguments().isKeepOpen()) {
-            throw new UnsupportedArgumentException(QueryArgumentKey.KEEPOPEN);
-        }
     }
 }

@@ -20,7 +20,6 @@ package com.kronotop.bucket.handlers.protocol;
 import com.kronotop.bucket.handlers.CollationHelper;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.StringUtil;
-import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
@@ -143,16 +142,7 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                     }
                     arguments.setClose(true);
                 }
-                case KEEPOPEN -> {
-                    if (!supportedArguments.contains(QueryArgumentKey.KEEPOPEN)) {
-                        throw new UnsupportedArgumentException(QueryArgumentKey.KEEPOPEN);
-                    }
-                    arguments.setKeepOpen(true);
-                }
             }
-        }
-        if (arguments.isKeepOpen() && arguments.isClose()) {
-            throw new IllegalCommandArgumentException("KEEPOPEN argument cannot be used with CLOSE");
         }
         return arguments;
     }

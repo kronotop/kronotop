@@ -35,7 +35,6 @@ public class QueryArguments {
     private Collation collation;
     private String namespace;
     private boolean close;
-    private boolean keepOpen;
 
     /**
      * Returns the batch size, or 0 if not specified.
@@ -142,13 +141,5 @@ public class QueryArguments {
 
     public void setClose(boolean close) {
         this.close = close;
-    }
-
-    public void setKeepOpen(boolean keepOpen) {
-        this.keepOpen = keepOpen;
-    }
-
-    public boolean isKeepOpen() {
-        return keepOpen;
     }
 }

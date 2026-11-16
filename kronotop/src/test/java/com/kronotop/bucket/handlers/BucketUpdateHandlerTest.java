@@ -3115,21 +3115,6 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldKeepUpdateCursorOpenWhenKeepOpenIsGiven() {
-        // Behavior: With KEEPOPEN, BUCKET.UPDATE keeps the cursor open after it updates every
-        // matching document. The response carries a cursor_id other than -1.
-        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
-        switchProtocol(cmd, RESPVersion.RESP3);
-
-        insertDocumentsAndGetObjectIds(identicalDocuments(3));
-
-        Object msg = updateWithArgs(cmd, "{}", "{\"$set\": {\"status\": \"updated\"}}",
-                BucketQueryArgs.Builder.batch(10).keepOpen());
-        assertNotEquals(-1, extractCursorId(msg));
-        assertEquals(3, extractObjectIds(msg).size());
-    }
-
-    @Test
     void shouldCloseUpdateCursorWhenLastBatchIsPartial() {
         // Behavior: With 7 matching documents and BATCH 5, ADVANCE UPDATE updates the last 2
         // documents and returns cursor_id -1. A later ADVANCE UPDATE with the old id fails.
@@ -3183,24 +3168,6 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());
-    }
-
-    @Test
-    void shouldRejectKeepOpenWithClose() {
-        // Behavior: BUCKET.UPDATE rejects KEEPOPEN and CLOSE in the same command with an exact ERR reply.
-        Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_UPDATE,
-                List.of("test-bucket", "{}", "{\"$set\":{\"a\":1}}", "KEEPOPEN", "CLOSE"));
-
-        assertErrorReply("ERR KEEPOPEN argument cannot be used with CLOSE", response);
-    }
-
-    @Test
-    void shouldRejectKeepOpenWithOr() {
-        // Behavior: BUCKET.UPDATE rejects KEEPOPEN with a query that has $or with an exact ERR reply.
-        Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_UPDATE,
-                List.of("test-bucket", "{\"$or\": [{\"a\": 1}, {\"b\": 2}]}", "{\"$set\":{\"a\":1}}", "KEEPOPEN"));
-
-        assertErrorReply("ERR KEEPOPEN argument cannot be used with $or or $in", response);
     }
 
     @Test

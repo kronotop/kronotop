@@ -62,8 +62,6 @@ public class QueryOptions {
 
     private final Collation collation;
 
-    private final boolean keepOpen;
-
     private QueryOptions(Builder builder) {
         this.sortByField = builder.sortByField;
         this.sortDirection = builder.sortDirection;
@@ -73,7 +71,6 @@ public class QueryOptions {
         this.batch = builder.batch;
         this.update = builder.update;
         this.collation = builder.collation;
-        this.keepOpen = builder.keepOpen;
     }
 
     /**
@@ -158,10 +155,6 @@ public class QueryOptions {
         return collation;
     }
 
-    public boolean isKeepOpen() {
-        return keepOpen;
-    }
-
     /**
      * Builder for {@link QueryOptions}. Call {@link #build()} to create the immutable instance.
      */
@@ -198,8 +191,6 @@ public class QueryOptions {
          * Batch size. Defaults to {@value QueryContext#DEFAULT_BATCH}.
          */
         private int batch = QueryContext.DEFAULT_BATCH;
-
-        private boolean keepOpen;
 
         /**
          * Sets the field name to use for sorting results.
@@ -285,11 +276,6 @@ public class QueryOptions {
 
         public Builder collation(Collation collation) {
             this.collation = collation;
-            return this;
-        }
-
-        public Builder keepOpen(boolean keepOpen) {
-            this.keepOpen = keepOpen;
             return this;
         }
 

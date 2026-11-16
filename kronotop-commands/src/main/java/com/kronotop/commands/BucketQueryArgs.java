@@ -29,7 +29,6 @@ public class BucketQueryArgs {
     private String collation;
     private String namespace;
     private boolean close;
-    private boolean keepOpen;
 
     public BucketQueryArgs limit(int limit) {
         this.limit = limit;
@@ -73,11 +72,6 @@ public class BucketQueryArgs {
         return this;
     }
 
-    public BucketQueryArgs keepOpen() {
-        this.keepOpen = true;
-        return this;
-    }
-
     public <K, V> void build(CommandArgs<K, V> args) {
         if (limit > 0) {
             args.add("LIMIT");
@@ -114,10 +108,6 @@ public class BucketQueryArgs {
         if (namespace != null) {
             args.add("NAMESPACE");
             args.add(namespace);
-        }
-
-        if (keepOpen) {
-            args.add("KEEPOPEN");
         }
 
         if (close) {
@@ -159,10 +149,6 @@ public class BucketQueryArgs {
 
         public static BucketQueryArgs close() {
             return new BucketQueryArgs().close();
-        }
-
-        public static BucketQueryArgs keepOpen() {
-            return new BucketQueryArgs().keepOpen();
         }
     }
 }

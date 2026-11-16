@@ -2379,23 +2379,17 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldKeepCursorOpenWhenLimitExceedsMatches() {
-        // Behavior: With KEEPOPEN, the cursor stays open when the data ends before LIMIT is
-        // reached. BUCKET.ADVANCE returns no entries and the original cursor_id, not -1.
+    void shouldCloseCursorWhenDataEndsBeforeLimit() {
+        // Behavior: With 10 matching documents, BATCH 100 and LIMIT 100, the data ends before
+        // LIMIT is reached. BUCKET.QUERY returns all 10 documents and cursor_id -1.
         insertDocumentsAndGetObjectIds(identicalDocuments(10));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(100).limit(100).keepOpen());
-        int cursorId = extractCursorId(first);
-        assertNotEquals(-1, cursorId);
+        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(100).limit(100));
+        assertEquals(-1, extractCursorId(first));
         assertEquals(10, extractEntries(first).size());
-
-        Object second = advance(cmd, cursorId);
-        assertInstanceOf(MapRedisMessage.class, second);
-        assertEquals(cursorId, extractCursorId(second));
-        assertEquals(0, extractEntries(second).size());
     }
 
     @Test
@@ -2425,36 +2419,6 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         Object afterClose = advance(cmd, cursorId);
         assertInstanceOf(ErrorRedisMessage.class, afterClose);
         assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
-    }
-
-    @Test
-    void shouldReturnNewDocumentsFromKeepOpenCursor() {
-        // Behavior: A KEEPOPEN cursor stays open after the result set ends. BUCKET.ADVANCE returns
-        // no entries while nothing is new, and returns documents inserted after that.
-        insertDocumentsAndGetObjectIds(identicalDocuments(3));
-
-        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
-        switchProtocol(cmd, RESPVersion.RESP3);
-
-        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(10).keepOpen());
-        int cursorId = extractCursorId(first);
-        assertNotEquals(-1, cursorId);
-        assertEquals(3, extractEntries(first).size());
-
-        Object second = advance(cmd, cursorId);
-        assertInstanceOf(MapRedisMessage.class, second);
-        assertEquals(cursorId, extractCursorId(second));
-        assertEquals(0, extractEntries(second).size());
-
-        Set<ObjectId> newIds = insertDocumentsAndGetObjectIds(identicalDocuments(2)).keySet();
-
-        Object third = advance(cmd, cursorId);
-        assertInstanceOf(MapRedisMessage.class, third);
-        assertEquals(cursorId, extractCursorId(third));
-        List<ObjectId> returnedIds = new ArrayList<>();
-        appendIds(extractEntries(third), returnedIds);
-        assertEquals(2, returnedIds.size());
-        assertTrue(newIds.containsAll(returnedIds));
     }
 
     @Test
