@@ -55,11 +55,12 @@ The response is an array with two elements: the cursor ID and a nested array of 
    ...
 ```
 
-An empty `entries` array means no documents were available at that moment. It does not mean the cursor is exhausted.
-A later call may return new documents.
+An empty `entries` array with a positive `cursor_id` means this call found no documents and the cursor is still open.
+Call `BUCKET.ADVANCE` again to continue. See [Partial and empty batches](../cursor-based-streaming.md#partial-and-empty-batches) for the reason.
 
-A `cursor_id` of `-1` means the `LIMIT` of the initial command was reached. The cursor is removed and cannot be
-advanced again.
+A `cursor_id` of `-1` means the result set has ended or the `LIMIT` of the initial command was reached. The cursor is
+removed and cannot be advanced again. This response carries the last documents, or an empty array if the previous
+batch was full.
 
 **DELETE operation:**
 
@@ -88,11 +89,7 @@ The response is an array with two elements: the cursor ID and a nested array of 
    ...
 ```
 
-An empty `object_ids` array means no documents were available at that moment. It does not mean the cursor is exhausted.
-A later call may return new documents.
-
-A `cursor_id` of `-1` means the `LIMIT` of the initial command was reached. The cursor is removed and cannot be
-advanced again.
+An empty `object_ids` array and a `cursor_id` of `-1` have the same meaning as in the QUERY operation.
 
 **UPDATE operation:**
 
@@ -108,7 +105,8 @@ Cursors are created by `BUCKET.QUERY`, `BUCKET.DELETE`, or `BUCKET.UPDATE` comma
 - Stores the query context (filter, sort, batch size, limit)
 - Tracks the current position in the result set
 - Respects the original batch size from the initial command
-- Respects the original `LIMIT` from the initial command and is removed once the limit is reached
+- Respects the original `LIMIT` from the initial command
+- Is removed once the result set ends or the limit is reached
 
 The cursor ID must match the operation type. For example, a cursor created by `BUCKET.QUERY` can only be used with
 `BUCKET.ADVANCE QUERY`.
@@ -123,10 +121,10 @@ Argument errors:
 
 Bucket errors:
 
-| Error Code           | Error message                        | Cause                                                                                                       |
-|----------------------|--------------------------------------|-------------------------------------------------------------------------------------------------------------|
-| `ERR`                | `No such cursor: '<cursor-id>'`      | The cursor id is unknown, or the cursor was removed by `LIMIT`, by the `CLOSE` argument, or `BUCKET.CLOSE`. |
-| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                                           |
+| Error Code           | Error message                        | Cause                                                                                                                                        |
+|----------------------|--------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| `ERR`                | `No such cursor: '<cursor-id>'`      | The cursor id is unknown, or the cursor was removed at the end of the result set, by `LIMIT`, by the `CLOSE` argument, or by `BUCKET.CLOSE`. |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                                                                            |
 
 ## Examples
 
@@ -142,7 +140,7 @@ Bucket errors:
 2# "entries" => [...] (next 100 documents)
 
 > BUCKET.ADVANCE QUERY 1
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) -1
 2# "entries" => [] (empty)
 ```
 

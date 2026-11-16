@@ -145,7 +145,7 @@ An empty filter returns every document in the bucket:
 
 ```kronotop
 > BUCKET.QUERY users '{}'
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "507f1f77bcf86cd799439011", "name": "Dave", "age": 28}
    2) {"_id": "6a23da8a87f4f93001bd8df6", "name": "Alice", "age": 30, "status": "active"}
@@ -156,8 +156,8 @@ An empty filter returns every document in the bucket:
    7) {"_id": "6a23dac687f4f93001bd8dfb", "name": "Grace", "age": 29, "tags": ["admin", "verified"]}
 ```
 
-Every response contains a `cursor_id` and an `entries` array. Each returned document includes the `_id` field
-that the server adds.
+Every response contains a `cursor_id` and an `entries` array. A `cursor_id` of `-1` means there are no more results
+to fetch. Each returned document includes the `_id` field that the server adds.
 
 ### Exact match
 
@@ -165,7 +165,7 @@ A plain field value works as `$eq`:
 
 ```kronotop
 > BUCKET.QUERY users '{"name": "Alice"}'
-1# "cursor_id" => (integer) 2
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6a23da8a87f4f93001bd8df6", "name": "Alice", "age": 30, "status": "active"}
 ```
 
@@ -173,7 +173,7 @@ A plain field value works as `$eq`:
 
 ```kronotop
 > BUCKET.QUERY users '{"_id": {"$oid": "6a23da8a87f4f93001bd8df6"}}'
-1# "cursor_id" => (integer) 4
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6a23da8a87f4f93001bd8df6", "name": "Alice", "age": 30, "status": "active"}
 ```
 
@@ -199,7 +199,7 @@ Explicit comparison:
 
 ```kronotop
 > BUCKET.QUERY users '{"age": {"$gt": 25}}'
-1# "cursor_id" => (integer) 5
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "507f1f77bcf86cd799439011", "name": "Dave", "age": 28}
    2) {"_id": "6a23da8a87f4f93001bd8df6", "name": "Alice", "age": 30, "status": "active"}
@@ -212,7 +212,7 @@ For a range, put several operators on the same field. They are combined with AND
 
 ```kronotop
 > BUCKET.QUERY users '{"age": {"$gte": 18, "$lt": 65}}'
-1# "cursor_id" => (integer) 6
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "507f1f77bcf86cd799439011", "name": "Dave", "age": 28}
    2) {"_id": "6a23da8a87f4f93001bd8df6", "name": "Alice", "age": 30, "status": "active"}
@@ -228,7 +228,7 @@ Several fields in the same object are combined with AND:
 
 ```kronotop
 > BUCKET.QUERY users '{"status": "active", "age": {"$gte": 18}}'
-1# "cursor_id" => (integer) 7
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "6a23da8a87f4f93001bd8df6", "name": "Alice", "age": 30, "status": "active"}
    2) {"_id": "6a23da9887f4f93001bd8df7", "name": "Bob", "age": 25, "status": "active"}
@@ -238,7 +238,7 @@ You can also write the AND explicitly with `$and`:
 
 ```kronotop
 > BUCKET.QUERY users '{"$and": [{"status": "active"}, {"age": {"$gte": 18}}]}'
-1# "cursor_id" => (integer) 8
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "6a23da8a87f4f93001bd8df6", "name": "Alice", "age": 30, "status": "active"}
    2) {"_id": "6a23da9887f4f93001bd8df7", "name": "Bob", "age": 25, "status": "active"}
@@ -248,7 +248,7 @@ You can also write the AND explicitly with `$and`:
 
 ```kronotop
 > BUCKET.QUERY users '{"$or": [{"status": "active"}, {"status": "pending"}]}'
-1# "cursor_id" => (integer) 9
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "6a23da8a87f4f93001bd8df6", "name": "Alice", "age": 30, "status": "active"}
    2) {"_id": "6a23da9887f4f93001bd8df7", "name": "Bob", "age": 25, "status": "active"}
@@ -258,7 +258,7 @@ You can also write the AND explicitly with `$and`:
 
 ```kronotop
 > BUCKET.QUERY users '{"$nor": [{"status": "inactive"}, {"status": "deleted"}]}'
-1# "cursor_id" => (integer) 10
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "507f1f77bcf86cd799439011", "name": "Dave", "age": 28}
    2) {"_id": "6a23da8a87f4f93001bd8df6", "name": "Alice", "age": 30, "status": "active"}
@@ -272,7 +272,7 @@ You can also write the AND explicitly with `$and`:
 
 ```kronotop
 > BUCKET.QUERY users '{"age": {"$not": {"$gt": 100}}}'
-1# "cursor_id" => (integer) 11
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "507f1f77bcf86cd799439011", "name": "Dave", "age": 28}
    2) {"_id": "6a23da8a87f4f93001bd8df6", "name": "Alice", "age": 30, "status": "active"}
@@ -289,7 +289,7 @@ You can also write the AND explicitly with `$and`:
 
 ```kronotop
 > BUCKET.QUERY users '{"status": {"$in": ["active", "pending"]}}'
-1# "cursor_id" => (integer) 12
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "6a23da8a87f4f93001bd8df6", "name": "Alice", "age": 30, "status": "active"}
    2) {"_id": "6a23da9887f4f93001bd8df7", "name": "Bob", "age": 25, "status": "active"}
@@ -299,7 +299,7 @@ You can also write the AND explicitly with `$and`:
 
 ```kronotop
 > BUCKET.QUERY users '{"status": {"$nin": ["deleted", "archived"]}}'
-1# "cursor_id" => (integer) 13
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "507f1f77bcf86cd799439011", "name": "Dave", "age": 28}
    2) {"_id": "6a23da8a87f4f93001bd8df6", "name": "Alice", "age": 30, "status": "active"}
@@ -314,7 +314,7 @@ You can also write the AND explicitly with `$and`:
 
 ```kronotop
 > BUCKET.QUERY users '{"tags": {"$all": ["admin", "verified"]}}'
-1# "cursor_id" => (integer) 14
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6a23dac687f4f93001bd8dfb", "name": "Grace", "age": 29, "tags": ["admin", "verified"]}
 ```
 
@@ -322,7 +322,7 @@ You can also write the AND explicitly with `$and`:
 
 ```kronotop
 > BUCKET.QUERY users '{"tags": {"$size": 2}}'
-1# "cursor_id" => (integer) 15
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6a23dac687f4f93001bd8dfb", "name": "Grace", "age": 29, "tags": ["admin", "verified"]}
 ```
 
@@ -338,7 +338,7 @@ Query it back with `$elemMatch`:
 
 ```kronotop
 > BUCKET.QUERY users '{"scores": {"$elemMatch": {"$gte": 80, "$lt": 90}}}'
-1# "cursor_id" => (integer) 32
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6a23e0ac87f4f93001bd8dfd", "name": "Henry", "age": 31, "scores": [75, 85, 95]}
 ```
 
@@ -348,13 +348,13 @@ Query it back with `$elemMatch`:
 
 ```kronotop
 > BUCKET.QUERY users '{"email": {"$exists": true}}'
-1# "cursor_id" => (integer) 17
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6a23dab187f4f93001bd8df9", "name": "Eve", "email": "eve@example.com"}
 ```
 
 ```kronotop
 > BUCKET.QUERY users '{"deletedAt": {"$exists": false}}'
-1# "cursor_id" => (integer) 18
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "507f1f77bcf86cd799439011", "name": "Dave", "age": 28}
    2) {"_id": "6a23da8a87f4f93001bd8df6", "name": "Alice", "age": 30, "status": "active"}
@@ -371,7 +371,7 @@ Use dot notation:
 
 ```kronotop
 > BUCKET.QUERY users '{"address.city": "Istanbul"}'
-1# "cursor_id" => (integer) 19
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6a23dabd87f4f93001bd8dfa", "name": "Frank", "age": 40, "address": {"city": "Istanbul", "zip": "34000"}}
 ```
 
@@ -379,7 +379,7 @@ Use dot notation:
 
 ```kronotop
 > BUCKET.QUERY users '{"middleName": null}'
-1# "cursor_id" => (integer) 20
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "507f1f77bcf86cd799439011", "name": "Dave", "age": 28}
    2) {"_id": "6a23da8a87f4f93001bd8df6", "name": "Alice", "age": 30, "status": "active"}
@@ -417,7 +417,7 @@ its position in the result set, so you can page through the results with `BUCKET
    2) {"_id": "6a23da9887f4f93001bd8df8", "name": "Carol", "age": 35, "status": "inactive"}
 ```
 
-An empty `entries` array means that all matching documents have been returned.
+A `cursor_id` of `-1` means that all matching documents have been returned and the cursor is closed.
 
 ### Default batch size
 
@@ -428,30 +428,32 @@ If you omit `BATCH`, the session's `batch` attribute sets the batch size (defaul
 OK
 ```
 
-### Closing cursors
-
-Cursors live in the session and use resources while they are open. Close a cursor with `BUCKET.CLOSE` when you
-are done:
-
-```kronotop
-> BUCKET.CLOSE QUERY 0
-OK
-```
-
 ### Listing active cursors
 
 ```kronotop
 > BUCKET.CURSORS
-1) QUERY -> 0 -> "{}"
-2) UPDATE -> (empty map)
-3) DELETE -> (empty map)
+1# "QUERY" =>
+   1# (integer) 21 => {}
+2# "UPDATE" => (empty map)
+3# "DELETE" => (empty map)
 ```
 
 Filter by operation type:
 
 ```kronotop
 > BUCKET.CURSORS QUERY
-1) QUERY -> 0 -> "{}"
+1# "QUERY" =>
+   1# (integer) 21 => {}
+```
+
+### Closing cursors
+
+Cursors live in the session and use resources while they are open. A cursor closes itself when it returns
+`cursor_id` `-1`. If you stop before that, close it with `BUCKET.CLOSE`:
+
+```kronotop
+> BUCKET.CLOSE QUERY 21
+OK
 ```
 
 ### Sorting with `SORTBY`
@@ -479,7 +481,7 @@ See [SORTBY](sortby.md) for sorting details, [BUCKET.ADVANCE](commands/bucket-ad
 
 ```kronotop
 > BUCKET.UPDATE users '{"name": "Alice"}' '{"$set": {"status": "inactive"}}'
-1# "cursor_id" => (integer) 22
+1# "cursor_id" => (integer) -1
 2# "object_ids" => 1) "6a23da8a87f4f93001bd8df6"
 ```
 
@@ -489,7 +491,7 @@ The response contains the ObjectIds of all updated documents.
 
 ```kronotop
 > BUCKET.UPDATE users '{"age": {"$gt": 30}}' '{"$unset": ["temporary_field", "deprecated_field"]}'
-1# "cursor_id" => (integer) 23
+1# "cursor_id" => (integer) -1
 2# "object_ids" =>
    1) "6a23da9887f4f93001bd8df8"
    2) "6a23dabd87f4f93001bd8dfa"
@@ -499,7 +501,7 @@ The response contains the ObjectIds of all updated documents.
 
 ```kronotop
 > BUCKET.UPDATE users '{}' '{"$set": {"version": 2}, "$unset": ["old_field"]}'
-1# "cursor_id" => (integer) 24
+1# "cursor_id" => (integer) -1
 2# "object_ids" =>
    1) "507f1f77bcf86cd799439011"
    2) "6a23da8a87f4f93001bd8df6"
@@ -516,7 +518,7 @@ When `upsert` is `true` and no document matches the filter, the command inserts 
 
 ```kronotop
 > BUCKET.UPDATE users '{"name": "Helen"}' '{"$set": {"name": "Helen", "status": "active"}, "upsert": true}'
-1# "cursor_id" => (integer) 25
+1# "cursor_id" => (integer) -1
 2# "object_ids" => 1) "6a23dd0287f4f93001bd8dfc"
 ```
 
@@ -528,7 +530,7 @@ every element that is greater than or equal to 80 to 100:
 
 ```kronotop
 > BUCKET.UPDATE users '{"name": "Henry"}' '{"$set": {"scores.$[elem]": 100}, "array_filters": [{"elem": {"$gte": 80}}]}'
-1# "cursor_id" => (integer) 26
+1# "cursor_id" => (integer) -1
 2# "object_ids" => 1) "6a23e0ac87f4f93001bd8dfd"
 ```
 
@@ -614,7 +616,7 @@ See [BUCKET.UPDATE](commands/bucket-update.md) for the full reference.
 
 ```kronotop
 > BUCKET.DELETE users '{"status": "inactive"}'
-1# "cursor_id" => (integer) 27
+1# "cursor_id" => (integer) -1
 2# "object_ids" =>
    1) "6a23da8a87f4f93001bd8df6"
    2) "6a23da9887f4f93001bd8df8"
@@ -622,32 +624,34 @@ See [BUCKET.UPDATE](commands/bucket-update.md) for the full reference.
 
 ### Batched deletes
 
-Use `BATCH` and `BUCKET.ADVANCE` to delete in batches:
+Use `BATCH` and `BUCKET.ADVANCE` to delete in batches. The bucket holds six active documents, so a batch size of 4
+needs two calls:
 
 ```kronotop
-> BUCKET.DELETE users '{"status": "inactive"}' BATCH 100
-1# "cursor_id" => (integer) 28
-2# "object_ids" =>
-   1) "6a23da8a87f4f93001bd8df6"
-   2) "6a23da9887f4f93001bd8df8"
+> BUCKET.DELETE users '{"status": "active"}' BATCH 4
+1# "cursor_id" => (integer) 30
+2# "object_ids" => ... (4 deleted)
 ```
 
-Advance the cursor:
+Advance the cursor. The second call deletes the last two documents and returns `cursor_id` `-1`:
 
 ```kronotop
-> BUCKET.ADVANCE DELETE 0
-cursor_id -> (integer) 0
-object_ids -> [...] (next 100 deleted)
+> BUCKET.ADVANCE DELETE 30
+1# "cursor_id" => (integer) -1
+2# "object_ids" => ... (2 deleted)
 ```
 
 ### Delete all documents
 
 ```kronotop
 > BUCKET.DELETE users '{}'
-1# "cursor_id" => (integer) 28
+1# "cursor_id" => (integer) -1
 2# "object_ids" =>
-   1) "6a23da8a87f4f93001bd8df6"
-   2) "6a23da9887f4f93001bd8df8"
+   1) "507f1f77bcf86cd799439011"
+   2) "6a23dab187f4f93001bd8df9"
+   3) "6a23dabd87f4f93001bd8dfa"
+   4) "6a23dac687f4f93001bd8dfb"
+   5) "6a23e0ac87f4f93001bd8dfd"
 ```
 
 `BUCKET.DELETE` does not support `SORTBY`.
@@ -905,7 +909,7 @@ OK
 1) "6835a1c0e4b0f72a3c000007"
 
 > BUCKET.UPDATE users '{"name": "Alice"}' '{"$set": {"status": "inactive"}}'
-1# "cursor_id" => (integer) 30
+1# "cursor_id" => (integer) -1
 2# "object_ids" => 1) "6835a1c0e4b0f72a3c000001"
 
 > COMMIT

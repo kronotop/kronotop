@@ -371,7 +371,7 @@ After running a query, explaining the same query shape returns the cached plan:
 
 ```kronotop
 > BUCKET.QUERY users '{status: {$eq: "active"}}'
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6a240c7b5da17d872dc0e102", "name": "Bob", "age": 25, "status": "active"}
 
 > BUCKET.EXPLAIN users '{status: {$eq: "active"}}'

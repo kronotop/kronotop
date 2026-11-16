@@ -81,22 +81,20 @@ containing field names and operator expressions.
 
 `BUCKET.QUERY` and `BUCKET.UPDATE` accept `SORTBY <field> <ASC|DESC>` to control result ordering and `BATCH <n>` to
 cap the number of documents processed per batch. `LIMIT <n>` caps the total number of documents across all batches.
-Results are paginated through cursors. Call `BUCKET.ADVANCE` to fetch the next batch, and `BUCKET.CLOSE` to release
-the cursor when done. A cursor whose `LIMIT` is reached returns `cursor_id` `-1` and is removed automatically.
+Results are paginated through cursors. Call `BUCKET.ADVANCE` to fetch the next batch. When the result set ends or the
+`LIMIT` is reached, the response carries `cursor_id` `-1` and the cursor is removed automatically. Call
+`BUCKET.CLOSE` to release a cursor before that.
 
 ```kronotop
-> BUCKET.QUERY users '{"age": {"$gte": 18}}' SORTBY name ASC BATCH 10
+> BUCKET.QUERY users '{"age": {"$gte": 18}}' SORTBY name ASC BATCH 2
 1# "cursor_id" => (integer) 1
 2# "entries" =>
    1) {"_id": "6835a1c0e4b0f72a3c000001", "name": "Alice", "age": 30}
    2) {"_id": "6835a1c0e4b0f72a3c000002", "name": "Bob", "age": 25}
 
 > BUCKET.ADVANCE QUERY 1
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6835a1c0e4b0f72a3c000003", "name": "Carol", "age": 42}
-
-> BUCKET.CLOSE QUERY 1
-OK
 ```
 
 ## Query Processing

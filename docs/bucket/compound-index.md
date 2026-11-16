@@ -323,7 +323,7 @@ BUCKET.INSERT products DOCS '{"category": "electronics", "price": 999.99, "name"
   "category": {"$eq": "electronics"},
   "price": {"$eq": 299.99}
 }'
-1# "cursor_id" => (integer) 12
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "69ce887e6597b10d87d13511", "category": "electronics", "price": 299.99, "name": "Headphones"}
 ```
 
@@ -334,7 +334,7 @@ BUCKET.INSERT products DOCS '{"category": "electronics", "price": 999.99, "name"
   "category": {"$eq": "electronics"},
   "price": {"$gt": 100.0}
 }'
-1# "cursor_id" => (integer) 13
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "69ce887e6597b10d87d13511", "category": "electronics", "price": 299.99, "name": "Headphones"}
    2) {"_id": "69ce88886597b10d87d13514", "category": "electronics", "price": 999.99, "name": "Laptop"}
@@ -346,7 +346,7 @@ Returns the Headphones and Laptop documents.
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY products '{"price": {"$gt": 20.0}}'
-1# "cursor_id" => (integer) 14
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "69ce887e6597b10d87d13511", "category": "electronics", "price": 299.99, "name": "Headphones"}
    2) {"_id": "69ce88816597b10d87d13512", "category": "electronics", "price": 49.99, "name": "USB Cable"}

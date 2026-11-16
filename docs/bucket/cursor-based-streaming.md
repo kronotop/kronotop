@@ -7,17 +7,19 @@ description: "Every BUCKET.QUERY, BUCKET.DELETE, and BUCKET.UPDATE command retur
 build the full result set up front. Each call computes the next batch and moves the cursor forward.
 
 The total number of matching documents is not known in advance. You read the results one batch at a time and call
-`BUCKET.ADVANCE` until the batch comes back empty.
+`BUCKET.ADVANCE` until a response carries `cursor_id` `-1`.
 
 Outside an explicit `BEGIN`/`COMMIT` block, each `BUCKET.ADVANCE` call runs in its own transaction, so the work is
-spread over many short transactions. When you are done, `BUCKET.CLOSE` releases the cursor.
+spread over many short transactions. A cursor that reaches the end of the result set closes itself. `BUCKET.CLOSE`
+releases a cursor that you stop reading early.
 
 ## Why batching
 
 Kronotop returns results in batches for two reasons:
 
-- FoundationDB limits a transaction to about 5 seconds. A query that matches thousands of documents cannot fetch,
-  decode, and return all of them in one transaction. Batching splits the work across many short transactions.
+- FoundationDB limits a transaction to about 5 seconds and to 10 MB of affected data. The keys and key ranges that a
+  transaction reads count toward that size. A query that matches thousands of documents cannot fetch, decode, and
+  return all of them in one transaction. Batching splits the work across many short transactions.
 - Returning the whole result set at once would mean holding every matching document in memory. With batching, the
   batch size limits memory use.
 
@@ -27,47 +29,53 @@ A cursor has three phases: creation, advancing, and closing.
 
 `BUCKET.QUERY`, `BUCKET.DELETE`, and `BUCKET.UPDATE` create the cursor automatically. The response contains a
 `cursor_id` and the first batch of results. The cursor stores the query filter, the sort configuration, and the
-current position.
+current position. If the result set is smaller than the batch size, the first call returns all of it with
+`cursor_id` `-1` and no cursor stays in the session.
 
-`BUCKET.ADVANCE` fetches the next batches. Pass it the operation type and the cursor ID. When the `entries` (or
-`object_ids`) array keeps coming back empty, the result set is exhausted
-(see [Partial and empty batches](#partial-and-empty-batches)). There is no time limit between `BUCKET.ADVANCE` calls.
-A cursor stays valid as long as the session is open and the cursor is not closed. You can fetch the first batch, wait
-an hour, and then call `BUCKET.ADVANCE` to continue from the same point.
+`BUCKET.ADVANCE` fetches the next batches. Pass it the operation type and the cursor ID. There is no time limit
+between `BUCKET.ADVANCE` calls. A cursor stays valid as long as the session is open and the cursor is not closed. You
+can fetch the first batch, wait an hour, and then call `BUCKET.ADVANCE` to continue from the same point.
 
-`BUCKET.CLOSE` releases the cursor. Always call it when you finish paginating. A cursor created with `LIMIT` is
-removed automatically when it reaches the limit (see [Limit](#limit)). A command sent with `CLOSE` closes its own
-cursor (see [Closing in the same call](#closing-in-the-same-call)).
+The cursor closes itself in three cases: the result set ends, the cursor reaches its `LIMIT` (see [Limit](#limit)),
+or the command was sent with `CLOSE` (see [Closing in the same call](#closing-in-the-same-call)). In each case the
+response carries `cursor_id` `-1` and the cursor is removed from the session. A later `BUCKET.ADVANCE` with the old
+ID returns an error.
+
+The call that reaches the end of the result set returns the last results together with `cursor_id` `-1`. If the
+previous batch was full, that call returns an empty batch, because the engine finds the end only when it tries to
+read more. An empty batch with a positive `cursor_id` means the cursor is still open
+(see [Partial and empty batches](#partial-and-empty-batches)).
+
+Call `BUCKET.CLOSE` to release a cursor that you stop reading before the end.
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 2
-1# "cursor_id" => (integer) 0
+1# "cursor_id" => (integer) 1
 2# "entries" =>
    1) {"_id": "69ce80c76597b10d87d134ff", "category": "books", "price": 19.99, "name": "The Disconnected"}
    2) {"_id": "69ce80c76597b10d87d13500", "category": "electronics", "price": 499.99, "name": "Wireless Headphones"}
 ```
 
-Fetch the next batch:
+Fetch the next batch. It holds the last document, so the response carries `cursor_id` `-1`:
 
 ```kronotop
-127.0.0.1:5484> BUCKET.ADVANCE QUERY 0
-1# "cursor_id" => (integer) 0
+127.0.0.1:5484> BUCKET.ADVANCE QUERY 1
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "69ce80c76597b10d87d13501", "category": "electronics", "price": 79.99, "name": "USB-C Hub"}
 ```
 
-No more results:
+To stop before the end, close the cursor. The next query opens a new cursor, and `BUCKET.CLOSE` releases it after the
+first batch:
 
 ```kronotop
-127.0.0.1:5484> BUCKET.ADVANCE QUERY 0
-1# "cursor_id" => (integer) 0
-2# "entries" => (empty array)
-```
+127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 2
+1# "cursor_id" => (integer) 2
+2# "entries" =>
+   1) {"_id": "69ce80c76597b10d87d134ff", "category": "books", "price": 19.99, "name": "The Disconnected"}
+   2) {"_id": "69ce80c76597b10d87d13500", "category": "electronics", "price": 499.99, "name": "Wireless Headphones"}
 
-Close the cursor:
-
-```kronotop
-127.0.0.1:5484> BUCKET.CLOSE QUERY 0
+127.0.0.1:5484> BUCKET.CLOSE QUERY 2
 OK
 ```
 
@@ -107,7 +115,7 @@ Each call returns at most the smaller of `BATCH` and the remaining `LIMIT`. The 
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 2 LIMIT 3
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) 3
 2# "entries" =>
    1) {"_id": "69ce80c76597b10d87d134ff", "category": "books", "price": 19.99, "name": "The Disconnected"}
    2) {"_id": "69ce80c76597b10d87d13500", "category": "electronics", "price": 499.99, "name": "Wireless Headphones"}
@@ -116,7 +124,7 @@ Each call returns at most the smaller of `BATCH` and the remaining `LIMIT`. The 
 The second call returns the last document the limit allows:
 
 ```kronotop
-127.0.0.1:5484> BUCKET.ADVANCE QUERY 1
+127.0.0.1:5484> BUCKET.ADVANCE QUERY 3
 1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "69ce80c76597b10d87d13501", "category": "electronics", "price": 79.99, "name": "USB-C Hub"}
@@ -125,8 +133,8 @@ The second call returns the last document the limit allows:
 The cursor is gone:
 
 ```kronotop
-127.0.0.1:5484> BUCKET.ADVANCE QUERY 1
-(error) ERR No such cursor: '1'
+127.0.0.1:5484> BUCKET.ADVANCE QUERY 3
+(error) ERR No such cursor: '3'
 ```
 
 `LIMIT` works the same way for `BUCKET.DELETE` and `BUCKET.UPDATE`. For `BUCKET.UPDATE`, a document inserted by
@@ -155,16 +163,21 @@ from there. No documents are skipped or returned twice between batches.
 
 ## Partial and empty batches
 
-A batch may contain fewer results than `BATCH` asked for, or no results at all. This does not mean the result set is
-exhausted. The cursor position is still valid, and the next `BUCKET.ADVANCE` call continues from where the previous
-batch stopped.
+A batch may contain fewer results than `BATCH` asked for, or no results at all, while the cursor is still open. The
+cursor position is still valid, and the next `BUCKET.ADVANCE` call continues from where the previous batch stopped.
 
 The most common cause is a very selective filter on a large dataset. The engine examines many documents, but few of
 them match. It limits the work it does per call and returns the matches it has found so far.
 
-To find out when the result set is exhausted, keep calling `BUCKET.ADVANCE` until empty batches come back
-consistently. A selective filter can produce several empty batches before it finds the next matches. The result set
-is exhausted only when there are no documents left to scan. One empty batch is not enough to tell.
+The per-call limit comes from FoundationDB. A transaction can run only for a limited time and read a limited amount
+of data (see [Why batching](#why-batching)), so one call cannot scan an unlimited number of documents.
+
+For example, take a large bucket with no index on the filtered field, where only the last document matches the
+filter. The first calls return an empty batch with a positive `cursor_id`. A later call returns the document.
+
+The `cursor_id` tells you whether to continue. A positive `cursor_id` means the cursor is still open, even when the
+batch is empty, so call `BUCKET.ADVANCE` again. A selective filter can produce several empty batches before it finds
+the next matches. A `cursor_id` of `-1` means there are no documents left to scan.
 
 ## Cursors with UPDATE and DELETE
 
@@ -173,17 +186,18 @@ they return `object_ids` (the IDs of the affected documents) instead of `entries
 
 ```kronotop
 127.0.0.1:5484> BUCKET.DELETE users '{"status": "inactive"}' BATCH 2
-1# "cursor_id" => (integer) 3
+1# "cursor_id" => (integer) 4
 2# "object_ids" =>
    1) "69ce80c76597b10d87d13510"
    2) "69ce80c76597b10d87d13511"
 ```
 
-Advance to delete the next batch:
+The first batch was full, so the cursor is still open. The next call finds no more matching documents and closes the
+cursor:
 
 ```kronotop
-127.0.0.1:5484> BUCKET.ADVANCE DELETE 3
-1# "cursor_id" => (integer) 3
+127.0.0.1:5484> BUCKET.ADVANCE DELETE 4
+1# "cursor_id" => (integer) -1
 2# "object_ids" => (empty array)
 ```
 
@@ -215,11 +229,11 @@ position. Advancing or closing one cursor does not affect the others.
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY products '{"category": "books"}' BATCH 5
-1# "cursor_id" => (integer) 0
+1# "cursor_id" => (integer) 5
 2# "entries" => ...
 
 127.0.0.1:5484> BUCKET.DELETE products '{"category": "discontinued"}' BATCH 10
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) 6
 2# "object_ids" => ...
 ```
 
@@ -228,10 +242,10 @@ Use `BUCKET.CURSORS` to list all active cursors in the session:
 ```kronotop
 127.0.0.1:5484> BUCKET.CURSORS
 1# "QUERY" =>
-   1# 0 => "{"category": "books"}"
+   1# (integer) 5 => {"category": "books"}
 2# "UPDATE" => (empty map)
 3# "DELETE" =>
-   1# 1 => "{"category": "discontinued"}"
+   1# (integer) 6 => {"category": "discontinued"}
 ```
 
 You can also filter by operation type:
@@ -239,7 +253,7 @@ You can also filter by operation type:
 ```kronotop
 127.0.0.1:5484> BUCKET.CURSORS QUERY
 1# "QUERY" =>
-   1# 0 => "{"category": "books"}"
+   1# (integer) 5 => {"category": "books"}
 ```
 
 See [BUCKET.CURSORS](commands/bucket-cursors.md) for the full response format.
@@ -251,12 +265,14 @@ its cursors are released automatically.
 
 ## Best practices
 
-- Always close cursors. Open cursors keep state in the session, so close them with `BUCKET.CLOSE` as soon as you
-  finish paginating.
+- Read until `cursor_id` is `-1`, the only sign that the result set has ended. The cursor is already closed at that
+  point, so you do not need to call `BUCKET.CLOSE`.
+- Close the cursors you stop reading early. Open cursors keep state in the session, so release them with
+  `BUCKET.CLOSE`.
 - If you do not plan to call `BUCKET.ADVANCE`, send the command with `CLOSE`.
   See [Closing in the same call](#closing-in-the-same-call).
-- Expect empty batches. An empty batch does not always mean the result set is exhausted. Keep calling
-  `BUCKET.ADVANCE` until empty batches come back consistently. See [Partial and empty batches](#partial-and-empty-batches).
+- Expect empty batches. An empty batch with a positive `cursor_id` means the cursor is still open, so keep calling
+  `BUCKET.ADVANCE`. See [Partial and empty batches](#partial-and-empty-batches).
 - Pick a batch size that fits your workload. Smaller batches use less memory per transaction, and larger batches need
   fewer round trips. The default of 100 works well for most workloads.
 - Set `LIMIT` when you need only the first N results, or when you want to update or delete at most N documents. The

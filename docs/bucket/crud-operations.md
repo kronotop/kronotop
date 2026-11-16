@@ -88,7 +88,7 @@ See [BUCKET.INSERT](commands/bucket-insert.md) for user-provided `_id` values an
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY products '{}'
-1# "cursor_id" => (integer) 2
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "69dbdc95690a394e625a82c0", "category": "books", "price": 19.99, "name": "The Disconnected"}
    2) {"_id": "69dbdccc690a394e625a82c1", "category": "books", "price": 24.99, "name": "The Black Book"}
@@ -101,7 +101,7 @@ Find all books:
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY products '{"category": "books"}'
-1# "cursor_id" => (integer) 3
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "69dbdc95690a394e625a82c0", "category": "books", "price": 19.99, "name": "The Disconnected"}
    2) {"_id": "69dbdccc690a394e625a82c1", "category": "books", "price": 24.99, "name": "The Black Book"}
@@ -113,7 +113,7 @@ Find products cheaper than 25:
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY products '{"price": {"$lt": 25.0}}'
-1# "cursor_id" => (integer) 5
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "69dbdc95690a394e625a82c0", "category": "books", "price": 19.99, "name": "The Disconnected"}
    2) {"_id": "69dbdccc690a394e625a82c1", "category": "books", "price": 24.99, "name": "The Black Book"}
@@ -130,7 +130,7 @@ Find electronics cheaper than 100, no match in our data:
     {"price": {"$lt": 100.0}}
   ]
 }'
-1# "cursor_id" => (integer) 6
+1# "cursor_id" => (integer) -1
 2# "entries" => (empty array)
 ```
 
@@ -166,7 +166,7 @@ Increase the price of "The Disconnected":
 127.0.0.1:5484> BUCKET.UPDATE products '{"name": "The Disconnected"}' '{
   "$set": {"price": 22.99}
 }'
-1# "cursor_id" => (integer) 8
+1# "cursor_id" => (integer) -1
 2# "object_ids" => 1) "69dbdc95690a394e625a82c0"
 ```
 
@@ -178,7 +178,7 @@ Remove the `category` field from all electronics:
 127.0.0.1:5484> BUCKET.UPDATE products '{"category": "electronics"}' '{
   "$unset": ["category"]
 }'
-1# "cursor_id" => (integer) 9
+1# "cursor_id" => (integer) -1
 2# "object_ids" => 1) "69dbdccc690a394e625a82c2"
 ```
 
@@ -190,7 +190,7 @@ Delete all books:
 
 ```kronotop
 127.0.0.1:5484> BUCKET.DELETE products '{"category": "books"}'
-1# "cursor_id" => (integer) 10
+1# "cursor_id" => (integer) -1
 2# "object_ids" =>
    1) "69dbdc95690a394e625a82c0"
    2) "69dbdccc690a394e625a82c1"
@@ -243,11 +243,11 @@ Fetch the next page using the cursor ID:
    2) {"_id": "69dbddc3690a394e625a82c5", "category": "electronics", "price": 149.99, "name": "Mechanical Keyboard"}
 ```
 
-Continue until the entries array is empty:
+Continue until the response carries `cursor_id` `-1`. The previous batch was full, so the last response is empty:
 
 ```kronotop
 127.0.0.1:5484> BUCKET.ADVANCE QUERY 12
-1# "cursor_id" => (integer) 12
+1# "cursor_id" => (integer) -1
 2# "entries" => (empty array)
 ```
 
@@ -256,21 +256,25 @@ details.
 
 ## Closing Cursors
 
-Every `BUCKET.QUERY`, `BUCKET.DELETE`, and `BUCKET.UPDATE` command creates a cursor that holds state in
-the session. Each cursor holds the filter, sort configuration, and current position. These cursors stay open until
-explicitly
-closed. When you are done paginating, close the cursor to release its resources:
+A cursor holds its filter, sort configuration, and current position in the session. It closes itself when the result
+set ends, as in the example above. If you stop reading before the end, close the cursor to release its resources:
 
 ```kronotop
-127.0.0.1:5484> BUCKET.CLOSE QUERY 12
+127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 2
+1# "cursor_id" => (integer) 13
+2# "entries" =>
+   1) {"_id": "69dbdccc690a394e625a82c2", "price": 499.99, "name": "Wireless Headphones"}
+   2) {"_id": "69dbddc3690a394e625a82c3", "category": "books", "price": 12.99, "name": "The Disconnected"}
+
+127.0.0.1:5484> BUCKET.CLOSE QUERY 13
 OK
 ```
 
 A closed cursor cannot be advanced:
 
 ```kronotop
-127.0.0.1:5484> BUCKET.ADVANCE QUERY 12
-(error) ERR No such cursor: '12'
+127.0.0.1:5484> BUCKET.ADVANCE QUERY 13
+(error) ERR No such cursor: '13'
 ```
 
 When one batch is enough, add `CLOSE` to the command. It returns the first batch with `cursor_id` `-1` and leaves no

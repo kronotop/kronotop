@@ -281,7 +281,7 @@ Query for `"istanbul"` -- with strength 1, all case variations match:
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY cities '{"city": {"$eq": "istanbul"}}'
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "682c5a006597b10d87d13500", "city": "istanbul", "population": 16000000}
    2) {"_id": "682c5a006597b10d87d13501", "city": "Istanbul", "population": 16000000}
@@ -298,7 +298,7 @@ Override with query-level collation at strength 3 (case-sensitive) -- only exact
   "locale": "tr",
   "strength": 3
 }'
-1# "cursor_id" => (integer) 2
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "682c5a006597b10d87d13500", "city": "istanbul", "population": 16000000}
 ```
@@ -313,7 +313,7 @@ Delete with case-insensitive collation -- all case variations are deleted:
   "locale": "tr",
   "strength": 1
 }'
-1# "cursor_id" => (integer) 3
+1# "cursor_id" => (integer) -1
 2# "object_ids" =>
    1) "682c5a006597b10d87d13500"
    2) "682c5a006597b10d87d13501"

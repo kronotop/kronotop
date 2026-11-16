@@ -35,7 +35,7 @@ Read it back with the Bucket Query Language (BQL):
 ```
 NAMESPACE USE tenants.acme
 BUCKET.QUERY orders '{"qty": {"$gte": 1}}'
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6a133c8806bf494c9e7e00cb", "item": "keyboard", "qty": 2, "price": 49.99}
 ```
 
@@ -167,7 +167,7 @@ Query it back:
 
 ```
 kronotop-primary:5484> BUCKET.QUERY orders '{"qty": {"$gte": 1}}'
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6a133c8806bf494c9e7e00cb", "item": "keyboard", "qty": 2, "price": 49.99}
 ```
 
@@ -288,7 +288,7 @@ before, the operators will look familiar. The following example returns document
 
 ```
 127.0.0.1:5484> BUCKET.QUERY orders '{"qty": {"$gte": 1}}'
-1# "cursor_id" => (integer) 2
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6a133ce406bf494c9e7e00cc", "item": "keyboard", "qty": 2, "price": 49.99}
 ```
 
@@ -304,7 +304,7 @@ out of the way. Cursors are session-scoped and released automatically when the s
 
 ```
 127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 2
-1# "cursor_id" => (integer) 0
+1# "cursor_id" => (integer) 1
 2# "entries" =>
    1) {"_id": "69ce80c76597b10d87d134ff", "category": "books", "price": 19.99, "name": "The Disconnected"}
    2) {"_id": "69ce80c76597b10d87d13500", "category": "electronics", "price": 499.99, "name": "Wireless Headphones"}
@@ -313,17 +313,13 @@ out of the way. Cursors are session-scoped and released automatically when the s
 Fetch the next batch:
 
 ```
-127.0.0.1:5484> BUCKET.ADVANCE QUERY 0
-1# "cursor_id" => (integer) 0
+127.0.0.1:5484> BUCKET.ADVANCE QUERY 1
+1# "cursor_id" => (integer) -1
 2# "entries" => (empty array)
 ```
 
-An empty batch means the result set is exhausted. Close the cursor when done:
-
-```
-127.0.0.1:5484> BUCKET.CLOSE QUERY 0
-OK
-```
+A `cursor_id` of `-1` means the result set has ended and the cursor is closed. Use `BUCKET.CLOSE` to release a cursor
+before it reaches the end.
 
 See the [cursor-based streaming documentation](https://kronotop.com/docs/bucket/cursor-based-streaming) for batch
 sizing, scan budgets, sorted cursors, and best practices.

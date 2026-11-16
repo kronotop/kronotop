@@ -76,8 +76,8 @@ The cursor ID is used to fetch more results with `BUCKET.ADVANCE`. Each query cr
 context in the session.
 The cursor tracks the position in the result set for pagination.
 
-A `cursor_id` of `-1` means the `LIMIT` was reached or the command was sent with `CLOSE`. The cursor no longer exists
-and cannot be advanced.
+A `cursor_id` of `-1` means the result set has ended, the `LIMIT` was reached, or the command was sent with `CLOSE`.
+The cursor no longer exists and cannot be advanced.
 
 ## Pagination
 
@@ -87,11 +87,14 @@ Results are returned in batches. Use the cursor ID with `BUCKET.ADVANCE` to get 
 BUCKET.ADVANCE QUERY <cursor-id>
 ```
 
-When there are no more results, the command returns an empty result set.
+The call that reaches the end of the result set returns `cursor_id` `-1` and removes the cursor from the session.
+That response carries the last documents, or an empty `entries` array if the previous batch was full. An empty
+`entries` array with a positive `cursor_id` means the cursor is still open, so call `BUCKET.ADVANCE` again.
 
 `BATCH` caps a single call, `LIMIT` caps the whole cursor. Each call returns at most the smaller of `BATCH` and the
 remaining `LIMIT`. The call that reaches the limit returns `cursor_id` `-1` and removes the cursor from the session.
-There is no need to call `BUCKET.CLOSE` on it. Without `LIMIT`, the cursor stays open until you close it.
+There is no need to call `BUCKET.CLOSE` on it. Use `BUCKET.CLOSE` to release a cursor that you stop reading before it
+returns `-1`.
 
 When one batch is enough, send the command with `CLOSE`. The command returns the first batch with `cursor_id` `-1`
 and leaves no cursor in the session.
@@ -154,7 +157,7 @@ BUCKET.QUERY users '{}'
 Response (RESP3):
 
 ```kronotop
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "6a240c7b5da17d872dc0e102", "name": "Bob", "age": 25, "status": "active"}
    2) {"_id": "6a240c7b5da17d872dc0e103", "name": "Carol", "age": 35, "status": "inactive"}

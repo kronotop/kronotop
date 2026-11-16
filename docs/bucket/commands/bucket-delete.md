@@ -85,7 +85,9 @@ When using `BATCH`, use the cursor ID with `BUCKET.ADVANCE` to delete more match
 BUCKET.ADVANCE DELETE <cursor-id>
 ```
 
-Each call deletes the next batch of documents up to the batch size.
+Each call deletes the next batch of documents up to the batch size. The call that reaches the end of the matching
+documents returns `cursor_id` `-1` and removes the cursor from the session. If the filter matches fewer documents
+than the batch size, the first call already returns `-1`.
 
 `BATCH` caps a single call, `LIMIT` caps the whole cursor. Each call deletes at most the smaller of `BATCH` and the
 remaining `LIMIT`. The call that reaches the limit returns `cursor_id` `-1` and removes the cursor from the session.

@@ -238,7 +238,7 @@ BUCKET.INSERT users DOCS '{"name": "Diana", "age": 22}'
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY users '{"age": {"$eq": 30}}'
-1# "cursor_id" => (integer) 16
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "69ce9b496597b10d87d13515", "name": "Alice", "age": 30}
 ```
 
@@ -246,7 +246,7 @@ BUCKET.INSERT users DOCS '{"name": "Diana", "age": 22}'
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY users '{"age": {"$gte": 25, "$lt": 40}}'
-1# "cursor_id" => (integer) 17
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "69ce9b4a6597b10d87d13516", "name": "Bob", "age": 25}
    2) {"_id": "69ce9b496597b10d87d13515", "name": "Alice", "age": 30}

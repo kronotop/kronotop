@@ -112,7 +112,7 @@ BUCKET.INSERT users DOCS '{"name": "Bob"}'
 
 ```kronotop
 > BUCKET.QUERY users '{"name": {"$regex": "^Al"}}'
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) -1
 2# "entries" =>
    1) {"_id": "6835a1c0e4b0f72a3c000001", "name": "Alice"}
    2) {"_id": "6835a1c0e4b0f72a3c000002", "name": "Alana"}
@@ -122,7 +122,7 @@ BUCKET.INSERT users DOCS '{"name": "Bob"}'
 
 ```kronotop
 > BUCKET.QUERY users '{"name": {"$regex": "^alice$", "$options": "i"}}'
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6835a1c0e4b0f72a3c000001", "name": "Alice"}
 ```
 
@@ -130,7 +130,7 @@ BUCKET.INSERT users DOCS '{"name": "Bob"}'
 
 ```kronotop
 > BUCKET.QUERY users '{"name": {"$not": {"$regex": "^Al"}}}'
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6835a1c0e4b0f72a3c000003", "name": "Bob"}
 ```
 
@@ -147,7 +147,7 @@ BUCKET.INSERT products DOCS '{"tags": ["blue"]}'
 
 ```kronotop
 > BUCKET.QUERY products '{"tags": {"$regex": "een$"}}'
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6835a1c0e4b0f72a3c000004", "tags": ["red", "green"]}
 ```
 

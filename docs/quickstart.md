@@ -4,9 +4,8 @@ description: "Start a minimal Kronotop cluster with Docker Compose, insert a doc
 ---
 
 Docker Compose is the fastest way to try Kronotop. Prebuilt jars are also available on the
-[Releases page](https://github.com/kronotop/kronotop/releases). Download them and run them with `java -jar`. This
-needs Java 25 or newer. To build Kronotop from source and run a node locally, see the
-[Building and Running guide](https://github.com/kronotop/kronotop/blob/main/BUILDING.md).
+[Releases page](https://github.com/kronotop/kronotop/releases). Download them and run them with `java -jar`. This needs Java 25 or newer. To build Kronotop from 
+source and run a node locally, see the [Building and Running guide](https://github.com/kronotop/kronotop/blob/main/BUILDING.md).
 
 ## Start the cluster
 
@@ -98,7 +97,7 @@ Query it back with the Bucket Query Language (BQL):
 
 ```kronotop
 kronotop-primary:5484> BUCKET.QUERY orders '{"qty": {"$gte": 1}}'
-1# "cursor_id" => (integer) 1
+1# "cursor_id" => (integer) -1
 2# "entries" => 1) {"_id": "6a133c8806bf494c9e7e00cb", "item": "keyboard", "qty": 2, "price": 49.99}
 ```
 

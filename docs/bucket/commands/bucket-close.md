@@ -26,8 +26,11 @@ Returns `OK` on success.
 
 ## Closing Without BUCKET.CLOSE
 
-`BUCKET.QUERY`, `BUCKET.DELETE`, and `BUCKET.UPDATE` accept a `CLOSE` argument. A command sent with `CLOSE` returns
-its first batch with `cursor_id` `-1` and leaves no cursor in the session, so there is nothing to close afterwards.
+A cursor closes itself when its result set ends or when it reaches its `LIMIT`. The response that closes it carries
+`cursor_id` `-1`, and there is nothing to close afterward.
+
+`BUCKET.QUERY`, `BUCKET.DELETE`, and `BUCKET.UPDATE` also accept a `CLOSE` argument. A command sent with `CLOSE`
+returns its first batch with `cursor_id` `-1` and leaves no cursor in the session.
 
 ## Errors
 
