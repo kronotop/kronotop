@@ -59,14 +59,10 @@ public class BucketQueryHandler extends AbstractBucketHandler implements Handler
 
             QueryContext ctx = buildQueryContext(request, metadata, message.getQuery(), message.getArguments());
             ctx.setSnapshotRead(TransactionUtil.isSnapshotRead(session));
-            int cursorId = session.nextCursorId();
-            session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get().put(cursorId, ctx);
 
             List<ByteBuffer> entries = service.getQueryExecutor().read(tr, ctx);
             entries = applyProjection(entries, ctx);
-            if (closeCursorIfDone(ctx, session, cursorId, BucketOperation.QUERY, message.getArguments().isClose())) {
-                cursorId = -1;
-            }
+            int cursorId = registerCursorUnlessDone(ctx, session, BucketOperation.QUERY, message.getArguments().isClose());
             return new BucketEntriesMapResponse(cursorId, entries);
         }, (entryMapResponse) -> {
             RESPVersion protoVer = request.getSession().getProtocolVersion();

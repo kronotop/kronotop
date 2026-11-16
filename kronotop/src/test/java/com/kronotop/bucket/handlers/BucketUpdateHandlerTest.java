@@ -3032,6 +3032,35 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(5, idsWithStatus(all).size());
     }
 
+    private void assertNoUpdateCursor(BucketCommandBuilder<String, String> cmd) {
+        ByteBuf cursorsBuf = Unpooled.buffer();
+        cmd.cursors("UPDATE").encode(cursorsBuf);
+        Object cursors = runCommand(channel, cursorsBuf);
+        assertInstanceOf(MapRedisMessage.class, cursors);
+        MapRedisMessage updateCursors = (MapRedisMessage) findInMapMessage((MapRedisMessage) cursors, "UPDATE");
+        assertTrue(updateCursors.children().isEmpty());
+    }
+
+    @Test
+    void shouldNotLeaveCursorWhenUpdateFails() {
+        // Behavior: With an INT32 index on age, a BUCKET.UPDATE that sets age to a string fails
+        // with INDEXTYPE_MISMATCH. After the failure, BUCKET.CURSORS UPDATE lists no cursor.
+        createIndexThenWaitForReadiness(
+                SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING));
+        insertDocumentsAndGetObjectIds(List.of(BSONUtil.jsonToDocumentThenBytes("{\"age\": 25}")));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.update(TEST_BUCKET, "{}", "{\"$set\": {\"age\": \"twenty-five\"}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertTrue(((ErrorRedisMessage) msg).content().startsWith("INDEXTYPE_MISMATCH"));
+
+        assertNoUpdateCursor(cmd);
+    }
+
     @Test
     void shouldCloseUpdateCursorWhenCloseArgumentIsGiven() {
         // Behavior: With CLOSE, BUCKET.UPDATE updates the first batch, returns cursor_id -1, leaves
@@ -3046,12 +3075,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(-1, extractCursorId(msg));
         assertEquals(5, extractObjectIds(msg).size());
 
-        ByteBuf cursorsBuf = Unpooled.buffer();
-        cmd.cursors("UPDATE").encode(cursorsBuf);
-        Object cursors = runCommand(channel, cursorsBuf);
-        assertInstanceOf(MapRedisMessage.class, cursors);
-        MapRedisMessage updateCursors = (MapRedisMessage) findInMapMessage((MapRedisMessage) cursors, "UPDATE");
-        assertTrue(updateCursors.children().isEmpty());
+        assertNoUpdateCursor(cmd);
 
         List<BsonDocument> all = queryAll(cmd);
         assertEquals(20, all.size());

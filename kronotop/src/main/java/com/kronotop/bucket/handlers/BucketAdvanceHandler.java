@@ -96,7 +96,7 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
                 List<ByteBuffer> entries = service.getQueryExecutor().read(tr, ctx);
                 entries = applyProjection(entries, ctx);
                 int cursorId = message.getCursorId();
-                if (closeCursorIfLimitReached(ctx, request.getSession(), cursorId, BucketOperation.QUERY)) {
+                if (closeCursorIfDone(ctx, request.getSession(), cursorId, BucketOperation.QUERY)) {
                     cursorId = -1;
                 }
                 return new BucketEntriesMapResponse(cursorId, entries);
@@ -137,7 +137,7 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
 
                 TransactionUtil.commitIfAutoCommitEnabled(tr, request.getSession());
                 int cursorId = message.getCursorId();
-                if (closeCursorIfLimitReached(ctx, request.getSession(), cursorId, operation)) {
+                if (closeCursorIfDone(ctx, request.getSession(), cursorId, operation)) {
                     cursorId = -1;
                 }
                 return new BucketObjectIdArrayResponse(cursorId, objectIds);

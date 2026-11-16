@@ -64,15 +64,11 @@ public class BucketDeleteHandler extends AbstractBucketHandler implements Handle
             }
 
             QueryContext ctx = buildQueryContext(request, metadata, message.getQuery(), message.getArguments());
-            int cursorId = session.nextCursorId();
-            session.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get().put(cursorId, ctx);
 
             List<ObjectId> objectIds = service.getQueryExecutor().delete(tr, ctx);
 
             TransactionUtil.commitIfAutoCommitEnabled(tr, request.getSession());
-            if (closeCursorIfDone(ctx, session, cursorId, BucketOperation.DELETE, message.getArguments().isClose())) {
-                cursorId = -1;
-            }
+            int cursorId = registerCursorUnlessDone(ctx, session, BucketOperation.DELETE, message.getArguments().isClose());
             return new BucketObjectIdArrayResponse(cursorId, objectIds);
         }, (objectIdResponse) -> {
             ObjectIdFormat format = request.getSession().attr(SessionAttributes.OBJECT_ID_FORMAT).get();

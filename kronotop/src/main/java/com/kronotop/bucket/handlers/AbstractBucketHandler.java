@@ -526,38 +526,44 @@ public abstract class AbstractBucketHandler implements Handler {
      * @param operation the bucket operation that owns the cursor registry
      * @return true if the cursor was closed, false otherwise
      */
-    protected boolean closeCursorIfLimitReached(
+    protected boolean closeCursorIfDone(
             QueryContext ctx,
             Session session,
             int cursorId,
             BucketOperation operation
     ) {
-        return closeCursorIfDone(ctx, session, cursorId, operation, false);
-    }
-
-    /**
-     * Removes the query context from the session when the client asked to close the cursor, the
-     * LIMIT budget is used up, or the cursor reaches the end of its result set.
-     *
-     * @param ctx       the query context of the current cursor
-     * @param session   the client session that owns the cursor
-     * @param cursorId  the cursor to close
-     * @param operation the bucket operation that owns the cursor registry
-     * @param close     true if the client asked to close the cursor
-     * @return true if the cursor was closed, false otherwise
-     */
-    protected boolean closeCursorIfDone(
-            QueryContext ctx,
-            Session session,
-            int cursorId,
-            BucketOperation operation,
-            boolean close
-    ) {
-        if (close || ctx.isLimitReached() || ctx.isExhausted()) {
-            Map<Integer, QueryContext> contexts = findQueryContext(session, operation);
-            contexts.remove(cursorId);
+        if (isDone(ctx)) {
+            findQueryContext(session, operation).remove(cursorId);
             return true;
         }
         return false;
+    }
+
+    /**
+     * Registers the query context in the session as a new cursor if the cursor must stay open.
+     *
+     * @param ctx       the query context of the cursor
+     * @param session   the client session that owns the cursor
+     * @param operation the bucket operation that owns the cursor registry
+     * @param close     true if the client asked to close the cursor
+     * @return the new cursor id, or -1 if the client asked to close the cursor, the LIMIT budget
+     * is used up, or the result set has ended
+     */
+    protected int registerCursorUnlessDone(
+            QueryContext ctx,
+            Session session,
+            BucketOperation operation,
+            boolean close
+    ) {
+        if (close || isDone(ctx)) {
+            return -1;
+        }
+        int cursorId = session.nextCursorId();
+        findQueryContext(session, operation).put(cursorId, ctx);
+        return cursorId;
+    }
+
+    private static boolean isDone(QueryContext ctx) {
+        return ctx.isLimitReached() || ctx.isExhausted();
     }
 }

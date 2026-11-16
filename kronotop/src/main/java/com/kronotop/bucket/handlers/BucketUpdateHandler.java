@@ -90,9 +90,6 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
                     false
             );
 
-            int cursorId = session.nextCursorId();
-            session.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get().put(cursorId, ctx);
-
             List<ObjectId> objectIds = service.getQueryExecutor().update(tr, ctx);
 
             TransactionUtil.commitIfAutoCommitEnabled(tr, request.getSession());
@@ -102,9 +99,7 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
                 objectIds = List.of(ctx.upsertResult().getObjectId());
             }
 
-            if (closeCursorIfDone(ctx, session, cursorId, BucketOperation.UPDATE, message.getArguments().isClose())) {
-                cursorId = -1;
-            }
+            int cursorId = registerCursorUnlessDone(ctx, session, BucketOperation.UPDATE, message.getArguments().isClose());
             return new BucketObjectIdArrayResponse(cursorId, objectIds);
         }, (objectIdResponse) -> {
             ObjectIdFormat format = request.getSession().attr(SessionAttributes.OBJECT_ID_FORMAT).get();
