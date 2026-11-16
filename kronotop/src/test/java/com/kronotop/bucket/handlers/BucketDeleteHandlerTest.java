@@ -708,8 +708,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         deletedIds.addAll(thirdIds);
 
         Object afterClose = advanceDelete(cmd, cursorId);
-        assertInstanceOf(ErrorRedisMessage.class, afterClose);
-        assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
+        assertNoSuchCursor(cursorId, afterClose);
 
         assertEquals(7, deletedIds.size());
         Set<ObjectId> uniqueDeletedIds = new HashSet<>(deletedIds);
@@ -775,8 +774,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         assertEquals(2, extractObjectIds(second).size());
 
         Object afterClose = advanceDelete(cmd, cursorId);
-        assertInstanceOf(ErrorRedisMessage.class, afterClose);
-        assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
+        assertNoSuchCursor(cursorId, afterClose);
 
         assertEquals(0, queryAll(cmd).size());
     }

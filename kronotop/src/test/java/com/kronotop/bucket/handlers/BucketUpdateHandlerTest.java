@@ -3000,8 +3000,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         updatedIds.addAll(thirdIds);
 
         Object afterClose = advanceUpdate(cmd, cursorId);
-        assertInstanceOf(ErrorRedisMessage.class, afterClose);
-        assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
+        assertNoSuchCursor(cursorId, afterClose);
 
         assertEquals(7, updatedIds.size());
         Set<ObjectId> uniqueUpdatedIds = new HashSet<>(updatedIds);
@@ -3159,8 +3158,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(2, extractObjectIds(second).size());
 
         Object afterClose = advanceUpdate(cmd, cursorId);
-        assertInstanceOf(ErrorRedisMessage.class, afterClose);
-        assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
+        assertNoSuchCursor(cursorId, afterClose);
 
         List<BsonDocument> all = queryAll(cmd);
         assertEquals(7, all.size());

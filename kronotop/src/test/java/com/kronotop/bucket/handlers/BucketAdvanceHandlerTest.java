@@ -2351,8 +2351,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         appendIds(entries, collected);
 
         Object afterClose = advance(cmd, cursorId);
-        assertInstanceOf(ErrorRedisMessage.class, afterClose);
-        assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
+        assertNoSuchCursor(cursorId, afterClose);
 
         assertEquals(7, collected.size());
         assertEquals(7, new HashSet<>(collected).size(), "No duplicate ObjectIds across rounds");
@@ -2417,8 +2416,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         assertEquals(2, extractEntries(third).size());
 
         Object afterClose = advance(cmd, cursorId);
-        assertInstanceOf(ErrorRedisMessage.class, afterClose);
-        assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
+        assertNoSuchCursor(cursorId, afterClose);
     }
 
     @Test
@@ -2484,8 +2482,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         assertEquals(List.of(50), agesOf(extractEntries(second)));
 
         Object afterClose = advance(cmd, cursorId);
-        assertInstanceOf(ErrorRedisMessage.class, afterClose);
-        assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
+        assertNoSuchCursor(cursorId, afterClose);
     }
 
     private List<Integer> agesOf(List<BsonDocument> entries) {

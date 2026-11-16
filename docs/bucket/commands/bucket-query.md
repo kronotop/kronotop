@@ -246,5 +246,5 @@ This performs a case-insensitive match using English locale rules, regardless of
 2# "entries" => [...] (1 document)
 
 > BUCKET.ADVANCE QUERY 2
-(error) ERR No previous query context found for 'query' operation with the given cursor id
+(error) ERR No such cursor: '2'
 ```

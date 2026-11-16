@@ -202,7 +202,7 @@ Deletes documents where `name` matches `"alice"` using case-insensitive English 
 2# "object_ids" => ... (1 deleted)
 
 > BUCKET.ADVANCE DELETE 2
-(error) ERR No previous query context found for 'delete' operation with the given cursor id
+(error) ERR No such cursor: '2'
 ```
 
 **Delete within a transaction:**

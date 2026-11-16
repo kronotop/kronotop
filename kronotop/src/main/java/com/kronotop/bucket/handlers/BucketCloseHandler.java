@@ -17,6 +17,7 @@
 package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.NoSuchCursorException;
 import com.kronotop.bucket.handlers.protocol.BucketCloseMessage;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.server.MessageTypes;
@@ -48,8 +49,7 @@ public class BucketCloseHandler extends AbstractBucketHandler {
         Map<Integer, QueryContext> contexts = findQueryContext(request.getSession(), message.getOperation());
         QueryContext ctx = contexts.remove(message.getCursorId());
         if (ctx == null) {
-            response.writeError(String.format("No such cursor: '%d'", message.getCursorId()));
-            return;
+            throw new NoSuchCursorException(message.getCursorId());
         }
         // With the current implementation, there is no need to release context manually
         // GC will throw it away.

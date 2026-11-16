@@ -270,7 +270,7 @@ A closed cursor cannot be advanced:
 
 ```kronotop
 127.0.0.1:5484> BUCKET.ADVANCE QUERY 12
-(error) ERR No previous query context found for 'query' operation with the given cursor id
+(error) ERR No such cursor: '12'
 ```
 
 When one batch is enough, add `CLOSE` to the command. It returns the first batch with `cursor_id` `-1` and leaves no

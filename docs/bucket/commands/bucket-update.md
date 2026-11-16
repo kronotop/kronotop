@@ -275,7 +275,7 @@ Updates documents matching `"alice"` using case-insensitive English collation.
 2# "object_ids" => ... (1 updated)
 
 > BUCKET.ADVANCE UPDATE 2
-(error) ERR No previous query context found for 'update' operation with the given cursor id
+(error) ERR No such cursor: '2'
 ```
 
 **Update within a transaction:**

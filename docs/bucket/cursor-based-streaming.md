@@ -126,7 +126,7 @@ The cursor is gone:
 
 ```kronotop
 127.0.0.1:5484> BUCKET.ADVANCE QUERY 1
-(error) ERR No previous query context found for 'query' operation with the given cursor id
+(error) ERR No such cursor: '1'
 ```
 
 `LIMIT` works the same way for `BUCKET.DELETE` and `BUCKET.UPDATE`. For `BUCKET.UPDATE`, a document inserted by

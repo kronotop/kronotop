@@ -401,14 +401,13 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
         switchProtocol(bucketCmd, RESPVersion.RESP3);
     }
 
-    protected void assertOK(Object response) {
-        assertInstanceOf(SimpleStringRedisMessage.class, response);
-        assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
-    }
-
     protected void assertErrorReply(String expected, Object response) {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expected, ((ErrorRedisMessage) response).content());
+    }
+
+    protected void assertNoSuchCursor(int cursorId, Object response) {
+        assertErrorReply(String.format("ERR No such cursor: '%d'", cursorId), response);
     }
 
     /**

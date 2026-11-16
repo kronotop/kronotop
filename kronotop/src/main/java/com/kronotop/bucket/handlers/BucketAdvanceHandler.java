@@ -22,6 +22,7 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketObjectIdArrayResponse;
 import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.NoSuchCursorException;
 import com.kronotop.bucket.handlers.protocol.BucketAdvanceMessage;
 import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.pipeline.QueryContext;
@@ -75,8 +76,7 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
         Map<Integer, QueryContext> contexts = findQueryContext(session, message.getOperation());
         QueryContext ctx = contexts.get(message.getCursorId());
         if (Objects.isNull(ctx)) {
-            throw new KronotopException("No previous query context found for '" +
-                    message.getOperation().name().toLowerCase() + "' operation with the given cursor id");
+            throw new NoSuchCursorException(message.getCursorId());
         }
         session.setNamespace(ctx.metadata().namespace());
         session.setBucket(ctx.metadata().name());
