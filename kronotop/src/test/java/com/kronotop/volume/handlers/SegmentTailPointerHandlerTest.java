@@ -107,6 +107,32 @@ class SegmentTailPointerHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
+    void shouldReturnSequenceNumberWhenNewerSegmentHasNoCommittedEntry() throws IOException {
+        // Behavior: Segment 0 is full and its entries are committed. A second append creates segment 1, but its
+        // transaction never commits. SEGMENT.TAILPOINTER for segment 0 returns the segment size as the next
+        // position and a positive sequence number.
+        int length = 1024;
+        long segmentSize = volume.getConfig().segmentSize();
+        try (Transaction tr = database.createTransaction()) {
+            volume.append(new VolumeSession(tr, prefix), getEntries(Math.toIntExact(segmentSize / length), length));
+            tr.commit().join();
+        }
+        try (Transaction tr = database.createTransaction()) {
+            volume.append(new VolumeSession(tr, prefix), getEntries(1, length));
+        }
+        assertEquals(2, volume.analyze().size());
+
+        InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.segmentTailPointer(volumeConfig.name(), 0L).encode(buf);
+
+        ArrayRedisMessage message = (ArrayRedisMessage) runCommand(kronotopInstance.getChannel(), buf);
+        assertNotNull(message);
+        assertEquals(segmentSize, ((IntegerRedisMessage) message.children().get(0)).value());
+        assertTrue(((IntegerRedisMessage) message.children().get(1)).value() > 0);
+    }
+
+    @Test
     void shouldReturnZeroPositionAndNegativeSequenceNumber_whenQueryingSegmentZeroOnEmptyVolume() {
         // Query segment ID 0 on an empty volume (no data written yet)
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);

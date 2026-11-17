@@ -114,4 +114,19 @@ public class SegmentSubspaceUtil {
         Versionstamp versionstamp = VersionstampUtil.decodeVersionstampedValue(result.getFirst().getValue());
         return new SegmentTailPointer(versionstamp, position, length);
     }
+
+    /**
+     * Returns the ID of the last segment that holds a committed entry.
+     *
+     * @param tr       the transaction to use for the read operation
+     * @param subspace the directory subspace for the volume
+     * @return the segment ID, or -1 if no segment holds an entry
+     */
+    public static long findLastSegmentIdWithEntries(Transaction tr, DirectorySubspace subspace) {
+        byte[] prefix = subspace.pack(Tuple.from(SEGMENT_POSITION_SUBSPACE));
+        for (KeyValue keyValue : tr.getRange(Range.startsWith(prefix), 1, true)) {
+            return subspace.unpack(keyValue.getKey()).getLong(1);
+        }
+        return -1;
+    }
 }

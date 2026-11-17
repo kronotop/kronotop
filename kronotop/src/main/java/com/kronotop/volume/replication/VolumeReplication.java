@@ -116,6 +116,11 @@ public class VolumeReplication implements ReplicationTask {
         return idx < segmentIds.size() ? segmentIds.get(idx) : null;
     }
 
+    private boolean hasTailSequenceNumber(Transaction tr, long segmentId) {
+        List<Long> tailPointer = ReplicationState.readTailPointer(tr, subspace, segmentId);
+        return !tailPointer.isEmpty() && tailPointer.getFirst() >= 0;
+    }
+
     /**
      * Determines the next replication step based on the current cursor state and segment status.
      */
@@ -136,7 +141,10 @@ public class VolumeReplication implements ReplicationTask {
                         stage == Stage.CHANGE_DATA_CAPTURE
                 );
                 case DONE -> {
-                    Long next = nextSegmentId(cursor.segmentId());
+                    // A tail sequence number means this segment held the newest committed entry when
+                    // its bulk transfer started. CDC continues from that sequence number and follows
+                    // later rollovers, so the primary's segment list is not consulted.
+                    Long next = hasTailSequenceNumber(tr, cursor.segmentId()) ? null : nextSegmentId(cursor.segmentId());
                     if (next == null) {
                         yield new ReplicationStep(cursor.segmentId(), 0, false, true); // Start CDC
                     }

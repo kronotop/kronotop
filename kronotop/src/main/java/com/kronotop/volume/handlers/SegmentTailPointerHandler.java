@@ -40,8 +40,9 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 // The SEGMENT.TAILPOINTER command returns the next position and the sequence number of the last write:
 // * The next position is 0 if the segment contains no data.
-// * The sequence number is resolved only for the active segment.
-// * The sequence number is -1 for sealed and empty segments, or if the changelog entry was pruned.
+// * The sequence number is resolved only for the last segment that holds a committed entry. A newer segment
+//   whose first entry is not committed yet does not change this.
+// * The sequence number is -1 for every other segment, or if the changelog entry was pruned.
 
 @Command(SegmentTailPointerMessage.COMMAND)
 @MaximumArgumentCount(SegmentTailPointerMessage.MAXIMUM_ARGUMENT_COUNT)
@@ -73,13 +74,10 @@ public class SegmentTailPointerHandler extends BaseVolumeHandler implements Hand
                 SegmentTailPointer pointer = SegmentSubspaceUtil.locateTailPointer(tr, volumeSubspace, segmentId);
                 long sequenceNumber = -1;
 
-                long activeSegmentId = SegmentSubspaceUtil.findActiveSegmentId(tr, volumeSubspace);
-                if (activeSegmentId == segmentId) {
-                    if (pointer.nextPosition() > 0) {
-                        sequenceNumber = ChangeLog.resolveTailSequenceNumber(tr, volumeSubspace, segmentId, pointer);
-                    }
+                if (SegmentSubspaceUtil.findLastSegmentIdWithEntries(tr, volumeSubspace) == segmentId) {
+                    sequenceNumber = ChangeLog.resolveTailSequenceNumber(tr, volumeSubspace, segmentId, pointer);
                 }
-                // sequence number is -1(invalid) if the segment has data, but it's not the active segment.
+                // sequence number is -1(invalid) if a later segment holds a committed entry.
                 result.add(new IntegerRedisMessage(pointer.nextPosition()));
                 result.add(new IntegerRedisMessage(sequenceNumber));
             }

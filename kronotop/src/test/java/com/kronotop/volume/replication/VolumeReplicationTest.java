@@ -101,6 +101,23 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         return keys;
     }
 
+    private void awaitSegmentsConverged(Path destination) {
+        for (SegmentAnalysis analysis : volume.analyze()) {
+            long segmentId = analysis.segmentId();
+            Path originalSegmentFile = SegmentUtil.getFilePath(volume.getConfig().dataDir(), segmentId);
+            await().atMost(Duration.ofSeconds(15)).until(() -> {
+                byte[] expected = sha1(originalSegmentFile.toString());
+                try (var stream = Files.list(destination)) {
+                    return stream.anyMatch(volumeDir -> {
+                        Path replicatedSegmentFile = volumeDir.resolve(SegmentUtil.generateFileName(segmentId));
+                        return Files.exists(replicatedSegmentFile)
+                                && Arrays.equals(expected, sha1(replicatedSegmentFile.toString()));
+                    });
+                }
+            });
+        }
+    }
+
     @Test
     void shouldReplicateFullSegmentAndVerifyChecksum(@TempDir Path destination) throws IOException {
         int length = 1024;
@@ -947,6 +964,9 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldReplicateNewSegmentsCreatedDuringSegmentReplication(@TempDir Path destination) throws Exception {
+        // Behavior: The primary starts with a full segment 0 and a partial segment 1. When segment 0 enters
+        // SEGMENT_REPLICATION, a writer appends four segments of entries, which creates new segments. Every segment
+        // file on the standby ends up with the same SHA1 as the file on the primary.
         // Start with segment 0 as active (full segment so SR can complete with DONE)
         int length = 1024;
         int entriesPerSegment = Math.toIntExact(volume.getConfig().segmentSize() / length);
@@ -1018,6 +1038,36 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                     }
                 });
             }
+        } finally {
+            replication.shutdown();
+        }
+    }
+
+    @Test
+    void shouldReplicateEntriesCommittedAfterRolloverBecameVisible(@TempDir Path destination) throws Exception {
+        // Behavior: Segment 0 holds committed entries. An open transaction appends one segment of entries, which
+        // creates segment 1 before the transaction commits. Replication starts and reaches CHANGE_DATA_CAPTURE on
+        // segment 0. The transaction then commits, and every segment file on the standby ends up with the same
+        // SHA1 as the file on the primary.
+        int length = 1024;
+        int entriesPerSegment = Math.toIntExact(volume.getConfig().segmentSize() / length);
+        appendEntries(64, length);
+
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
+        DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
+        try (Transaction pending = context.getTransactionManager().create()) {
+            volume.append(new VolumeSession(pending, prefix), getEntries(entriesPerSegment, length));
+            assertEquals(2, volume.analyze().size(), "The open transaction should have created segment 1");
+
+            Thread.ofVirtual().start(replication::start);
+            await().atMost(Duration.ofSeconds(15)).until(() -> {
+                try (Transaction tr = context.getTransactionManager().create()) {
+                    return ReplicationState.readStage(tr, standbySubspace, 0L) == Stage.CHANGE_DATA_CAPTURE;
+                }
+            });
+
+            pending.commit().join();
+            awaitSegmentsConverged(destination);
         } finally {
             replication.shutdown();
         }
@@ -2193,13 +2243,34 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldTransitionToCdcOnEmptyActiveSegmentInsteadOfSpinning(@TempDir Path destination) throws IOException {
-        // Behavior: an empty active segment that follows a data-bearing segment must hand off to
-        // CDC instead of busy-spinning on no-op SegmentReplication. The primary commits a new
-        // active segment's metadata before its first entry, so the standby can observe an empty
-        // active segment. SegmentReplication on it is a no-op (limitPosition=0) and never writes a
-        // POSITION key, so the cursor stays on the previous data-bearing segment. Without the fix,
-        // resolveNextSegment keeps re-dispatching the no-op bulk forever and CDC is never reached.
+    void shouldStartCdcOnDoneSegmentThatHasTailSequenceNumber(@TempDir Path destination) {
+        // Behavior: Segment 1 is DONE and its tail pointer holds a sequence number. resolveNextSegment returns
+        // a step that starts CDC on segment 1, without asking the primary for its segment list.
+        VolumeReplication replication =
+                new VolumeReplication(context, SHARD_ID, destination.toString());
+        DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
+
+        long segmentId = 1L;
+        long position = 4096L;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            ReplicationState.setPosition(tr, standbySubspace, segmentId, position);
+            ReplicationState.setStage(tr, standbySubspace, segmentId, Stage.SEGMENT_REPLICATION);
+            ReplicationState.setStatus(tr, standbySubspace, segmentId, ReplicationStatus.DONE);
+            ReplicationState.setTailPointer(tr, standbySubspace, segmentId, 42L, position);
+            tr.commit().join();
+        }
+
+        VolumeReplication.ReplicationStep step = replication.resolveNextSegment();
+
+        assertFalse(step.stop());
+        assertEquals(segmentId, step.segmentId());
+        assertTrue(step.startCDC());
+    }
+
+    @Test
+    void shouldStartCdcOnLastSegmentWithEntriesWhenEmptySegmentFollows(@TempDir Path destination) throws IOException {
+        // Behavior: Segment 0 holds committed entries and an empty segment 1 follows it on the primary. The
+        // standby bulk-replicates segment 0 and then starts CHANGE_DATA_CAPTURE on segment 0.
 
         // Produce a data-bearing segment 0 on the primary that the standby can bulk-replicate.
         appendEntries(64, 1024);
@@ -2222,11 +2293,10 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         try {
             Thread.ofVirtual().start(replication::start);
 
-            // The standby bulk-replicates segment 0, reaches the empty active segment 1, and must
-            // hand off to CDC rather than spinning on it.
+            // Segment 1 holds no committed entry, so CDC starts on segment 0 from its tail sequence number.
             await().atMost(Duration.ofSeconds(20)).until(() -> {
                 try (Transaction tr = context.getTransactionManager().create()) {
-                    return ReplicationState.readStage(tr, standbySubspace, 1L) == Stage.CHANGE_DATA_CAPTURE;
+                    return ReplicationState.readStage(tr, standbySubspace, 0L) == Stage.CHANGE_DATA_CAPTURE;
                 }
             });
         } finally {
