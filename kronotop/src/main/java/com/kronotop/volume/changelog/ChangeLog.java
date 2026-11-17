@@ -83,32 +83,15 @@ public class ChangeLog {
     }
 
     /**
-     * Resolves the ChangeLog sequence number corresponding to a segment's tail pointer for replication or backup.
+     * Returns the changelog sequence number of the last write in a segment.
      *
-     * <p>Maps a {@link SegmentTailPointer} (position, length, versionstamp) back to its originating sequence number
-     * using the back pointer index for efficient lookup.
-     *
-     * <p><strong>Implementation:</strong>
-     * <ul>
-     *   <li><strong>Back Pointer Lookup:</strong> Uses {@link #reverseLookup} to find candidate sequence numbers
-     *       for the given segment position, then validates each against the changelog entry.</li>
-     *
-     *   <li><strong>Exact Match:</strong> The condition {@code pos + len == nextPosition} ensures the entry
-     *       aligns precisely with the expected byte boundary.</li>
-     *
-     *   <li><strong>Versionstamp Validation:</strong> Validates that the changelog entry's versionstamp matches
-     *       the pointer's versionstamp, ensuring metadata consistency.</li>
-     *
-     *   <li><strong>Retention Fallback:</strong> Returns -1 if no matching entry is found, indicating
-     *       the entry was removed due to retention policy.</li>
-     * </ul>
-     *
-     * @param tr        the transaction to use for the read operation
-     * @param subspace  the directory subspace containing the changelog
-     * @param segmentId the segment identifier to match
-     * @param pointer   the tail pointer containing position, length, and versionstamp
-     * @return the sequence number aligned with the pointer, or -1 if no matching entry is found
-     * @throws InconsistentVolumeMetadataException if the position matches but the versionstamp does not
+     * @param tr        the transaction used for the reads
+     * @param subspace  the directory subspace of the volume
+     * @param segmentId the ID of the segment
+     * @param pointer   the tail pointer of the segment
+     * @return the sequence number of the last write, or -1 if the changelog has no entry for it
+     * @throws InconsistentVolumeMetadataException if the changelog entry does not match the position or the
+     *                                             versionstamp of the tail pointer
      */
     public static long resolveTailSequenceNumber(Transaction tr,
                                                  DirectorySubspace subspace,

@@ -60,18 +60,6 @@ public class SegmentSubspaceUtil {
     }
 
     /**
-     * Constructs a FoundationDB key prefix for all entries in a segment.
-     *
-     * @param subspace  the directory subspace for the volume
-     * @param segmentId the segment identifier
-     * @return the packed key prefix for querying all entries in the segment
-     */
-    static byte[] segmentPrefix(DirectorySubspace subspace, long segmentId) {
-        byte[] prefix = subspace.pack(Tuple.from(ENTRY_METADATA_SUBSPACE, Tuple.from(segmentId).pack()));
-        return Arrays.copyOf(prefix, prefix.length - 1);
-    }
-
-    /**
      * Finds the next available position in a segment by locating the last entry.
      * This method performs a reverse range scan to find the highest position used in the segment.
      *
