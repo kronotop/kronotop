@@ -16,6 +16,7 @@
 
 package com.kronotop.volume.replication;
 
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
@@ -28,6 +29,7 @@ import com.kronotop.cluster.client.protocol.VolumeInspectCursorResponse;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
+import com.kronotop.volume.changelog.ChangeLog;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import com.kronotop.volume.segment.SegmentUtil;
 import io.lettuce.core.ClientOptions;
@@ -45,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -99,6 +102,14 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             keys[i] = result.entries()[i].versionstamp();
         }
         return keys;
+    }
+
+    private void awaitChangeDataCapture(DirectorySubspace standbySubspace, long segmentId) {
+        await().atMost(Duration.ofSeconds(15)).until(() -> {
+            try (Transaction tr = context.getTransactionManager().create()) {
+                return ReplicationState.readStage(tr, standbySubspace, segmentId) == Stage.CHANGE_DATA_CAPTURE;
+            }
+        });
     }
 
     private void awaitSegmentsConverged(Path destination) {
@@ -1068,6 +1079,42 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
             pending.commit().join();
             awaitSegmentsConverged(destination);
+        } finally {
+            replication.shutdown();
+        }
+    }
+
+    @Test
+    void shouldRejectCommitAfterInFlightTimeout(@TempDir Path destination) throws Exception {
+        // Behavior: Replication reaches CHANGE_DATA_CAPTURE on segment 0. An open transaction appends one entry and
+        // stays open until the safe watermark moves past its sequence number. A second transaction then appends one
+        // entry and commits, and the standby consumes it. The open transaction then tries to commit and fails with
+        // the FoundationDB error 1007 (transaction_too_old).
+        int length = 1024;
+        appendEntries(64, length);
+
+        VolumeReplication replication = new VolumeReplication(context, SHARD_ID, destination.toString());
+        DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
+        ChangeLog changeLog = volume.getChangeLog();
+        try (Transaction pending = context.getTransactionManager().create()) {
+            Thread.ofVirtual().start(replication::start);
+            awaitChangeDataCapture(standbySubspace, 0L);
+
+            volume.append(new VolumeSession(pending, prefix), getEntries(1, length));
+            long watermarkWhileInFlight = changeLog.getSafeWatermark();
+            await().atMost(Duration.ofSeconds(15)).until(() -> changeLog.getSafeWatermark() > watermarkWhileInFlight);
+
+            appendEntries(1, length);
+            await().atMost(Duration.ofSeconds(15)).until(() -> {
+                try (Transaction tr = context.getTransactionManager().create()) {
+                    long latest = ChangeLog.getLatestSequenceNumber(tr, volume.getConfig().subspace());
+                    return ReplicationState.readSequenceNumber(tr, standbySubspace, 0L) == latest;
+                }
+            });
+
+            CompletionException exception = assertThrows(CompletionException.class, () -> pending.commit().join());
+            FDBException cause = assertInstanceOf(FDBException.class, exception.getCause());
+            assertEquals(1007, cause.getCode());
         } finally {
             replication.shutdown();
         }

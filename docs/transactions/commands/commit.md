@@ -42,6 +42,10 @@ the FoundationDB API. The resolved value is returned after the commit completes.
 
 The session returns to its default state and is ready to accept new commands or start a new transaction with `BEGIN`.
 
+A transaction that contains at least one write must be committed within 5 seconds of `BEGIN`. After that, the command
+fails with `TRANSACTION_TOO_OLD` and no change is applied. The transaction is closed, so run `BEGIN` again and repeat
+the work. See [Transaction Time Window](../index.md#transaction-time-window).
+
 ## Errors
 
 Argument errors:
@@ -54,9 +58,10 @@ Argument errors:
 
 Transaction errors:
 
-| Error Code    | Error message                         | Cause |
-|---------------|---------------------------------------|-------|
-| `TRANSACTION` | `There is no transaction in progress` | -     |
+| Error Code            | Error message                                             | Cause                                                                                                                           |
+|-----------------------|-----------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
+| `TRANSACTION`         | `There is no transaction in progress`                     | -                                                                                                                               |
+| `TRANSACTION_TOO_OLD` | `Transaction is too old to perform reads or be committed` | The transaction contains writes and more than 5 seconds have passed since `BEGIN`, or its read version is older than 5 seconds. |
 
 ## Examples
 
@@ -113,4 +118,19 @@ OK
 ```kronotop
 > COMMIT
 (error) TRANSACTION There is no transaction in progress
+```
+
+**Attempt to commit a transaction with writes more than 5 seconds after `BEGIN`:**
+
+```kronotop
+> BEGIN
+OK
+
+> ZSET mykey 42
+OK
+
+-- 8 seconds pass --
+
+> COMMIT
+(error) TRANSACTION_TOO_OLD Transaction is too old to perform reads or be committed
 ```

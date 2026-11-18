@@ -29,6 +29,9 @@ of the transaction.
 While in explicit transaction mode, auto-commit behavior is implicitly disabled: commands no longer create their own
 one-off transactions.
 
+A transaction that contains at least one write must be committed within 5 seconds of `BEGIN`. See
+[Transaction Time Window](../index.md#transaction-time-window).
+
 ## Errors
 
 Transaction errors:

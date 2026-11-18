@@ -287,8 +287,10 @@ public class ChangeLog {
      *
      * <p>{@code getVersionstamp()} only resolves after a successful commit. If the transaction is
      * rolled back (closed without committing), the future never completes. {@code orTimeout} acts
-     * as a safety net: FDB transactions cannot exceed 5 seconds, so any future still pending after
-     * that must belong to a rolled-back transaction.</p>
+     * as a safety net for that case. A future still pending after the timeout cannot belong to a
+     * transaction that commits later, because
+     * {@link com.kronotop.transaction.InstrumentedTransaction#commit()} rejects a transaction with
+     * writes that is older than 5 seconds. The timeout must stay longer than that limit.</p>
      */
     private void registerCompletion(Transaction tr, long sequenceNumber) {
         tr.getVersionstamp().orTimeout(10, TimeUnit.SECONDS).whenComplete((result, error) -> {

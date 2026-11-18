@@ -158,7 +158,7 @@ subject to these limits.
 | Constraint           | Limit                                                             |
 |----------------------|-------------------------------------------------------------------|
 | Transaction size     | 10 MB total (keys + values of all mutations)                      |
-| Transaction duration | 5 seconds from when the read version is obtained (see below)      |
+| Transaction duration | 5 seconds for reads and for commits with writes (see below)       |
 | Default isolation    | Serializable (snapshot isolation available via `SNAPSHOTREAD ON`) |
 
 Use `GETAPPROXIMATESIZE` to monitor transaction size during large writes. If a workload exceeds these limits, split the
@@ -168,26 +168,31 @@ work across multiple transactions.
 
 Every FoundationDB transaction operates against a single point-in-time snapshot of the database, identified by a version
 number called the **read version**. The read version is obtained once and remains fixed for the entire lifetime of the
-transaction. All reads within the transaction see the database as it was at that version. The 5-second time window
-starts when the read version is obtained, not when the transaction object is created.
+transaction. All reads within the transaction see the database as it was at that version.
+
+A transaction has two time limits, and both are 5 seconds:
+
+* **Read window**: starts when the read version is obtained. This limit comes from FoundationDB.
+* **Write limit**: starts at `BEGIN`. It applies only to a transaction that contains at least one write. This limit
+  comes from Kronotop.
 
 #### When is the read version obtained?
 
-`BEGIN` creates a transaction object but does not obtain a read version. The transaction is an empty shell at this
-point and no timer is running. The read version is obtained lazily:
+`BEGIN` creates a transaction object but does not obtain a read version, so the read window has not started yet. The
+write limit starts counting at this point. The read version is obtained lazily:
 
 * **First read operation**: When the transaction performs its first read (e.g., `ZGET`, `BUCKET.QUERY`), FoundationDB
   obtains the read version automatically. This is the most common case. All subsequent reads within the same transaction
   use the same read version; they do not obtain a new one.
 
 * **Explicit `GETREADVERSION`**: Calling `GETREADVERSION` forces the read version to be obtained immediately, even if
-  no read has been performed yet. This starts the 5-second window.
+  no read has been performed yet. This starts the read window.
 
 * **Commit without prior reads**: If a transaction performs only writes (blind writes) and never reads, the read
-  version is obtained at commit time. Since the version is obtained and used immediately, the 5-second window
-  effectively does not apply to blind-write transactions.
+  version is obtained at commit time. The read window cannot expire for such a transaction, but the write limit still
+  applies. See [Transactions that write](#transactions-that-write).
 
-#### What does the 5-second window mean in practice?
+#### What does the read window mean in practice?
 
 Once the read version is obtained, you have approximately 5 seconds to complete and commit the transaction. If more than
 5 seconds pass between obtaining the read version and committing, FoundationDB rejects the commit with a
@@ -199,7 +204,7 @@ Consider this sequence:
 > BEGIN
 OK                   -- transaction object created, no read version yet
 
-> ZGET key1          -- read version obtained HERE, 5-second window starts
+> ZGET key1          -- read version obtained HERE, read window starts
 "value1"
 
 > ZGET key2          -- same read version, no new window
@@ -217,32 +222,36 @@ OK
 The commit fails because 20 seconds elapsed since the first `ZGET` obtained the read version. The later `ZGET` commands
 did not reset the window. They reused the same read version.
 
-#### Blind writes
+#### Transactions that write
 
-A transaction that performs only writes and never reads does not obtain a read version until commit:
+A transaction that contains at least one write must be committed within 5 seconds of `BEGIN`. The time counts from
+`BEGIN`, even if the first write comes later. If the limit has passed, `COMMIT` fails with `TRANSACTION_TOO_OLD`, no
+change is applied, and the transaction is closed. Run `BEGIN` again and repeat the work.
 
 ```kronotop
 > BEGIN
-OK                   -- no read version yet
+OK                   -- write limit starts HERE
 
-> ZSET key1 100      -- mutation buffered, still no read version
+> ZSET key1 100      -- mutation is buffered locally
 OK
 
-> ZSET key2 200      -- mutation buffered, still no read version
-OK
+-- 8 seconds pass --
 
-> COMMIT             -- read version obtained and committed in one step
-OK
+> COMMIT
+(error) TRANSACTION_TOO_OLD Transaction is too old to perform reads or be committed
 ```
 
-Because the read version is obtained at the moment of commit and used immediately, blind-write transactions are not
-subject to the 5-second window in practice.
+FoundationDB does not set this limit for a transaction that only writes. Such a transaction obtains its read version at
+commit time, so the read window cannot expire. Kronotop adds the limit so that every transaction with writes has a
+limited lifetime. Replication relies on this to follow the writes of the primary in order.
+
+A transaction with no writes has nothing to commit, so its `COMMIT` returns `OK` at any age. In such a transaction,
+`TRANSACTION_TOO_OLD` comes from a read command that runs after the read window has closed.
 
 #### Auto-commit mode
 
 In auto-commit mode, each command gets its own transaction that is created, executed, and committed within a single
-round-trip. The 5-second window is never a concern in this mode because the transaction lives only for the duration of
-a single command.
+round-trip. Both limits start inside the command, so they matter only if a single command runs for more than 5 seconds.
 
 ## Commands
 

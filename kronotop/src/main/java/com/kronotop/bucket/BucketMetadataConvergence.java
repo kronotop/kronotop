@@ -29,8 +29,8 @@ import java.util.concurrent.locks.LockSupport;
  * waits out any transactions that started before the update.
  *
  * <p>Guards operations that must not run against stale metadata. Shards are polled through a
- * {@link BucketMetadataVersionBarrier}. The wait after that is longer than the 5-second FoundationDB
- * transaction lifetime. Tests can skip it with
+ * {@link BucketMetadataVersionBarrier}. The wait after that is longer than the 5-second transaction
+ * limit, so a transaction opened before the update can no longer commit writes. Tests can skip it with
  * {@code __test__.bucket_metadata_convergence.skip_wait_transaction_limit}.
  */
 public class BucketMetadataConvergence {

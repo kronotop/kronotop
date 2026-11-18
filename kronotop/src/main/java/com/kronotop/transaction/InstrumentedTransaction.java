@@ -18,8 +18,10 @@ package com.kronotop.transaction;
 
 import com.apple.foundationdb.*;
 import com.kronotop.bucket.bql.ast.BqlExpr;
+import com.kronotop.internal.FDBErrorRegistry;
 import com.kronotop.metrics.AggregatedTransactionMetrics;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -33,6 +35,8 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
      * Client id of a transaction that no session owns.
      */
     public static final long INTERNAL = -1;
+    private static final int TRANSACTION_TOO_OLD = 1007;
+    private static final long MAX_COMMIT_AGE_NANOS = Duration.ofSeconds(5).toNanos();
 
     private final TransactionManager manager;
     private final AggregatedTransactionMetrics aggregated;
@@ -160,10 +164,23 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
         metrics.incrementMutations();
     }
 
+    private boolean isTooOldToCommit(long nowNanos) {
+        boolean hasWrites = metrics.getWrites() + metrics.getDeletes() + metrics.getMutations() > 0;
+        return hasWrites && nowNanos - metrics.getStartNanos() >= MAX_COMMIT_AGE_NANOS;
+    }
+
     @Override
     public CompletableFuture<Void> commit() {
         long commitStartNanos = System.nanoTime();
-        return underlying.commit().whenComplete((ignored, ex) -> {
+        // FoundationDB does not limit the age of a transaction that only writes. ChangeLog stops
+        // waiting for an uncommitted sequence number after 10 seconds, so a commit that lands later
+        // is never replicated. A transaction with writes that is too old fails here with
+        // FoundationDB's own error.
+        CompletableFuture<Void> commit = isTooOldToCommit(commitStartNanos)
+                ? CompletableFuture.failedFuture(new FDBException(
+                FDBErrorRegistry.lookup(TRANSACTION_TOO_OLD).message(), TRANSACTION_TOO_OLD))
+                : underlying.commit();
+        return commit.whenComplete((ignored, ex) -> {
             long latency = System.nanoTime() - commitStartNanos;
             metrics.recordCommitLatency(latency);
             aggregated.recordCommitLatency(latency);
