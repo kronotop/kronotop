@@ -29,6 +29,7 @@ public class VolumeInspectCursorOutput<K, V> extends CommandOutput<K, V, VolumeI
 
     private String pendingKey;
     private long activeSegmentId;
+    private long tailSegmentId;
     private String versionstamp;
     private long nextPosition;
     private long sequenceNumber;
@@ -60,6 +61,7 @@ public class VolumeInspectCursorOutput<K, V> extends CommandOutput<K, V, VolumeI
         } else {
             switch (pendingKey) {
                 case "active_segment_id" -> activeSegmentId = (Long) value;
+                case "tail_segment_id" -> tailSegmentId = (Long) value;
                 case "versionstamp" -> versionstamp = (String) value;
                 case "next_position" -> nextPosition = (Long) value;
                 case "sequence_number" -> sequenceNumber = (Long) value;
@@ -71,7 +73,9 @@ public class VolumeInspectCursorOutput<K, V> extends CommandOutput<K, V, VolumeI
     @Override
     public void complete(int depth) {
         if (depth == 0) {
-            output = new VolumeInspectCursorResponse(activeSegmentId, versionstamp, nextPosition, sequenceNumber);
+            output = new VolumeInspectCursorResponse(
+                    activeSegmentId, tailSegmentId, versionstamp, nextPosition, sequenceNumber
+            );
         }
     }
 }

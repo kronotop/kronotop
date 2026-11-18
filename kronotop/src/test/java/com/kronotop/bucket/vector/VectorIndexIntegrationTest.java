@@ -42,11 +42,9 @@ import org.bson.*;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.awaitility.Awaitility.await;
@@ -89,16 +87,6 @@ class VectorIndexIntegrationTest extends BaseBucketHandlerTest {
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);
         }
-    }
-
-    private RedisMessage findInMapMessage(MapRedisMessage mapRedisMessage, String key) {
-        for (Map.Entry<RedisMessage, RedisMessage> entry : mapRedisMessage.children().entrySet()) {
-            FullBulkStringRedisMessage keyMessage = (FullBulkStringRedisMessage) entry.getKey();
-            if (keyMessage.content().toString(StandardCharsets.UTF_8).equals(key)) {
-                return entry.getValue();
-            }
-        }
-        return null;
     }
 
     private void createBucketWithVectorIndex() {

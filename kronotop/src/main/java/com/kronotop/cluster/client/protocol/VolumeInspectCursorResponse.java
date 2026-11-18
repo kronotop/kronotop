@@ -21,6 +21,7 @@ package com.kronotop.cluster.client.protocol;
  */
 public record VolumeInspectCursorResponse(
         long activeSegmentId,
+        long tailSegmentId,
         String versionstamp,
         long nextPosition,
         long sequenceNumber

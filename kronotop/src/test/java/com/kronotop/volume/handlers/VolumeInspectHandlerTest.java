@@ -85,8 +85,26 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         });
     }
 
+    private MapRedisMessage inspectCursor() {
+        VolumeInspectCommandBuilder<String, String> cmd = new VolumeInspectCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.cursor("shard-1").encode(buf);
+        return assertInstanceOf(MapRedisMessage.class, runCommand(channel, buf));
+    }
+
+    private long integerField(MapRedisMessage cursor, String field) {
+        return assertInstanceOf(IntegerRedisMessage.class, findInMapMessage(cursor, field)).value();
+    }
+
+    private String stringField(MapRedisMessage cursor, String field) {
+        return stringValueOf(assertInstanceOf(FullBulkStringRedisMessage.class, findInMapMessage(cursor, field)));
+    }
+
     @Test
     void shouldReturnCursorForVolumeWithData() throws IOException {
+        // Behavior: Ten entries are appended to an empty volume and committed. VOLUME.INSPECT CURSOR returns 0
+        // for active_segment_id and tail_segment_id, a non-empty versionstamp, a positive next_position and a
+        // sequence_number of 0 or more.
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
         try (Transaction tr = database.createTransaction()) {
             VolumeSession session = new VolumeSession(tr, prefix);
@@ -94,66 +112,44 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        VolumeInspectCommandBuilder<String, String> cmd = new VolumeInspectCommandBuilder<>(StringCodec.ASCII);
-        ByteBuf buf = Unpooled.buffer();
-        cmd.cursor("shard-1").encode(buf);
+        MapRedisMessage cursor = inspectCursor();
 
-        Object msg = runCommand(channel, buf);
-        assertInstanceOf(MapRedisMessage.class, msg);
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
-
-        for (var entry : actualMessage.children().entrySet()) {
-            String key = ((FullBulkStringRedisMessage) entry.getKey()).content().toString(StandardCharsets.UTF_8);
-            RedisMessage value = entry.getValue();
-            switch (key) {
-                case "active_segment_id" -> {
-                    IntegerRedisMessage v = (IntegerRedisMessage) value;
-                    assertEquals(0L, v.value());
-                }
-                case "versionstamp" -> {
-                    FullBulkStringRedisMessage v = (FullBulkStringRedisMessage) value;
-                    assertFalse(v.content().toString(StandardCharsets.UTF_8).isEmpty());
-                }
-                case "next_position" -> {
-                    IntegerRedisMessage v = (IntegerRedisMessage) value;
-                    assertTrue(v.value() > 0);
-                }
-                case "sequence_number" -> {
-                    IntegerRedisMessage v = (IntegerRedisMessage) value;
-                    assertTrue(v.value() >= 0);
-                }
-            }
-        }
+        assertEquals(0L, integerField(cursor, "active_segment_id"));
+        assertEquals(0L, integerField(cursor, "tail_segment_id"));
+        assertFalse(stringField(cursor, "versionstamp").isEmpty());
+        assertTrue(integerField(cursor, "next_position") > 0);
+        assertTrue(integerField(cursor, "sequence_number") >= 0);
     }
 
     @Test
     void shouldReturnCursorForEmptyVolume() {
-        VolumeInspectCommandBuilder<String, String> cmd = new VolumeInspectCommandBuilder<>(StringCodec.ASCII);
-        ByteBuf buf = Unpooled.buffer();
-        cmd.cursor("shard-1").encode(buf);
+        // Behavior: No entry has been appended to the volume. VOLUME.INSPECT CURSOR returns 0 for
+        // active_segment_id and next_position, -1 for tail_segment_id and sequence_number, and an empty
+        // versionstamp.
+        MapRedisMessage cursor = inspectCursor();
 
-        Object msg = runCommand(channel, buf);
-        assertInstanceOf(MapRedisMessage.class, msg);
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        assertEquals(0L, integerField(cursor, "active_segment_id"));
+        assertEquals(-1L, integerField(cursor, "tail_segment_id"));
+        assertTrue(stringField(cursor, "versionstamp").isEmpty());
+        assertEquals(0L, integerField(cursor, "next_position"));
+        assertEquals(-1L, integerField(cursor, "sequence_number"));
+    }
 
-        for (var entry : actualMessage.children().entrySet()) {
-            String key = ((FullBulkStringRedisMessage) entry.getKey()).content().toString(StandardCharsets.UTF_8);
-            RedisMessage value = entry.getValue();
-            switch (key) {
-                case "active_segment_id", "next_position" -> {
-                    IntegerRedisMessage v = (IntegerRedisMessage) value;
-                    assertEquals(0L, v.value());
-                }
-                case "versionstamp" -> {
-                    FullBulkStringRedisMessage v = (FullBulkStringRedisMessage) value;
-                    assertTrue(v.content().toString(StandardCharsets.UTF_8).isEmpty());
-                }
-                case "sequence_number" -> {
-                    IntegerRedisMessage v = (IntegerRedisMessage) value;
-                    assertEquals(-1L, v.value());
-                }
-            }
-        }
+    @Test
+    void shouldReturnTailSegmentCursorWhenActiveSegmentHasNoCommittedEntry() throws IOException {
+        // Behavior: Segment 0 is full and its entries are committed. A second append creates segment 1, but its
+        // transaction never commits. VOLUME.INSPECT CURSOR returns 1 for active_segment_id and 0 for
+        // tail_segment_id. next_position is the segment size, versionstamp is not empty and sequence_number is
+        // positive.
+        fillSegmentThenRollOverWithoutCommit(1024);
+
+        MapRedisMessage cursor = inspectCursor();
+
+        assertEquals(1L, integerField(cursor, "active_segment_id"));
+        assertEquals(0L, integerField(cursor, "tail_segment_id"));
+        assertFalse(stringField(cursor, "versionstamp").isEmpty());
+        assertEquals(volume.getConfig().segmentSize(), integerField(cursor, "next_position"));
+        assertTrue(integerField(cursor, "sequence_number") > 0);
     }
 
     @Test

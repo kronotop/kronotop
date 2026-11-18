@@ -38,10 +38,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
@@ -177,16 +175,6 @@ abstract class BaseBucketMultiNodeTest extends BaseClusterTest {
             }
         }
         return true;
-    }
-
-    protected RedisMessage findInMapMessage(MapRedisMessage mapRedisMessage, String key) {
-        for (Map.Entry<RedisMessage, RedisMessage> entry : mapRedisMessage.children().entrySet()) {
-            FullBulkStringRedisMessage keyMessage = (FullBulkStringRedisMessage) entry.getKey();
-            if (keyMessage.content().toString(StandardCharsets.UTF_8).equals(key)) {
-                return entry.getValue();
-            }
-        }
-        return null;
     }
 
     protected List<ObjectId> extractObjectIds(Object response) {

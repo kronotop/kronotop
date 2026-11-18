@@ -48,6 +48,7 @@ public class CursorSubcommand extends BaseSubcommandHandler implements Subcomman
     private static final byte[] VERSIONSTAMP_BYTES = "versionstamp".getBytes(StandardCharsets.UTF_8);
     private static final byte[] NEXT_POSITION_BYTES = "next_position".getBytes(StandardCharsets.UTF_8);
     private static final byte[] SEQUENCE_NUMBER_BYTES = "sequence_number".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] TAIL_SEGMENT_ID_BYTES = "tail_segment_id".getBytes(StandardCharsets.UTF_8);
 
     public CursorSubcommand(VolumeService service) {
         super(service);
@@ -62,11 +63,16 @@ public class CursorSubcommand extends BaseSubcommandHandler implements Subcomman
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
             try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 long activeSegmentId = SegmentSubspaceUtil.findActiveSegmentId(tr, volumeSubspace);
-                SegmentTailPointer pointer = SegmentSubspaceUtil.locateTailPointer(tr, volumeSubspace, activeSegmentId);
-                long sequenceNumber = ChangeLog.resolveTailSequenceNumber(tr, volumeSubspace, activeSegmentId, pointer);
+                long tailSegmentId = SegmentSubspaceUtil.findLastSegmentIdWithEntries(tr, volumeSubspace);
+                SegmentTailPointer pointer = SegmentSubspaceUtil.locateTailPointer(tr, volumeSubspace, tailSegmentId);
+                long sequenceNumber = ChangeLog.resolveTailSequenceNumber(tr, volumeSubspace, tailSegmentId, pointer);
                 result.put(
                         wrapBytes(ACTIVE_SEGMENT_ID_BYTES),
                         new IntegerRedisMessage(activeSegmentId)
+                );
+                result.put(
+                        wrapBytes(TAIL_SEGMENT_ID_BYTES),
+                        new IntegerRedisMessage(tailSegmentId)
                 );
                 result.put(
                         wrapBytes(VERSIONSTAMP_BYTES),

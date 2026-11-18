@@ -24,6 +24,8 @@ import com.kronotop.commands.redis.RedisCommandBuilder;
 import com.kronotop.network.Address;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.MapRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
@@ -125,6 +127,22 @@ public class BaseTest {
 
     public static String stringValueOf(FullBulkStringRedisMessage message) {
         return message.content().toString(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Finds a value in a MapRedisMessage by key.
+     *
+     * @param mapRedisMessage the map message to search
+     * @param key             the key to find
+     * @return the value message, or null if not found
+     */
+    public static RedisMessage findInMapMessage(MapRedisMessage mapRedisMessage, String key) {
+        for (Map.Entry<RedisMessage, RedisMessage> entry : mapRedisMessage.children().entrySet()) {
+            if (stringValueOf((FullBulkStringRedisMessage) entry.getKey()).equals(key)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     protected String getEphemeralTCPPort() {

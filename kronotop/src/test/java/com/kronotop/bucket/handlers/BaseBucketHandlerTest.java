@@ -180,23 +180,6 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
     }
 
     /**
-     * Finds a value in a MapRedisMessage by key.
-     *
-     * @param mapRedisMessage the map message to search
-     * @param key             the key to find
-     * @return the value message, or null if not found
-     */
-    RedisMessage findInMapMessage(MapRedisMessage mapRedisMessage, String key) {
-        for (Map.Entry<RedisMessage, RedisMessage> entry : mapRedisMessage.children().entrySet()) {
-            FullBulkStringRedisMessage keyMessage = (FullBulkStringRedisMessage) entry.getKey();
-            if (keyMessage.content().toString(StandardCharsets.UTF_8).equals(key)) {
-                return entry.getValue();
-            }
-        }
-        return null;
-    }
-
-    /**
      * Extracts the "entries" array from a QUERY response and parses each bulk string into a BsonDocument.
      */
     protected List<BsonDocument> extractEntries(Object response) {

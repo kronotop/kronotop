@@ -17,6 +17,7 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Database;
+import com.apple.foundationdb.Transaction;
 import com.google.common.base.Strings;
 import com.kronotop.BaseClusterTestWithTCPServer;
 import com.kronotop.Context;
@@ -33,6 +34,8 @@ import java.nio.ByteBuffer;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPServer {
     protected final BaseVolumeTestWrapper baseVolumeTestWrapper = new BaseVolumeTestWrapper();
@@ -71,6 +74,24 @@ public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPSe
             entries[i] = ByteBuffer.allocate(length).put(data).flip();
         }
         return entries;
+    }
+
+    /**
+     * Fills segment 0 with committed entries, then creates segment 1 with an append that never commits.
+     *
+     * @param length the size of each entry in bytes
+     * @throws IOException if an append fails
+     */
+    protected void fillSegmentThenRollOverWithoutCommit(int length) throws IOException {
+        long segmentSize = volume.getConfig().segmentSize();
+        try (Transaction tr = database.createTransaction()) {
+            volume.append(new VolumeSession(tr, prefix), getEntries(Math.toIntExact(segmentSize / length), length));
+            tr.commit().join();
+        }
+        try (Transaction tr = database.createTransaction()) {
+            volume.append(new VolumeSession(tr, prefix), getEntries(1, length));
+        }
+        assertEquals(2, volume.analyze().size());
     }
 
     public byte[] sha1(String filePath) {

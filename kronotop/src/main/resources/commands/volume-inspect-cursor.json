@@ -1,6 +1,6 @@
 {
   "CURSOR": {
-    "summary": "Returns the write cursor of the active segment of a volume.",
+    "summary": "Returns the write cursor of a volume.",
     "complexity": "O(1)",
     "group": "volume",
     "since": "2026.06-1",
@@ -15,7 +15,7 @@
     ],
     "key_specs": [],
     "reply_schema": {
-      "description": "The write cursor of the active segment.",
+      "description": "The active segment and the write cursor of the tail segment.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -23,12 +23,16 @@
           "description": "Id of the segment that receives new writes.",
           "type": "integer"
         },
+        "tail_segment_id": {
+          "description": "Id of the last segment that holds a committed entry. -1 if the volume is empty.",
+          "type": "integer"
+        },
         "versionstamp": {
           "description": "Base32-hex encoded Versionstamp of the last write, or an empty string if the volume has no data.",
           "type": "string"
         },
         "next_position": {
-          "description": "Byte offset of the next write in the active segment.",
+          "description": "Byte offset in the tail segment right after the last committed entry. 0 if the volume is empty.",
           "type": "integer"
         },
         "sequence_number": {

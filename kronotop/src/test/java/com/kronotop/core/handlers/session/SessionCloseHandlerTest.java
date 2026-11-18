@@ -58,16 +58,6 @@ class SessionCloseHandlerTest extends BaseHandlerTest {
         return Math.toIntExact(((IntegerRedisMessage) cursorIdMsg).value());
     }
 
-    private RedisMessage findInMapMessage(MapRedisMessage mapRedisMessage, String key) {
-        for (Map.Entry<RedisMessage, RedisMessage> entry : mapRedisMessage.children().entrySet()) {
-            FullBulkStringRedisMessage keyMessage = (FullBulkStringRedisMessage) entry.getKey();
-            if (keyMessage.content().toString(StandardCharsets.UTF_8).equals(key)) {
-                return entry.getValue();
-            }
-        }
-        return null;
-    }
-
     private boolean isQueryCursorsEmpty() {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         ByteBuf buf = Unpooled.buffer();

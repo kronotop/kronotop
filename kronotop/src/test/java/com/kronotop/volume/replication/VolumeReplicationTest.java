@@ -925,14 +925,14 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                 }
 
                 try (Transaction tr = context.getTransactionManager().create()) {
-                    // Check if the active segment is in CDC mode
-                    Stage stage = ReplicationState.readStage(tr, standbySubspace, primaryCursor.activeSegmentId());
+                    // Check if the tail segment is in CDC mode
+                    Stage stage = ReplicationState.readStage(tr, standbySubspace, primaryCursor.tailSegmentId());
                     if (stage != Stage.CHANGE_DATA_CAPTURE) {
                         return false;
                     }
 
                     // Compare tail pointer from standby with primary's cursor
-                    List<Long> tailPointer = ReplicationState.readTailPointer(tr, standbySubspace, primaryCursor.activeSegmentId());
+                    List<Long> tailPointer = ReplicationState.readTailPointer(tr, standbySubspace, primaryCursor.tailSegmentId());
                     if (tailPointer.isEmpty()) {
                         return false;
                     }
@@ -949,12 +949,12 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             // Final verification
             VolumeInspectCursorResponse primaryCursor = replicationClient.conn().sync().volumeInspectCursor(volumeConfig.name());
             try (Transaction tr = context.getTransactionManager().create()) {
-                List<Long> tailPointer = ReplicationState.readTailPointer(tr, standbySubspace, primaryCursor.activeSegmentId());
+                List<Long> tailPointer = ReplicationState.readTailPointer(tr, standbySubspace, primaryCursor.tailSegmentId());
                 assertEquals(primaryCursor.sequenceNumber(), tailPointer.get(0), "Sequence number should match");
                 assertEquals(primaryCursor.nextPosition(), tailPointer.get(1), "Next position should match");
 
-                Stage stage = ReplicationState.readStage(tr, standbySubspace, primaryCursor.activeSegmentId());
-                assertEquals(Stage.CHANGE_DATA_CAPTURE, stage, "Active segment should be in CDC mode");
+                Stage stage = ReplicationState.readStage(tr, standbySubspace, primaryCursor.tailSegmentId());
+                assertEquals(Stage.CHANGE_DATA_CAPTURE, stage, "Tail segment should be in CDC mode");
             }
         } finally {
             replicationClient.shutdown();
@@ -1790,13 +1790,13 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                     if (!primaryCursor.hasData()) return false;
 
                     try (Transaction tr = context.getTransactionManager().create()) {
-                        Stage stage = ReplicationState.readStage(tr, standbySubspace, primaryCursor.activeSegmentId());
+                        Stage stage = ReplicationState.readStage(tr, standbySubspace, primaryCursor.tailSegmentId());
                         if (stage != Stage.CHANGE_DATA_CAPTURE) return false;
 
                         long standbySequenceNumber = ReplicationState.readSequenceNumber(
-                                tr, standbySubspace, primaryCursor.activeSegmentId());
+                                tr, standbySubspace, primaryCursor.tailSegmentId());
                         long standbyPosition = ReplicationState.readPosition(
-                                tr, standbySubspace, primaryCursor.activeSegmentId());
+                                tr, standbySubspace, primaryCursor.tailSegmentId());
 
                         return standbySequenceNumber == primaryCursor.sequenceNumber()
                                 && standbyPosition == primaryCursor.nextPosition();
