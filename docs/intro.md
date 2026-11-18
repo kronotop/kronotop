@@ -9,10 +9,9 @@ Each tenant or app gets its own logical database, called a namespace, and one cl
 is a key prefix in FoundationDB, so creating one costs almost nothing. The prefix keeps namespaces apart, so
 application code does not need a tenant filter. One transaction can commit across any number of namespaces.
 
-Each namespace is a full database with documents, an ordered key-value store, secondary indexes, and vector search.
-Bucket stores the documents and holds the indexes and vector search. ZMap is a plain ordered key-value store for data
-that does not fit in a document. Both use the same RESP connection. Document bodies live in Volume, an append-only
-storage engine on local disk that replicates from a primary to a standby.
+A namespace holds two data models. Bucket stores documents and has secondary indexes and vector search. ZMap is a plain
+ordered key-value store for data that does not fit in a document. Commands for both go over the same RESP connection.
+Document bodies live in Volume, an append-only storage engine on local disk that replicates from a primary to a standby.
 
 The same model works for AI agents. Each agent gets a namespace that holds its memory, vector search runs over those
 documents, and one transaction updates the documents and ZMap state, such as counters, together.
