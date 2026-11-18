@@ -32,6 +32,10 @@ import java.util.List;
 
 public class ReplicationUtil {
 
+    private static KronotopException standbyNotCaughtUp(String detail) {
+        return new KronotopException("Standby is not caught up: " + detail);
+    }
+
     public static DirectorySubspace openStandbySubspace(Context context, Transaction tr, String volume, String standbyId) {
         KronotopDirectoryNode node = standbyDirectoryNode(context, volume, standbyId);
         return context.getDirectoryLayer().open(tr, node.toList()).join();
@@ -47,41 +51,57 @@ public class ReplicationUtil {
                 standby(standbyId);
     }
 
+    /**
+     * Checks that a standby has caught up with the primary. It is for failover only and runs after the other
+     * failover rules have passed.
+     *
+     * @param context         the Kronotop context
+     * @param tr              the transaction to use for the read operations
+     * @param standby         the standby member to promote
+     * @param primarySubspace the directory subspace of the primary's volume
+     * @param shardId         the shard identifier
+     * @throws KronotopException if the standby is behind the primary
+     */
     public static void assertStandbyCaughtUp(Context context,
                                              Transaction tr,
                                              Member standby,
                                              DirectorySubspace primarySubspace,
                                              int shardId
     ) {
-        long activeSegmentId = SegmentSubspaceUtil.findActiveSegmentId(tr, primarySubspace);
-        SegmentTailPointer pointer = SegmentSubspaceUtil.locateTailPointer(tr, primarySubspace, activeSegmentId);
-        long sequenceNumber = ChangeLog.resolveTailSequenceNumber(tr, primarySubspace, activeSegmentId, pointer);
+        long tailSegmentId = SegmentSubspaceUtil.findLastSegmentIdWithEntries(tr, primarySubspace);
+        if (tailSegmentId == -1) {
+            // No segment holds a committed entry. The primary is empty, so the standby has nothing to catch up on.
+            return;
+        }
+        SegmentTailPointer pointer = SegmentSubspaceUtil.locateTailPointer(tr, primarySubspace, tailSegmentId);
+        long sequenceNumber = ChangeLog.resolveTailSequenceNumber(tr, primarySubspace, tailSegmentId, pointer);
 
         DirectorySubspace standbySubspace = openStandbySubspace(context, tr, VolumeNames.format(shardId), standby.getId());
-        Stage standbyStage = ReplicationState.readStage(tr, standbySubspace, activeSegmentId);
+        Stage standbyStage = ReplicationState.readStage(tr, standbySubspace, tailSegmentId);
         if (standbyStage != Stage.CHANGE_DATA_CAPTURE) {
-            throw new KronotopException("Standby is not caught up: stage is " + standbyStage);
-        }
-
-        ReplicationCursor cursor = ReplicationState.readCursor(tr, standbySubspace);
-        if (cursor.segmentId() != activeSegmentId) {
-            throw new KronotopException(
-                    "Standby is not caught up: cursor segmentId=" + cursor.segmentId()
-                            + " but activeSegmentId=" + activeSegmentId
-            );
-        }
-        if (cursor.position() != pointer.nextPosition()) {
-            throw new KronotopException(
-                    "Standby is not caught up: cursor position=" + cursor.position()
-                            + " but expected=" + pointer.nextPosition()
+            throw standbyNotCaughtUp(
+                    "segment " + tailSegmentId + " has not reached the " + Stage.CHANGE_DATA_CAPTURE + " stage"
             );
         }
 
-        long standbySequenceNumber = ReplicationState.readSequenceNumber(tr, standbySubspace, cursor.segmentId());
+        ReplicationCursor standbyCursor = ReplicationState.readCursor(tr, standbySubspace);
+        if (standbyCursor.segmentId() != tailSegmentId) {
+            throw standbyNotCaughtUp(
+                    "standby is on segment " + standbyCursor.segmentId() + ", primary is on segment " + tailSegmentId
+            );
+        }
+        if (standbyCursor.position() != pointer.nextPosition()) {
+            throw standbyNotCaughtUp(
+                    "standby is at position " + standbyCursor.position() + " of segment " + tailSegmentId
+                            + ", primary is at position " + pointer.nextPosition()
+            );
+        }
+
+        long standbySequenceNumber = ReplicationState.readSequenceNumber(tr, standbySubspace, standbyCursor.segmentId());
         if (sequenceNumber != standbySequenceNumber) {
-            throw new KronotopException(
-                    "Standby is not caught up: sequenceNumber=" + sequenceNumber
-                            + " but standbySequenceNumber=" + standbySequenceNumber
+            throw standbyNotCaughtUp(
+                    "standby is at sequence number " + standbySequenceNumber
+                            + ", primary is at sequence number " + sequenceNumber
             );
         }
     }
