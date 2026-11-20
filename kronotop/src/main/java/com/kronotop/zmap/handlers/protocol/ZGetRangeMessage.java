@@ -60,11 +60,11 @@ public class ZGetRangeMessage implements ProtocolMessage<Void> {
             switch (argument) {
                 case LIMIT -> {
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getArguments(), i, argument.getValue(), ProtocolMessageUtil.POSITIVE_INTEGER);
+                            request.getArguments(), i, argument.getValue(), ProtocolMessageUtil.NON_NEGATIVE_INTEGER);
                     limit = ProtocolMessageUtil.readAsInteger(value);
-                    if (limit <= 0) {
+                    if (limit < 0) {
                         throw ProtocolMessageUtil.illegalValue(
-                                argument.getValue(), ProtocolMessageUtil.POSITIVE_INTEGER);
+                                argument.getValue(), ProtocolMessageUtil.NON_NEGATIVE_INTEGER);
                     }
                     i++;
                 }

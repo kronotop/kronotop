@@ -41,7 +41,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 class ZGetRangeHandlerTest extends BaseHandlerTest {
 
     static Stream<Arguments> invalidArguments() {
-        String limitValue = "ERR LIMIT argument must be followed by a positive integer";
+        String limitValue = "ERR LIMIT argument must be followed by a non-negative integer";
         return Stream.of(
                 arguments("unknown keyword",
                         List.of("key-0", "key-5", "LIMI", "3"),
@@ -51,9 +51,6 @@ class ZGetRangeHandlerTest extends BaseHandlerTest {
                         "ERR Unknown argument: 'BEGIN_KEY_SELECTOR'"),
                 arguments("limit without value",
                         List.of("key-0", "key-5", "LIMIT"),
-                        limitValue),
-                arguments("zero limit",
-                        List.of("key-0", "key-5", "LIMIT", "0"),
                         limitValue),
                 arguments("negative limit",
                         List.of("key-0", "key-5", "LIMIT", "-1"),

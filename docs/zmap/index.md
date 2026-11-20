@@ -32,11 +32,9 @@ On top of the raw byte layer, ZMap provides typed set, increment, and read comma
 | float64    | `ZSET.F64`  | `ZINC.F64`  | `ZGET.F64`  | 8 bytes  | Read-modify-write            |
 | decimal128 | `ZSET.D128` | `ZINC.D128` | `ZGET.D128` | 16 bytes | Read-modify-write            |
 
-`ZINC.I64` is conflict-free because it maps directly to FoundationDB's [atomic
-`ADD` mutation](https://apple.github.io/foundationdb/developer-guide.html#atomic-operations), so concurrent
-increments on the same key never cause transaction conflicts. `ZINC.F64` and `ZINC.D128` perform a read-modify-write
-cycle because FoundationDB has no native atomic mutation for floating-point or decimal addition; concurrent calls on the
-same key can conflict.
+`ZINC.I64` is conflict-free because it maps directly to FoundationDB's [atomic`ADD` mutation](https://apple.github.io/foundationdb/developer-guide.html#atomic-operations), so concurrent increments 
+on the same key never cause transaction conflicts. `ZINC.F64` and `ZINC.D128` perform a read-modify-write cycle because 
+FoundationDB has no native atomic mutation for floating-point or decimal addition; concurrent calls on the same key can conflict.
 
 If a key does not exist, all increment commands create it with an implicit starting value of zero.
 
@@ -108,8 +106,8 @@ buf.writeBigInt64LE(5n);
 
 The ordered key space enables efficient range operations:
 
-- **`ZGETRANGE`**: Read an ordered range of key-value pairs with optional `LIMIT` (default 100), `REVERSE`, and key
-  selector keywords. Both endpoints are inclusive by default.
+- **`ZGETRANGE`**: Read an ordered range of key-value pairs with optional `LIMIT` (default 100, `0` for no limit),
+  `REVERSE`, and key selector keywords. Both endpoints are inclusive by default.
 - **`ZDELRANGE`**: Delete all keys in a half-open interval `[begin, end)`.
 - **`ZGETKEY`**: Resolve the key name that matches a key selector (`first_greater_or_equal`, `first_greater_than`,
   `last_less_than`, `last_less_or_equal`) relative to a reference key. Useful for cursor-like navigation.

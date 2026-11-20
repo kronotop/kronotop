@@ -20,7 +20,7 @@ can appear at most once.
 |----------------------|---------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `begin`              | bytes   | Yes      | The start key of the range. Use `*` for unbounded start (from the beginning of the subspace).                                                            |
 | `end`                | bytes   | Yes      | The end key of the range. Use `*` for unbounded end (to the end of the subspace).                                                                        |
-| `LIMIT limit`        | integer | No       | Maximum number of key-value pairs to return. Must be greater than zero. Default is `100`.                                                                |
+| `LIMIT limit`        | integer | No       | Maximum number of key-value pairs to return. `0` means no limit. Negative values are rejected. Default is `100`.                                         |
 | `REVERSE`            | flag    | No       | When present, reverses the scan direction so results are returned in descending key order.                                                               |
 | `BEGIN-KEY-SELECTOR` | string  | No       | Controls how the begin boundary is resolved. Default is `first_greater_or_equal`.                                                                        |
 | `END-KEY-SELECTOR`   | string  | No       | Controls how the end boundary is resolved. Default is `first_greater_than`.                                                                              |
@@ -64,7 +64,8 @@ The special value `*` can be used as a wildcard to represent an unbounded bounda
 - `*` as `end`: extends the range to the very last key in the subspace.
 
 The `LIMIT` keyword caps the number of returned pairs. Combined with `REVERSE`, you can retrieve the last N entries in
-a range.
+a range. Without `LIMIT`, the command returns at most 100 pairs. `LIMIT 0` removes the cap and returns every pair in
+the range. The whole result is sent in one reply, so use `LIMIT 0` only on ranges you know are small.
 
 Key selectors allow fine-tuning of the range boundaries. For example, using `BEGIN-KEY-SELECTOR first_greater_than`
 excludes the begin key from the results.
@@ -92,7 +93,7 @@ Argument errors:
 | `ERR`      | `Wrong number of arguments for 'ZGETRANGE' command`           | -     |
 | `ERR`      | `Unknown argument: '<keyword>'`                               | -     |
 | `ERR`      | `Duplicate argument: '<keyword>'`                             | -     |
-| `ERR`      | `LIMIT argument must be followed by a positive integer`       | -     |
+| `ERR`      | `LIMIT argument must be followed by a non-negative integer`   | -     |
 | `ERR`      | `Value is not an integer or out of range`                     | -     |
 | `ERR`      | `<keyword> argument must be followed by a valid key selector` | -     |
 | `ERR`      | `Unknown range key selector: '<value>'`                       | -     |
@@ -160,6 +161,19 @@ OK
    2) "e"
 3) 1) "key-3"
    2) "d"
+```
+
+**Read a range without a limit:**
+
+```kronotop
+> ZGETRANGE key-0 key-5 LIMIT 0
+1) 1) "key-0"
+   2) "a"
+2) 1) "key-1"
+   2) "b"
+...
+6) 1) "key-5"
+   2) "f"
 ```
 
 **Full subspace scan with `* *`:**
