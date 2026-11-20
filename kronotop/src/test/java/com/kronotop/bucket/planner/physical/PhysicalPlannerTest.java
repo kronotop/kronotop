@@ -20,7 +20,6 @@ import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.bql.ast.BqlExpr;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.logical.*;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -435,9 +434,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("Null LogicalNode should throw NullPointerException")
         void shouldThrowForNullLogicalNode() {
-            assertThrows(NullPointerException.class, () -> {
-                planLogical(null);
-            });
+            assertThrows(NullPointerException.class, () -> planLogical(null));
         }
 
         @Test
@@ -567,42 +564,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
             // (all NOT pairs cancel out, leaving just the filter)
             assertInstanceOf(PhysicalFullScan.class, result);
         }
-
-        @Test
-        @DisplayName("Memory efficiency - no intermediate collections")
-        @Disabled
-        void shouldBeMemoryEfficient() {
-            // Create nested structure that could create intermediate collections
-            LogicalNode complex = new LogicalAnd(Arrays.asList(
-                    new LogicalFilter("a", Operator.EQ, "1"),
-                    new LogicalOr(Arrays.asList(
-                            new LogicalFilter("b", Operator.EQ, "2"),
-                            new LogicalNot(new LogicalFilter("c", Operator.EQ, "3")),
-                            new LogicalElemMatch("items", new LogicalFilter("d", Operator.GT, 4))
-                    ))
-            ));
-
-            // Record memory before
-            Runtime.getRuntime().gc();
-            long memoryBefore = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-
-            PhysicalNode result = planLogical(complex);
-
-            // Record memory after
-            Runtime.getRuntime().gc();
-            long memoryAfter = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-
-            long memoryUsed = memoryAfter - memoryBefore;
-
-            // Should not use excessive memory (less than 1MB for this small structure)
-            assertTrue(memoryUsed < 1_000_000, "Memory usage should be minimal, used: " + memoryUsed + " bytes");
-
-            // Verify structure is correct
-            assertInstanceOf(PhysicalAnd.class, result);
-        }
     }
-
-    // Original Test (preserved)
 
     @Nested
     @DisplayName("Integration Tests")

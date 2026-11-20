@@ -23,7 +23,6 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import org.bson.BsonType;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
@@ -35,199 +34,55 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
+    private static final int DOCUMENT_COUNT = 350;
+    private static final int BATCH_SIZE = 2;
 
     @Test
-    @Disabled
-    void shouldProcessAndQueryWith50DocumentsAndBatch() {
-        // Behavior: AND query with 50 matching documents and batch=2 returns all documents without duplicates.
-        final String TEST_BUCKET_NAME = "test-bucket-intersection-50-docs";
-
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
-
-        List<byte[]> documents = generateTestDocuments();
-        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
-
-        String query = "{ 'price': { '$gt': 25 }, 'quantity': { '$gt': 150 } }";
-        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
-        QueryOptions config = QueryOptions.builder().batch(2).build();
-        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
-
-        Set<Integer> seenDocumentIds = new HashSet<>();
-        int batchCount = 0;
-        int totalDocumentsReturned = 0;
-
-        while (true) {
-            batchCount++;
-            try (Transaction tr = createTransaction()) {
-                List<ByteBuffer> results = readExecutor.execute(tr, ctx);
-
-                assertTrue(results.size() <= 2, "Should return at most 2 results due to batch size");
-
-                for (ByteBuffer buffer : results) {
-                    String json = TestUtil.bsonToJsonWithoutId(buffer);
-                    int price = extractIntValue(json, "price");
-                    int quantity = extractIntValue(json, "quantity");
-                    int id = extractIntValue(json, "id");
-
-                    assertTrue(price > 25, "Document price (" + price + ") should be > 25");
-                    assertTrue(quantity > 150, "Document quantity (" + quantity + ") should be > 150");
-
-                    assertFalse(seenDocumentIds.contains(id), "Document with id " + id + " already seen in previous batch");
-                    seenDocumentIds.add(id);
-
-                    totalDocumentsReturned++;
-                }
-
-                if (results.isEmpty()) {
-                    break;
-                }
-            }
-        }
-
-        // Final validation: all 50 generated documents should match criteria, so we expect all 50
-        assertEquals(50, totalDocumentsReturned,
-                "Expected all 50 documents to match criteria (price > 25 AND quantity > 150)");
-
-        assertEquals(totalDocumentsReturned, seenDocumentIds.size(),
-                "All returned documents should be unique");
-    }
-
-    @Test
-    @Disabled
-    void shouldProcessAndQueryWith350DocumentsAndBatch() {
-        // Behavior: AND query with 350 matching documents and batch=2 returns all documents without duplicates.
+    void shouldReturnEachMatchingDocumentOnceAcrossBatches() {
+        // Behavior: The bucket has INT32 indexes on price and quantity and holds 350 documents: 117 fail
+        // price > 25, 117 fail quantity > 150 and 116 pass both. The test runs the query price > 25 and
+        // quantity > 150 with batch size 2, one transaction per batch, until a batch comes back empty.
+        // No batch has more than 2 documents, and each of the 116 matching documents comes back exactly once.
         final String TEST_BUCKET_NAME = "test-bucket-intersection-350-docs";
 
         SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
         SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
-        List<byte[]> documents = generate350TestDocuments();
+        List<byte[]> documents = new ArrayList<>(DOCUMENT_COUNT);
+        List<Integer> expectedIds = new ArrayList<>();
+        for (int id = 0; id < DOCUMENT_COUNT; id++) {
+            // Group 0 fails the price condition, group 1 fails the quantity condition, group 2 passes both.
+            int group = id % 3;
+            int price = group == 0 ? 1 + (id % 25) : 30 + (id % 50);
+            int quantity = group == 1 ? 70 + (id % 80) : 160 + (id % 80);
+            if (group == 2) {
+                expectedIds.add(id);
+            }
+            documents.add(BSONUtil.jsonToDocumentThenBytes(String.format("{'price': %d, 'quantity': %d, 'id': %d}", price, quantity, id)));
+        }
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        String query = "{ 'price': { '$gt': 25 }, 'quantity': { '$gt': 150 } }";
-        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
-        QueryOptions config = QueryOptions.builder().batch(2).build();
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{ 'price': { '$gt': 25 }, 'quantity': { '$gt': 150 } }");
+        QueryOptions config = QueryOptions.builder().batch(BATCH_SIZE).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        Set<Integer> seenDocumentIds = new HashSet<>();
-        int batchCount = 0;
-        int totalDocumentsReturned = 0;
-
+        Set<Integer> seenIds = new HashSet<>();
         while (true) {
-            batchCount++;
             try (Transaction tr = createTransaction()) {
                 List<ByteBuffer> results = readExecutor.execute(tr, ctx);
-
-                assertTrue(results.size() <= 2, "Should return at most 2 results due to batch size");
-
-                for (ByteBuffer buffer : results) {
-                    String json = TestUtil.bsonToJsonWithoutId(buffer);
-                    int price = extractIntValue(json, "price");
-                    int quantity = extractIntValue(json, "quantity");
-                    int id = extractIntValue(json, "id");
-
-                    assertTrue(price > 25, "Document price (" + price + ") should be > 25");
-                    assertTrue(quantity > 150, "Document quantity (" + quantity + ") should be > 150");
-
-                    assertFalse(seenDocumentIds.contains(id), "Document with id " + id + " already seen in previous batch");
-                    seenDocumentIds.add(id);
-
-                    totalDocumentsReturned++;
-                }
-
                 if (results.isEmpty()) {
                     break;
                 }
-            }
-        }
+                assertTrue(results.size() <= BATCH_SIZE, "A batch should hold at most " + BATCH_SIZE + " documents");
 
-        // Final validation: all 350 generated documents should match criteria, so we expect all 350
-        assertEquals(350, totalDocumentsReturned,
-                "Expected all 350 documents to match criteria (price > 25 AND quantity > 150)");
-
-        assertEquals(totalDocumentsReturned, seenDocumentIds.size(),
-                "All returned documents should be unique");
-    }
-
-    /**
-     * Generates 350 test documents with predictable data that will match our query
-     */
-    private List<byte[]> generate350TestDocuments() {
-        List<byte[]> documents = new ArrayList<>(350);
-
-        for (int i = 0; i < 350; i++) {
-            // Create documents that will definitely match our criteria (price > 25, quantity > 150)
-            int price = 30 + (i % 50);  // Price between 30-79
-            int quantity = 160 + (i % 80); // Quantity between 160-239
-
-            String json = String.format("{'price': %d, 'quantity': %d, 'id': %d}", price, quantity, i);
-            documents.add(BSONUtil.jsonToDocumentThenBytes(json));
-        }
-
-        return documents;
-    }
-
-    /**
-     * Generates 50 test documents with predictable data that will match our query
-     */
-    private List<byte[]> generateTestDocuments() {
-        List<byte[]> documents = new ArrayList<>(50);
-
-        for (int i = 0; i < 50; i++) {
-            // Create documents that will definitely match our criteria (price > 25, quantity > 150)
-            int price = 30 + (i % 20);  // Price between 30-49
-            int quantity = 160 + (i % 40); // Quantity between 160-199
-
-            String json = String.format("{'price': %d, 'quantity': %d, 'id': %d}", price, quantity, i);
-            documents.add(BSONUtil.jsonToDocumentThenBytes(json));
-        }
-
-        return documents;
-    }
-
-    /**
-     * Extracts integer value from JSON string for a given field
-     */
-    private int extractIntValue(String json, String fieldName) {
-        // Try different patterns that might be used in JSON formatting
-        String[] patterns = {
-                "\"" + fieldName + "\" : ",
-                "\"" + fieldName + "\": ",
-                "\"" + fieldName + "\":",
-                fieldName + " : ",
-                fieldName + ": ",
-                fieldName + ":"
-        };
-
-        for (String pattern : patterns) {
-            int startIndex = json.indexOf(pattern);
-            if (startIndex != -1) {
-                startIndex += pattern.length();
-
-                while (startIndex < json.length() && Character.isWhitespace(json.charAt(startIndex))) {
-                    startIndex++;
-                }
-
-                int endIndex = startIndex;
-                while (endIndex < json.length() &&
-                        (Character.isDigit(json.charAt(endIndex)) || json.charAt(endIndex) == '-')) {
-                    endIndex++;
-                }
-
-                if (endIndex > startIndex) {
-                    try {
-                        return Integer.parseInt(json.substring(startIndex, endIndex));
-                    } catch (NumberFormatException e) {
-                        // Continue to next pattern
-                    }
+                for (ByteBuffer buffer : results) {
+                    int id = TestUtil.BsonDocumentFromByteBuffer(buffer).getInt32("id").getValue();
+                    assertTrue(seenIds.add(id), "Document with id " + id + " was returned twice");
                 }
             }
         }
 
-        // Fallback: return 0 if field not found
-        return 0;
+        assertEquals(expectedIds, seenIds.stream().sorted().toList());
     }
 }
