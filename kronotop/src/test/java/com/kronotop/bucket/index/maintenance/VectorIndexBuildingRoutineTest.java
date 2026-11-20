@@ -450,7 +450,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
 
-        // Exactly one ENTRIES key per document — the builder did not re-create online-written entries.
+        // Exactly one ENTRIES key per document, the builder did not re-create online-written entries.
         assertEquals(3, countFdbEntries(vectorIndex), "Should have exactly one index entry per document");
 
         // Cardinality must be exact, not double-counted by the builder.

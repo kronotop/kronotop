@@ -79,10 +79,10 @@ public final class LogicalPlanner {
     public LogicalNode plan(BqlExpr root) {
         Objects.requireNonNull(root, "root expression must not be null");
 
-        // Step 1: convert the parser AST into a logical tree
+        // Convert the parser AST into a logical tree
         LogicalNode logical = convert(root);
 
-        // Step 2: run the pipeline (each pass may rewrite the tree)
+        // Run the pipeline (each pass may rewrite the tree)
         for (LogicalTransform pass : pipeline) {
             logical = pass.transform(logical);
         }

@@ -60,14 +60,12 @@ class BinaryValIntegrationTest {
         String expectedBase64 = Base64.getEncoder().encodeToString(testData);
         assertEquals("\"" + expectedBase64 + "\"", binaryVal.toJson());
 
-        // Verify round-trip capability
         byte[] decoded = Base64.getDecoder().decode(expectedBase64);
         assertArrayEquals(testData, decoded);
     }
 
     @Test
     void shouldHandleBinaryValInLogicalPlanner() {
-        // Test that logical planner handles BinaryVal correctly
         byte[] testData = {0x01, 0x02, 0x03};
         BqlExpr query = new BqlEq("data", new BinaryVal(testData));
 
@@ -83,7 +81,6 @@ class BinaryValIntegrationTest {
 
     @Test
     void shouldHandleBinaryValLogicalEquality() {
-        // Test binary equality comparisons in logical planning
         byte[] data1 = {0x00, 0x01, 0x02};
         byte[] data2 = {0x00, 0x01, 0x02};
 
@@ -96,7 +93,6 @@ class BinaryValIntegrationTest {
         try {
             var logicalPlan = planner.plan(query);
             assertNotNull(logicalPlan);
-            // Should handle binary equality correctly
         } catch (Exception e) {
             fail("Logical planning failed with BinaryVal equality: " + e.getMessage());
         }
@@ -104,7 +100,6 @@ class BinaryValIntegrationTest {
 
     @Test
     void shouldHandleBinaryValInequality() {
-        // Test binary inequality comparisons  
         byte[] data1 = {0x01, 0x02, 0x03};
         byte[] data2 = {0x04, 0x05, 0x06};
 
@@ -146,7 +141,6 @@ class BinaryValIntegrationTest {
 
     @Test
     void shouldHandleBinaryValInArrays() {
-        // Test BinaryVal in $in operator with arrays
         byte[] data1 = {0x01};
         byte[] data2 = {0x02};
         byte[] data3 = {0x03};
@@ -168,7 +162,6 @@ class BinaryValIntegrationTest {
 
     @Test
     void shouldHandleBinaryValNotInArrays() {
-        // Test BinaryVal in $nin operator
         byte[] excludedData = {(byte) 0xDE, (byte) 0xAD, (byte) 0xBE, (byte) 0xEF};
 
         BqlExpr query = new BqlNin("checksum", List.of(
@@ -186,7 +179,6 @@ class BinaryValIntegrationTest {
 
     @Test
     void shouldHandleBinaryValWithMixedTypes() {
-        // Test binary values mixed with other types in logical planning
         byte[] binaryData = {0x12, 0x34, 0x56, 0x78};
 
         BqlExpr query = new BqlOr(java.util.Arrays.asList(
@@ -199,7 +191,6 @@ class BinaryValIntegrationTest {
         try {
             var logicalPlan = planner.plan(query);
             assertNotNull(logicalPlan);
-            // Should handle mixed types including binary correctly
         } catch (Exception e) {
             fail("Logical planning failed with mixed types including BinaryVal: " + e.getMessage());
         }
@@ -207,7 +198,6 @@ class BinaryValIntegrationTest {
 
     @Test
     void shouldHandleBinaryValInDocuments() {
-        // Test binary values within document structures
         byte[] thumbnailData = {(byte) 0x89, 0x50, 0x4E, 0x47}; // PNG header bytes
 
         java.util.Map<String, BqlValue> fields = new java.util.LinkedHashMap<>();
@@ -227,14 +217,12 @@ class BinaryValIntegrationTest {
 
     @Test
     void shouldSerializeBinaryValToJson() {
-        // Test JSON serialization of binary values
         byte[] testData = {0x48, 0x65, 0x6C, 0x6C, 0x6F}; // "Hello"
         BinaryVal binaryVal = new BinaryVal(testData);
 
         String expectedJson = "\"" + Base64.getEncoder().encodeToString(testData) + "\"";
         assertEquals(expectedJson, binaryVal.toJson());
 
-        // Test in complex structure
         BqlExpr query = new BqlEq("data", binaryVal);
         String explanation = BqlParser.explain(query);
         assertNotNull(explanation);
@@ -243,7 +231,6 @@ class BinaryValIntegrationTest {
 
     @Test
     void shouldHandleBinaryValEmptyData() {
-        // Test binary values with empty byte arrays
         byte[] emptyData = {};
         BinaryVal emptyBinary = new BinaryVal(emptyData);
 
@@ -263,7 +250,6 @@ class BinaryValIntegrationTest {
 
     @Test
     void shouldHandleBinaryValLargeData() {
-        // Test binary values with larger data sets
         byte[] largeData = new byte[1024];
         for (int i = 0; i < largeData.length; i++) {
             largeData[i] = (byte) (i % 256);
@@ -276,7 +262,6 @@ class BinaryValIntegrationTest {
         assertTrue(base64.startsWith("\""));
         assertTrue(base64.endsWith("\""));
 
-        // Verify base64 decoding works
         String base64Content = base64.substring(1, base64.length() - 1);
         byte[] decoded = Base64.getDecoder().decode(base64Content);
         assertArrayEquals(largeData, decoded);
@@ -314,7 +299,6 @@ class BinaryValIntegrationTest {
         assertNotNull(json);
         assertTrue(json.length() > 2); // Should have quotes and content
 
-        // Verify encoding/decoding preserves special bytes
         String base64Content = json.substring(1, json.length() - 1);
         byte[] decoded = Base64.getDecoder().decode(base64Content);
         assertArrayEquals(specialBytes, decoded);

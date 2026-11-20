@@ -1728,7 +1728,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                             VolumeSession session = new VolumeSession(tr, prefix);
                             volume.append(session, entries);
 
-                            // Random delay before commit — creates the in-flight race window
+                            // Random delay before commit, creates the in-flight race window
                             Thread.sleep(random.nextInt(100));
                             tr.commit().join();
                         }
@@ -1743,7 +1743,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             // 5. Wait for all writers to finish
             assertTrue(writersFinished.await(30, TimeUnit.SECONDS), "Writers should finish within 30 seconds");
 
-            // 6. Wait for standby to converge — verify SHA-1 match for all segments
+            // 6. Wait for standby to converge, verify SHA-1 match for all segments
             List<SegmentAnalysis> items = volume.analyze();
             for (SegmentAnalysis analysis : items) {
                 long segmentId = analysis.segmentId();
@@ -1790,7 +1790,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                 }
             });
 
-            // 4. Spawn concurrent writers — half commit, half roll back
+            // 4. Spawn concurrent writers, half commit, half roll back
             int writerCount = 200;
             CountDownLatch writersFinished = new CountDownLatch(writerCount);
             Random random = new Random();
@@ -1804,7 +1804,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                             VolumeSession session = new VolumeSession(tr, prefix);
                             volume.append(session, entries);
 
-                            // Random delay — creates the in-flight race window
+                            // Random delay, creates the in-flight race window
                             Thread.sleep(random.nextInt(100));
 
                             if (shouldCommit) {
@@ -1853,7 +1853,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                 replicationClient.shutdown();
             }
 
-            // 8. Verify data integrity — every committed entry readable from standby
+            // 8. Verify data integrity, every committed entry readable from standby
             VolumeConfig replicatedVolumeConfig = new VolumeConfig(
                     volumeConfig.subspace(),
                     volumeConfig.name(),

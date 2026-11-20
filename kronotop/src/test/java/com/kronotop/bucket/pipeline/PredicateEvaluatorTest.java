@@ -3434,7 +3434,7 @@ class PredicateEvaluatorTest {
 
         @Test
         void shouldHandleMissingId() {
-            // Behavior: Missing _id field behaves like any missing field — EQ returns false, NE returns true.
+            // Behavior: Missing _id field behaves like any missing field. EQ returns false, NE returns true.
             BsonDocument doc = new BsonDocument("name", new BsonString("test"));
             ByteBuffer buffer = toBuffer(doc);
             ObjectId operandId = new ObjectId();

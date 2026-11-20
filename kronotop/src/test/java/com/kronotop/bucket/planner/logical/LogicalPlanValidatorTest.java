@@ -33,7 +33,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Comprehensive test suite for LogicalPlanValidator covering all validation scenarios.
+ * Tests the validation rules of LogicalPlanValidator.
  */
 class LogicalPlanValidatorTest {
 

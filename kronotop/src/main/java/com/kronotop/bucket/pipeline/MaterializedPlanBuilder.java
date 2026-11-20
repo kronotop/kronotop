@@ -54,7 +54,7 @@ public class MaterializedPlanBuilder {
             boolean planCacheEnabled,
             long planCacheMaxTtl) {
 
-        // Step 1: Parse and plan the BQL filter through the normal pipeline
+        // Parse and plan the BQL filter through the normal pipeline
         BqlExpr expr = BqlParser.parse(filterBytes);
         List<BqlValue> parameters = ParameterExtractor.extract(expr);
         PipelineNode pipelineNode = planner.plan(context, metadata, expr, parameters, planCacheEnabled, planCacheMaxTtl);
@@ -64,11 +64,11 @@ public class MaterializedPlanBuilder {
             return null;
         }
 
-        // Step 2: Convert the pipeline node to a residual predicate
+        // Convert the pipeline node to a residual predicate
         PlannerContext plannerCtx = new PlannerContext(metadata);
         ResidualPredicateNode predicate = PipelineRewriter.transformNodeToResidualPredicate(plannerCtx, pipelineNode);
 
-        // Step 3: Create the MaterializedScanNode
+        // Create the MaterializedScanNode
         int nodeId = plannerCtx.nextId();
         MaterializedScanNode scanNode = new MaterializedScanNode(nodeId, supplier, predicate);
         return new MaterializedPlan(scanNode, parameters);

@@ -125,7 +125,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldUpdateWithSetOperation() {
-        // Step 1: Insert test documents with different ages
+        // Insert test documents with different ages
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25, \"city\": \"New York\"}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 35, \"city\": \"London\"}"),
@@ -142,7 +142,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(4, allInsertedObjectIds.size(), "Should have inserted 4 documents");
 
-        // Step 2: Update documents with age > 30 using BUCKET.UPDATE to add a "status" field
+        // Update documents with age > 30 using BUCKET.UPDATE to add a "status" field
         List<ObjectId> updatedObjectIds;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -157,7 +157,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Should have updated 2 documents (Bob age 35, Charlie age 45)
         assertEquals(2, updatedObjectIds.size(), "Should have updated 2 documents with age > 30");
 
-        // Step 3: Query all documents to verify the update
+        // Query all documents to verify the update
         Map<ObjectId, BsonDocument> allDocuments = new LinkedHashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
@@ -174,7 +174,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(4, allDocuments.size(), "Should retrieve all 4 documents");
 
-        // Step 4: Verify the updates
+        // Verify the updates
         for (Map.Entry<ObjectId, BsonDocument> entry : allDocuments.entrySet()) {
             ObjectId oid = entry.getKey();
             BsonDocument document = entry.getValue();
@@ -231,7 +231,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldUpdateWithUnsetOperation() {
-        // Step 1: Insert test documents with extra fields that we'll remove
+        // Insert test documents with extra fields that we'll remove
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25, \"city\": \"New York\", \"temp\": \"value1\", \"deprecated\": \"old\"}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 35, \"city\": \"London\", \"temp\": \"value2\", \"deprecated\": \"old\"}"),
@@ -248,7 +248,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(4, allInsertedObjectIds.size(), "Should have inserted 4 documents");
 
-        // Step 2: Update documents with age > 30 using BUCKET.UPDATE to remove "temp" and "deprecated" fields
+        // Update documents with age > 30 using BUCKET.UPDATE to remove "temp" and "deprecated" fields
         List<ObjectId> updatedObjectIds;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -263,7 +263,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Should have updated 2 documents (Bob age 35, Charlie age 45)
         assertEquals(2, updatedObjectIds.size(), "Should have updated 2 documents with age > 30");
 
-        // Step 3: Query all documents to verify the unset operation
+        // Query all documents to verify the unset operation
         Map<ObjectId, BsonDocument> allDocuments = new LinkedHashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
@@ -280,7 +280,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(4, allDocuments.size(), "Should retrieve all 4 documents");
 
-        // Step 4: Verify the unset operations
+        // Verify the unset operations
         for (Map.Entry<ObjectId, BsonDocument> entry : allDocuments.entrySet()) {
             ObjectId oid = entry.getKey();
             BsonDocument document = entry.getValue();
@@ -353,7 +353,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldSetAllBsonTypes() {
-        // Step 1: Insert a single test document that we'll update with all BSON types
+        // Insert a single test document that we'll update with all BSON types
         List<byte[]> testDocuments = Collections.singletonList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"TestDoc\", \"age\": 30}")
         );
@@ -368,7 +368,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, allInsertedObjectIds.size(), "Should have inserted 1 document");
         ObjectId targetObjectId = allInsertedObjectIds.getFirst();
 
-        // Step 2: Update the specific document by _id to add all BSON value types
+        // Update the specific document by _id to add all BSON value types
         List<ObjectId> updatedObjectIds;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -408,7 +408,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, updatedObjectIds.size(), "Should have updated exactly 1 document");
         assertTrue(updatedObjectIds.contains(targetObjectId), "Should have updated the target document");
 
-        // Step 3: Query the specific document to verify all BSON types were set
+        // Query the specific document to verify all BSON types were set
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -426,7 +426,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         assertNotNull(updatedDocument, "Should have retrieved the updated document");
 
-        // Step 4: Verify all BSON field types were set correctly
+        // Verify all BSON field types were set correctly
         // Original fields should remain
         assertEquals("TestDoc", BsonHelper.getString(updatedDocument, "name"), "Original name field should remain");
         assertEquals(30, BsonHelper.getInteger(updatedDocument, "age").intValue(), "Original age field should remain");
@@ -468,7 +468,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldUpdateWithBatchAndAdvance() {
-        // Step 1: Insert test documents - more than batch size to test pagination
+        // Insert test documents - more than batch size to test pagination
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 35, \"city\": \"New York\"}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 40, \"city\": \"London\"}"),
@@ -486,7 +486,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(5, allInsertedObjectIds.size(), "Should have inserted 5 documents");
 
-        // Step 2: Update documents with age > 30 using BUCKET.UPDATE with batch=1 to add a "status" field
+        // Update documents with age > 30 using BUCKET.UPDATE with batch=1 to add a "status" field
         List<ObjectId> allUpdatedObjectIds = new ArrayList<>();
         int cursorId;
 
@@ -506,7 +506,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Should have updated exactly 1 document in the first batch
         assertEquals(1, allUpdatedObjectIds.size(), "Should have updated exactly 1 document with batch=1");
 
-        // Step 3: Use BUCKET.ADVANCE UPDATE to continue updating remaining documents
+        // Use BUCKET.ADVANCE UPDATE to continue updating remaining documents
         int maxAdvanceCalls = 10; // Safety limit
         int advanceCalls = 0;
 
@@ -529,7 +529,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Should have updated 4 documents total (age > 30: Alice=35, Bob=40, Charlie=45, Eve=50)
         assertEquals(4, allUpdatedObjectIds.size(), "Should have updated 4 documents with age > 30");
 
-        // Step 4: Query all documents to verify the updates
+        // Query all documents to verify the updates
         Map<ObjectId, BsonDocument> allDocuments = new LinkedHashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
@@ -546,7 +546,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(5, allDocuments.size(), "Should retrieve all 5 documents");
 
-        // Step 5: Verify the updates were applied correctly
+        // Verify the updates were applied correctly
         int documentsWithStatus = 0;
         int documentsWithoutStatus = 0;
 
@@ -741,11 +741,11 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Behavior: UPDATE with SORTBY and BATCH preserves sort order across BUCKET.ADVANCE calls.
         // Documents are updated in the specified order, and cursor continuation maintains global ordering.
 
-        // Step 1: Create index on age field for sorted updates
+        // Create index on age field for sorted updates
         SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
-        // Step 2: Insert documents with shuffled ages (50, 20, 40, 10, 30)
+        // Insert documents with shuffled ages (50, 20, 40, 10, 30)
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Eve\", \"age\": 50}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 20}"),
@@ -767,7 +767,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(5, insertedDocs.size(), "Should have inserted 5 documents");
 
-        // Step 3: Execute UPDATE with SORTBY age ASC, BATCH 2
+        // Execute UPDATE with SORTBY age ASC, BATCH 2
         List<ObjectId> allUpdatedObjectIds = new ArrayList<>();
         int cursorId;
 
@@ -788,7 +788,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // First batch should have 2 documents (ages 10, 20 - the two lowest)
         assertEquals(2, allUpdatedObjectIds.size(), "First batch should update 2 documents");
 
-        // Step 4: Use BUCKET.ADVANCE UPDATE to continue updating remaining documents
+        // Use BUCKET.ADVANCE UPDATE to continue updating remaining documents
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
 
@@ -809,10 +809,10 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             advanceCalls++;
         }
 
-        // Step 5: Verify all 5 documents were updated
+        // Verify all 5 documents were updated
         assertEquals(5, allUpdatedObjectIds.size(), "Should have updated all 5 documents");
 
-        // Step 6: Verify the update order matches ascending age order (10, 20, 30, 40, 50)
+        // Verify the update order matches ascending age order (10, 20, 30, 40, 50)
         List<Integer> actualUpdateOrder = new ArrayList<>();
         for (ObjectId oid : allUpdatedObjectIds) {
             Integer age = idToAge.get(oid);
@@ -824,7 +824,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(expectedOrder, actualUpdateOrder,
                 "Documents should be updated in ascending age order across all cursor advances");
 
-        // Step 7: Verify all documents have processed=true
+        // Verify all documents have processed=true
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -845,11 +845,11 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Behavior: UPDATE with SORTBY DESC and BATCH preserves descending sort order across
         // BUCKET.ADVANCE calls. Documents are updated from highest to lowest value.
 
-        // Step 1: Create index on age field
+        // Create index on age field
         SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
-        // Step 2: Insert documents with shuffled ages
+        // Insert documents with shuffled ages
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Eve\", \"age\": 50}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 20}"),
@@ -868,7 +868,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             idToAge.put(entry.getKey(), BsonHelper.getInteger(doc, "age"));
         }
 
-        // Step 3: Execute UPDATE with SORTBY age DESC, BATCH 2
+        // Execute UPDATE with SORTBY age DESC, BATCH 2
         List<ObjectId> allUpdatedObjectIds = new ArrayList<>();
         int cursorId;
 
@@ -887,7 +887,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(2, allUpdatedObjectIds.size(), "First batch should update 2 documents");
 
-        // Step 4: Continue with BUCKET.ADVANCE
+        // Continue with BUCKET.ADVANCE
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
 
@@ -908,7 +908,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             advanceCalls++;
         }
 
-        // Step 5: Verify update order matches descending age order (50, 40, 30, 20, 10)
+        // Verify update order matches descending age order (50, 40, 30, 20, 10)
         assertEquals(5, allUpdatedObjectIds.size(), "Should have updated all 5 documents");
 
         List<Integer> actualUpdateOrder = new ArrayList<>();
@@ -1227,7 +1227,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         //
         // The score predicate ({$gte: 0}) is a no-op filter that exists solely to bring the
         // score index into the physical plan. Without it, the plan would be a single
-        // PhysicalIndexScan on age — which provides no ordering on score, so SORTBY score
+        // PhysicalIndexScan on age, which provides no ordering on score, so SORTBY score
         // would be rejected. With the AND, the planner sees both indexes and can select
         // score as the primary scan for sort ordering.
 
@@ -1923,7 +1923,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Object insertMsg = runCommand(channel, insertBuf);
         assertInstanceOf(ArrayRedisMessage.class, insertMsg);
 
-        // Update: $set age to INT32 value 42 — should be widened to INT64 in the index
+        // Update: $set age to INT32 value 42, should be widened to INT64 in the index
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
@@ -1968,7 +1968,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Object insertMsg = runCommand(channel, insertBuf);
         assertInstanceOf(ArrayRedisMessage.class, insertMsg);
 
-        // Update: $set score to INT32 value 100 — should be widened to DOUBLE in the index
+        // Update: $set score to INT32 value 100, should be widened to DOUBLE in the index
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
@@ -2013,7 +2013,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Object insertMsg = runCommand(channel, insertBuf);
         assertInstanceOf(ArrayRedisMessage.class, insertMsg);
 
-        // Update: $set value to INT64 — should fail because INT64->DOUBLE is lossy
+        // Update: $set value to INT64, should fail because INT64->DOUBLE is lossy
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
@@ -2088,7 +2088,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
                 "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
-        // Insert INT32 documents — widened to INT64 at store time
+        // Insert INT32 documents, widened to INT64 at store time
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 20}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 30}"),
@@ -2242,14 +2242,14 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldUpdateAndReindexWithWidenedValuesEndToEnd() {
-        // Behavior: Full pipeline — INT32 docs are widened to INT64 at insert, found by
+        // Behavior: Full pipeline. INT32 docs are widened to INT64 at insert, found by
         // INT32 predicate via index scan, and $set new INT32 value is widened back to INT64
         // in the index.
         SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create(
                 "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
-        // Insert INT32 documents — widened to INT64 at store time
+        // Insert INT32 documents, widened to INT64 at store time
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 20}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 30}"),
@@ -2307,7 +2307,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
                 "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
-        // Insert INT32 documents with shuffled ages — widened to INT64 at store time
+        // Insert INT32 documents with shuffled ages, widened to INT64 at store time
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Eve\", \"age\": 50}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 20}"),
@@ -2737,7 +2737,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // UPDATE: filter uses lowercase "ankara" — bucket Turkish PRIMARY collation matches "ANKARA"
+        // UPDATE: filter uses lowercase "ankara", bucket Turkish PRIMARY collation matches "ANKARA"
         ByteBuf buf = Unpooled.buffer();
         cmd.update(COLLATION_BUCKET, "{\"name\": {\"$eq\": \"ankara\"}}",
                 "{\"$set\": {\"name\": \"TRABZON\"}}").encode(buf);
@@ -2760,13 +2760,13 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldApplyIndexLevelCollationToIndexEntryOnUpdateIgnoringQueryCollation() {
         // Behavior: When index has explicit Turkish PRIMARY collation but UPDATE uses English PRIMARY
-        // query collation, new index entries must be written using the index-level TR collation — not the
+        // query collation, new index entries must be written using the index-level TR collation, not the
         // query-level EN collation. Uses ANKARA -> TRABZON (pure ASCII) so EN query collation trivially
         // matches the filter; the collation distinction shows only in how the new index entry is stored.
         // A follow-up query with TR collation for "trabzon" (lowercase) finds stored "TRABZON" via
-        // TR PRIMARY case-insensitivity, proving the index entry used TR — not EN — for key encoding.
+        // TR PRIMARY case-insensitivity, proving the index entry used TR, not EN, for key encoding.
 
-        // Bucket with no collation — only the index carries Turkish PRIMARY
+        // Bucket with no collation, only the index carries Turkish PRIMARY
         createBucket(COLLATION_BUCKET);
 
         BucketCommandBuilder<byte[], byte[]> cmdBytes = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);

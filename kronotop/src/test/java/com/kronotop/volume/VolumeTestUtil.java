@@ -20,9 +20,7 @@ public class VolumeTestUtil {
 
     public static EntryMetadata generateEntryMetadata(int volumeId, long segmentId, long position, long length, String prefixName) {
         Prefix prefix = new Prefix(prefixName);
-        // Initialize necessary data
         long handle = EntryHandleGenerator.generate(volumeId, segmentId, position);
-        // Create EntryMetadata instance
         return new EntryMetadata(segmentId, prefix.asBytes(), position, length, handle);
     }
 }

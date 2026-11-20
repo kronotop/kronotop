@@ -97,7 +97,6 @@ class BucketSnapshotReadTest extends BaseBucketHandlerTest {
 
         enableSnapshotRead(cmd);
 
-        // Query with snapshot read ON
         {
             ByteBuf buf = Unpooled.buffer();
             bucketCmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -110,7 +109,6 @@ class BucketSnapshotReadTest extends BaseBucketHandlerTest {
 
         disableSnapshotRead(cmd);
 
-        // Query with snapshot read OFF — same results
         {
             ByteBuf buf = Unpooled.buffer();
             bucketCmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -230,7 +228,6 @@ class BucketSnapshotReadTest extends BaseBucketHandlerTest {
         Map<ObjectId, byte[]> inserted = insertDocumentsAndGetObjectIds(documents);
         assertEquals(2, inserted.size());
 
-        // Verify the documents are persisted by querying
         {
             ByteBuf buf = Unpooled.buffer();
             bucketCmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -258,7 +255,6 @@ class BucketSnapshotReadTest extends BaseBucketHandlerTest {
 
         enableSnapshotRead(cmd);
 
-        // Delete all documents
         {
             ByteBuf buf = Unpooled.buffer();
             bucketCmd.delete(TEST_BUCKET, "{}").encode(buf);
@@ -269,7 +265,6 @@ class BucketSnapshotReadTest extends BaseBucketHandlerTest {
             assertEquals(2, deletedIds.size());
         }
 
-        // Verify documents are gone
         {
             ByteBuf buf = Unpooled.buffer();
             bucketCmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -297,7 +292,6 @@ class BucketSnapshotReadTest extends BaseBucketHandlerTest {
 
         enableSnapshotRead(cmd);
 
-        // Update all documents to set status field
         {
             ByteBuf buf = Unpooled.buffer();
             bucketCmd.update(TEST_BUCKET, "{}", "{\"$set\": {\"status\": \"active\"}}").encode(buf);
@@ -308,7 +302,6 @@ class BucketSnapshotReadTest extends BaseBucketHandlerTest {
             assertEquals(2, updatedIds.size());
         }
 
-        // Verify documents are updated
         {
             ByteBuf buf = Unpooled.buffer();
             bucketCmd.query(TEST_BUCKET, "{}").encode(buf);

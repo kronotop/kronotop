@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 /**
- * Comprehensive test suite for LogicalPlanner optimization passes.
+ * Tests for the LogicalPlanner optimization passes.
  * Tests the new advanced optimization transforms: contradiction detection,
  * tautology elimination, and constant folding.
  */

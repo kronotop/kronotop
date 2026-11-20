@@ -69,11 +69,11 @@ class TaskRunnerTest {
 
         TaskService.TaskRunner runner = new TaskService.TaskRunner(new SlowTask());
 
-        // First invocation — spawns a virtual thread
+        // First invocation, spawns a virtual thread
         runner.run();
         assertTrue(taskStarted.await(5, TimeUnit.SECONDS), "Task should have started");
 
-        // Second invocation — should be skipped because the first is still running
+        // Second invocation, should be skipped because the first is still running
         runner.run();
 
         // Release the blocking task
@@ -146,7 +146,7 @@ class TaskRunnerTest {
         // Wait for the virtual thread to complete and release the guard
         Thread.sleep(100);
 
-        // The second execution — should succeed since the first one completed
+        // The second execution, should succeed since the first one completed
         runner.run();
         assertTrue(secondStarted.await(5, TimeUnit.SECONDS), "Second execution should have started");
         secondBlock.countDown();

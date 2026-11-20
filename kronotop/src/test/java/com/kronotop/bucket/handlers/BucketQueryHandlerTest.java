@@ -879,7 +879,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         switchProtocol(bucketCmd, RESPVersion.RESP3);
 
-        // Step 1: BEGIN transaction
+        // BEGIN transaction
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.begin().encode(buf);
@@ -888,7 +888,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) msg).content());
         }
 
-        // Step 2: INSERT document within transaction
+        // INSERT document within transaction
         {
             byte[] doc = BSONUtil.jsonToDocumentThenBytes("{\"name\": \"TestDoc\", \"value\": 42}");
             ByteBuf buf = Unpooled.buffer();
@@ -897,7 +897,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertInstanceOf(ArrayRedisMessage.class, msg);
         }
 
-        // Step 3: QUERY the document within the same transaction - should succeed (read-your-writes)
+        // QUERY the document within the same transaction - should succeed (read-your-writes)
         {
             ByteBuf buf = Unpooled.buffer();
             bucketCmd.query(TEST_BUCKET, "{\"name\": \"TestDoc\"}").encode(buf);
@@ -913,7 +913,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertEquals(42, doc.getInt32("value").getValue());
         }
 
-        // Step 4: COMMIT transaction
+        // COMMIT transaction
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.commit().encode(buf);
@@ -928,7 +928,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         // Behavior: Querying within a transaction returns both previously committed documents
         // and documents inserted in the current uncommitted transaction.
 
-        // Step 1: Insert a document that gets auto-committed
+        // Insert a document that gets auto-committed
         byte[] committedDoc = BSONUtil.jsonToDocumentThenBytes("{\"name\": \"CommittedDoc\", \"value\": 1}");
         insertDocumentsAndGetObjectIds(List.of(committedDoc));
 
@@ -937,7 +937,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         switchProtocol(bucketCmd, RESPVersion.RESP3);
 
-        // Step 2: BEGIN transaction
+        // BEGIN transaction
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.begin().encode(buf);
@@ -946,7 +946,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) msg).content());
         }
 
-        // Step 3: INSERT a second document within the transaction
+        // INSERT a second document within the transaction
         {
             byte[] doc = BSONUtil.jsonToDocumentThenBytes("{\"name\": \"UncommittedDoc\", \"value\": 2}");
             ByteBuf buf = Unpooled.buffer();
@@ -955,7 +955,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertInstanceOf(ArrayRedisMessage.class, msg);
         }
 
-        // Step 4: QUERY all documents — should return both committed and uncommitted
+        // QUERY all documents, should return both committed and uncommitted
         {
             ByteBuf buf = Unpooled.buffer();
             bucketCmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -980,7 +980,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertEquals(2, uncommitted.getInt32("value").getValue());
         }
 
-        // Step 5: COMMIT transaction
+        // COMMIT transaction
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.commit().encode(buf);
@@ -995,7 +995,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         // Behavior: Documents inserted within a transaction are visible via RYW(read-your-writes) before rollback,
         // but after rollback they disappear and only previously committed documents remain.
 
-        // Step 1: Insert a document that gets auto-committed
+        // Insert a document that gets auto-committed
         byte[] committedDoc = BSONUtil.jsonToDocumentThenBytes("{\"name\": \"CommittedDoc\", \"value\": 1}");
         insertDocumentsAndGetObjectIds(List.of(committedDoc));
 
@@ -1004,7 +1004,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         switchProtocol(bucketCmd, RESPVersion.RESP3);
 
-        // Step 2: BEGIN transaction
+        // BEGIN transaction
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.begin().encode(buf);
@@ -1013,7 +1013,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) msg).content());
         }
 
-        // Step 3: INSERT a second document within the transaction
+        // INSERT a second document within the transaction
         {
             byte[] doc = BSONUtil.jsonToDocumentThenBytes("{\"name\": \"UncommittedDoc\", \"value\": 2}");
             ByteBuf buf = Unpooled.buffer();
@@ -1022,7 +1022,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertInstanceOf(ArrayRedisMessage.class, msg);
         }
 
-        // Step 4: QUERY all documents — should return both committed and uncommitted (read-your-writes)
+        // QUERY all documents, should return both committed and uncommitted (read-your-writes)
         {
             ByteBuf buf = Unpooled.buffer();
             bucketCmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -1033,7 +1033,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertEquals(2, entries.size());
         }
 
-        // Step 5: ROLLBACK transaction
+        // ROLLBACK transaction
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.rollback().encode(buf);
@@ -1042,7 +1042,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) msg).content());
         }
 
-        // Step 6: BEGIN a fresh transaction and QUERY — only the committed document should remain
+        // BEGIN a fresh transaction and QUERY, only the committed document should remain
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.begin().encode(buf);
@@ -1074,7 +1074,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         // Behavior: Enabling snapshot read via SNAPSHOTREAD ON within a transaction
         // allows reading previously committed data without conflicting with concurrent writes.
 
-        // Step 1: Insert a document that gets auto-committed
+        // Insert a document that gets auto-committed
         byte[] committedDoc = BSONUtil.jsonToDocumentThenBytes("{\"name\": \"SnapshotDoc\", \"value\": 99}");
         insertDocumentsAndGetObjectIds(List.of(committedDoc));
 
@@ -1082,7 +1082,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> bucketCmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(bucketCmd, RESPVersion.RESP3);
 
-        // Step 2: BEGIN transaction
+        // BEGIN transaction
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.begin().encode(buf);
@@ -1091,7 +1091,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) msg).content());
         }
 
-        // Step 3: Enable snapshot read
+        // Enable snapshot read
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.snapshotRead(SnapshotReadArgs.Builder.on()).encode(buf);
@@ -1100,7 +1100,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) msg).content());
         }
 
-        // Step 4: QUERY the committed document via snapshot read
+        // QUERY the committed document via snapshot read
         {
             ByteBuf buf = Unpooled.buffer();
             bucketCmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -1191,7 +1191,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertInstanceOf(SimpleStringRedisMessage.class, response);
         }
 
-        // Query bucket under the new namespace — data should be preserved
+        // Query bucket under the new namespace, data should be preserved
         {
             ByteBuf buf = Unpooled.buffer();
             queryCmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -1714,7 +1714,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldRejectQueryWithSortByCollationMismatchOnIndex() {
         // Behavior: QUERY with SORTBY on a field whose index has mismatched collation
-        // returns an error — the index cannot provide correct sort ordering.
+        // returns an error, the index cannot provide correct sort ordering.
         createBucketWithCollation(COLLATION_BUCKET, "{\"locale\": \"tr\", \"strength\": 3}");
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
@@ -1751,7 +1751,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldThrowErrorWhenSortByAndResultSortUseTheSameField() {
-        // Behavior: SORTBY and RESULTSORT cannot both target the same field — it is redundant and semantically invalid.
+        // Behavior: SORTBY and RESULTSORT cannot both target the same field, it is redundant and semantically invalid.
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 

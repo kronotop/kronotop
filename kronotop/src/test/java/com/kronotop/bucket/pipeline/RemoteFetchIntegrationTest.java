@@ -90,7 +90,6 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
     @Test
     void shouldExecuteQueryWithRemoteFetch() {
         createBucket(BUCKET_NAME);
-        // Insert documents on primary node
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Alice', 'age': 30}"),
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Bob', 'age': 25}"),
@@ -133,7 +132,6 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
     @Test
     void shouldExecuteFilteredQueryWithRemoteFetch() {
         createBucket(BUCKET_NAME);
-        // Insert documents on primary
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Alice', 'age': 30}"),
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Bob', 'age': 25}"),
@@ -143,7 +141,6 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
         insertDocuments(BUCKET_NAME, documents, primaryChannel);
         BucketMetadata metadata = openBucketMetadata(BUCKET_NAME);
 
-        // Second node queries with filter
         KronotopTestInstance secondInstance = addNewInstance(true);
         Context secondContext = secondInstance.getContext();
         BucketService secondBucketService = secondContext.getService(BucketService.NAME);
@@ -171,7 +168,6 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
     @Test
     void shouldExecuteIndexedQueryWithRemoteFetch() {
         createBucket(BUCKET_NAME);
-        // Create an index and insert documents on primary
         SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", org.bson.BsonType.INT32, false, IndexStatus.WAITING);
         createIndex(BUCKET_NAME, ageIndex);
 
@@ -185,7 +181,6 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
         // Refresh metadata to include the index
         BucketMetadata metadata = openBucketMetadata(BUCKET_NAME);
 
-        // Second node queries using index
         KronotopTestInstance secondInstance = addNewInstance(true);
         Context secondContext = secondInstance.getContext();
         BucketService secondBucketService = secondContext.getService(BucketService.NAME);
@@ -205,7 +200,6 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
     @Test
     void shouldPreserveOrderWithRemoteFetch() {
         createBucket(BUCKET_NAME);
-        // Insert documents on primary
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'First', 'seq': 1}"),
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Second', 'seq': 2}"),
@@ -216,7 +210,6 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
         insertDocuments(BUCKET_NAME, documents, primaryChannel);
         BucketMetadata metadata = openBucketMetadata(BUCKET_NAME);
 
-        // Second node queries
         KronotopTestInstance secondInstance = addNewInstance(true);
         Context secondContext = secondInstance.getContext();
         BucketService secondBucketService = secondContext.getService(BucketService.NAME);
@@ -241,7 +234,6 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
     @Test
     void shouldHandleManyDocumentsWithRemoteFetch() {
         createBucket(BUCKET_NAME);
-        // Insert many documents on primary
         List<byte[]> documents = new ArrayList<>();
         for (int i = 0; i < 50; i++) {
             documents.add(BSONUtil.jsonToDocumentThenBytes(
@@ -251,7 +243,6 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
         insertDocuments(BUCKET_NAME, documents, primaryChannel);
         BucketMetadata metadata = openBucketMetadata(BUCKET_NAME);
 
-        // Second node queries
         KronotopTestInstance secondInstance = addNewInstance(true);
         Context secondContext = secondInstance.getContext();
         BucketService secondBucketService = secondContext.getService(BucketService.NAME);
@@ -319,7 +310,6 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
             tr.commit().join();
         }
 
-        // Wait for index to be ready
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             try (Transaction tr = primaryContext.getTransactionManager().create()) {
                 SingleFieldIndexDefinition loaded = SingleFieldIndexUtil.loadIndexDefinition(tr, subspace);

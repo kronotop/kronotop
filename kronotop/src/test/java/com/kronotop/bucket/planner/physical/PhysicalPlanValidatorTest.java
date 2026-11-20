@@ -81,7 +81,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldPassWhenNoSortByField() {
-        // Behavior: No exception when sortByField is null — validation is skipped entirely.
+        // Behavior: No exception when sortByField is null, validation is skipped entirely.
         assertDoesNotThrow(() -> planAndValidate("{ 'category': 'bugs' }", null));
     }
 
@@ -112,7 +112,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     @Test
     void shouldPassWhenCompoundIndexCoversSortFieldWithEqPrefix() {
         // Behavior: Compound index {category, priority} with EQ on category preserves
-        // natural ordering of priority — SORTBY priority passes.
+        // natural ordering of priority, SORTBY priority passes.
         createCompoundIndex(CompoundIndexDefinition.create("idx_cat_pri", List.of(
                 new CompoundIndexField("category", BsonType.STRING, false),
                 new CompoundIndexField("priority", BsonType.INT32, false)
@@ -155,7 +155,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldRejectWhenPlanDoesNotUseSortFieldIndex() {
-        // Behavior: Having an index on the sort field is not enough — the execution plan
+        // Behavior: Having an index on the sort field is not enough, the execution plan
         // must actually provide ordering on that field. A FullScan on an unindexed field
         // iterates by _id, not by the sort field.
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
@@ -182,7 +182,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldRejectWhenOrNodeDoesNotProvideSortOrder() {
-        // Behavior: PhysicalOr scans role and status indexes — neither provides ordering
+        // Behavior: PhysicalOr scans role and status indexes, neither provides ordering
         // on salary. The salary index exists but is not part of the plan.
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
                 "idx_role", "role", BsonType.STRING, false, IndexStatus.WAITING));
@@ -283,8 +283,8 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldRejectThreeFieldCompoundWhenMiddleRangeAndNoSeparateIndex() {
-        // Behavior: Compound index {a, b, c} with EQ on a, range on b, SORTBY c —
-        // range on b breaks ordering of c. No separate index on c -> "create an index".
+        // Behavior: Compound index {a, b, c} with EQ on a, range on b, SORTBY c.
+        // Range on b breaks ordering of c. No separate index on c -> "create an index".
         createCompoundIndex(CompoundIndexDefinition.create("idx_abc", List.of(
                 new CompoundIndexField("a", BsonType.INT32, false),
                 new CompoundIndexField("b", BsonType.INT32, false),
@@ -308,7 +308,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldPassCompoundIndexWhenSortFieldMatchesEqPrefix() {
-        // Behavior: Compound index {age, score} with EQ on age and SORTBY score —
+        // Behavior: Compound index {age, score} with EQ on age and SORTBY score.
         // EQ prefix preserves trailing-field ordering.
         createCompoundIndex(CompoundIndexDefinition.create("idx_age_score", List.of(
                 new CompoundIndexField("age", BsonType.INT32, false),
@@ -320,7 +320,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldPassWhenCompoundIndexSortFieldIsFirstField() {
-        // Behavior: Compound index {a, b} with SORTBY a — sort field is the first field,
+        // Behavior: Compound index {a, b} with SORTBY a, sort field is the first field,
         // so there are no prefix fields to check. Ordering is always preserved.
         createCompoundIndex(CompoundIndexDefinition.create("idx_a_b", List.of(
                 new CompoundIndexField("a", BsonType.INT32, false),
@@ -332,7 +332,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldRejectTwoFieldCompoundWhenFirstFieldHasRangeAndSortBySecond() {
-        // Behavior: Compound index {a, b} with range on a and SORTBY b — range on the
+        // Behavior: Compound index {a, b} with range on a and SORTBY b, range on the
         // first field breaks the ordering of the second field. No separate index on b
         // exists, so the hint suggests creating one.
         createCompoundIndex(CompoundIndexDefinition.create("idx_a_b", List.of(
@@ -349,7 +349,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     @Test
     void shouldRejectWhenSortFieldInCompoundButLeadingPrefixNotFiltered() {
         // Behavior: Compound index {age, score} with filter only on score (second field)
-        // and SORTBY age — planner cannot use the compound index without a filter on the
+        // and SORTBY age, planner cannot use the compound index without a filter on the
         // leading prefix, so plan falls back to FullScan. No single-field index on age
         // exists, so the hint suggests creating one.
         createCompoundIndex(CompoundIndexDefinition.create("idx_age_score", List.of(
@@ -367,7 +367,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldPassWhenCompoundIndexAllEqFilters() {
-        // Behavior: Compound index (a, b) with all EQ filters — no range on prefix,
+        // Behavior: Compound index (a, b) with all EQ filters, no range on prefix,
         // no residual filtering needed.
         createCompoundIndex(CompoundIndexDefinition.create("idx_a_b", List.of(
                 new CompoundIndexField("a", BsonType.INT32, false),
@@ -379,7 +379,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldPassWhenCompoundRangeOnLastFieldNoTrailing() {
-        // Behavior: Compound index (a, b) with EQ on a and range on b — range is on
+        // Behavior: Compound index (a, b) with EQ on a and range on b, range is on
         // the last field, so there are no trailing fields to filter residually.
         createCompoundIndex(CompoundIndexDefinition.create("idx_a_b", List.of(
                 new CompoundIndexField("a", BsonType.INT32, false),
@@ -391,8 +391,8 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldPassWhenCompoundRangeNoResidualOnTrailingField() {
-        // Behavior: Compound index (a, b) with range on a but no filter on b —
-        // no residual on trailing field, just a prefix range scan.
+        // Behavior: Compound index (a, b) with range on a but no filter on b.
+        // No residual on trailing field, just a prefix range scan.
         createCompoundIndex(CompoundIndexDefinition.create("idx_a_b", List.of(
                 new CompoundIndexField("a", BsonType.INT32, false),
                 new CompoundIndexField("b", BsonType.INT32, false)
@@ -403,7 +403,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldPassWhenCompoundRangeOnFirstWithResidualEqOnSecond() {
-        // Behavior: Compound index (a, b) with range on a and EQ on b — scan covers
+        // Behavior: Compound index (a, b) with range on a and EQ on b, scan covers
         // only a, and b=2 becomes a residual filter. This is allowed unconditionally.
         createCompoundIndex(CompoundIndexDefinition.create("idx_a_b", List.of(
                 new CompoundIndexField("a", BsonType.INT32, false),
@@ -415,8 +415,8 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldPassWhenCompoundRangeOnMiddleWithResidualOnLast() {
-        // Behavior: Compound index (a, b, c) with EQ on a, range on b, EQ on c —
-        // scan covers (a, b) but c becomes residual after the range on b. Allowed.
+        // Behavior: Compound index (a, b, c) with EQ on a, range on b, EQ on c.
+        // Scan covers (a, b) but c becomes residual after the range on b. Allowed.
         createCompoundIndex(CompoundIndexDefinition.create("idx_abc", List.of(
                 new CompoundIndexField("a", BsonType.INT32, false),
                 new CompoundIndexField("b", BsonType.INT32, false),
@@ -428,7 +428,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldPassWhenCompoundRangeGteWithResidual() {
-        // Behavior: $gte is also a range operator — residual detection applies but is allowed.
+        // Behavior: $gte is also a range operator, residual detection applies but is allowed.
         createCompoundIndex(CompoundIndexDefinition.create("idx_a_b", List.of(
                 new CompoundIndexField("a", BsonType.INT32, false),
                 new CompoundIndexField("b", BsonType.INT32, false)
@@ -439,7 +439,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldPassWhenCompoundRangeLtWithResidual() {
-        // Behavior: $lt is also a range operator — residual detection applies but is allowed.
+        // Behavior: $lt is also a range operator, residual detection applies but is allowed.
         createCompoundIndex(CompoundIndexDefinition.create("idx_a_b", List.of(
                 new CompoundIndexField("a", BsonType.INT32, false),
                 new CompoundIndexField("b", BsonType.INT32, false)
@@ -453,7 +453,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     @Test
     void shouldRejectSortByWhenCollationMismatchOnStringIndex() {
         // Behavior: STRING index with collation "en" cannot provide sort ordering when
-        // query specifies collation "tr" — validation rejects with collation mismatch error.
+        // query specifies collation "tr", validation rejects with collation mismatch error.
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
                 "idx_name", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
 
@@ -467,7 +467,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     @Test
     void shouldRejectSortByWhenPlanDoesNotProvideOrderingDespiteCollationMatch() {
         // Behavior: Even though the name index has a matching collation, the plan for
-        // {category: 'bugs'} is a FullScan on _id — it does not use the name index.
+        // {category: 'bugs'} is a FullScan on _id, it does not use the name index.
         // Validation rejects because the execution plan cannot provide sort ordering.
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
                 "idx_name", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
@@ -482,7 +482,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     @Test
     void shouldRejectSortByWhenPlanDoesNotProvideOrderingWithNullCollation() {
         // Behavior: A null query collation does not bypass validation. The plan for
-        // {category: 'bugs'} is a FullScan — the name index is not used regardless
+        // {category: 'bugs'} is a FullScan, the name index is not used regardless
         // of collation compatibility.
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
                 "idx_name", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
@@ -497,7 +497,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     @Test
     void shouldRejectSortByWhenPlanDoesNotProvideOrderingOnNonStringIndex() {
         // Behavior: Even though INT32 indexes are unaffected by collation, the plan for
-        // {category: 'bugs'} is a FullScan — the score index is not used for ordering.
+        // {category: 'bugs'} is a FullScan, the score index is not used for ordering.
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
                 "idx_score", "score", BsonType.INT32, false, IndexStatus.WAITING));
 
@@ -511,7 +511,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     @Test
     void shouldRejectSortByWhenStringIndexHasNullCollationButQueryHasCollation() {
         // Behavior: STRING index with binary ordering (null collation) cannot serve
-        // locale-aware sort ordering — validation rejects with collation mismatch error.
+        // locale-aware sort ordering, validation rejects with collation mismatch error.
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
                 "idx_name", "name", BsonType.STRING, false, IndexStatus.WAITING));
 
@@ -527,7 +527,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     @Test
     void shouldRejectTrueNodeSortByWhenCollationMismatch() {
         // Behavior: PhysicalTrue (empty $and) with collation-mismatched STRING index
-        // cannot provide sort ordering — validation rejects with collation mismatch error.
+        // cannot provide sort ordering, validation rejects with collation mismatch error.
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
                 "idx_name", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
 
@@ -540,7 +540,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
 
     @Test
     void shouldPassTrueNodeSortByWhenCollationMatches() {
-        // Behavior: PhysicalTrue with matching collation on STRING index — sort is valid.
+        // Behavior: PhysicalTrue with matching collation on STRING index, sort is valid.
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
                 "idx_name", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
 

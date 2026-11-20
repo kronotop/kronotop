@@ -197,7 +197,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             versionstampedKey = result.getVersionstampedKeys()[0];
         }
 
-        // Try to update with an oversized entry
         ByteBuffer oversizedEntry = randomBytes(Volume.ENTRY_SIZE_LIMIT + 1);
         KeyEntry oversizedPair = new KeyEntry(versionstampedKey, oversizedEntry);
 
@@ -638,7 +637,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
         assertEquals(10, versionstampedKeys.length);
 
-        // Retrieves the first 5 keys.
         int limit = 5;
         Versionstamp[] retrievedKeys = new Versionstamp[limit];
         ByteBuffer[] retrievedEntries = new ByteBuffer[limit];
@@ -672,7 +670,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
         assertEquals(10, versionstampedKeys.length);
 
-        // Retrieves the first 5 keys.
         Versionstamp[] retrievedKeys = new Versionstamp[10];
         ByteBuffer[] retrievedEntries = new ByteBuffer[10];
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -686,7 +683,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             }
         }
 
-        // Reverse keys and entries first.
         Collections.reverse(Arrays.asList(versionstampedKeys));
         Collections.reverse(Arrays.asList(entries));
 
@@ -1188,22 +1184,18 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
     @Test
     void shouldSetNonZeroIdDuringVolumeInitialization() {
-        // Test that volume initialization correctly sets a non-zero ID in VolumeMetadata
         try (Transaction tr = context.getTransactionManager().create()) {
             long volumeId = VolumeMetadataUtil.readVolumeId(tr, new VolumeSubspace(subspace));
 
             // The initialize() method should have set a non-zero ID during volume construction
             assertNotEquals(0, volumeId, "Volume ID should not be 0 after initialization");
 
-            // Verify the ID is actually a valid integer (not zero)
             assertTrue(volumeId != 0, "Volume ID must be set to a non-zero value");
         }
     }
 
     @Test
     void shouldPreventUnnecessarySegmentCreationWhenReopening() throws IOException {
-        // Test that openSegments correctly opens existing segments and prevents creating new segments on reopen
-
         // Create initial volume and append data to force segment creation
         ByteBuffer[] initialEntries = getEntries(5);
         List<Long> segmentsAfterInitialAppend;
@@ -1214,7 +1206,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        // Check how many segments exist after the initial append.
         try (Transaction tr = context.getTransactionManager().create()) {
             List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(volume.getConfig().subspace()));
             segmentsAfterInitialAppend = new ArrayList<>(segmentIds);
@@ -1222,13 +1213,11 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         assertFalse(segmentsAfterInitialAppend.isEmpty(), "Initial append should create at least one segment");
 
-        // Close the volume
         volume.close();
 
         // Reopen the volume (this calls openSegments in constructor)
         Volume reopenedVolume = service.openVolume(volume.getConfig());
 
-        // Append new data to the reopened volume
         ByteBuffer[] newEntries = getEntries(3);
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
@@ -1247,7 +1236,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         // In most cases, no new segments should be created for small appends
         assertEquals(segmentsAfterInitialAppend, segmentsAfterReopen);
 
-        // Verify that we can still read the original data
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
 
@@ -1258,12 +1246,10 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                 allRetrievedEntries.add(keyEntry.entry());
             }
 
-            // Should have initial entries + new entries
             assertEquals(initialEntries.length + newEntries.length, allRetrievedEntries.size(),
                     "Should be able to read all entries (original + new) after reopen");
         }
 
-        // Clean up
         reopenedVolume.close();
     }
 
@@ -1991,8 +1977,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
     @Test
     void shouldUpdateSegmentCardinalityWhenUpdatingByVersionstampedEntryUpdate() throws IOException {
-        // Behavior: When entries move to new segments during the update, cardinality is correctly adjusted —
-        // old segments get cardinality 0, new segments get the entries.
+        // Behavior: When entries move to new segments during the update, cardinality is correctly adjusted.
+        // Old segments get cardinality 0, new segments get the entries.
         long bufferSize = 100480;
         long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
@@ -2200,7 +2186,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
         assertEquals(3, versionstampedEntries.size());
 
-        // Delete the first 2 entries via Volume.deleteByVersionstampedEntry
         VersionstampedEntry[] toDelete = versionstampedEntries.subList(0, 2).toArray(new VersionstampedEntry[0]);
         DeleteResult deleteResult;
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -2210,7 +2195,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
         deleteResult.complete();
 
-        // Read ChangeLog and verify DELETE entries
         try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             List<ChangeLogEntry> changeLogEntries = new ArrayList<>();
@@ -2235,7 +2219,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                 assertTrue(deleteEntry.hasBefore());
                 assertFalse(deleteEntry.hasAfter());
 
-                // Verify coordinates match the deleted entry's metadata
                 int deletedIndex = i - 3;
                 EntryMetadata deletedMetadata = toDelete[deletedIndex].metadata();
                 ChangeLogCoordinate before = deleteEntry.getBefore().orElseThrow();
@@ -2243,10 +2226,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                 assertEquals(deletedMetadata.position(), before.position());
                 assertEquals(deletedMetadata.length(), before.length());
 
-                // Verify versionstamp matches the original appended entry
                 assertEquals(versionstampedKeys[deletedIndex], deleteEntry.getVersionstamp());
 
-                // Verify prefix
                 assertEquals(volumeTestPrefix.asLong(), deleteEntry.getPrefix());
             }
         }
@@ -2304,7 +2285,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         assertEquals(1, analysis.size());
         long segmentId = analysis.getFirst().segmentId();
 
-        // Close the volume
         volume.close();
 
         // Verify the tail pointer reflects the last (third) entry written
@@ -2318,10 +2298,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             assertEquals(expectedNextPosition, tailPointer.nextPosition());
         }
 
-        // Reopen the volume
         Volume reopenedVolume = service.openVolume(volume.getConfig());
 
-        // Append a new entry to prefix A on the reopened volume
         ByteBuffer entryA3 = getEntry();
         {
             AppendResult result;
@@ -2333,7 +2311,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             allKeys.add(result.getVersionstampedKeys()[0]);
         }
 
-        // Verify all 4 entries are readable and contain correct data
         ByteBuffer[] expectedEntries = {entryA1, entryB1, entryA2, entryA3};
         Prefix[] prefixes = {prefixA, prefixB, prefixA, prefixA};
 
@@ -2358,7 +2335,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entriesA = getEntries(3);
         ByteBuffer[] entriesB = getEntries(3);
 
-        // Append entries under both prefixes
         AppendResult resultB;
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession sessionA = new VolumeSession(tr, prefixA);
@@ -2373,14 +2349,12 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         assertEquals(1, analysis.size());
         long segmentId = analysis.getFirst().segmentId();
 
-        // Clear prefix A
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession sessionA = new VolumeSession(tr, prefixA);
             volume.clearPrefix(sessionA);
             tr.commit().join();
         }
 
-        // Verify prefix B's ENTRY_SUBSPACE entries are intact
         byte[] entryPrefixB = volume.getConfig().subspace().pack(
                 Tuple.from(ENTRY_SUBSPACE, prefixB.asBytes()));
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -2389,7 +2363,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                     "Prefix B's ENTRY_SUBSPACE entries should be preserved");
         }
 
-        // Verify prefix B's entries are still readable
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession sessionB = new VolumeSession(tr, prefixB);
             for (Versionstamp key : resultB.getVersionstampedKeys()) {
@@ -2398,7 +2371,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             }
         }
 
-        // Verify prefix B's cardinality and usedBytes are intact
         VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession sessionB = new VolumeSession(tr, prefixB);
@@ -2409,7 +2381,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                     "Prefix B's usedBytes should be preserved");
         }
 
-        // Verify prefix A's ENTRY_SUBSPACE entries are gone
         byte[] entryPrefixA = volume.getConfig().subspace().pack(
                 Tuple.from(ENTRY_SUBSPACE, prefixA.asBytes()));
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -2418,7 +2389,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                     "Prefix A's ENTRY_SUBSPACE entries should be cleared");
         }
 
-        // Verify prefix A's cardinality is gone (key should not exist)
         byte[] cardinalityKeyA = volume.getConfig().subspace().pack(
                 Tuple.from(SEGMENT_STATS_SUBSPACE, segmentId, prefixA.asBytes(), CARDINALITY));
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -2440,7 +2410,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
         Versionstamp key = appendResult.getVersionstampedKeys()[0];
 
-        // Update the entry with new data
         KeyEntry[] updateEntries = {new KeyEntry(key, ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip())};
         UpdateResult updateResult;
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -2450,7 +2419,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
         updateResult.complete();
 
-        // Read the new EntryMetadata from ENTRY_SUBSPACE
         byte[] newEncodedMetadata;
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
@@ -2459,7 +2427,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             assertNotNull(newEncodedMetadata, "Updated entry metadata should exist in ENTRY_SUBSPACE");
         }
 
-        // Verify the reverse index (ENTRY_METADATA_SUBSPACE) has an entry for the new metadata
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
             byte[] reverseKey = volumeSubspace.packEntryMetadataKey(newEncodedMetadata);
@@ -2494,7 +2461,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             assertEquals(smallData.length, usedBytesBeforeUpdate);
         }
 
-        // Update with larger data
         byte[] largerData = "hello world!".getBytes(); // 12 bytes
         KeyEntry[] updateEntries = {new KeyEntry(key, ByteBuffer.allocate(largerData.length).put(largerData).flip())};
         UpdateResult updateResult;
@@ -2527,7 +2493,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
         Versionstamp key = appendResult.getVersionstampedKeys()[0];
 
-        // Update the entry
         KeyEntry[] updateEntries = {new KeyEntry(key, ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip())};
         UpdateResult updateResult;
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -2537,7 +2502,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
         updateResult.complete();
 
-        // Read the updated VersionstampedEntry
         VersionstampedEntry updatedEntry;
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
@@ -2549,7 +2513,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             updatedEntry = versionstampedEntries.getFirst();
         }
 
-        // Delete by the updated entry
         DeleteResult deleteResult;
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
@@ -2558,7 +2521,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
         deleteResult.complete();
 
-        // Verify the entry is no longer readable
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
             assertNull(volume.get(session, key), "Entry should be deleted");

@@ -66,7 +66,6 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        // Watcher should complete
         assertDoesNotThrow(() -> future.get(5, TimeUnit.SECONDS));
         assertTrue(future.isDone());
 
@@ -210,7 +209,6 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        // Wait for all threads to complete
         assertTrue(allThreadsDone.await(10, TimeUnit.SECONDS));
 
         assertEquals(threadCount, counter.get());

@@ -58,9 +58,9 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Alice: status='active' - NOT matches = false
-            // Bob: status='inactive' - NOT matches = true ✓
+            // Bob: status='inactive' - NOT matches = true
             // Charlie: status='active' - NOT matches = false
-            // Diana: status='pending' - NOT matches = true ✓
+            // Diana: status='pending' - NOT matches = true
             assertEquals(2, results.size(), "Should return 2 documents");
             assertEquals(Set.of("Bob", "Diana"), extractNamesFromResults(results));
         }
@@ -91,10 +91,10 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Alice: age=25, NOT(25 > 25) = NOT(false) = true ✓
+            // Alice: age=25, NOT(25 > 25) = NOT(false) = true
             // Bob: age=30, NOT(30 > 25) = NOT(true) = false
             // Charlie: age=35, NOT(35 > 25) = NOT(true) = false
-            // Diana: age=20, NOT(20 > 25) = NOT(false) = true ✓
+            // Diana: age=20, NOT(20 > 25) = NOT(false) = true
             assertEquals(2, results.size(), "Should return 2 documents");
             assertEquals(Set.of("Alice", "Diana"), extractNamesFromResults(results));
         }
@@ -126,7 +126,7 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Alice: role='admin' in list - NOT matches = false
-            // Bob: role='user' not in list - NOT matches = true ✓
+            // Bob: role='user' not in list - NOT matches = true
             // Charlie: role='editor' in list - NOT matches = false
             // Diana: role='admin' in list - NOT matches = false
             assertEquals(1, results.size(), "Should return 1 document");
@@ -161,9 +161,9 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Alice: score=85 >= 80, NOT matches = false
-            // Bob: score missing, inner $gte fails, NOT matches = true ✓
+            // Bob: score missing, inner $gte fails, NOT matches = true
             // Charlie: score=90 >= 80, NOT matches = false
-            // Diana: score=null, inner $gte fails, NOT matches = true ✓
+            // Diana: score=null, inner $gte fails, NOT matches = true
             assertEquals(2, results.size(), "Should return 2 documents");
             assertEquals(Set.of("Bob", "Diana"), extractNamesFromResults(results));
         }
@@ -197,7 +197,7 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
             // Alice: NOT active=false, priority=1 -> false AND true = false
             // Bob: NOT active=true, priority=2 -> true AND false = false
             // Charlie: NOT active=false, priority=3 -> false AND false = false
-            // Diana: NOT active=true, priority=1 -> true AND true = true ✓
+            // Diana: NOT active=true, priority=1 -> true AND true = true
             assertEquals(1, results.size(), "Should return 1 document");
             assertEquals(Set.of("Diana"), extractNamesFromResults(results));
         }
@@ -229,10 +229,10 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Order1: has 'shipped' and 'pending', neither is 'cancelled' ✓
+            // Order1: has 'shipped' and 'pending', neither is 'cancelled'
             // Order2: both items are 'cancelled', no item NOT cancelled
-            // Order3: has 'delivered' and 'shipped', neither is 'cancelled' ✓
-            // Order4: has 'pending', not 'cancelled' ✓
+            // Order3: has 'delivered' and 'shipped', neither is 'cancelled'
+            // Order4: has 'pending', not 'cancelled'
             assertEquals(3, results.size(), "Should return 3 documents");
             assertEquals(Set.of("Order1", "Order3", "Order4"), extractNamesFromResults(results));
         }
@@ -294,10 +294,10 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Alice: status='active', NOT(status == null) = true ✓
+            // Alice: status='active', NOT(status == null) = true
             // Bob: status=null, NOT(status == null) = false
             // Charlie: status missing, treated as null for $eq null, NOT matches = false
-            // Diana: status='inactive', NOT(status == null) = true ✓
+            // Diana: status='inactive', NOT(status == null) = true
             assertEquals(2, results.size(), "Should return 2 documents where status is not null");
             assertEquals(Set.of("Alice", "Diana"), extractNamesFromResults(results));
         }
@@ -329,9 +329,9 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Alice: value=100, NOT null = true ✓
+            // Alice: value=100, NOT null = true
             // Bob: value=null, NOT null = false
-            // Charlie: value=0, NOT null = true ✓
+            // Charlie: value=0, NOT null = true
             // Diana: value missing (treated as null), NOT null = false
             // Eve: value=null, NOT null = false
             assertEquals(2, results.size(), "Should return 2 documents with non-null values");
@@ -398,7 +398,7 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Alice: email exists = true, NOT exists = false
-            // Bob: email missing, exists = false, NOT exists = true ✓
+            // Bob: email missing, exists = false, NOT exists = true
             // Charlie: email is null but field exists, exists = true, NOT exists = false
             // Diana: email exists = true, NOT exists = false
             assertEquals(1, results.size(), "Should return 1 document where email doesn't exist");
@@ -433,9 +433,9 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // NOT(role != 'admin') = (role == 'admin')
-            // Alice: role='admin', NOT(admin != admin) = NOT(false) = true ✓
+            // Alice: role='admin', NOT(admin != admin) = NOT(false) = true
             // Bob: role='user', NOT(user != admin) = NOT(true) = false
-            // Charlie: role='admin', NOT(admin != admin) = NOT(false) = true ✓
+            // Charlie: role='admin', NOT(admin != admin) = NOT(false) = true
             // Diana: role='guest', NOT(guest != admin) = NOT(true) = false
             assertEquals(2, results.size(), "Should return 2 documents with role='admin'");
             assertEquals(Set.of("Alice", "Charlie"), extractNamesFromResults(results));
@@ -471,11 +471,11 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // NOT(age > 30) AND age < 40
-            // Alice: NOT(25 > 30) AND 25 < 40 = true AND true = true ✓
-            // Bob: NOT(30 > 30) AND 30 < 40 = true AND true = true ✓
+            // Alice: NOT(25 > 30) AND 25 < 40 = true AND true = true
+            // Bob: NOT(30 > 30) AND 30 < 40 = true AND true = true
             // Charlie: NOT(35 > 30) AND 35 < 40 = false AND true = false
             // Diana: NOT(40 > 30) AND 40 < 40 = false AND false = false
-            // Eve: NOT(20 > 30) AND 20 < 40 = true AND true = true ✓
+            // Eve: NOT(20 > 30) AND 20 < 40 = true AND true = true
             assertEquals(3, results.size(), "Should return 3 documents");
             assertEquals(Set.of("Alice", "Bob", "Eve"), extractNamesFromResults(results));
         }
@@ -507,9 +507,9 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // NOT(phone doesn't exist) = phone exists
-            // Alice: phone exists, NOT(false) = true ✓
+            // Alice: phone exists, NOT(false) = true
             // Bob: phone missing, NOT(true) = false
-            // Charlie: phone exists, NOT(false) = true ✓
+            // Charlie: phone exists, NOT(false) = true
             // Diana: phone missing, NOT(true) = false
             assertEquals(2, results.size(), "Should return 2 documents where phone exists");
             assertEquals(Set.of("Alice", "Charlie"), extractNamesFromResults(results));

@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Property-based testing for BQL parser using randomized query generation.
- * These tests help discover edge cases and validate parser robustness.
+ * These tests help find edge cases in the parser.
  */
 class BqlParserPropertyBasedTest {
 
@@ -167,8 +167,8 @@ class BqlParserPropertyBasedTest {
     }
 
     @RepeatedTest(25)
-    @DisplayName("Parser should handle edge cases in random generation gracefully")
-    void shouldHandleEdgeCasesInRandomGenerationGracefully() {
+    @DisplayName("Parser should handle edge cases in random generation")
+    void shouldHandleEdgeCasesInRandomGeneration() {
         // Test with different generator configurations to hit edge cases
         BqlQueryGenerator[] generators = {
                 new BqlQueryGenerator(new Random(1), 1),    // Shallow queries

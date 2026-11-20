@@ -37,11 +37,11 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Comprehensive tests for Physical Planner integrating with Optimizer.
+ * Tests for the Physical Planner working with the Optimizer.
  * Tests end-to-end query processing from BQL to optimized physical plans.
  */
-@DisplayName("Physical Planner Comprehensive Tests")
-public class PhysicalPlannerComprehensiveTest extends BaseStandaloneInstanceTest {
+@DisplayName("Physical Planner With Optimizer Tests")
+public class PhysicalPlannerWithOptimizerTest extends BaseStandaloneInstanceTest {
 
     protected LogicalPlanner logicalPlanner;
     protected PhysicalPlanner physicalPlanner;
@@ -440,8 +440,8 @@ public class PhysicalPlannerComprehensiveTest extends BaseStandaloneInstanceTest
         }
 
         @Test
-        @DisplayName("Should handle empty query gracefully")
-        void shouldHandleEmptyQueryGracefully() {
+        @DisplayName("Should handle empty query")
+        void shouldHandleEmptyQuery() {
             String bql = "{}";
 
             PhysicalNode optimized = planAndOptimizeBql(bql);

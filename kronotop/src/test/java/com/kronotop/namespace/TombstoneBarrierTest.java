@@ -121,7 +121,7 @@ class TombstoneBarrierTest extends BaseClusterTest {
 
     @Test
     void shouldSkipDeadMemberAndPassBarrier() {
-        // Behavior: checkBarrier ignores dead members — if the only non-observing member is dead, the barrier passes.
+        // Behavior: checkBarrier ignores dead members. If the only non-observing member is dead, the barrier passes.
         KronotopTestInstance first = getInstances().getFirst();
         KronotopTestInstance second = addNewInstance();
         Context firstContext = first.getContext();

@@ -57,7 +57,7 @@ class IndexIntersectionAdvancedTest extends BaseOptimizerTest {
     }
 
     @Test
-    void shouldHandleSingleChildGracefully() {
+    void shouldHandleSingleChild() {
         // Create index for name
         SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create(
                 "name-index", "name", BsonType.STRING

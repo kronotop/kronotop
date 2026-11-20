@@ -103,7 +103,7 @@ class BucketMultiNodeDeleteTest extends BaseBucketMultiNodeTest {
             assertInstanceOf(ArrayRedisMessage.class, response);
         }
 
-        // DELETE "{}" on node2 — should delete both documents across shards
+        // DELETE "{}" on node2, should delete both documents across shards
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.delete(bucketName, "{}").encode(buf);
@@ -115,7 +115,7 @@ class BucketMultiNodeDeleteTest extends BaseBucketMultiNodeTest {
             assertEquals(2, deletedIds.size(), "Expected 2 documents deleted across both shards");
         }
 
-        // QUERY "{}" on node1 — should return 0 entries (all data deleted)
+        // QUERY "{}" on node1, should return 0 entries (all data deleted)
         {
             BucketCommandBuilder<String, String> queryCmd = new BucketCommandBuilder<>(StringCodec.UTF8);
             ByteBuf buf = Unpooled.buffer();

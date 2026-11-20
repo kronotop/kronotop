@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 /**
- * Integration tests for RESULTSORT functionality — in-memory per-batch sorting of query results.
+ * Integration tests for RESULTSORT functionality, in-memory per-batch sorting of query results.
  * Unlike SORTBY (which uses index-backed ordering), RESULTSORT sorts the fetched result set
  * in memory by an arbitrary field, regardless of whether that field is indexed.
  */
@@ -448,7 +448,6 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         PlanWithParams planWithParams = createPlanWithParams(metadata,
                 "{'$or': [{'price': {'$gt': 100}}, {'quantity': {'$lt': 10}}]}");
 
-        // Verify the plan is a UnionNode with IndexScanNode children
         assertInstanceOf(UnionNode.class, planWithParams.plan(), "Root should be UnionNode for $or query");
         UnionNode unionNode = (UnionNode) planWithParams.plan();
         assertEquals(2, unionNode.children().size(), "UnionNode should have 2 children for 2 $or branches");
@@ -888,7 +887,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
 
         // Admin group: low salaries (10-40), inserted first so they appear first in the index scan order.
         // Active group: high salaries (100-400), inserted second.
-        // True top-4 by salary DESC should be [400, 300, 200, 100] — all from the active group.
+        // True top-4 by salary DESC should be [400, 300, 200, 100], all from the active group.
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'role': 'admin', 'status': 'inactive', 'salary': 10}"),
                 BSONUtil.jsonToDocumentThenBytes("{'role': 'admin', 'status': 'inactive', 'salary': 20}"),

@@ -127,14 +127,14 @@ public class BaseMultiClusterTest extends BaseTest {
         String clusterName = instance.getContext().getClusterName();
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
-        // Step 1: request token
+        // Request token
         ByteBuf buf = Unpooled.buffer();
         cmd.dropCluster(clusterName).encode(buf);
         Object response = runCommand(instance.getChannel(), buf);
         assertInstanceOf(FullBulkStringRedisMessage.class, response);
         String token = ((FullBulkStringRedisMessage) response).content().toString(StandardCharsets.UTF_8);
 
-        // Step 2: confirm with token
+        // Confirm with token
         ByteBuf confirmBuf = Unpooled.buffer();
         cmd.dropCluster(clusterName, token).encode(confirmBuf);
         Object confirmResponse = runCommand(instance.getChannel(), confirmBuf);

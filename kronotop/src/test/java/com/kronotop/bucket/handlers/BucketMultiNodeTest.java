@@ -117,7 +117,7 @@ class BucketMultiNodeTest extends BaseBucketMultiNodeTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
         }
 
-        // INSERT into bucket-a on node1 (should succeed — shard 0 is local)
+        // INSERT into bucket-a on node1 (should succeed, shard 0 is local)
         {
             BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
             ByteBuf buf = Unpooled.buffer();
@@ -127,7 +127,7 @@ class BucketMultiNodeTest extends BaseBucketMultiNodeTest {
             assertInstanceOf(ArrayRedisMessage.class, response);
         }
 
-        // INSERT into bucket-b on node1 (should be rejected — shard 4 is owned by node2)
+        // INSERT into bucket-b on node1 (should be rejected, shard 4 is owned by node2)
         {
             BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
             ByteBuf buf = Unpooled.buffer();
@@ -147,7 +147,7 @@ class BucketMultiNodeTest extends BaseBucketMultiNodeTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
         }
 
-        // QUERY bucket-a on node1 — the Alice document should be there
+        // QUERY bucket-a on node1, the Alice document should be there
         {
             BucketCommandBuilder<String, String> queryCmd = new BucketCommandBuilder<>(StringCodec.UTF8);
             ByteBuf buf = Unpooled.buffer();

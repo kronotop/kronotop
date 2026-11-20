@@ -129,7 +129,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     void shouldDeleteWithAgeFilter() {
         // Behavior: Deleting documents with a filter returns ObjectIds of matched documents and removes them from the bucket.
 
-        // Step 1: Insert test documents with different ages
+        // Insert test documents with different ages
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25, \"city\": \"New York\"}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 35, \"city\": \"London\"}"),
@@ -147,7 +147,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(5, allInsertedObjectIds.size(), "Should have inserted 5 documents");
 
-        // Step 2: Delete documents with age > 30 using BUCKET.DELETE
+        // Delete documents with age > 30 using BUCKET.DELETE
         List<ObjectId> deletedObjectIds;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -167,14 +167,14 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
                     "Deleted object ID should be from original insert: " + deletedOid);
         }
 
-        // Step 3: Calculate remaining object IDs (should be Alice: 25, Diana: 28)
+        // Calculate remaining object IDs (should be Alice: 25, Diana: 28)
         List<ObjectId> expectedRemainingObjectIds = allInsertedObjectIds.stream()
                 .filter(oid -> !deletedObjectIds.contains(oid))
                 .toList();
 
         assertEquals(2, expectedRemainingObjectIds.size(), "Should have 2 remaining documents");
 
-        // Step 4: Query all remaining documents and verify
+        // Query all remaining documents and verify
         Map<ObjectId, BsonDocument> actualRemainingDocuments = new LinkedHashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
@@ -189,7 +189,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
             }
         }
 
-        // Step 5: Verify that remaining documents match expectations
+        // Verify that remaining documents match expectations
         assertEquals(expectedRemainingObjectIds.size(), actualRemainingDocuments.size(),
                 "Query should return exactly the expected remaining documents");
 
@@ -199,7 +199,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
                     "Remaining object ID should be in expected set: " + actualOid);
         }
 
-        // Step 6: Verify that remaining documents have age <= 30
+        // Verify that remaining documents have age <= 30
         for (BsonDocument doc : actualRemainingDocuments.values()) {
             BsonInt32 age = doc.getInt32("age");
             assertNotNull(age, "Document should have age field");
@@ -302,7 +302,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     void shouldDeleteWithinTransaction() {
         // Behavior: Delete within a BEGIN/COMMIT transaction is only committed after COMMIT; the correct documents are removed.
 
-        // Step 1: Insert test documents with different ages (outside transaction)
+        // Insert test documents with different ages (outside transaction)
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25, \"city\": \"New York\"}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 35, \"city\": \"London\"}"),
@@ -317,7 +317,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(5, allInsertedObjectIds.size(), "Should have inserted 5 documents");
 
-        // Step 2: Delete documents with age > 30 within a transaction
+        // Delete documents with age > 30 within a transaction
         KronotopCommandBuilder<String, String> kronotopCmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         BucketCommandBuilder<String, String> bucketCmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(bucketCmd, RESPVersion.RESP3);
@@ -367,7 +367,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
             assertEquals(Response.OK, actualMessage.content());
         }
 
-        // Step 3: Verify deletion by querying remaining documents
+        // Verify deletion by querying remaining documents
         Map<ObjectId, BsonDocument> actualRemainingDocuments = new LinkedHashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
@@ -382,7 +382,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
             }
         }
 
-        // Step 4: Verify that documents with age > 30 were deleted
+        // Verify that documents with age > 30 were deleted
         assertEquals(2, actualRemainingDocuments.size(), "Should have 2 remaining documents after transaction delete");
 
         // Verify that remaining documents have age <= 30
@@ -405,7 +405,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     void shouldDeleteWithBatchAndAdvance() {
         // Behavior: Delete with BATCH restricts per-batch count; BUCKET.ADVANCE DELETE continues deleting remaining matches.
 
-        // Step 1: Insert test documents with different ages
+        // Insert test documents with different ages
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 35, \"city\": \"New York\"}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 40, \"city\": \"London\"}"),
@@ -423,7 +423,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(5, allInsertedObjectIds.size(), "Should have inserted 5 documents");
 
-        // Step 2: Delete documents with age > 30 using batch=1
+        // Delete documents with age > 30 using batch=1
         List<ObjectId> allDeletedObjectIds = new ArrayList<>();
         int cursorId;
 
@@ -445,7 +445,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         // Should have deleted exactly 1 document in the first batch
         assertEquals(1, allDeletedObjectIds.size(), "Should have deleted exactly 1 document with batch=1");
 
-        // Step 3: Use BUCKET.ADVANCE DELETE to continue deleting remaining documents
+        // Use BUCKET.ADVANCE DELETE to continue deleting remaining documents
         int maxAdvanceCalls = 10; // Safety limit
         int advanceCalls = 0;
 
@@ -474,7 +474,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
                     "Deleted object ID should be from original insert: " + deletedOid);
         }
 
-        // Step 4: Query remaining documents to verify only Diana (age=25) remains
+        // Query remaining documents to verify only Diana (age=25) remains
         Map<ObjectId, BsonDocument> remainingDocuments = new LinkedHashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
@@ -489,7 +489,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
             }
         }
 
-        // Step 5: Verify only Diana (age=25) remains
+        // Verify only Diana (age=25) remains
         assertEquals(1, remainingDocuments.size(), "Should have 1 remaining document after delete");
 
         BsonDocument remainingDoc = remainingDocuments.values().iterator().next();
@@ -981,7 +981,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
             assertEquals(4L, stats.cardinality(), "Cardinality should be 4 before delete");
         }
 
-        // Delete with INT32 range predicate — IndexPredicateResolver must widen 40 to BsonInt64(40)
+        // Delete with INT32 range predicate. IndexPredicateResolver must widen 40 to BsonInt64(40)
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 

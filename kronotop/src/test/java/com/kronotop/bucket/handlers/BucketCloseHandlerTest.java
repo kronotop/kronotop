@@ -44,7 +44,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldCloseCursorAndPreventFurtherAccess() {
-        // Step 1: Insert test documents
+        // Insert test documents
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25, \"city\": \"New York\"}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 35, \"city\": \"London\"}"),
@@ -60,7 +60,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
         Map<ObjectId, byte[]> insertedDocs = insertDocumentsAndGetObjectIds(testDocuments);
         assertEquals(5, insertedDocs.size(), "Should have inserted 5 documents");
 
-        // Step 2: Run a query with a batch size to get a cursor
+        // Run a query with a batch size to get a cursor
         int cursorId;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -84,7 +84,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
             assertEquals(2, entriesArray.children().size(), "Should have 2 entries with batch=2");
         }
 
-        // Step 3: Close the cursor via BUCKET.CLOSE
+        // Close the cursor via BUCKET.CLOSE
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.close("QUERY", cursorId).encode(buf);
@@ -95,7 +95,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
             assertEquals(Response.OK, closeResponse.content(), "First close should return OK");
         }
 
-        // Step 4: Try to close the same cursor again - should return "No such cursor" error
+        // Try to close the same cursor again - should return "No such cursor" error
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.close("QUERY", cursorId).encode(buf);
@@ -107,7 +107,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
                     "Second close attempt should return 'No such cursor' error");
         }
 
-        // Step 5: Verify that trying to advance the closed cursor also fails
+        // Verify that trying to advance the closed cursor also fails
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.advanceQuery(cursorId).encode(buf);

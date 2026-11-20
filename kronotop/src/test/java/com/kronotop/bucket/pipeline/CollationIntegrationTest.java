@@ -2208,7 +2208,7 @@ class CollationIntegrationTest extends BasePipelineTest {
     @Test
     void shouldNotUseCollationMismatchedIndexForSortInEmptyQuery() {
         // Behavior: Empty query with SORTBY on a collation-mismatched STRING index should
-        // be rejected — the index cannot provide correct sort ordering for the requested collation.
+        // be rejected, the index cannot provide correct sort ordering for the requested collation.
 
         final String BUCKET_NAME = "test-empty-query-sort-collation-mismatch";
 
@@ -2233,7 +2233,7 @@ class CollationIntegrationTest extends BasePipelineTest {
     @Test
     void shouldUseMatchingCollationIndexForSortInEmptyQuery() {
         // Behavior: Empty query with SORTBY on a collation-matching STRING index produces
-        // a RangeScanNode — the index provides correct sort ordering.
+        // a RangeScanNode, the index provides correct sort ordering.
 
         final String BUCKET_NAME = "test-empty-query-sort-collation-match";
 
@@ -2282,8 +2282,8 @@ class CollationIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldUseNonStringIndexForSortInEmptyQueryRegardlessOfCollation() {
-        // Behavior: Non-string (INT32) index is unaffected by query collation —
-        // empty query with SORTBY on INT32 index produces RangeScanNode.
+        // Behavior: Non-string (INT32) index is unaffected by query collation.
+        // Empty query with SORTBY on INT32 index produces RangeScanNode.
 
         final String BUCKET_NAME = "test-empty-query-sort-nonstring-collation";
 
@@ -2338,7 +2338,7 @@ class CollationIntegrationTest extends BasePipelineTest {
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, BSONUtil.toBytes(query));
         assertInstanceOf(FullScanNode.class, planWithParams.plan(),
-                "Query on 'name' alone must use FullScanNode — compound index requires leading 'status' field");
+                "Query on 'name' alone must use FullScanNode, compound index requires leading 'status' field");
 
         QueryOptions options = QueryOptions.builder().build();
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());

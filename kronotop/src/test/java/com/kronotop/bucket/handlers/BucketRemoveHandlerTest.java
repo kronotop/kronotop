@@ -56,7 +56,6 @@ class BucketRemoveHandlerTest extends BaseBucketHandlerTest {
         }
 
         {
-            // Remove the bucket
             ByteBuf buf = Unpooled.buffer();
             cmd.remove(TEST_BUCKET).encode(buf);
 
@@ -66,7 +65,6 @@ class BucketRemoveHandlerTest extends BaseBucketHandlerTest {
             assertEquals(Response.OK, actualMessage.content());
         }
 
-        // Verify bucket is marked as removed
         try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertTrue(metadata.removed());
@@ -102,7 +100,6 @@ class BucketRemoveHandlerTest extends BaseBucketHandlerTest {
         }
 
         {
-            // Remove the bucket
             ByteBuf buf = Unpooled.buffer();
             cmd.remove(TEST_BUCKET).encode(buf);
 
@@ -113,7 +110,6 @@ class BucketRemoveHandlerTest extends BaseBucketHandlerTest {
         }
 
         {
-            // Try to remove the bucket again
             ByteBuf buf = Unpooled.buffer();
             cmd.remove(TEST_BUCKET).encode(buf);
 

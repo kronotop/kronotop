@@ -830,7 +830,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
             CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
 
-            // Exactly one index entry per document — the builder did not re-create online-written entries.
+            // Exactly one index entry per document, the builder did not re-create online-written entries.
             byte[] begin = compoundIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             byte[] end = ByteArrayUtil.strinc(begin);
             List<KeyValue> entries = tr.getRange(begin, end).asList().join();

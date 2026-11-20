@@ -134,8 +134,8 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         }
 
         @Test
-        @DisplayName("Should handle rule conflicts gracefully")
-        void shouldHandleRuleConflictsGracefully() {
+        @DisplayName("Should handle rule conflicts")
+        void shouldHandleRuleConflicts() {
             // Create scenario where different rules might conflict
             // e.g., range consolidation vs index intersection on same fields
             createIndexes(
@@ -217,8 +217,8 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         }
 
         @Test
-        @DisplayName("Should handle null and invalid inputs gracefully")
-        void shouldHandleNullAndInvalidInputsGracefully() {
+        @DisplayName("Should handle null and invalid inputs")
+        void shouldHandleNullAndInvalidInputs() {
             // Test with minimal valid structure
             PhysicalFilter filter = createFilter("name", Operator.EQ, "john");
 
@@ -361,8 +361,8 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
     class RealWorldScenarioTests {
 
         @Test
-        @DisplayName("Should optimize complex e-commerce query efficiently")
-        void shouldOptimizeComplexEcommerceQueryEfficiently() {
+        @DisplayName("Should optimize complex e-commerce query")
+        void shouldOptimizeComplexEcommerceQuery() {
             // Simulate e-commerce product search scenario
             createIndexes(
                     SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING),

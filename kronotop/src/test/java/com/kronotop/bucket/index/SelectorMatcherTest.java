@@ -213,7 +213,6 @@ class SelectorMatcherTest {
         assertEquals("item1", matchedValue.asArray().get(0).asString().getValue());
     }
 
-    // Test invalid array index with non-numeric string
     @Test
     void shouldReturnNullForNonNumericArrayIndex() {
         BsonArray array = new BsonArray();
@@ -267,7 +266,6 @@ class SelectorMatcherTest {
         assertEquals(40.7128, matchedValue.asDouble().getValue(), 0.0001);
     }
 
-    // Test the exact example from method JavaDoc
     @Test
     void shouldMatchMethodJavaDocExample() {
         BsonArray phones = new BsonArray();
@@ -293,7 +291,6 @@ class SelectorMatcherTest {
         assertNull(missing);
     }
 
-    // Test class JavaDoc usage examples
     @Test
     void shouldMatchClassJavaDocExample() {
         BsonArray scores = new BsonArray();
@@ -659,7 +656,6 @@ class SelectorMatcherTest {
 
         // Build from innermost to outermost
 
-        // Skills arrays
         BsonArray skills1 = new BsonArray();
         skills1.add(new BsonDocument().append("name", new BsonString("Java")).append("level", new BsonInt32(5)));
         skills1.add(new BsonDocument().append("name", new BsonString("Python")).append("level", new BsonInt32(3)));
@@ -673,7 +669,6 @@ class SelectorMatcherTest {
         BsonArray skills4 = new BsonArray();
         skills4.add(new BsonDocument().append("name", new BsonString("C++")).append("level", new BsonInt32(6)));
 
-        // Members arrays
         BsonArray members1 = new BsonArray();
         members1.add(new BsonDocument().append("skills", skills1));
         members1.add(new BsonDocument().append("skills", skills2));
@@ -684,7 +679,6 @@ class SelectorMatcherTest {
         BsonArray members3 = new BsonArray();
         members3.add(new BsonDocument().append("skills", skills4));
 
-        // Teams arrays
         BsonArray teams1 = new BsonArray();
         teams1.add(new BsonDocument().append("members", members1));
 
@@ -694,7 +688,6 @@ class SelectorMatcherTest {
         BsonArray teams3 = new BsonArray();
         teams3.add(new BsonDocument().append("members", members3));
 
-        // Divisions arrays
         BsonArray divisions1 = new BsonArray();
         divisions1.add(new BsonDocument().append("teams", teams1));
         divisions1.add(new BsonDocument().append("teams", teams2));
@@ -702,7 +695,6 @@ class SelectorMatcherTest {
         BsonArray divisions2 = new BsonArray();
         divisions2.add(new BsonDocument().append("teams", teams3));
 
-        // Org array
         BsonArray org = new BsonArray();
         org.add(new BsonDocument().append("divisions", divisions1));
         org.add(new BsonDocument().append("divisions", divisions2));
@@ -743,14 +735,12 @@ class SelectorMatcherTest {
         BsonArray skillsArray = skillsValues.asArray();
         // Should contain all 5 skill documents flattened from all members
         assertEquals(5, skillsArray.size());
-        // Verify each is a document with name and level
         for (BsonValue skill : skillsArray) {
             assertInstanceOf(BsonDocument.class, skill);
             BsonDocument skillDoc = skill.asDocument();
             assertTrue(skillDoc.containsKey("name"));
             assertTrue(skillDoc.containsKey("level"));
         }
-        // Verify order and content
         assertEquals("Java", skillsArray.get(0).asDocument().getString("name").getValue());
         assertEquals("Python", skillsArray.get(1).asDocument().getString("name").getValue());
         assertEquals("Go", skillsArray.get(2).asDocument().getString("name").getValue());

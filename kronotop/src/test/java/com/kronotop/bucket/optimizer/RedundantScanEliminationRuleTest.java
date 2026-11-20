@@ -283,8 +283,8 @@ class RedundantScanEliminationRuleTest extends BaseOptimizerTest {
         }
 
         @Test
-        @DisplayName("Should handle single child gracefully")
-        void shouldHandleSingleChildGracefully() {
+        @DisplayName("Should handle single child")
+        void shouldHandleSingleChild() {
             // Create: AND(name="john") - should not happen in practice but test anyway
             PhysicalFilter filter = createFilter("name", Operator.EQ, "john");
             PhysicalAnd originalPlan = createAnd(filter);

@@ -898,7 +898,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata, prefix, 0);
             vsFuture = tr.getVersionstamp();
-            // Not committing — just closing
+            // Not committing, just closing
         }
 
         // Wait for the future to complete (exceptionally, since transaction was closed without commit)
@@ -976,19 +976,19 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         // Commit in reverse order: tr3 first
         tr3.commit().join();
         tr3.close();
-        // Watermark unchanged — tr1 (lowest) still in-flight
+        // Watermark unchanged, tr1 (lowest) still in-flight
         assertEquals(watermarkAfterFirst, changeLog.getSafeWatermark());
 
         // Commit tr2
         tr2.commit().join();
         tr2.close();
-        // Watermark unchanged — tr1 (lowest) still in-flight
+        // Watermark unchanged, tr1 (lowest) still in-flight
         assertEquals(watermarkAfterFirst, changeLog.getSafeWatermark());
 
         // Commit tr1 (the lowest)
         tr1.commit().join();
         tr1.close();
-        // All committed — watermark should advance past all of them
+        // All committed, watermark should advance past all of them
         awaitWatermarkGreaterThan(changeLog, watermarkAfterFirst);
     }
 
@@ -1163,7 +1163,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         tr.cancel();
         tr.close();
 
-        // The future completes exceptionally right away — no need for a long deadline
+        // The future completes exceptionally right away, no need for a long deadline
         awaitWatermarkGreaterThan(changeLog, watermarkWhileInFlight);
     }
 
@@ -1181,7 +1181,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
 
         // While the entry is in-flight, watermark = inFlightSequenceNumbers.first() - 1
 
-        // Do NOT cancel or close — the getVersionstamp() future hangs indefinitely.
+        // Do NOT cancel or close, the getVersionstamp() future hangs indefinitely.
         // Only the orTimeout(10s) safety net will fire and remove the in-flight entry.
         // Once removed, the watermark advances to the lastGeneratedSequenceNumber (= watermarkWhileInFlight + 1).
         try (tr) {
@@ -1305,11 +1305,11 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
                     LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(ThreadLocalRandom.current().nextInt(50)));
 
                     if (idx % 2 == 0) {
-                        // Commit — getVersionstamp() future completes normally
+                        // Commit, getVersionstamp() future completes normally
                         tr.commit().join();
                         tr.close();
                     }
-                    // Abandon — do NOT cancel or close.
+                    // Abandon, do NOT cancel or close.
                     // getVersionstamp() future hangs until orTimeout(10s) fires.
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();

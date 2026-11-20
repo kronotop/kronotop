@@ -143,7 +143,7 @@ class ProjectorTest {
     @Test
     void shouldReturnEmptyArrayWhenNoElementMatchesQuery() {
         // Behavior: $ returns an empty array when no element matches the query condition
-        // Query: grades >= 95, but all elements are [70, 87, 90] — none match
+        // Query: grades >= 95, but all elements are [70, 87, 90], none match
         BsonDocument doc = new BsonDocument()
                 .append("_id", new BsonObjectId(new ObjectId()))
                 .append("grades", new BsonArray(List.of(
@@ -454,7 +454,7 @@ class ProjectorTest {
 
     @Test
     void shouldExcludeOnlyIdWhenSpecIsIdZero() {
-        // Behavior: {"_id": 0} alone means exclusion mode — return all fields except _id
+        // Behavior: {"_id": 0} alone means exclusion mode, return all fields except _id
         BsonDocument doc = new BsonDocument()
                 .append("_id", new BsonObjectId(new ObjectId()))
                 .append("name", new BsonString("Alice"))
@@ -669,7 +669,7 @@ class ProjectorTest {
     }
 
     @Test
-    void shouldExcludeNestedFieldGracefullyWhenMissing() {
+    void shouldExcludeNestedFieldWhenMissing() {
         // Behavior: excluding a dot-notation path that doesn't exist is a no-op
         BsonDocument doc = new BsonDocument()
                 .append("_id", new BsonObjectId(new ObjectId()))
@@ -729,7 +729,7 @@ class ProjectorTest {
     // Exclusion through array intermediates
 
     @Test
-    void shouldSkipMissingFieldGracefully() {
+    void shouldSkipMissingField() {
         // Behavior: if a document doesn't have the projected field, it's simply absent in the result
         BsonDocument doc = new BsonDocument()
                 .append("_id", new BsonObjectId(new ObjectId()))
@@ -837,7 +837,7 @@ class ProjectorTest {
     // Inclusion through array intermediates
 
     @Test
-    void shouldExcludeNestedFieldGracefullyWhenArrayElementLacksField() {
+    void shouldExcludeNestedFieldWhenArrayElementLacksField() {
         // Behavior: if some array elements don't have the excluded field, they are passed through unchanged
         BsonDocument doc = new BsonDocument()
                 .append("_id", new BsonObjectId(new ObjectId()))
@@ -960,7 +960,7 @@ class ProjectorTest {
     // $slice Operator
 
     @Test
-    void shouldIncludeNestedFieldGracefullyWhenArrayFieldIsMissing() {
+    void shouldIncludeNestedFieldWhenArrayFieldIsMissing() {
         // Behavior: if the array field doesn't exist, result omits it
         BsonDocument doc = new BsonDocument()
                 .append("_id", new BsonObjectId(new ObjectId()))

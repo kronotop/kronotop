@@ -73,7 +73,7 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
      * The field index is created separately and waited on for readiness.
      */
     private void createBucketWithVectorAndFieldIndex() {
-        // Step 1: Create a bucket with a vector index
+        // Create a bucket with a vector index
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         cmd.create(TEST_BUCKET, BucketCreateArgs.Builder.indexes(
@@ -83,7 +83,7 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
 
-        // Step 2: Create the "label" field index and wait for readiness
+        // Create the "label" field index and wait for readiness
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         SingleFieldIndexDefinition labelIndex = SingleFieldIndexDefinition.create(
                 "label_string_idx", "label", BsonType.STRING, false, IndexStatus.WAITING
@@ -346,7 +346,7 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
         // filtered results are found.
         createBucketWithVectorAndFieldIndex();
 
-        // 20 noise documents close to the query vector — these dominate the top-K
+        // 20 noise documents close to the query vector, these dominate the top-K
         for (int i = 0; i < 20; i++) {
             insertDocument("noise", new float[]{
                     0.1f + i * 0.005f,
@@ -355,7 +355,7 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
             });
         }
 
-        // 10 target documents far from the query — require deep vector search
+        // 10 target documents far from the query, require deep vector search
         for (int i = 0; i < 10; i++) {
             insertDocument("target", new float[]{
                     0.9f - i * 0.03f,

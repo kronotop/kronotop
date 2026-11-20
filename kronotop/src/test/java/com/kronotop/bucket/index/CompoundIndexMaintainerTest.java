@@ -121,7 +121,6 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         DirectorySubspace indexSubspace = compoundIndex.subspace();
 
-        // Verify ENTRIES
         List<KeyValue> indexEntries = getEntries(indexSubspace);
         assertEquals(1, indexEntries.size());
         Tuple unpacked = indexSubspace.unpack(indexEntries.get(0).getKey());
@@ -135,7 +134,6 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(SHARD_ID, decoded.shardId());
         assertArrayEquals(getEncodedEntryMetadata(), decoded.entryMetadata());
 
-        // Verify BACK_POINTER
         List<KeyValue> backPointers = getBackPointers(indexSubspace);
         assertEquals(1, backPointers.size());
         Tuple bpUnpacked = indexSubspace.unpack(backPointers.get(0).getKey());
@@ -145,7 +143,6 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(25L, bpUnpacked.get(3));
         assertArrayEquals(IndexMaintainer.NULL_VALUE, backPointers.get(0).getValue());
 
-        // Verify cardinality
         try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality());
@@ -257,7 +254,6 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         DirectorySubspace indexSubspace = compoundIndex.subspace();
 
-        // Verify ENTRIES key structure
         List<KeyValue> indexEntries = getEntries(indexSubspace);
         assertEquals(1, indexEntries.size(), "Should have exactly one index entry");
 
@@ -268,12 +264,10 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] actualOid = (byte[]) unpacked.get(3);
         assertEquals(objectId, new ObjectId(actualOid), "ObjectId should match");
 
-        // Verify entry value (IndexEntry)
         IndexEntry decoded = IndexEntry.decode(indexEntries.get(0).getValue());
         assertEquals(SHARD_ID, decoded.shardId(), "Shard ID should match");
         assertArrayEquals(entryMetadata, decoded.entryMetadata(), "Entry metadata should match");
 
-        // Verify BACK_POINTER key structure
         List<KeyValue> backPointers = getBackPointers(indexSubspace);
         assertEquals(1, backPointers.size(), "Should have exactly one back pointer");
 
@@ -284,7 +278,6 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(25L, bpUnpacked.get(3), "Back pointer second field value should match");
         assertArrayEquals(IndexMaintainer.NULL_VALUE, backPointers.get(0).getValue(), "Back pointer value should be NULL_VALUE");
 
-        // Verify cardinality
         try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality());
@@ -307,17 +300,14 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         DirectorySubspace indexSubspace = compoundIndex.subspace();
 
-        // Verify entry exists
         assertEquals(1, getEntries(indexSubspace).size());
         assertEquals(1, getBackPointers(indexSubspace).size());
 
-        // Drop the entry
         try (Transaction tr = context.getTransactionManager().create()) {
             CompoundIndexMaintainer.dropEntry(tr, objectId.toByteArray(), definition, indexSubspace, metadata.subspace());
             tr.commit().join();
         }
 
-        // Verify everything is removed
         assertEquals(0, getEntries(indexSubspace).size());
         assertEquals(0, getBackPointers(indexSubspace).size());
 
@@ -344,13 +334,11 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         DirectorySubspace indexSubspace = compoundIndex.subspace();
         assertEquals(2, getEntries(indexSubspace).size());
 
-        // Drop only objectId1
         try (Transaction tr = context.getTransactionManager().create()) {
             CompoundIndexMaintainer.dropEntry(tr, objectId1.toByteArray(), definition, indexSubspace, metadata.subspace());
             tr.commit().join();
         }
 
-        // Verify the remaining entry belongs to objectId2 with correct field values
         List<KeyValue> remainingEntries = getEntries(indexSubspace);
         assertEquals(1, remainingEntries.size());
         Tuple unpacked = indexSubspace.unpack(remainingEntries.get(0).getKey());
@@ -455,7 +443,6 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(1, before.size());
         byte[] originalKey = before.get(0).getKey();
 
-        // Create new metadata
         byte[] newEntryMetadata = VolumeTestUtil.generateEntryMetadata(1, 2, 1, 2, "updated").encode();
         byte[] newMetadata = new IndexEntry(SHARD_ID + 1, newEntryMetadata).encode();
 
@@ -630,7 +617,6 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         for (List<Object> combo : result) {
             assertEquals("John", combo.get(0));
         }
-        // Verify all tag values present
         List<Object> tagValues = result.stream().map(combo -> combo.get(1)).toList();
         assertTrue(tagValues.contains("a"));
         assertTrue(tagValues.contains("b"));
@@ -882,7 +868,6 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(true, unpacked.get(3));
         assertEquals(objectId, new ObjectId((byte[]) unpacked.get(4)));
 
-        // Verify entry value
         IndexEntry decoded = IndexEntry.decode(indexEntries.get(0).getValue());
         assertEquals(SHARD_ID, decoded.shardId());
         assertArrayEquals(getEncodedEntryMetadata(), decoded.entryMetadata());
@@ -897,7 +882,6 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(42L, bpUnpacked.get(3));
         assertEquals(true, bpUnpacked.get(4));
 
-        // Verify cardinality
         try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality());

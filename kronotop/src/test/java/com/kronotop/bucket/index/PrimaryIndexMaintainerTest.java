@@ -60,7 +60,6 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
                 tr.commit().join();
             }
 
-            // Verify cardinality was set correctly
             try (Transaction tr = context.getTransactionManager().create()) {
                 SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
                 IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), primaryIndex.definition().id());
@@ -100,7 +99,6 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
                 Tuple unpackedIndex = idIndexSubspace.unpack(entry.getKey());
                 byte[] objectIdBytes = (byte[]) unpackedIndex.get(1);
                 ObjectId objectId = new ObjectId(objectIdBytes);
-                // Verify it's one of the ObjectIds we inserted
                 int matchedIndex = -1;
                 for (int i = 0; i < objectIds.length; i++) {
                     if (objectIds[i].equals(objectId)) {
@@ -123,7 +121,6 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         AppendedEntry[] entries = getAppendedEntries();
         ObjectId[] objectIds = new ObjectId[entries.length];
 
-        // First set the ID index entries
         CompletableFuture<byte[]> future;
         try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < entries.length; i++) {
@@ -148,7 +145,6 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
             assertEquals(entries.length, indexEntries.size(), "Should have entries for all appended entries");
         }
 
-        // Drop the first primary index entry
         ObjectId objectIdToRemove = objectIds[0];
         Versionstamp versionstamp = Versionstamp.complete(trVersion, entries[0].userVersion());
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -162,12 +158,10 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
             tr.commit().join();
         }
 
-        // Verify the primary index entry was dropped
         try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
             assertEquals(entries.length - 1, indexEntries.size(), "Should have one less entry after dropping");
 
-            // Verify the specific entry was removed
             boolean found = false;
             for (KeyValue kv : indexEntries) {
                 Tuple unpacked = primaryIndexSubspace.unpack(kv.getKey());
@@ -180,12 +174,10 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
             }
             assertFalse(found, "Dropped ObjectId should not be found in remaining entries");
 
-            // Verify cardinality was decremented
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), primaryIndex.definition().id());
             assertEquals(entries.length - 1, statistics.cardinality(), "Primary index cardinality should be decremented by 1");
         }
 
-        // Verify volume pointer was removed for the dropped entry
         Map<ObjectId, Integer> volumePointers = getVolumePointers(primaryIndexSubspace);
         assertEquals(entries.length - 1, volumePointers.size(), "Should have one less volume pointer after dropping");
         assertFalse(volumePointers.containsKey(objectIdToRemove), "Dropped ObjectId should not have a volume pointer");
@@ -197,7 +189,6 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         AppendedEntry[] entries = getAppendedEntries();
         ObjectId[] objectIds = new ObjectId[entries.length];
 
-        // First set the primary index entries
         try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < entries.length; i++) {
                 objectIds[i] = new ObjectId();
@@ -210,7 +201,6 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertNotNull(primaryIndex, "Primary index should exist");
         DirectorySubspace primaryIndexSubspace = primaryIndex.subspace();
 
-        // Get the original index entry
         byte[] originalIndexEntry;
         byte[] prefix = primaryIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
@@ -222,11 +212,9 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
             originalIndexEntry = indexEntries.get(0).getValue();
         }
 
-        // Create new metadata for update
         byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 2, 1, 2, "updated-primary").encode();
         assertFalse(Arrays.equals(originalIndexEntry, newMetadata), "New metadata should be different from original");
 
-        // Update the first primary index entry metadata
         ObjectId objectIdToUpdate = objectIds[0];
         try (Transaction tr = context.getTransactionManager().create()) {
             PrimaryIndexMaintainer.updateIndexEntry(
@@ -239,12 +227,10 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
             tr.commit().join();
         }
 
-        // Verify the primary index entry metadata was updated
         try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
             assertEquals(entries.length, indexEntries.size(), "Should still have same number of entries");
 
-            // Find the updated entry and verify its metadata
             boolean found = false;
             for (KeyValue kv : indexEntries) {
                 Tuple unpacked = primaryIndexSubspace.unpack(kv.getKey());
@@ -413,11 +399,9 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertNotNull(primaryIndex, "Primary index should exist");
         DirectorySubspace indexSubspace = primaryIndex.subspace();
 
-        // Verify pointers exist before dropping
         Map<ObjectId, Integer> volumePointersBefore = getVolumePointers(indexSubspace);
         assertEquals(1, volumePointersBefore.size(), "Should have one volume pointer before dropping");
 
-        // Drop the primary index entry
         Versionstamp versionstamp = Versionstamp.complete(trVersion, entry.userVersion());
         try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
@@ -425,7 +409,6 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
             tr.commit().join();
         }
 
-        // Verify both pointers are removed
         Map<ObjectId, Integer> volumePointersAfter = getVolumePointers(indexSubspace);
         assertEquals(0, volumePointersAfter.size(), "Should have no volume pointers after dropping");
     }

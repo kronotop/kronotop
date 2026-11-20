@@ -39,11 +39,9 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
     void shouldBatchWith200Documents() {
         final String TEST_BUCKET_NAME = "test-bucket-batching-200-docs";
 
-        // Create an age index for this test
         SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
-        // Insert 200 documents with ages 1-200
         List<byte[]> documents = new ArrayList<>();
         for (int i = 1; i <= 200; i++) {
             documents.add(BSONUtil.jsonToDocumentThenBytes("{'age': " + i + ", 'name': 'User" + i + "'}"));
@@ -67,21 +65,18 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
         int batchCount = 0;
 
         try (Transaction tr = createTransaction()) {
-            // Loop until no more results
             List<ByteBuffer> batch;
             do {
                 batch = readExecutor.execute(tr, ctx);
                 if (!batch.isEmpty()) {
                     batchCount++;
 
-                    // Extract ages from this batch
                     for (ByteBuffer buffer : batch) {
                         BsonDocument doc = TestUtil.BsonDocumentFromByteBuffer(buffer);
                         allAges.add(doc.getInt32("age").getValue());
                         totalDocuments++;
                     }
 
-                    // Verify batch size (should be 2 or less for the last batch)
                     assertTrue(batch.size() <= batchSize, "Batch size should not exceed the configured batch size");
                     if (totalDocuments < expectedMatches) {
                         assertEquals(batchSize, batch.size(), "All batches except the last should have exactly " + batchSize + " documents");
@@ -90,16 +85,13 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
             } while (!batch.isEmpty());
         }
 
-        // Verify total results
         assertEquals(expectedMatches, totalDocuments, "Should have exactly " + expectedMatches + " matching documents");
         assertEquals(expectedBatches, batchCount, "Should have exactly " + expectedBatches + " batches");
 
-        // Verify age range: should have ages 51, 52, ..., 170
         assertEquals(expectedMatches, allAges.size(), "Should have " + expectedMatches + " unique ages");
         assertEquals(51, allAges.iterator().next(), "First age should be 51");
         assertTrue(allAges.contains(170), "Should contain age 170");
 
-        // Verify sequential ages from 51 to 170
         List<Integer> sortedAges = new ArrayList<>(allAges);
         for (int i = 0; i < sortedAges.size(); i++) {
             assertEquals(51 + i, sortedAges.get(i), "Ages should be sequential starting from 51");
@@ -111,7 +103,6 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
     void shouldFilterInt32RangeWithMixedInputReverseAndBatch() {
         final String TEST_BUCKET_NAME = "test-int32-range-with-mixed-input-with-batch-and-reverse";
 
-        // Create an age index for this test
         SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 

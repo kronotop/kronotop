@@ -50,7 +50,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // Insert a document with an items array containing objects with price fields
         BsonDocument document = new BsonDocument()
                 .append("orderId", new BsonString("ORD-001"))
                 .append("items", new BsonArray(Arrays.asList(
@@ -87,7 +86,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
         assertTrue(updatedObjectIds.contains(targetObjectId), "Should have updated the target document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -101,7 +99,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertNotNull(updatedDocument, "Should have retrieved the updated document");
 
-        // Verify the items array
         BsonArray items = BsonHelper.getArray(updatedDocument, "items");
         assertNotNull(items, "Items array should exist");
         assertEquals(3, items.size(), "Items array should have 3 elements");
@@ -132,7 +129,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // Insert a document with an items array containing objects with price fields
         BsonDocument document = new BsonDocument()
                 .append("orderId", new BsonString("ORD-002"))
                 .append("items", new BsonArray(Arrays.asList(
@@ -166,7 +162,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
         assertTrue(updatedObjectIds.contains(targetObjectId), "Should have updated the target document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -180,7 +175,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertNotNull(updatedDocument, "Should have retrieved the updated document");
 
-        // Verify the items array
         BsonArray items = BsonHelper.getArray(updatedDocument, "items");
         assertNotNull(items, "Items array should exist");
         assertEquals(3, items.size(), "Items array should have 3 elements");
@@ -343,7 +337,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -411,7 +404,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -544,7 +536,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -659,7 +650,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // Insert document with scores array [85, 90, 75, 95, 60]
         BsonDocument document = new BsonDocument()
                 .append("name", new BsonString("In Test Student"))
                 .append("scores", new BsonArray(Arrays.asList(
@@ -686,7 +676,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -719,7 +708,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // Insert document with scores array [85, 90, 75, 95, 60]
         BsonDocument document = new BsonDocument()
                 .append("name", new BsonString("Nin Test Student"))
                 .append("scores", new BsonArray(Arrays.asList(
@@ -746,7 +734,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -805,7 +792,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -873,7 +859,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -1093,7 +1078,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -1153,7 +1137,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -1213,7 +1196,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -1274,7 +1256,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -1352,7 +1333,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -1502,7 +1482,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // Document with orders array containing objects with nested item.price field
         BsonDocument document = new BsonDocument()
                 .append("customerId", new BsonString("CUST-001"))
                 .append("orders", new BsonArray(Arrays.asList(
@@ -1542,7 +1521,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -1812,7 +1790,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -1865,7 +1842,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // Document with orders array containing objects with nested item.price field
         BsonDocument document = new BsonDocument()
                 .append("customerId", new BsonString("CUST-002"))
                 .append("orders", new BsonArray(Arrays.asList(
@@ -1913,7 +1889,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -2001,7 +1976,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertEquals(1, updatedObjectIds.size(), "Should have updated 1 document");
 
-        // Query and verify the update
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -2069,7 +2043,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
             assertInstanceOf(MapRedisMessage.class, msg);
         }
 
-        // Query and verify
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -2120,7 +2093,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
             runCommand(channel, buf);
         }
 
-        // Verify
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -2170,7 +2142,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
             runCommand(channel, buf);
         }
 
-        // Verify
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -2225,7 +2196,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
             runCommand(channel, buf);
         }
 
-        // Verify
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -2275,7 +2245,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         cmd.update(TEST_BUCKET, "{\"items.name\": \"First\"}", "{\"$unset\": {\"items.$.price\": 1}}").encode(buf);
         runCommand(channel, buf);
 
-        // Verify
         BsonDocument updatedDoc = queryFirstDocument(cmd);
         assertNotNull(updatedDoc);
         BsonArray items = BsonHelper.getArray(updatedDoc, "items");
@@ -2308,7 +2277,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         cmd.update(TEST_BUCKET, "{\"items.name\": \"Third\"}", "{\"$unset\": {\"items.$.price\": 1}}").encode(buf);
         runCommand(channel, buf);
 
-        // Verify
         BsonDocument updatedDoc = queryFirstDocument(cmd);
         assertNotNull(updatedDoc);
         BsonArray items = BsonHelper.getArray(updatedDoc, "items");
@@ -2378,7 +2346,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
                 "{\"$unset\": {\"items.$.discount\": 1}}").encode(buf);
         runCommand(channel, buf);
 
-        // Verify
         BsonDocument updatedDoc = queryFirstDocument(cmd);
         assertNotNull(updatedDoc);
         BsonArray items = BsonHelper.getArray(updatedDoc, "items");
@@ -2412,7 +2379,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         cmd.update(TEST_BUCKET, "{\"data.items.name\": \"Gadget\"}", "{\"$unset\": {\"data.items.$.meta\": 1}}").encode(buf);
         runCommand(channel, buf);
 
-        // Verify
         BsonDocument updatedDoc = queryFirstDocument(cmd);
         assertNotNull(updatedDoc);
         BsonDocument data = updatedDoc.getDocument("data");
@@ -2465,7 +2431,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
             runCommand(channel, buf);
         }
 
-        // Verify
         BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -2505,7 +2470,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         cmd.update(TEST_BUCKET, "{\"items.status\": \"pending\"}", "{\"$set\": {\"items.$.status\": \"processed\"}, \"upsert\": true}").encode(buf);
         Object msg = runCommand(channel, buf);
 
-        // Should return an error
         assertInstanceOf(ErrorRedisMessage.class, msg, "Should return error when using $ with upsert");
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
         assertTrue(errorMessage.content().contains("$") || errorMessage.content().contains("upsert"),
@@ -2534,7 +2498,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         cmd.update(TEST_BUCKET, "{\"items.nested.value\": 1}", "{\"$set\": {\"items.$.nested.$.value\": 999}}").encode(buf);
         Object msg = runCommand(channel, buf);
 
-        // Should return an error
         assertInstanceOf(ErrorRedisMessage.class, msg, "Should return error when using multiple $ operators");
     }
 
@@ -2597,7 +2560,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // Insert a document
         BsonDocument document = new BsonDocument()
                 .append("orderId", new BsonString("ORD-POS-011"))
                 .append("items", new BsonArray(Arrays.asList(
@@ -2625,7 +2587,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // Insert a document
         BsonDocument document = new BsonDocument()
                 .append("orderId", new BsonString("ORD-POS-012"))
                 .append("items", new BsonArray(Arrays.asList(
@@ -2645,7 +2606,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        // Verify the update
         BsonDocument updatedDoc = queryFirstDocument(cmd);
         assertNotNull(updatedDoc);
         BsonArray items = BsonHelper.getArray(updatedDoc, "items");
@@ -2825,7 +2785,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        // Verify the update
         BsonDocument updatedDoc = queryFirstDocument(cmd);
         assertNotNull(updatedDoc);
         BsonDocument data = updatedDoc.getDocument("data");
@@ -2843,7 +2802,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // Insert a document
         BsonDocument document = new BsonDocument()
                 .append("orderId", new BsonString("ORD-POS-014"))
                 .append("items", new BsonArray(Arrays.asList(
@@ -2923,7 +2881,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        // Verify the update
         BsonDocument updatedDoc = queryFirstDocument(cmd);
         assertNotNull(updatedDoc);
         BsonArray orders = BsonHelper.getArray(updatedDoc, "orders");
@@ -2976,7 +2933,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        // Verify the update
         BsonDocument updatedDoc = queryFirstDocument(cmd);
         assertNotNull(updatedDoc);
         BsonArray scores = BsonHelper.getArray(updatedDoc, "scores");
@@ -3018,7 +2974,6 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        // Verify the update
         BsonDocument updatedDoc = queryFirstDocument(cmd);
         assertNotNull(updatedDoc);
         BsonArray tags = BsonHelper.getArray(updatedDoc, "tags");

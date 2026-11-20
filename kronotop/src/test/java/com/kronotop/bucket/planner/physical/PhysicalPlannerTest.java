@@ -31,7 +31,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Comprehensive test suite for PhysicalPlanner covering all LogicalNode transposition cases.
+ * Tests the LogicalNode transposition cases of PhysicalPlanner.
  * Tests the complete LogicalNode -> PhysicalNode conversion pipeline with optimizations.
  */
 class PhysicalPlannerTest extends BasePhysicalPlannerTest {
@@ -525,8 +525,8 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
     class PerformanceOptimizationTests {
 
         @Test
-        @DisplayName("Large query transposition should be efficient")
-        void shouldTransposeLargeQueryEfficiently() {
+        @DisplayName("Large query transposition should complete within the time limit")
+        void shouldTransposeLargeQueryWithinTimeLimit() {
             // Create logical plan with 100 filters
             List<LogicalNode> filters = new java.util.ArrayList<>();
             for (int i = 0; i < 100; i++) {
@@ -547,8 +547,8 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
         }
 
         @Test
-        @DisplayName("Deep nesting transposition should handle recursion efficiently")
-        void shouldHandleDeepNestingEfficiently() {
+        @DisplayName("Deep nesting transposition should complete within the time limit")
+        void shouldTransposeDeepNestingWithinTimeLimit() {
             // Create deeply nested NOT structure via BQL for optimization to work
 
             // Build a nested NOT query: NOT(NOT(NOT(...(selector = value)...)))

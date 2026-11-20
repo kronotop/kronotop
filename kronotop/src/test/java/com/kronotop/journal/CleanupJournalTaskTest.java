@@ -177,7 +177,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldHandleShutdownGracefully() {
+    void shouldNotThrowOnShutdown() {
         JournalService journal = context.getService(JournalService.NAME);
 
         CleanupJournalTask task = new CleanupJournalTask(journal, 1, TimeUnit.HOURS);

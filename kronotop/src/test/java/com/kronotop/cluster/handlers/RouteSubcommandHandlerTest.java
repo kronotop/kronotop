@@ -402,7 +402,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
         }
 
-        // Do NOT set volume to READONLY — this should trigger the volume status error
+        // Do NOT set volume to READONLY, this should trigger the volume status error
 
         ByteBuf buf = Unpooled.buffer();
         cmd.route("SET", "PRIMARY", SHARD_ID, standbyMemberId).encode(buf);
@@ -416,7 +416,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldSetPrimaryAndVerifyRouteMetadata() throws IOException {
-        // Behavior: Full primary transition — updates primary in FDB, removes from standbys, updates routing table
+        // Behavior: Full primary transition updates primary in FDB, removes from standbys, updates routing table
         int length = 1024;
         int number = Math.toIntExact(volume.getConfig().segmentSize() / length);
         number += (number / 2);

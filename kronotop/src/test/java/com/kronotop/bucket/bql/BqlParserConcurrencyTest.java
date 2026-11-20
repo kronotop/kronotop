@@ -517,8 +517,8 @@ class BqlParserConcurrencyTest {
     }
 
     @Test
-    @DisplayName("Thread interruption during parsing should be handled gracefully")
-    void shouldHandleThreadInterruptionGracefully() throws InterruptedException {
+    @DisplayName("Thread interruption during parsing should be handled")
+    void shouldHandleThreadInterruption() throws InterruptedException {
         String complexQuery = """
                 {
                   "$and": [

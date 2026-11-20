@@ -188,7 +188,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, TEST_BUCKET);
 
         {
-            // Try to create the bucket again — should fail because the volume prefix still exists
+            // Try to create the bucket again, should fail because the volume prefix still exists
             ByteBuf buf = Unpooled.buffer();
             cmd.create(TEST_BUCKET).encode(buf);
 
@@ -269,7 +269,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         }
 
         {
-            // Create the same bucket again with IF_NOT_EXISTS — should return OK
+            // Create the same bucket again with IF_NOT_EXISTS, should return OK
             ByteBuf buf = Unpooled.buffer();
             cmd.create(TEST_BUCKET, BucketCreateArgs.Builder.ifNotExists()).encode(buf);
 

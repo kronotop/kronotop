@@ -1358,7 +1358,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         }
 
         {
-            // Move namespace — sets a tombstone on the old name
+            // Move namespace, sets a tombstone on the old name
             ByteBuf buf = Unpooled.buffer();
             cmd.namespaceMove(namespaceOld, namespaceNew).encode(buf);
 
@@ -1376,7 +1376,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         }
 
         {
-            // CREATE on the old name must fail — the tombstone barrier is not satisfied
+            // CREATE on the old name must fail, the tombstone barrier is not satisfied
             ByteBuf buf = Unpooled.buffer();
             cmd.namespaceCreate(namespaceOld).encode(buf);
 

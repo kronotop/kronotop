@@ -2413,7 +2413,7 @@ class UpdateExecutorTest extends BasePipelineTest {
             tr.commit().join();
         }
 
-        // Single-field age index: 2 entries (25, 40 — no 30)
+        // Single-field age index: 2 entries (25, 40, no 30)
         assertEquals(2, fetchAllIndexedEntries(ageSubspace).size(), "Age index should have 2 entries");
         Set<Integer> ageValues = extractAgeValuesFromIndex(ageSubspace);
         assertTrue(ageValues.contains(25), "Age index should contain 25");

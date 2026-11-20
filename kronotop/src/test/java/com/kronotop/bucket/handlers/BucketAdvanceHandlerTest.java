@@ -383,8 +383,8 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         }
 
         // Verify results:
-        // Alice (4.5, 4.2 >= 4.0) ✓, Bob (none >= 4.0), Charlie (4.8, 4.9, 5.0) ✓,
-        // Diana (3.9 max < 4.0), Eve (4.1, 4.3, 4.7) ✓, Frank (none >= 4.0)
+        // Alice (4.5, 4.2 >= 4.0) matches, Bob (none >= 4.0), Charlie (4.8, 4.9, 5.0) matches,
+        // Diana (3.9 max < 4.0), Eve (4.1, 4.3, 4.7) matches, Frank (none >= 4.0)
         assertEquals(3, allResults.size(), "Should retrieve exactly 3 documents with ratings >= 4.0");
 
         List<String> actualNames = new ArrayList<>();
@@ -997,7 +997,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         //
         // The score predicate ({$gte: 0}) is a no-op filter that exists solely to bring the
         // score index into the physical plan. Without it, the plan would be a single
-        // PhysicalIndexScan on age — which provides no ordering on score, so SORTBY score
+        // PhysicalIndexScan on age, which provides no ordering on score, so SORTBY score
         // would be rejected. With the AND, the planner sees both indexes and can select
         // score as the primary scan for sort ordering.
 
@@ -2219,7 +2219,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // saveObjectIdCheckpoint on the primary index). All matching documents are retrieved
         // without duplicates across multiple ADVANCE calls.
 
-        // No indexes created — both branches use FullScanNode
+        // No indexes created, both branches use FullScanNode
 
         // 12 docs: 4 match both, 3 match category only, 3 match color only, 2 match neither
         List<byte[]> documents = Arrays.asList(

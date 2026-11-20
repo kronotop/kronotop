@@ -964,7 +964,7 @@ class PipelineIntegrationTest extends BasePipelineTest {
     @Test
     void shouldUseCompoundIndexForCategoryAndPriceRange() {
         // Behavior: A compound index on (category:STRING, price:DOUBLE) enables a single range scan
-        // for "all products in a category with price above X" — a common e-commerce filter pattern.
+        // for "all products in a category with price above X", a common e-commerce filter pattern.
 
         final String TEST_BUCKET_NAME = "test-compound-category-price";
 

@@ -30,7 +30,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Comprehensive test suite for LogicalPlanner covering all operators, transforms, and edge cases.
+ * Tests LogicalPlanner operators, transforms and edge cases.
  * Tests the complete BQL -> LogicalNode conversion pipeline and optimization transforms.
  */
 class LogicalPlannerTest {
@@ -1283,7 +1283,7 @@ class LogicalPlannerTest {
         }
 
         @Test
-        @DisplayName("Deeply nested query should handle recursion efficiently")
+        @DisplayName("Deeply nested query should handle recursion")
         void shouldHandleDeeplyNestedQueryPerformance() {
             // Test with different depths to verify double negation elimination
             // Even depth should result in LogicalFilter, odd depth in LogicalNot

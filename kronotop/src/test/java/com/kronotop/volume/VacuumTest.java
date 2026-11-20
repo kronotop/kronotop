@@ -119,16 +119,13 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
 
-            // Verify segment-level metadata
             VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, volumeSubspace, sealedSegmentId);
             assertNotNull(metadata);
 
-            // Scan all prefix cardinality keys
             Range range = VacuumSegmentMetadataUtil.getVacuumPrefixRange(volumeSubspace, sealedSegmentId);
             List<KeyValue> prefixKeys = tr.getRange(range).asList().join();
             assertTrue(prefixKeys.size() >= 2);
 
-            // Verify both prefix-level keys exist with correct cardinalities
             byte[] alphaValue = tr.get(volumeSubspace.packVacuumSegmentMetadataPrefixCardinalityKey(sealedSegmentId, alpha)).join();
             assertNotNull(alphaValue);
             int alphaCardinality = ByteBuffer.wrap(alphaValue).order(ByteOrder.LITTLE_ENDIAN).getInt();
@@ -214,14 +211,12 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
 
-            // Read cardinality from SEGMENT_STATS
             byte[] statsKey = volumeSubspace.packSegmentStatsKey(
                     sealedSegmentId, volumeTestPrefix, SegmentStatsSubspaces.CARDINALITY);
             byte[] statsValue = tr.get(statsKey).join();
             assertNotNull(statsValue);
             int statsCardinality = ByteBuffer.wrap(statsValue).order(ByteOrder.LITTLE_ENDIAN).getInt();
 
-            // Read cardinality from VACUUM_METADATA
             byte[] vacuumKey = volumeSubspace.packVacuumSegmentMetadataPrefixCardinalityKey(sealedSegmentId, volumeTestPrefix);
             byte[] vacuumValue = tr.get(vacuumKey).join();
             assertNotNull(vacuumValue);

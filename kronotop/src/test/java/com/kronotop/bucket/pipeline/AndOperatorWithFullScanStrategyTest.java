@@ -41,7 +41,6 @@ class AndOperatorWithFullScanStrategyTest extends BasePipelineTest {
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
 
-        // Insert multiple documents with different field types and values
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
                 BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
@@ -71,7 +70,6 @@ class AndOperatorWithFullScanStrategyTest extends BasePipelineTest {
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
 
-        // Insert multiple documents with different field types and values
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
                 BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
@@ -145,23 +143,19 @@ class AndOperatorWithFullScanStrategyTest extends BasePipelineTest {
                     break;
                 }
 
-                // Track batch size for verification
                 totalBatchSize += batchResults.size();
                 allResults.addAll(batchResults);
             }
         }
 
-        // Verify the results
         assertEquals(150, allResults.size(), "Should return exactly 150 matching documents");
 
-        // Verify all returned documents match the condition
         Set<String> categories = extractCategoriesFromResults(allResults);
         Set<Integer> ages = extractIntegerFieldFromResults(allResults, "age");
 
         assertEquals(Set.of("electronics"), categories, "All documents should have category 'electronics'");
         assertTrue(ages.stream().allMatch(age -> age >= 10), "All ages should be >= 10");
 
-        // Verify batch processing worked correctly
         assertEquals(150, totalBatchSize, "Total batch size should equal result count");
 
         // The iteration count includes the final empty iteration, so it should be one more than 150/2
@@ -217,7 +211,6 @@ class AndOperatorWithFullScanStrategyTest extends BasePipelineTest {
                     break;
                 }
 
-                // Track batch size for verification
                 totalBatchSize += batchResults.size();
                 allResults.addAll(batchResults);
 
@@ -240,24 +233,20 @@ class AndOperatorWithFullScanStrategyTest extends BasePipelineTest {
             }
         }
 
-        // Verify the results
         assertEquals(150, allResults.size(), "Should return exactly 150 matching documents");
 
-        // Verify all returned documents match the condition
         Set<String> categories = extractCategoriesFromResults(allResults);
         Set<Integer> ages = extractIntegerFieldFromResults(allResults, "age");
 
         assertEquals(Set.of("electronics"), categories, "All documents should have category 'electronics'");
         assertTrue(ages.stream().allMatch(age -> age >= 10), "All ages should be >= 10");
 
-        // Verify batch processing worked correctly
         assertEquals(150, totalBatchSize, "Total batch size should equal result count");
 
         // The iteration count includes the final empty iteration, so it should be one more than 150/2
         int expectedIterations = (150 / 2) + 1; // 75 + 1 = 76 iterations (including final empty check)
         assertEquals(expectedIterations, iterationCount, "Should take " + expectedIterations + " iterations (including final empty iteration)");
 
-        // Verify reverse ordering - ages should be in descending order
         assertTrue(isDescendingOrder(ageSequence), "Ages should be in descending order for reverse pagination");
 
         // First document should have the highest age (159), last should have lowest (10)
@@ -265,7 +254,6 @@ class AndOperatorWithFullScanStrategyTest extends BasePipelineTest {
         assertEquals(10, ageSequence.get(ageSequence.size() - 1), "Last document should have age 10");
     }
 
-    // Helper method to check if a list of integers is in descending order
     private boolean isDescendingOrder(List<Integer> ages) {
         for (int i = 1; i < ages.size(); i++) {
             if (ages.get(i) > ages.get(i - 1)) {
@@ -275,7 +263,6 @@ class AndOperatorWithFullScanStrategyTest extends BasePipelineTest {
         return true;
     }
 
-    // Helper method to extract categories from results
     Set<String> extractCategoriesFromResults(List<ByteBuffer> results) {
         Set<String> categories = new HashSet<>();
         for (ByteBuffer documentBuffer : results) {

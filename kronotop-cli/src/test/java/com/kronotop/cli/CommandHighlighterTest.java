@@ -55,7 +55,6 @@ class CommandHighlighterTest {
         // Behavior: Commands are styled with blue foreground and bold
         AttributedString result = highlight("GET key");
 
-        // "GET" at indices 0,1,2 should be COMMAND_STYLE
         assertStyleAt(result, 0, COMMAND_STYLE); // G
         assertStyleAt(result, 1, COMMAND_STYLE); // E
         assertStyleAt(result, 2, COMMAND_STYLE); // T

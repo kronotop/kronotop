@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Comprehensive test suite for RedundantConditionEliminationTransform.
+ * Tests for RedundantConditionEliminationTransform.
  * Tests the elimination of redundant conditions in logical expressions.
  */
 class RedundantConditionEliminationTest {

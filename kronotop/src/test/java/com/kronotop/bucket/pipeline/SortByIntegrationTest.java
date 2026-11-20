@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration tests for index-based SORTBY functionality.
- * SORTBY requires a supporting index — single field or compound.
+ * SORTBY requires a supporting index, single field or compound.
  * For in-memory result sorting tests, see {@link ResultSortIntegrationTest}.
  */
 class SortByIntegrationTest extends BasePipelineTest {

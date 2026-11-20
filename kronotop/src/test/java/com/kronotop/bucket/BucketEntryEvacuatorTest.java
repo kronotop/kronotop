@@ -782,7 +782,6 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
             originalDocument = volume.getByEntryMetadata(entry.entryMetadata());
         }
 
-        // First evacuation
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
         EntryMetadata firstEvacMetadata;
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -795,7 +794,6 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
             assertNotEquals(entry.entryMetadata().position(), firstEvacMetadata.position());
         }
 
-        // Second evacuation
         evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
         try (Transaction tr = context.getTransactionManager().create()) {
             assertTrue(evacuator.evacuate(context, tr, firstEvacMetadata, entry.versionstamp()));
@@ -849,7 +847,6 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // Query all documents with age >= 25
         ByteBuf buf = Unpooled.buffer();
         cmd.query(TEST_BUCKET, "{\"age\": {\"$gte\": 25}}").encode(buf);
         Object msg = runCommand(channel, buf);
@@ -857,7 +854,6 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         List<BsonDocument> allEntries = extractEntries(msg);
         assertEquals(3, allEntries.size());
 
-        // Query for a specific document
         buf = Unpooled.buffer();
         cmd.query(TEST_BUCKET, "{\"age\": 30}").encode(buf);
         msg = runCommand(channel, buf);

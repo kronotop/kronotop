@@ -1357,10 +1357,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Student1: has math ✓
-            // Student2: has science ✓
+            // Student1: has math - match
+            // Student2: has science - match
             // Student3: no math/science
-            // Student4: has both math and science ✓
+            // Student4: has both math and science - match
             assertEquals(3, results.size(), "Should return exactly 3 documents");
             assertEquals(Set.of("Student1", "Student2", "Student4"), extractNamesFromResults(results));
         }
@@ -1438,10 +1438,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Student1: math=85 > 80 ✓
-            // Student2: science=90 > 80 ✓
+            // Student1: math=85 > 80 - match
+            // Student2: science=90 > 80 - match
             // Student3: math=70 < 80 - no match
-            // Student4: math=92 > 80 ✓, science=85 > 80 ✓
+            // Student4: math=92 > 80, science=85 > 80 - match
             assertEquals(3, results.size(), "Should return exactly 3 documents");
             assertEquals(Set.of("Student1", "Student2", "Student4"), extractNamesFromResults(results));
         }
@@ -1481,10 +1481,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Order1: first item has both categories AND price=100 < 200 ✓
+            // Order1: first item has both categories AND price=100 < 200 - match
             // Order2: has both categories BUT price=500 >= 200
             // Order3: missing 'sale' category
-            // Order4: has both categories AND price=75 < 200 ✓
+            // Order4: has both categories AND price=75 < 200 - match
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Order1", "Order4"), extractNamesFromResults(results));
         }
@@ -1524,10 +1524,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Product1: first item has both tags AND active ✓
+            // Product1: first item has both tags AND active - match
             // Product2: has both tags but inactive
             // Product3: missing 'new' tag
-            // Product4: has both tags AND active ✓
+            // Product4: has both tags AND active - match
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Product1", "Product4"), extractNamesFromResults(results));
         }
@@ -1569,9 +1569,9 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Project1: first task has 2 assignees AND high priority ✓
+            // Project1: first task has 2 assignees AND high priority - match
             // Project2: has 2 assignees but low priority
-            // Project3: has 2 assignees AND high priority ✓
+            // Project3: has 2 assignees AND high priority - match
             // Project4: has 1 assignee (not 2)
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Project1", "Project3"), extractNamesFromResults(results));
@@ -1609,10 +1609,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Record1: first entry has 3 values AND count=100 > 50 ✓
+            // Record1: first entry has 3 values AND count=100 > 50 - match
             // Record2: has 3 values but count=30 <= 50
             // Record3: has 2 values (not 3)
-            // Record4: has 3 values AND count=90 > 50 ✓
+            // Record4: has 3 values AND count=90 > 50 - match
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Record1", "Record4"), extractNamesFromResults(results));
         }
@@ -1650,8 +1650,8 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Store1: TV2=800 > 600 ✓
-            // Store2: PC1=1200 > 600 ✓
+            // Store1: TV2=800 > 600 - match
+            // Store2: PC1=1200 > 600 - match
             // Store3: F1=10 < 600
             // Store4: CAM1=450 < 600
             assertEquals(2, results.size(), "Should return exactly 2 documents");
@@ -1693,10 +1693,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Store1: Electronics dept has products 500, 800 > 400 ✓
+            // Store1: Electronics dept has products 500, 800 > 400 - match
             // Store2: Electronics dept has product 100 < 400
             // Store3: Clothing dept (not Electronics)
-            // Store4: Electronics dept has product 700 > 400 ✓
+            // Store4: Electronics dept has product 700 > 400 - match
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Store1", "Store4"), extractNamesFromResults(results));
         }
@@ -1733,10 +1733,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Company1: Engineering team has engineer level 5 >= 4 ✓
+            // Company1: Engineering team has engineer level 5 >= 4 - match
             // Company2: Engineering team has no engineers
             // Company3: Sales team (not Engineering)
-            // Company4: Engineering team has engineer level 4 >= 4 ✓
+            // Company4: Engineering team has engineer level 4 >= 4 - match
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Company1", "Company4"), extractNamesFromResults(results));
         }
@@ -1774,10 +1774,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Order1: price 150 > 100 ✓, qty 5 not > 5
-            // Order2: price 200 > 100 ✓, qty 10 > 5 ✓
+            // Order1: price 150 > 100, qty 5 not > 5
+            // Order2: price 200 > 100, qty 10 > 5 - match
             // Order3: price 100 not > 100
-            // Order4: price 120 > 100 ✓, qty 6 and 8 > 5 ✓
+            // Order4: price 120 > 100, qty 6 and 8 > 5 - match
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Order2", "Order4"), extractNamesFromResults(results));
         }
@@ -1816,9 +1816,9 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Record1: max value 100 < 120
-            // Record2: value 200 > 120 ✓
+            // Record2: value 200 > 120 - match
             // Record3: max value 40 < 120
-            // Record4: value 150 > 120 ✓
+            // Record4: value 150 > 120 - match
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Record2", "Record4"), extractNamesFromResults(results));
         }
@@ -1856,9 +1856,9 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Data1: count 50 < 70
-            // Data2: count 100 > 70 ✓, total 800 < 1000
-            // Data3: count 80 > 70 ✓, total 1200 > 1000 ✓
-            // Data4: count 120 > 70 ✓, total 1500 > 1000 ✓
+            // Data2: count 100 > 70, total 800 < 1000
+            // Data3: count 80 > 70, total 1200 > 1000 - match
+            // Data4: count 120 > 70, total 1500 > 1000 - match
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Data3", "Data4"), extractNamesFromResults(results));
         }
@@ -1898,9 +1898,9 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Product1: price 50 not in [60,130] for first, price 150 not in range for second
-            // Product2: price 80 in [60,130] ✓, stock 50 > 40 ✓
+            // Product2: price 80 in [60,130], stock 50 > 40 - match
             // Product3: price 200 not in [60,130]
-            // Product4: price 90 in [60,130] ✓, stock 75 > 40 ✓
+            // Product4: price 90 in [60,130], stock 75 > 40 - match
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Product2", "Product4"), extractNamesFromResults(results));
         }
@@ -1939,9 +1939,9 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Sensor1: 35 in [30,50] ✓
-            // Sensor2: 45 in [30,50] ✓
-            // Sensor3: 40 in [30,50] ✓
+            // Sensor1: 35 in [30,50] - match
+            // Sensor2: 45 in [30,50] - match
+            // Sensor3: 40 in [30,50] - match
             // Sensor4: max 15 < 30
             assertEquals(3, results.size(), "Should return exactly 3 documents");
             assertEquals(Set.of("Sensor1", "Sensor2", "Sensor3"), extractNamesFromResults(results));
@@ -1983,9 +1983,9 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Order1: pending and shipped != cancelled ✓
+            // Order1: pending and shipped != cancelled - match
             // Order2: all cancelled
-            // Order3: delivered != cancelled ✓
+            // Order3: delivered != cancelled - match
             // Order4: only cancelled
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Order1", "Order3"), extractNamesFromResults(results));
@@ -2026,8 +2026,8 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Config1: all zeros
-            // Config2: 1 != 0 ✓
-            // Config3: all != 0 ✓
+            // Config2: 1 != 0 - match
+            // Config3: all != 0 - match
             // Config4: all zeros
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Config2", "Config3"), extractNamesFromResults(results));
@@ -2068,10 +2068,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Task1: alice with owner role != viewer ✓
+            // Task1: alice with owner role != viewer - match
             // Task2: no alice
             // Task3: no alice
-            // Task4: alice with editor role != viewer ✓
+            // Task4: alice with editor role != viewer - match
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Task1", "Task4"), extractNamesFromResults(results));
         }
@@ -2128,8 +2128,8 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Data1: max is 49 < 90
-            // Data2: has values 91-99 > 90 ✓
-            // Data3: max is 98 > 90 ✓
+            // Data2: has values 91-99 > 90 - match
+            // Data3: max is 98 > 90 - match
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Data2", "Data3"), extractNamesFromResults(results));
         }
@@ -2223,10 +2223,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Order1: electronics, refs=[ref1, ref2] — no ref3 -> no match
-            // Order2: electronics, refs=[ref3, ref1] — has ref3 -> match
-            // Order3: books — filtered by index scan -> no match
-            // Order4: electronics, refs=[ref2, ref1] — no ref3 -> no match
+            // Order1: electronics, refs=[ref1, ref2], no ref3 -> no match
+            // Order2: electronics, refs=[ref3, ref1], has ref3 -> match
+            // Order3: books, filtered by index scan -> no match
+            // Order4: electronics, refs=[ref2, ref1], no ref3 -> no match
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Order2"), extractNamesFromResults(results));
         }

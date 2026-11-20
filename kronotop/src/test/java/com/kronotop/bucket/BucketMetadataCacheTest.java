@@ -81,21 +81,17 @@ class BucketMetadataCacheTest extends BaseStandaloneInstanceTest {
     void shouldInvalidateByPrefixRemoveMatchingNamespaces() {
         BucketMetadataCache cache = new BucketMetadataCache(context);
 
-        // Add items to the cache for various namespaces
         cache.set("a", TEST_BUCKET, getBucketMetadata(TEST_BUCKET));
         cache.set("a.b", TEST_BUCKET, getBucketMetadata(TEST_BUCKET));
         cache.set("a.b.c", TEST_BUCKET, getBucketMetadata(TEST_BUCKET));
         cache.set("a.b.c.d", TEST_BUCKET, getBucketMetadata(TEST_BUCKET));
         cache.set("a.b2", TEST_BUCKET, getBucketMetadata(TEST_BUCKET));
 
-        // Invalidate cache for "a.b" prefix
         cache.invalidate("a.b");
 
-        // "a" and "a.b2" should remain in the cache
         assertThat(cache.get("a", TEST_BUCKET)).isNotNull();
         assertThat(cache.get("a.b2", TEST_BUCKET)).isNotNull();
 
-        // "a.b", "a.b.c", "a.b.c.d" should be removed
         assertThat(cache.get("a.b", TEST_BUCKET)).isNull();
         assertThat(cache.get("a.b.c", TEST_BUCKET)).isNull();
         assertThat(cache.get("a.b.c.d", TEST_BUCKET)).isNull();

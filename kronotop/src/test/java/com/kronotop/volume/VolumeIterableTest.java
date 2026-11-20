@@ -55,15 +55,12 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
             for (int i = 0; i < 5; i++) {
                 VolumeEntry volumeEntry = retrievedEntries.get(i);
 
-                // Verify key matches
                 assertEquals(versionstampedKeys[i], volumeEntry.key());
 
-                // Verify entry data matches
                 ByteBuffer expected = entries[i];
                 expected.flip();
                 assertEquals(expected, volumeEntry.entry());
 
-                // Verify metadata is present and decodable
                 assertNotNull(volumeEntry.metadata());
                 EntryMetadata metadata = EntryMetadata.decode(volumeEntry.metadata());
                 assertNotNull(metadata);
@@ -110,7 +107,6 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
             assertEquals(limit, retrievedEntries.size());
 
-            // Verify the first 2 entries are returned
             for (int i = 0; i < limit; i++) {
                 assertEquals(versionstampedKeys[i], retrievedEntries.get(i).key());
             }
@@ -288,15 +284,12 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
             Iterable<VolumeEntry> iterable = volume.getRange(session);
 
             for (VolumeEntry volumeEntry : iterable) {
-                // Verify metadata is present
                 assertNotNull(volumeEntry.metadata());
                 assertTrue(volumeEntry.metadata().length > 0);
 
-                // Verify metadata can be decoded
                 EntryMetadata metadata = EntryMetadata.decode(volumeEntry.metadata());
                 assertNotNull(metadata);
 
-                // Verify metadata fields are valid
                 assertTrue(metadata.segmentId() >= 0);
                 assertTrue(metadata.length() > 0);
                 assertTrue(metadata.position() >= 0);

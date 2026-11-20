@@ -131,7 +131,7 @@ class ChangeLogWatchHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Behavior: CHANGELOG.WATCH returns the safe watermark (not the latest sequence number)
         // when in-flight transactions exist, preventing CDC from reading uncommitted data.
 
-        // Step 1: Append 5 entries and commit to establish a baseline
+        // Append 5 entries and commit to establish a baseline
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(5);
         try (Transaction tr = database.createTransaction()) {
             VolumeSession session = new VolumeSession(tr, prefix);
@@ -139,7 +139,7 @@ class ChangeLogWatchHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        // Step 2: Wait for watermark to settle and record baseline
+        // Wait for watermark to settle and record baseline
         ChangeLog changeLog = volume.getChangeLog();
         long baselineSeq;
         try (Transaction tr = database.createTransaction()) {
@@ -154,26 +154,26 @@ class ChangeLogWatchHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         }
         assertEquals(baselineSeq, changeLog.getSafeWatermark());
 
-        // Step 3: Open a new transaction and append without committing (creates in-flight entry)
+        // Open a new transaction and append without committing (creates in-flight entry)
         ByteBuffer[] moreEntries = baseVolumeTestWrapper.getEntries(1);
         Transaction danglingTr = database.createTransaction();
         try {
             VolumeSession session = new VolumeSession(danglingTr, prefix);
             volume.append(session, moreEntries);
 
-            // Step 4: Send CHANGELOG.WATCH with sequence number 0
+            // Send CHANGELOG.WATCH with sequence number 0
             InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
             ByteBuf buf = Unpooled.buffer();
             cmd.changelogWatch(volumeConfig.name(), 0).encode(buf);
 
             Object msg = runCommand(channel, buf);
 
-            // Step 5: Assert returned value equals baselineSeq, not the latest sequence number
+            // Assert returned value equals baselineSeq, not the latest sequence number
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage integerMessage = (IntegerRedisMessage) msg;
             assertEquals(baselineSeq, integerMessage.value());
         } finally {
-            // Step 6: Clean up the dangling transaction
+            // Clean up the dangling transaction
             danglingTr.cancel();
             danglingTr.close();
         }

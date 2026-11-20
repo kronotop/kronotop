@@ -180,7 +180,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
 
-            // Exactly one index entry per document — the builder did not re-create online-written entries.
+            // Exactly one index entry per document, the builder did not re-create online-written entries.
             byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             byte[] end = ByteArrayUtil.strinc(begin);
             List<KeyValue> entries = tr.getRange(begin, end).asList().join();

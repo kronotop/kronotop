@@ -266,7 +266,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldHandleDeregisterOfNonExistentIndexGracefully() {
+    void shouldNotThrowWhenDeregisteringNonExistentIndex() {
         SingleFieldIndexDefinition nonExistentDef = SingleFieldIndexDefinition.create("non-existent", "non.existent", BsonType.STRING, false, IndexStatus.WAITING);
 
         // Initialize statistics to avoid NPE in deregister

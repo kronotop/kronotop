@@ -409,7 +409,6 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldMatchPartialValuesWithInOperatorWhenSomeTypesMismatch() {
         final String TEST_BUCKET_NAME = "test-bucket-in-partial-type-match";
 
-        // INT32 index on score field
         SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
@@ -488,7 +487,6 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
 
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Query for documents containing 1 or 3 in their values array
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'values': {'$in': [1, 3]}}");
         QueryOptions config = QueryOptions.builder().build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
@@ -626,7 +624,6 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldMatchDocumentsWithNinOperatorWhenDocumentTypesMismatch() {
         final String TEST_BUCKET_NAME = "test-bucket-nin-doc-type-mismatch";
 
-        // INT32 index on score field
         SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
@@ -641,7 +638,6 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
 
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Query to exclude INT32 values 50 and 100
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'score': {'$nin': [50, 100]}}");
         QueryOptions config = QueryOptions.builder().build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
@@ -794,7 +790,6 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldFallbackToFullScanWithMixedTypeNinQueryOnTypedIndex() {
         final String TEST_BUCKET_NAME = "test-bucket-nin-mixed-type-query";
 
-        // INT32 index on score field
         SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
@@ -913,9 +908,9 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         }
 
         // Should match:
-        // - Order1: has price 200 > 150 (INT32) ✓
+        // - Order1: has price 200 > 150 (INT32) - match
         // - Order2: price '150' is STRING, not matched
-        // - Order3: has price 300 > 150 (INT32) ✓
+        // - Order3: has price 300 > 150 (INT32) - match
         // - Order4: price 50 < 150
         assertEquals(2, actualResult.size());
         assertTrue(actualResult.stream().anyMatch(r -> r.contains("\"name\": \"Order1\"")));
@@ -1018,9 +1013,9 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         }
 
         // Should match:
-        // - Alice: has INT32 30 >= 25 ✓
+        // - Alice: has INT32 30 >= 25 - match
         // - Bob: only STRING values, not indexed
-        // - Charlie: has INT32 50, 60 >= 25 ✓
+        // - Charlie: has INT32 50, 60 >= 25 - match
         assertEquals(2, actualResult.size());
         assertTrue(actualResult.stream().anyMatch(r -> r.contains("\"name\": \"Alice\"")));
         assertTrue(actualResult.stream().anyMatch(r -> r.contains("\"name\": \"Charlie\"")));
@@ -1064,9 +1059,9 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         }
 
         // With FullScan, all matching documents found:
-        // - Order1: has qty 5 (INT32) ✓
-        // - Order2: has qty 'five' (STRING) ✓
-        // - Order3: has qty 15 (INT32) ✓
+        // - Order1: has qty 5 (INT32) - match
+        // - Order2: has qty 'five' (STRING) - match
+        // - Order3: has qty 15 (INT32) - match
         assertEquals(3, actualResult.size());
     }
 
@@ -1110,8 +1105,8 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // With FullScan, excludes documents matching $nin:
         // - Order1: qty 5 excluded
         // - Order2: qty 'ten' excluded
-        // - Order3: qty 15 included ✓
-        // - Order4: qty 20 included ✓
+        // - Order3: qty 15 included - match
+        // - Order4: qty 20 included - match
         assertEquals(2, actualResult.size());
         assertTrue(actualResult.stream().anyMatch(r -> r.contains("\"name\": \"Order3\"")));
         assertTrue(actualResult.stream().anyMatch(r -> r.contains("\"name\": \"Order4\"")));
@@ -1121,7 +1116,6 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldCombineTypeMismatchedIndexWithElemMatch() {
         final String TEST_BUCKET_NAME = "test-bucket-combined-type-mismatch";
 
-        // INT32 index on status field
         SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-index", "status", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex);
 
@@ -1150,9 +1144,9 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
 
         // Falls back to FullScan due to type mismatch on status
         // - Order1: status INT32 1 != 'active'
-        // - Order2: status 'active' ✓, price 150 > 100 ✓
+        // - Order2: status 'active', price 150 > 100 - match
         // - Order3: status INT32 1 != 'active'
-        // - Order4: status 'active' ✓, price 300 > 100 ✓
+        // - Order4: status 'active', price 300 > 100 - match
         assertEquals(2, actualResult.size());
         assertTrue(actualResult.stream().anyMatch(r -> r.contains("\"name\": \"Order2\"")));
         assertTrue(actualResult.stream().anyMatch(r -> r.contains("\"name\": \"Order4\"")));
@@ -1193,7 +1187,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // Outer condition uses index (name='Electronics')
         // Inner $elemMatch with STRING predicate matches only STRING prices
         // - Store1: Electronics, prices INT32 500, 800 - not matched (type mismatch)
-        // - Store2: Electronics, price STRING '600' > '500' ✓
+        // - Store2: Electronics, price STRING '600' > '500' - match
         // - Store3: Electronics, price INT32 300 - not matched (type mismatch)
         // - Store4: Clothing - filtered by outer condition
         assertEquals(1, actualResult.size());
@@ -1237,7 +1231,6 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
 
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Query for INT32 values >= 25
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'values': {'$elemMatch': {'$gte': 25}}}");
         QueryOptions config = QueryOptions.builder().build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
@@ -1251,9 +1244,9 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         }
 
         // Should match:
-        // - Alice: has INT32 30 >= 25 ✓ (null is skipped)
+        // - Alice: has INT32 30 >= 25 - match (null is skipped)
         // - Bob: only null and STRING, no INT32 values
-        // - Charlie: has INT32 50, 60 >= 25 ✓
+        // - Charlie: has INT32 50, 60 >= 25 - match
         assertEquals(2, actualResult.size());
         assertTrue(actualResult.stream().anyMatch(r -> r.contains("\"name\": \"Alice\"")));
         assertTrue(actualResult.stream().anyMatch(r -> r.contains("\"name\": \"Charlie\"")));
@@ -1277,7 +1270,6 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
 
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Query for items with INT32 quantity > 10
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'items': {'$elemMatch': {'quantity': {'$gt': 10}}}}");
         QueryOptions config = QueryOptions.builder().build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
@@ -1293,7 +1285,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // Index only contains INT32 quantities
         // - Order1: qty 5 (INT32) not > 10, qty 'ten' (STRING) not indexed
         // - Order2: only STRING quantities, not indexed
-        // - Order3: qty 20 (INT32) > 10 ✓
+        // - Order3: qty 20 (INT32) > 10 - match
         // - Order4: qty 3 (INT32) not > 10
         assertEquals(1, actualResult.size());
         assertTrue(actualResult.getFirst().contains("\"name\": \"Order3\""));
@@ -1359,9 +1351,9 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
             }
         }
 
-        // Mixed1: has scalar 30 >= 25 ✓
-        // Mixed2: has scalar 60 >= 25 ✓
-        // OnlyScalars: has 100, 200 >= 25 ✓
+        // Mixed1: has scalar 30 >= 25 - match
+        // Mixed2: has scalar 60 >= 25 - match
+        // OnlyScalars: has 100, 200 >= 25 - match
         // OnlyDocuments: no scalars
         assertEquals(3, result1.size());
         assertTrue(result1.stream().anyMatch(r -> r.contains("\"name\": \"Mixed1\"")));
@@ -1381,7 +1373,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         }
 
         // Mixed1: doc has value=20 < 50
-        // Mixed2: docs have value=50 and value=70 >= 50 ✓
+        // Mixed2: docs have value=50 and value=70 >= 50 - match
         // OnlyScalars: no documents
         // OnlyDocuments: docs have value=5, value=15 < 50
         assertEquals(1, result2.size());
@@ -1440,7 +1432,6 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // Test 1: $elemMatch with scalar predicate - should use INT32 index on scalar elements
         PlanWithParams planWithParams1 = createPlanWithParams(metadata, "{'data': {'$elemMatch': {'$gte': 25}}}");
 
-        // Verify plan uses IndexScanNode with the multiKey index
         assertInstanceOf(IndexScanNode.class, planWithParams1.plan(), "Root should be IndexScanNode for multiKey indexed $elemMatch");
         IndexScanNode indexScanNode = (IndexScanNode) planWithParams1.plan();
         assertEquals(dataIndex.id(), indexScanNode.getIndexDefinition().id(), "Should use the multiKey data index");
@@ -1458,9 +1449,9 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         }
 
         // Index only contains INT32 scalars, documents in array are ignored
-        // Mixed1: has scalar 30 >= 25 ✓
-        // Mixed2: has scalar 60 >= 25 ✓
-        // OnlyScalars: has 100, 200 >= 25 ✓
+        // Mixed1: has scalar 30 >= 25 - match
+        // Mixed2: has scalar 60 >= 25 - match
+        // OnlyScalars: has 100, 200 >= 25 - match
         // OnlyDocuments: no INT32 scalars indexed
         assertEquals(3, result1.size());
         assertTrue(result1.stream().anyMatch(r -> r.contains("\"name\": \"Mixed1\"")));
@@ -1483,7 +1474,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         }
 
         // Mixed1: doc has value=20 < 50
-        // Mixed2: docs have value=50 and value=70 >= 50 ✓
+        // Mixed2: docs have value=50 and value=70 >= 50 - match
         // OnlyScalars: no documents
         // OnlyDocuments: docs have value=5, value=15 < 50
         assertEquals(1, result2.size());
@@ -3001,7 +2992,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldMatchOrWithDifferentNumericWideningOnTwoFields() {
-        // Behavior: $or where both branches use numeric widening on different fields — INT64 predicate
+        // Behavior: $or where both branches use numeric widening on different fields, INT64 predicate
         // on INT32 field and DECIMAL128 predicate on DOUBLE field. Results are unioned.
         final String TEST_BUCKET_NAME = "test-bucket-or-two-numeric-widening";
 

@@ -295,8 +295,8 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
     class EdgeCaseTests {
 
         @Test
-        @DisplayName("Should handle single child AND/OR gracefully")
-        void shouldHandleSingleChildAndOrGracefully() {
+        @DisplayName("Should handle single child AND/OR")
+        void shouldHandleSingleChildAndOr() {
             PhysicalFilter filter = createFilter("name", Operator.EQ, "john");
             PhysicalAnd singleAnd = createAnd(filter);
             PhysicalOr singleOr = createOr(filter);

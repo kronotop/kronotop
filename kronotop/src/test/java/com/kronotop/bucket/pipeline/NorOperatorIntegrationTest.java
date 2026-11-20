@@ -64,7 +64,7 @@ class NorOperatorIntegrationTest extends BasePipelineTest {
 
             // Alice: price=1.99 OR qty<20? -> 1.99 matches, NOR = false
             // Bob: price=2.99 OR qty=15<20? -> qty matches, NOR = false
-            // Charlie: price=3.99 OR qty=30<20? -> neither matches, NOR = true ✓
+            // Charlie: price=3.99 OR qty=30<20? -> neither matches, NOR = true
             // Diana: price=0.99 OR qty=10<20? -> qty matches, NOR = false
             assertEquals(1, results.size(), "Should return 1 document");
             assertEquals(Set.of("Charlie"), extractNamesFromResults(results));
@@ -191,7 +191,7 @@ class NorOperatorIntegrationTest extends BasePipelineTest {
 
             // Alice: food -> NOR fails, excluded
             // Bob: drink -> NOR fails, excluded
-            // Charlie: snack, price=2>1 -> NOR passes, AND passes ✓
+            // Charlie: snack, price=2>1 -> NOR passes, AND passes
             // Diana: food -> NOR fails, excluded
             assertEquals(1, results.size(), "Should return 1 document");
             assertEquals(Set.of("Charlie"), extractNamesFromResults(results));
@@ -260,9 +260,9 @@ class NorOperatorIntegrationTest extends BasePipelineTest {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Alice: status='active' matches first condition, NOR = false
-            // Bob: missing status, doesn't match either condition, NOR = true ✓
+            // Bob: missing status, doesn't match either condition, NOR = true
             // Charlie: status='inactive' matches second condition, NOR = false
-            // Diana: missing status, doesn't match either condition, NOR = true ✓
+            // Diana: missing status, doesn't match either condition, NOR = true
             assertEquals(2, results.size(), "Should return documents with missing field");
             assertEquals(Set.of("Bob", "Diana"), extractNamesFromResults(results));
         }
@@ -297,7 +297,7 @@ class NorOperatorIntegrationTest extends BasePipelineTest {
 
             // Alice: status='active' matches first condition, NOR = false
             // Bob: status=null matches second condition, NOR = false
-            // Charlie: status='inactive' doesn't match either, NOR = true ✓
+            // Charlie: status='inactive' doesn't match either, NOR = true
             // Diana: status=null matches second condition, NOR = false
             assertEquals(1, results.size(), "Should return documents not matching any condition");
             assertEquals(Set.of("Charlie"), extractNamesFromResults(results));
@@ -333,8 +333,8 @@ class NorOperatorIntegrationTest extends BasePipelineTest {
 
             // Alice: admin -> NOR fails
             // Bob: user -> NOR fails
-            // Charlie: guest (NOR passes), level=1 (OR passes) ✓
-            // Diana: guest (NOR passes), level=3 (OR passes) ✓
+            // Charlie: guest (NOR passes), level=1 (OR passes)
+            // Diana: guest (NOR passes), level=3 (OR passes)
             assertEquals(2, results.size(), "Should return guests with level 1 or 3");
             assertEquals(Set.of("Charlie", "Diana"), extractNamesFromResults(results));
         }
@@ -371,7 +371,7 @@ class NorOperatorIntegrationTest extends BasePipelineTest {
             // Alice: has email AND phone -> NOR fails
             // Bob: has email -> NOR fails
             // Charlie: has phone -> NOR fails
-            // Diana: has neither -> NOR passes ✓
+            // Diana: has neither -> NOR passes
             assertEquals(1, results.size(), "Should return documents without email or phone");
             assertEquals(Set.of("Diana"), extractNamesFromResults(results));
         }
@@ -408,7 +408,7 @@ class NorOperatorIntegrationTest extends BasePipelineTest {
             // Alice: red in [red,blue] -> NOR fails
             // Bob: blue in [red,blue] -> NOR fails
             // Charlie: green in [green] -> NOR fails
-            // Diana: yellow not in any -> NOR passes ✓
+            // Diana: yellow not in any -> NOR passes
             assertEquals(1, results.size(), "Should return documents with color not in any list");
             assertEquals(Set.of("Diana"), extractNamesFromResults(results));
         }
@@ -443,8 +443,8 @@ class NorOperatorIntegrationTest extends BasePipelineTest {
         try (Transaction tr = createTransaction()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Alice: 85 in list, $nin = false, NOR(false) = true ✓
-            // Bob: 90 in list, $nin = false, NOR(false) = true ✓
+            // Alice: 85 in list, $nin = false, NOR(false) = true
+            // Bob: 90 in list, $nin = false, NOR(false) = true
             // Charlie: 75 not in list, $nin = true, NOR(true) = false
             // Diana: 95 not in list, $nin = true, NOR(true) = false
             assertEquals(2, results.size(), "Should return documents with score in list");

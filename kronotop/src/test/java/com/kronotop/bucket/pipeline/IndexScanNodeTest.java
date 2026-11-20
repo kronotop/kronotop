@@ -873,7 +873,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         );
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Query with INT32 literal (20) against DOUBLE index — should match 20.0
+        // Query with INT32 literal (20) against DOUBLE index, should match 20.0
         List<String> results = runQueryOnBucket(metadata, "{'price': 20}");
 
         assertEquals(List.of("{\"price\": 20.0, \"name\": \"Bob\"}"), results);

@@ -179,7 +179,6 @@ public class KronotopTestInstance extends KronotopInstance {
     }
 
     private void authenticateIfRequired() {
-        // Authenticate the connection - channel
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         boolean authRequired = config.hasPath("auth.users") || config.hasPath("auth.requirepass");
         if (authRequired) {
@@ -246,7 +245,6 @@ public class KronotopTestInstance extends KronotopInstance {
             return;
         }
 
-        // Create namespace tombstones directory
         List<String> path = KronotopDirectory.
                 kronotop().
                 cluster(context.getClusterName()).

@@ -439,7 +439,7 @@ class CollectStalePrefixesTaskTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldStopGracefullyOnShutdown() {
+    void shouldStopOnShutdown() {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-subspace");
 
         // Register stale prefixes

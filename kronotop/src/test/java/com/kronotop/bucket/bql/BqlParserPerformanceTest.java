@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Performance and load tests for BQL parser to validate scalability and performance characteristics.
- * These tests ensure the parser can handle high-volume operations and complex queries efficiently.
+ * These tests check that the parser handles high-volume operations and complex queries within time limits.
  */
 class BqlParserPerformanceTest {
 
@@ -109,9 +109,9 @@ class BqlParserPerformanceTest {
     }
 
     @Test
-    @DisplayName("Large query with many conditions should parse efficiently")
+    @DisplayName("Large query with many conditions should parse within the time limit")
     @Disabled
-    void shouldParseLargeQueryEfficiently() {
+    void shouldParseLargeQueryWithinTimeLimit() {
         // Generate a query with 50 conditions
         StringBuilder largeQueryBuilder = new StringBuilder();
         largeQueryBuilder.append("{ \"$and\": [");
@@ -290,9 +290,9 @@ class BqlParserPerformanceTest {
     }
 
     @Test
-    @DisplayName("Concurrent parsing should work correctly and efficiently")
+    @DisplayName("Concurrent parsing should return results within the time limit")
     @Disabled
-    void shouldHandleConcurrentParsingCorrectlyAndEfficiently() throws InterruptedException, ExecutionException {
+    void shouldParseConcurrentlyWithinTimeLimit() throws InterruptedException, ExecutionException {
         String[] testQueries = {
                 "{ \"status\": \"active\" }",
                 "{ \"$and\": [ { \"category\": \"electronics\" }, { \"price\": { \"$lt\": 1000 } } ] }",
@@ -403,9 +403,9 @@ class BqlParserPerformanceTest {
     }
 
     @Test
-    @DisplayName("Parser should handle repeated parsing of same query efficiently")
+    @DisplayName("Repeated parsing of the same query should take consistent time")
     @Disabled
-    void shouldParseRepeatedQueriesEfficiently() {
+    void shouldParseRepeatedQueriesWithConsistentTiming() {
         String repeatedQuery = """
                 {
                   "$and": [

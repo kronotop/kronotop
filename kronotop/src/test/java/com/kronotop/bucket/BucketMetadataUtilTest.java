@@ -111,7 +111,6 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getTransactionManager().create()) {
             long version = BucketMetadataUtil.readVersion(tr, metadata.subspace());
-            // Increased by one
             assertEquals(metadata.version() + 1, version);
         }
     }
@@ -327,12 +326,10 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             assertTrue(BucketMetadataUtil.isRemoved(tr, metadata.subspace()));
 
-            // Verify that setRemoved increases the version
             long newVersion = BucketMetadataUtil.readVersion(tr, metadata.subspace());
             assertEquals(initialVersion + 1, newVersion);
         }
 
-        // Verify that setRemoved publishes BucketMetadataUpdatedEvent
         ConsumerConfig cfg = new ConsumerConfig(
                 UUID.randomUUID().toString(),
                 JournalName.BUCKET_EVENTS.getValue(),
@@ -359,7 +356,6 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Session session = getSession();
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
-        // Mark the bucket as removed
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.setRemoved(tx, metadata);
@@ -370,7 +366,6 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(context::now, 0);
         cleanup.run();
 
-        // Open the removed bucket using forceOpen() and verify removed flag
         try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata openedMetadata = BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertTrue(openedMetadata.removed());
@@ -470,7 +465,6 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Session session = getSession();
         BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
-        // Purge the bucket
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.purge(tx, TEST_NAMESPACE, TEST_BUCKET);
@@ -479,7 +473,6 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
 
         context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, TEST_BUCKET);
 
-        // Verify bucket no longer exists after invalidating the cache.
         try (Transaction tr = context.getTransactionManager().create()) {
             NoSuchBucketException exception = assertThrows(NoSuchBucketException.class, () ->
                     BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET));
@@ -517,7 +510,6 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Session session = getSession();
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
-        // Add a vector index to the bucket
         String vectorName = VectorIndexNameGenerator.generate("embedding", 3, DistanceFunction.COSINE);
         VectorIndexDefinition vectorDef = VectorIndexDefinition.create(vectorName, "embedding", 3, DistanceFunction.COSINE, IndexStatus.WAITING);
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -531,7 +523,6 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
             metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
         }
 
-        // Try to expand to multiple shards — should fail
         BucketMetadata finalMetadata = metadata;
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);

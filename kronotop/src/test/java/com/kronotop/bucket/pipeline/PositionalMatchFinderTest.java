@@ -1291,7 +1291,7 @@ class PositionalMatchFinderTest {
 
         @Test
         void shouldCombineAllWithOtherPredicates() {
-            // Behavior: $all combined with $eq via $and — both predicates must match the same element.
+            // Behavior: $all combined with $eq via $and, both predicates must match the same element.
             BsonDocument doc = new BsonDocument()
                     .append("items", new BsonArray(List.of(
                             new BsonDocument().append("name", new BsonString("A")).append("status", new BsonString("active")),
@@ -1321,7 +1321,7 @@ class PositionalMatchFinderTest {
 
         @Test
         void shouldThrowWhenSizeIsOnlyPredicateOnPositionalArray() {
-            // Behavior: $size alone cannot identify a specific element — throws IllegalArgumentException.
+            // Behavior: $size alone cannot identify a specific element, throws IllegalArgumentException.
             BsonDocument doc = new BsonDocument()
                     .append("tags", new BsonArray(List.of(
                             new BsonString("java"),

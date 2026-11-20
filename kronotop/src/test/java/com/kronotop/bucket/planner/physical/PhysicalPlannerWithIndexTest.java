@@ -30,7 +30,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Comprehensive test suite for PhysicalPlanner with index scenarios.
+ * Tests for PhysicalPlanner with indexes.
  * Tests PhysicalIndexScan usage with all operators and combinations.
  */
 class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
@@ -886,8 +886,8 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
     class PerformanceAndEdgeCases {
 
         @Test
-        @DisplayName("Multiple indexes should all be utilized in complex query")
-        void shouldUtilizeAllMultipleIndexesInComplexQuery() {
+        @DisplayName("Multiple indexes should all be used in complex query")
+        void shouldUseAllIndexesInComplexQuery() {
             createIndexes(
                     SingleFieldIndexDefinition.create("user-index", "user_id", BsonType.STRING, false, IndexStatus.WAITING),
                     SingleFieldIndexDefinition.create("timestamp-index", "timestamp", BsonType.INT64, false, IndexStatus.WAITING),

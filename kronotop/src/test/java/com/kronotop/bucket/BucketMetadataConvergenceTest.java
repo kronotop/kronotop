@@ -65,11 +65,9 @@ class BucketMetadataConvergenceTest extends BaseBucketHandlerTest {
         SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(indexDefinition);
 
-        // Get updated metadata
         BucketMetadata updatedMetadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
         assertTrue(updatedMetadata.version() > initialVersion);
 
-        // Await should succeed with the new version
         assertDoesNotThrow(() -> BucketMetadataConvergence.await(context, TEST_NAMESPACE, TEST_BUCKET));
     }
 

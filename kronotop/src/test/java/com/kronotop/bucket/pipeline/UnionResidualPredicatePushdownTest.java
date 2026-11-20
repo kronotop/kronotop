@@ -51,7 +51,7 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
     void shouldPushResidualPredicateIntoUnionChildren() {
         // Behavior: When $in on an indexed field is combined with $and and a non-indexed predicate,
         // the plan should be a UnionNode whose children each have a TransformWithResidualPredicateNode
-        // chained — not a TransformWithResidualPredicateNode after the union itself.
+        // chained, not a TransformWithResidualPredicateNode after the union itself.
         final String TEST_BUCKET_NAME = "test-pushdown-plan-structure";
 
         SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create(
@@ -306,7 +306,7 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
         );
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Both status and level are non-indexed — two residual predicates
+        // Both status and level are non-indexed, two residual predicates
         PlanWithParams planWithParams = createPlanWithParams(metadata,
                 "{'$and': [{'role': {'$in': ['admin', 'editor']}}, {'status': 'active'}, {'level': 3}]}");
         assertInstanceOf(UnionNode.class, planWithParams.plan());

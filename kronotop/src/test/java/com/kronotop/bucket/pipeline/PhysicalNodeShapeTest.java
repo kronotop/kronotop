@@ -1990,7 +1990,7 @@ class PhysicalNodeShapeTest {
 
     @Test
     void shouldComputeForBindingSkipCompoundIndexScanPrefix() {
-        // Behavior: compute() uses NODE_COMPOUND_INDEX_SCAN, computeForBinding() uses OP_AND — hashes differ
+        // Behavior: compute() uses NODE_COMPOUND_INDEX_SCAN, computeForBinding() uses OP_AND, hashes differ
         PhysicalFilter filterA = filter(Operator.EQ, "name", new StringVal("john"));
         PhysicalFilter filterB = filter(Operator.EQ, "age", new Int32Val(25));
 

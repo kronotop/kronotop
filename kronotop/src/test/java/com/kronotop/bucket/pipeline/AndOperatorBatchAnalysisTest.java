@@ -42,16 +42,13 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
         // Behavior: AND query with 50 matching documents and batch=2 returns all documents without duplicates.
         final String TEST_BUCKET_NAME = "test-bucket-intersection-50-docs";
 
-        // Create indexes for price and quantity
         SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
         SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
-        // Generate and insert 50 documents
         List<byte[]> documents = generateTestDocuments();
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Query: price > 25 AND quantity > 150 with batch=2
         String query = "{ 'price': { '$gt': 25 }, 'quantity': { '$gt': 150 } }";
         PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions config = QueryOptions.builder().batch(2).build();
@@ -66,22 +63,17 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
             try (Transaction tr = createTransaction()) {
                 List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-                // Should return at most 2 results due to batch size
                 assertTrue(results.size() <= 2, "Should return at most 2 results due to batch size");
 
-                // Process each document in this batch
                 for (ByteBuffer buffer : results) {
                     String json = TestUtil.bsonToJsonWithoutId(buffer);
-                    // Extract document values for validation
                     int price = extractIntValue(json, "price");
                     int quantity = extractIntValue(json, "quantity");
                     int id = extractIntValue(json, "id");
 
-                    // Verify document matches query criteria
                     assertTrue(price > 25, "Document price (" + price + ") should be > 25");
                     assertTrue(quantity > 150, "Document quantity (" + quantity + ") should be > 150");
 
-                    // Ensure no duplicate documents across batches
                     assertFalse(seenDocumentIds.contains(id), "Document with id " + id + " already seen in previous batch");
                     seenDocumentIds.add(id);
 
@@ -98,7 +90,6 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
         assertEquals(50, totalDocumentsReturned,
                 "Expected all 50 documents to match criteria (price > 25 AND quantity > 150)");
 
-        // Verify uniqueness
         assertEquals(totalDocumentsReturned, seenDocumentIds.size(),
                 "All returned documents should be unique");
     }
@@ -109,16 +100,13 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
         // Behavior: AND query with 350 matching documents and batch=2 returns all documents without duplicates.
         final String TEST_BUCKET_NAME = "test-bucket-intersection-350-docs";
 
-        // Create indexes for price and quantity
         SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
         SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
-        // Generate and insert 350 documents
         List<byte[]> documents = generate350TestDocuments();
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Query: price > 25 AND quantity > 150 with batch=2
         String query = "{ 'price': { '$gt': 25 }, 'quantity': { '$gt': 150 } }";
         PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions config = QueryOptions.builder().batch(2).build();
@@ -133,22 +121,17 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
             try (Transaction tr = createTransaction()) {
                 List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-                // Should return at most 2 results due to batch size
                 assertTrue(results.size() <= 2, "Should return at most 2 results due to batch size");
 
-                // Process each document in this batch
                 for (ByteBuffer buffer : results) {
                     String json = TestUtil.bsonToJsonWithoutId(buffer);
-                    // Extract document values for validation
                     int price = extractIntValue(json, "price");
                     int quantity = extractIntValue(json, "quantity");
                     int id = extractIntValue(json, "id");
 
-                    // Verify document matches query criteria
                     assertTrue(price > 25, "Document price (" + price + ") should be > 25");
                     assertTrue(quantity > 150, "Document quantity (" + quantity + ") should be > 150");
 
-                    // Ensure no duplicate documents across batches
                     assertFalse(seenDocumentIds.contains(id), "Document with id " + id + " already seen in previous batch");
                     seenDocumentIds.add(id);
 
@@ -165,7 +148,6 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
         assertEquals(350, totalDocumentsReturned,
                 "Expected all 350 documents to match criteria (price > 25 AND quantity > 150)");
 
-        // Verify uniqueness
         assertEquals(totalDocumentsReturned, seenDocumentIds.size(),
                 "All returned documents should be unique");
     }
@@ -225,12 +207,10 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
             if (startIndex != -1) {
                 startIndex += pattern.length();
 
-                // Skip any whitespace
                 while (startIndex < json.length() && Character.isWhitespace(json.charAt(startIndex))) {
                     startIndex++;
                 }
 
-                // Find the end of the number
                 int endIndex = startIndex;
                 while (endIndex < json.length() &&
                         (Character.isDigit(json.charAt(endIndex)) || json.charAt(endIndex) == '-')) {

@@ -94,7 +94,6 @@ class PrimaryIndexDescSortingTest extends BasePipelineTest {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             for (ByteBuffer buffer : results) {
                 String json = TestUtil.bsonToJsonWithoutId(buffer);
-                // Extract seq value
                 int seq = Integer.parseInt(json.replaceAll(".*\"seq\": (\\d+).*", "$1"));
                 actualSeqs.add(seq);
             }
@@ -115,7 +114,6 @@ class PrimaryIndexDescSortingTest extends BasePipelineTest {
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET);
 
-        // Insert 10 documents
         List<byte[]> documents = new ArrayList<>();
         for (int i = 1; i <= 10; i++) {
             documents.add(BSONUtil.jsonToDocumentThenBytes(String.format("{'name': 'doc%d', 'seq': %d}", i, i)));
@@ -257,7 +255,6 @@ class PrimaryIndexDescSortingTest extends BasePipelineTest {
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, query, "_id");
 
-        // Use batch=3 with ASC
         QueryOptions options = QueryOptions.builder()
                 .sortByField("_id")
                 .sortDirection(SortDirection.ASC)

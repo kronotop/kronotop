@@ -638,7 +638,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         // searchAll returns merged results from both the flushed on-disk and the new on-heap index.
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
 
-        // Step 1: Create an on-heap index with vectors and flush it to disk.
+        // Create an on-heap index with vectors and flush it to disk.
         OnHeapVectorGraphIndex firstIndex = openOnHeap();
         firstIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
         firstIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
@@ -649,12 +649,12 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         assertTrue(group.getOnHeapIndexes().isEmpty());
         assertEquals(1, group.getOnDiskIndexes().size());
 
-        // Step 2: Add a new on-heap index with different vectors.
+        // Add a new on-heap index with different vectors.
         OnHeapVectorGraphIndex secondIndex = rotateOnHeap(firstIndex);
         secondIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
         secondIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
-        // Step 3: Search across both sources.
+        // Search across both sources.
         List<MergedNodeScore> results = group.searchAll(new float[]{1.0f, 0.0f, 0.0f}, 4, 0.0f, 1.0f);
         assertEquals(4, results.size());
 

@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Edge case and boundary testing for BQL parser to validate extreme values and boundary conditions.
- * These tests ensure the parser handles edge cases gracefully and provides meaningful error messages.
+ * These tests check that the parser handles edge cases and returns meaningful error messages.
  */
 class BqlParserEdgeCaseTest {
 
@@ -271,8 +271,8 @@ class BqlParserEdgeCaseTest {
     }
 
     @Test
-    @DisplayName("Extreme array sizes in queries should be handled efficiently")
-    void shouldHandleExtremeArraySizesEfficiently() {
+    @DisplayName("Extreme array sizes in queries should parse within the time limit")
+    void shouldParseExtremeArraySizesWithinTimeLimit() {
         // Test with large array in $in operator (1000 elements)
         StringBuilder largeArray = new StringBuilder();
         largeArray.append("{ \"selector\": { \"$in\": [");

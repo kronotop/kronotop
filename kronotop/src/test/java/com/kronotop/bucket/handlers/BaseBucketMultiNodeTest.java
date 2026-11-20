@@ -64,13 +64,12 @@ abstract class BaseBucketMultiNodeTest extends BaseClusterTest {
     @Override
     @BeforeEach
     public void setup() {
-        // Do not call super.setup() — we handle initialization manually.
+        // Do not call super.setup(), we handle initialization manually.
         node1 = addNewInstanceWithoutInit();
         node2 = addNewInstanceWithoutInit();
 
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
-        // Initialize the cluster on node1
         ByteBuf buf = Unpooled.buffer();
         cmd.initializeCluster(NUM_SHARDS).encode(buf);
         Object raw = runCommand(node1.getChannel(), buf);
@@ -94,11 +93,9 @@ abstract class BaseBucketMultiNodeTest extends BaseClusterTest {
             setRoute(node1, shardId, node2Id);
         }
 
-        // Wait for owned shards to become operable
         await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsOperable(node1, BucketService.NAME, List.of(0, 1, 2, 3)));
         await().atMost(5, TimeUnit.SECONDS).until(() -> areShardsOperable(node2, BucketService.NAME, List.of(4, 5, 6)));
 
-        // Set all shards to READWRITE
         setAllShardsReadWrite(node1);
 
         List<Integer> bucketShardIds = node1.getContext().getShardRegistry().getShardIds();

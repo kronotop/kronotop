@@ -49,7 +49,6 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
 
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // $nin: match documents where role is NOT in ['admin', 'editor']
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'role': {'$nin': ['admin', 'editor']}}");
         assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
@@ -173,7 +172,6 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
 
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Exclude 'admin', 'editor', and 20
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'role': {'$nin': ['admin', 'editor', 20]}}");
         assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
@@ -209,7 +207,6 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
 
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Single value $nin excludes only 'admin'
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'role': {'$nin': ['admin']}}");
         assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
@@ -387,7 +384,6 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
 
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Exclude null and 'admin'
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'role': {'$nin': [null, 'admin']}}");
         assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
@@ -423,7 +419,6 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
 
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // role NOT IN ['admin', 'editor'] AND status = 'active'
         PlanWithParams planWithParams = createPlanWithParams(metadata,
                 "{'$and': [{'role': {'$nin': ['admin', 'editor']}}, {'status': 'active'}]}");
         assertInstanceOf(FullScanNode.class, planWithParams.plan());
@@ -461,7 +456,6 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
 
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // $nin on indexed field combined with $and
         PlanWithParams planWithParams = createPlanWithParams(metadata,
                 "{'$and': [{'role': {'$nin': ['admin', 'editor']}}, {'status': 'active'}]}");
         assertInstanceOf(IndexScanNode.class, planWithParams.plan());
@@ -540,7 +534,6 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
 
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // $or: role not in [admin, editor] OR status = active
         PlanWithParams planWithParams = createPlanWithParams(metadata,
                 "{'$or': [{'role': {'$nin': ['admin', 'editor']}}, {'status': 'active'}]}");
         assertInstanceOf(UnionNode.class, planWithParams.plan());
@@ -614,7 +607,6 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
 
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Exclude ages 25 and 35
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$nin': [25, 35]}}");
         assertInstanceOf(IndexScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
@@ -693,7 +685,6 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
 
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Query for documents where tags array does NOT contain 'python' or 'rust'
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'tags': {'$nin': ['python', 'rust']}}");
         assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
@@ -865,7 +856,7 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
     }
 
     // Multi-key index tests (indexes on array fields)
-    // NOTE: $nin on multi-key indexes falls back to FullScan because NE on multi-key indexes
+    // $nin on multi-key indexes falls back to FullScan because NE on multi-key indexes
     // has incorrect semantics (matches documents where AT LEAST ONE element doesn't match,
     // but $nin requires documents where NO element matches).
 

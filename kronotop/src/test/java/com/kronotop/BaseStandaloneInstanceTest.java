@@ -118,14 +118,12 @@ public class BaseStandaloneInstanceTest extends BaseTest {
     }
 
     protected void createBucket(EmbeddedChannel channel, String namespace, String bucket) {
-        // Switch to the target namespace
         KronotopCommandBuilder<String, String> nsCmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf useBuf = Unpooled.buffer();
         nsCmd.namespaceUse(namespace).encode(useBuf);
         Object useResponse = runCommand(channel, useBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, useResponse);
 
-        // Create the bucket
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         ByteBuf buf = Unpooled.buffer();
         cmd.create(bucket, BucketCreateArgs.Builder.shards(List.of(TEST_SHARD_ID)).ifNotExists()).encode(buf);

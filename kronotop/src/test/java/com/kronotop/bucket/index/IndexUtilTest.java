@@ -193,7 +193,6 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
     void shouldThrowExceptionWhenCreatingSameIndexTwice() {
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
-        // Create index first time
         assertDoesNotThrow(() -> {
             try (Transaction tr = context.getTransactionManager().create()) {
                 SingleFieldIndexUtil.create(tr, metadata.subspace(), definition);
@@ -201,7 +200,6 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
             }
         });
 
-        // Attempt to create the same index again should throw exception
         KronotopException exception = assertThrows(KronotopException.class, () -> {
             try (Transaction tr = context.getTransactionManager().create()) {
                 SingleFieldIndexUtil.create(tr, metadata.subspace(), definition);
@@ -221,7 +219,6 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         BucketMetadata firstBucketMetadata = getBucketMetadata(FIRST_TEST_BUCKET);
         BucketMetadata secondBucketMetadata = getBucketMetadata(SECOND_TEST_BUCKET);
 
-        // Create the same index on the first bucket
         DirectorySubspace firstIndexSubspace = assertDoesNotThrow(() -> {
             try (Transaction tr = context.getTransactionManager().create()) {
                 DirectorySubspace subspace = SingleFieldIndexUtil.create(tr, firstBucketMetadata.subspace(), definition);
@@ -231,7 +228,6 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         });
         assertNotNull(firstIndexSubspace);
 
-        // Create same index on second bucket - should succeed
         DirectorySubspace secondIndexSubspace = assertDoesNotThrow(() -> {
             try (Transaction tr = context.getTransactionManager().create()) {
                 DirectorySubspace subspace = SingleFieldIndexUtil.create(tr, secondBucketMetadata.subspace(), definition);
@@ -241,7 +237,6 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         });
         assertNotNull(secondIndexSubspace);
 
-        // Verify both indexes exist and have the same definition
         try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexDefinition firstIndexDefinition = SingleFieldIndexUtil.loadIndexDefinition(tr, firstIndexSubspace);
             SingleFieldIndexDefinition secondIndexDefinition = SingleFieldIndexUtil.loadIndexDefinition(tr, secondIndexSubspace);
@@ -251,7 +246,6 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
             assertThat(firstIndexDefinition).usingRecursiveComparison().isEqualTo(secondIndexDefinition);
         }
 
-        // Verify indexes appear in their respective bucket index lists
         try (Transaction tr = context.getTransactionManager().create()) {
             List<String> firstBucketIndexes = IndexUtil.list(tr, firstBucketMetadata.subspace());
             List<String> secondBucketIndexes = IndexUtil.list(tr, secondBucketMetadata.subspace());
@@ -271,25 +265,21 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         List<SingleFieldIndexDefinition> createdIndexes = new ArrayList<>();
         Set<Long> uniqueIds = new HashSet<>();
 
-        // Create multiple IndexDefinition instances with identical parameters
         for (int i = 0; i < numberOfIndexes; i++) {
             SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(indexName, selector, bsonType, false, IndexStatus.WAITING);
             createdIndexes.add(indexDefinition);
             uniqueIds.add(indexDefinition.id());
         }
 
-        // Verify all indexes have the same name, selector, and bsonType
         for (SingleFieldIndexDefinition indexDefinition : createdIndexes) {
             assertEquals(indexName, indexDefinition.name());
             assertEquals(selector, indexDefinition.selector());
             assertEquals(bsonType, indexDefinition.bsonType());
         }
 
-        // Verify all IDs are unique
         assertEquals(numberOfIndexes, uniqueIds.size(),
                 "All IndexDefinition instances should have unique IDs despite having identical parameters");
 
-        // Verify no two indexes have the same ID
         for (int i = 0; i < createdIndexes.size(); i++) {
             for (int j = i + 1; j < createdIndexes.size(); j++) {
                 assertNotEquals(createdIndexes.get(i).id(), createdIndexes.get(j).id(),
@@ -317,7 +307,6 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         createIndexThenWaitForReadiness(definition);
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
-        // Verify index is READY before drop
         try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
             SingleFieldIndexDefinition currentDef = SingleFieldIndexUtil.loadIndexDefinition(tr, indexSubspace);
@@ -326,14 +315,12 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
         waitUntilIndexTasksCleared(metadata, definition.name());
 
-        // Drop the index
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.drop(tx, metadata, definition.name());
             tr.commit().join();
         }
 
-        // Verify index status is now DROPPED
         try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
             SingleFieldIndexDefinition droppedDef = SingleFieldIndexUtil.loadIndexDefinition(tr, indexSubspace);
@@ -361,21 +348,18 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
         waitUntilIndexTasksCleared(metadata, definition.name());
 
-        // Drop the index first time
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.drop(tx, metadata, definition.name());
             tr.commit().join();
         }
 
-        // Verify status is DROPPED
         try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
             SingleFieldIndexDefinition droppedDef = SingleFieldIndexUtil.loadIndexDefinition(tr, indexSubspace);
             assertEquals(IndexStatus.DROPPED, droppedDef.status());
         }
 
-        // Drop again should throw exception
         KronotopException exception = assertThrows(KronotopException.class, () -> {
             try (Transaction tr = context.getTransactionManager().create()) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
@@ -385,7 +369,6 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         });
         assertEquals("Index is already in the 'DROPPED' status", exception.getMessage());
 
-        // Verify status is still DROPPED
         try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
             SingleFieldIndexDefinition droppedDef = SingleFieldIndexUtil.loadIndexDefinition(tr, indexSubspace);

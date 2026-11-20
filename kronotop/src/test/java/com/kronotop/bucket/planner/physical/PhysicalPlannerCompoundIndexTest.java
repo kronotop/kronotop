@@ -594,7 +594,7 @@ class PhysicalPlannerCompoundIndexTest extends BasePhysicalPlannerTest {
 
         PhysicalNode result = planQuery("{ 'a': { '$numberLong': '42' }, 'b': 1.5 }");
 
-        // 'a' field has INT64 predicate vs DOUBLE index — lossy, breaks compound prefix
+        // 'a' field has INT64 predicate vs DOUBLE index, lossy, breaks compound prefix
         assertFalse(result instanceof PhysicalCompoundIndexScan);
     }
 

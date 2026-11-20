@@ -30,11 +30,10 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Comprehensive integration tests for the optimizer, testing all optimization rules
- * working together in complex scenarios.
+ * Integration tests that run all optimizer rules together on complex queries.
  */
-@DisplayName("Comprehensive Optimizer Integration Tests")
-public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
+@DisplayName("Optimizer Combined Rules Integration Tests")
+public class OptimizerCombinedRulesIntegrationTest extends BaseOptimizerTest {
 
     private int countFieldConditions(PhysicalNode node, String field) {
         if (node instanceof PhysicalFilter filter && field.equals(filter.selector())) {

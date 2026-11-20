@@ -117,7 +117,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             assertInstanceOf(ArrayRedisMessage.class, response);
         }
 
-        // QUERY "{}" on node1 — should return documents from both shards
+        // QUERY "{}" on node1, should return documents from both shards
         {
             BucketCommandBuilder<String, String> queryCmd = new BucketCommandBuilder<>(StringCodec.UTF8);
             ByteBuf buf = Unpooled.buffer();
@@ -220,7 +220,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             assertInstanceOf(ArrayRedisMessage.class, response);
         }
 
-        // UPDATE Alice on node1 — local update, shard 0 stays
+        // UPDATE Alice on node1, local update, shard 0 stays
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.update(bucketName, "{\"name\": \"Alice\"}", "{\"$set\": {\"age\": 26}}").encode(buf);
@@ -232,7 +232,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             assertEquals(1, updatedIds.size(), "Expected 1 object updated (Alice)");
         }
 
-        // UPDATE Bob on node1 — Bob lives on shard 4 (node2), should migrate to shard 0 (node1)
+        // UPDATE Bob on node1. Bob lives on shard 4 (node2), should migrate to shard 0 (node1)
         ObjectId bobObjectId;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -246,7 +246,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             bobObjectId = updatedIds.getFirst();
         }
 
-        // QUERY "{}" on node1 — should return both documents with updated ages
+        // QUERY "{}" on node1, should return both documents with updated ages
         {
             BucketCommandBuilder<String, String> queryCmd = new BucketCommandBuilder<>(StringCodec.UTF8);
             ByteBuf buf = Unpooled.buffer();
@@ -394,7 +394,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             bobObjectId = TestUtil.bulkStringToObjectId((FullBulkStringRedisMessage) arrayMessage.children().getFirst());
         }
 
-        // UPDATE Bob on node1 with the value he already holds — a no-op, no migration
+        // UPDATE Bob on node1 with the value he already holds, a no-op, no migration
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.update(bucketName, "{\"name\": \"Bob\"}", "{\"$set\": {\"age\": 30}}").encode(buf);
@@ -448,7 +448,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             assertEquals(1, entryCount, "Shard 4 on node2 should still hold exactly 1 entry");
         }
 
-        // QUERY "{}" on node1 — Bob is still readable across shards, content unchanged
+        // QUERY "{}" on node1. Bob is still readable across shards, content unchanged
         {
             BucketCommandBuilder<String, String> queryCmd = new BucketCommandBuilder<>(StringCodec.UTF8);
             ByteBuf buf = Unpooled.buffer();

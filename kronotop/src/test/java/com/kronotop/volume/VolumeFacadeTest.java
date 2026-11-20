@@ -145,7 +145,6 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
         }
         assertEquals(3, versionstampedEntries.size());
 
-        // Delete the first 2 entries via VolumeFacade
         VersionstampedEntry[] toDelete = versionstampedEntries.subList(0, 2).toArray(new VersionstampedEntry[0]);
         VolumeFacade facade = new VolumeFacade(context);
         VolumeSubspace volumeSubspace = new VolumeSubspace(subspace);
@@ -155,7 +154,6 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        // Read ChangeLog and verify DELETE entries
         try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             List<ChangeLogEntry> changeLogEntries = new ArrayList<>();
@@ -180,7 +178,6 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
                 assertTrue(deleteEntry.hasBefore());
                 assertFalse(deleteEntry.hasAfter());
 
-                // Verify coordinates match the deleted entry's metadata
                 int deletedIndex = i - 3;
                 EntryMetadata deletedMetadata = toDelete[deletedIndex].metadata();
                 ChangeLogCoordinate before = deleteEntry.getBefore().orElseThrow();
@@ -188,10 +185,8 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
                 assertEquals(deletedMetadata.position(), before.position());
                 assertEquals(deletedMetadata.length(), before.length());
 
-                // Verify versionstamp matches the original appended entry
                 assertEquals(versionstampedKeys[deletedIndex], deleteEntry.getVersionstamp());
 
-                // Verify prefix
                 assertEquals(volumeTestPrefix.asLong(), deleteEntry.getPrefix());
             }
         }

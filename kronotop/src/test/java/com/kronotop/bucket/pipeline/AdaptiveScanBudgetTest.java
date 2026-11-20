@@ -147,7 +147,6 @@ class AdaptiveScanBudgetTest extends BasePipelineTest {
             assertEquals(0, age % 500, "Age should be a multiple of 500 for rare category, got: " + age);
         }
 
-        // Verify descending order
         for (int i = 1; i < allAges.size(); i++) {
             assertTrue(allAges.get(i - 1) >= allAges.get(i),
                     String.format("Ages should be in descending order: %d >= %d", allAges.get(i - 1), allAges.get(i)));

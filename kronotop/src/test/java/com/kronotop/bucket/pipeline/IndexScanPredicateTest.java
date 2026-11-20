@@ -114,37 +114,29 @@ class IndexScanPredicateTest {
     @ParameterizedTest
     @EnumSource(value = Operator.class, names = {"EQ", "GT", "GTE", "LT", "LTE"})
     void shouldReturnTrueForNonNeOperators(Operator operator) {
-        // Given
         IndexScanPredicate predicate = new IndexScanPredicate(1, "field", operator, lit(new StringVal("test")));
         BqlValue anyValue = new StringVal("different");
 
-        // When
         boolean result = predicate.test(anyValue, Collections.emptyList());
 
-        // Then
         assertTrue(result, "Non-NE operators should always return true");
     }
 
     @ParameterizedTest
     @MethodSource("provideBqlValueTestCases")
     void shouldFilterNeOperatorWithMatchingTypes(BqlValue operand, BqlValue matchingValue, BqlValue differentValue) {
-        // Given
         IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.NE, lit(operand));
 
-        // When & Then - same values should return false (not different)
         assertFalse(predicate.test(matchingValue, Collections.emptyList()), "NE should return false for equal values");
 
-        // When & Then - different values should return true
         assertTrue(predicate.test(differentValue, Collections.emptyList()), "NE should return true for different values");
     }
 
     @ParameterizedTest
     @MethodSource("provideBqlValueTestCases")
     void shouldFilterNeOperatorWithNonMatchingTypes(BqlValue operand, BqlValue matchingValue, BqlValue differentValue) {
-        // Given
         IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.NE, lit(operand));
 
-        // When & Then - different types should return false
         BqlValue differentType = new StringVal("different_type");
         if (!(operand instanceof StringVal)) {
             assertFalse(predicate.test(differentType, Collections.emptyList()), "NE should return false for different types");
@@ -153,19 +145,15 @@ class IndexScanPredicateTest {
 
     @Test
     void shouldHandleNeOperatorWithNullValues() {
-        // Given
         IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.NE, lit(NullVal.INSTANCE));
 
-        // When & Then - null vs null should return false
         assertFalse(predicate.test(NullVal.INSTANCE, Collections.emptyList()), "NE should return false for null == null");
 
-        // When & Then - null vs non-null should return true
         assertTrue(predicate.test(new StringVal("test"), Collections.emptyList()), "NE should return true for null != non-null");
     }
 
     @Test
     void shouldHandleNeOperatorWithComplexTypes() {
-        // Array test
         List<BqlValue> list1 = List.of(new StringVal("a"), new StringVal("b"));
         List<BqlValue> list2 = List.of(new StringVal("a"), new StringVal("b"));
         List<BqlValue> list3 = List.of(new StringVal("c"), new StringVal("d"));
@@ -174,7 +162,6 @@ class IndexScanPredicateTest {
         assertFalse(arrayPredicate.test(new ArrayVal(list2), Collections.emptyList()), "Equal arrays should return false for NE");
         assertTrue(arrayPredicate.test(new ArrayVal(list3), Collections.emptyList()), "Different arrays should return true for NE");
 
-        // Document test
         Map<String, BqlValue> doc1 = Map.of("key1", new StringVal("value1"));
         Map<String, BqlValue> doc2 = Map.of("key1", new StringVal("value1"));
         Map<String, BqlValue> doc3 = Map.of("key1", new StringVal("value2"));
@@ -216,10 +203,9 @@ class IndexScanPredicateTest {
 
     @Test
     void shouldThrowForLiteralListResolveToSingleValue() {
-        // Given an LiteralList operand (for $in/$nin/$all operators)
+        // LiteralList operand (for $in/$nin/$all operators)
         IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.NE, new Operand.LiteralList(List.of(new StringVal("a"), new StringVal("b"))));
 
-        // When & Then - resolving LiteralList to single value should throw
         assertThrows(IllegalStateException.class, () -> predicate.test(new StringVal("test"), Collections.emptyList()),
                 "Should throw IllegalStateException when resolving LiteralList to single value");
     }
