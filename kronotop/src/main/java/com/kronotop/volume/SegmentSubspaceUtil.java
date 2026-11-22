@@ -26,10 +26,8 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.internal.VersionstampUtil;
 
-import java.util.Arrays;
 import java.util.List;
 
-import static com.kronotop.volume.Subspaces.ENTRY_METADATA_SUBSPACE;
 import static com.kronotop.volume.Subspaces.SEGMENT_POSITION_SUBSPACE;
 
 /**
@@ -44,19 +42,6 @@ public class SegmentSubspaceUtil {
             return 0;
         }
         return segmentIds.getLast();
-    }
-
-    /**
-     * Constructs a FoundationDB key prefix for entries in a segment filtered by volume prefix.
-     *
-     * @param subspace  the directory subspace for the volume
-     * @param segmentId the segment identifier
-     * @param prefix    the volume prefix to filter entries
-     * @return the packed key prefix for querying entries in the segment with the specified volume prefix
-     */
-    static byte[] prefixOfVolumePrefix(DirectorySubspace subspace, long segmentId, Prefix prefix) {
-        byte[] begin = subspace.pack(Tuple.from(ENTRY_METADATA_SUBSPACE, Tuple.from(segmentId, prefix.asBytes()).pack()));
-        return Arrays.copyOf(begin, begin.length - 1);
     }
 
     /**

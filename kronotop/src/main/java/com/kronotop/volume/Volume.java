@@ -1363,7 +1363,7 @@ public class Volume {
         assert session.transaction() != null;
         List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(session.transaction(), subspace);
         for (long segmentId : segmentIds) {
-            byte[] begin = SegmentSubspaceUtil.prefixOfVolumePrefix(config.subspace(), segmentId, session.prefix());
+            byte[] begin = subspace.packEntryMetadataPrefix(segmentId, session.prefix());
             Range range = Range.startsWith(begin);
             session.transaction().clear(range);
 

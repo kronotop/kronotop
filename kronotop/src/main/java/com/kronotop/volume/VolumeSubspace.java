@@ -23,6 +23,8 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 
 import javax.annotation.Nonnull;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Objects;
 
 import static com.kronotop.volume.Subspaces.*;
@@ -75,6 +77,14 @@ public class VolumeSubspace {
                         data
                 )
         );
+    }
+
+    byte[] packEntryMetadataPrefix(long segmentId, Prefix prefix) {
+        ByteBuffer data = ByteBuffer.allocate(Long.BYTES + EntryMetadata.ENTRY_PREFIX_SIZE);
+        data.putLong(segmentId);
+        data.put(prefix.asBytes());
+        byte[] packed = packEntryMetadataKey(data.array());
+        return Arrays.copyOf(packed, packed.length - 1);
     }
 
     byte[] packSegmentStatsKey(long segmentId, Prefix prefix, byte statType) {

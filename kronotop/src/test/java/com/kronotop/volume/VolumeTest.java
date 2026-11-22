@@ -40,11 +40,24 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.kronotop.volume.SegmentStatsSubspaces.CARDINALITY;
+import static com.kronotop.volume.Subspaces.ENTRY_METADATA_SUBSPACE;
 import static com.kronotop.volume.Subspaces.ENTRY_SUBSPACE;
 import static com.kronotop.volume.Subspaces.SEGMENT_STATS_SUBSPACE;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeTest extends BaseVolumeIntegrationTest {
+
+    private List<EntryMetadata> loadEntryMetadata() {
+        byte[] begin = volume.getConfig().subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE));
+        List<EntryMetadata> result = new ArrayList<>();
+        try (Transaction tr = context.getTransactionManager().create()) {
+            for (KeyValue keyValue : tr.getRange(Range.startsWith(begin))) {
+                Tuple tuple = volume.getConfig().subspace().unpack(keyValue.getKey());
+                result.add(EntryMetadata.decode(tuple.getBytes(1)));
+            }
+        }
+        return result;
+    }
 
     @Test
     void shouldAppendEntriesToVolume() throws IOException {
@@ -841,6 +854,9 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
     @Test
     void shouldClearPrefixAndRemoveAllEntries() throws IOException {
+        // Behavior: Three entries are appended under one prefix, then clearPrefix runs for that prefix.
+        // The entry metadata subspace is empty, the entries cannot be read, and the segment reports
+        // zero cardinality and zero used bytes.
         ByteBuffer[] entries = getEntries(3);
         AppendResult result;
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -855,15 +871,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        {
-            try (Transaction tr = context.getTransactionManager().create()) {
-                SegmentAnalysis analysis = volume.analyze(tr).getFirst();
-                byte[] begin = SegmentSubspaceUtil.prefixOfVolumePrefix(volume.getConfig().subspace(), analysis.segmentId(), volumeTestPrefix);
-                Range range = Range.startsWith(begin);
-                List<KeyValue> survivedEntries = tr.getRange(range).asList().join();
-                assertEquals(0, survivedEntries.size());
-            }
-        }
+        assertTrue(loadEntryMetadata().isEmpty());
 
         Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -2327,8 +2335,9 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
     @Test
     void shouldPreserveOtherPrefixDataWhenClearingPrefix() throws IOException {
-        // Behavior: When clearPrefix is called for one prefix, entries, cardinality, and
-        // usedBytes belonging to a different prefix in the same segment are preserved.
+        // Behavior: Prefix A and prefix B each have three entries in the same segment. After
+        // clearPrefix runs for prefix A, prefix B keeps its entries, entry metadata, cardinality,
+        // and used bytes. Prefix A has no entries, no entry metadata, and no cardinality key.
         Prefix prefixA = new Prefix("prefix-a");
         Prefix prefixB = new Prefix("prefix-b");
 
@@ -2353,6 +2362,13 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             VolumeSession sessionA = new VolumeSession(tr, prefixA);
             volume.clearPrefix(sessionA);
             tr.commit().join();
+        }
+
+        List<EntryMetadata> survivedMetadata = loadEntryMetadata();
+        assertEquals(3, survivedMetadata.size(),
+                "Only prefix B's entry metadata should be preserved");
+        for (EntryMetadata metadata : survivedMetadata) {
+            assertArrayEquals(prefixB.asBytes(), metadata.prefix());
         }
 
         byte[] entryPrefixB = volume.getConfig().subspace().pack(

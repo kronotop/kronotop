@@ -82,14 +82,6 @@ class VacuumSegment {
         return result;
     }
 
-    private byte[] entryMetadataScanPrefix(long segmentId, Prefix prefix) {
-        ByteBuffer data = ByteBuffer.allocate(Long.BYTES + EntryMetadata.ENTRY_PREFIX_SIZE);
-        data.putLong(segmentId);
-        data.put(prefix.asBytes());
-        byte[] packed = subspace.packEntryMetadataKey(data.array());
-        return Arrays.copyOf(packed, packed.length - 1);
-    }
-
     private boolean hasRemainingEntries(Transaction tr, long segmentId) {
         ByteBuffer data = ByteBuffer.allocate(Long.BYTES);
         data.putLong(segmentId);
@@ -134,7 +126,7 @@ class VacuumSegment {
                     byte[] prefixBytes = keyTuple.getBytes(4);
                     Prefix prefix = Prefix.fromBytes(prefixBytes);
 
-                    byte[] scanPrefix = entryMetadataScanPrefix(segmentId, prefix);
+                    byte[] scanPrefix = subspace.packEntryMetadataPrefix(segmentId, prefix);
                     Range entryRange = Range.startsWith(scanPrefix);
 
                     for (KeyValue entry : tr.getRange(entryRange)) {

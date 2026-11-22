@@ -125,7 +125,7 @@ class VacuumWatchDog implements Runnable {
                 }
 
                 if (activeWorkers.isEmpty()) {
-                    LOGGER.info("No segments exceed garbage threshold {}%, vacuum complete", garbageThreshold);
+                    LOGGER.info("Vacuum run finished, {} segments processed", segmentsProcessed);
                     break;
                 }
 

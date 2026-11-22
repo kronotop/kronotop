@@ -290,6 +290,33 @@ class VacuumTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    void shouldCleanupSegmentAfterPrefixIsCleared() throws IOException {
+        // Behavior: A sealed segment holds entries of one prefix. clearPrefix runs for that prefix,
+        // then vacuum runs on the segment. The segment is removed from the segment registry and
+        // its file is deleted.
+        long sealedSegmentId = fillAndSealSegment(volumeTestPrefix);
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, volumeTestPrefix);
+            volume.clearPrefix(session);
+            tr.commit().join();
+        }
+
+        VacuumContext ctx = new VacuumContext();
+        EvacuatingEvacuator evacuator = new EvacuatingEvacuator(volume);
+        volume.vacuum(ctx, sealedSegmentId, evacuator);
+
+        VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
+        try (Transaction tr = context.getTransactionManager().create()) {
+            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace);
+            assertFalse(segmentIds.contains(sealedSegmentId));
+        }
+
+        Path segmentPath = SegmentUtil.getFilePath(volume.getConfig().dataDir(), sealedSegmentId);
+        assertFalse(Files.exists(segmentPath));
+    }
+
+    @Test
     void shouldNotCleanupSegmentWhenVacuumStopped() throws IOException {
         // Behavior: stopped vacuum leaves segment intact
         long sealedSegmentId = fillAndSealSegment(volumeTestPrefix);
@@ -335,7 +362,8 @@ class VacuumTest extends BaseVolumeIntegrationTest {
 
     @Test
     void shouldRefuseToCleanupSegmentWithRemainingEntries() throws IOException {
-        // Behavior: cleanupSegment throws when the segment still has entries
+        // Behavior: A sealed segment still holds entries. destroyStaleSegment on that segment
+        // throws IllegalStateException.
         long sealedSegmentId = fillAndSealSegment(volumeTestPrefix);
         assertThrows(IllegalStateException.class, () -> volume.destroyStaleSegment(sealedSegmentId));
     }
