@@ -21,7 +21,15 @@ import com.kronotop.resp.RespConnection;
 import com.kronotop.resp.RespValue;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import static com.kronotop.ctl.ControlUtil.NONE;
+import static com.kronotop.ctl.ControlUtil.prefix;
+import static com.kronotop.ctl.ControlUtil.put;
 
 /**
  * The shards and members of a cluster, built from the replies of KR.ADMIN DESCRIBE-CLUSTER, LIST-MEMBERS and
@@ -33,8 +41,6 @@ public record ClusterDescription(
     private static final String DESCRIBE_CLUSTER = "DESCRIBE-CLUSTER";
     private static final String LIST_MEMBERS = "LIST-MEMBERS";
     private static final String LIST_SILENT_MEMBERS = "LIST-SILENT-MEMBERS";
-    private static final String NONE = "-";
-    private static final int MEMBER_ID_PREFIX_LENGTH = 4;
 
     /**
      * Reads the cluster description from a member.
@@ -100,14 +106,6 @@ public record ClusterDescription(
                 description.text("cluster_name"), description.text("metadata_version"), shards, memberList);
     }
 
-    private static void put(Map<RespValue, RespValue> object, String name, RespValue value) {
-        object.put(new RespValue.BlobString(name), value);
-    }
-
-    private static void put(Map<RespValue, RespValue> object, String name, String value) {
-        put(object, name, new RespValue.BlobString(value));
-    }
-
     private static RespValue array(List<String> values) {
         List<RespValue> texts = new ArrayList<>();
         for (String value : values) {
@@ -118,13 +116,6 @@ public record ClusterDescription(
 
     private static String join(List<String> values) {
         return values.isEmpty() ? NONE : String.join(", ", values);
-    }
-
-    // KR.ADMIN commands accept the first four characters of a member ID in place of the full ID.
-    private static String prefix(String memberId) {
-        return memberId.length() > MEMBER_ID_PREFIX_LENGTH
-                ? memberId.substring(0, MEMBER_ID_PREFIX_LENGTH)
-                : memberId;
     }
 
     /**
@@ -218,58 +209,5 @@ public record ClusterDescription(
      */
     public record Member(
             String id, String status, boolean silent, List<String> internalAdvertise, List<String> externalAdvertise) {
-    }
-
-    // A map reply of a KR.ADMIN subcommand. Every accessor fails with the subcommand name in the message.
-    private record Reply(String command, Map<RespValue, RespValue> fields) {
-
-        private static Reply of(String command, RespValue value) throws IOException {
-            if (value instanceof RespValue.RespMap(Map<RespValue, RespValue> fields)) {
-                return new Reply(command, fields);
-            }
-            throw unexpected(command, value);
-        }
-
-        private static IOException unexpected(String command, Object detail) {
-            return new IOException("Unexpected " + command + " response: " + detail);
-        }
-
-        private static String text(String command, RespValue value) throws IOException {
-            if (value instanceof RespValue.BlobString(String text)) {
-                return text;
-            }
-            throw unexpected(command, value);
-        }
-
-        private RespValue get(String name) throws IOException {
-            RespValue value = fields.get(new RespValue.BlobString(name));
-            if (value == null) {
-                throw unexpected(command, "missing '" + name + "'");
-            }
-            return value;
-        }
-
-        private String text(String name) throws IOException {
-            return text(command, get(name));
-        }
-
-        private Reply reply(String name) throws IOException {
-            return of(command, get(name));
-        }
-
-        private static List<String> texts(String command, RespValue value) throws IOException {
-            if (!(value instanceof RespValue.Array(List<RespValue> values))) {
-                throw unexpected(command, value);
-            }
-            List<String> texts = new ArrayList<>();
-            for (RespValue item : values) {
-                texts.add(text(command, item));
-            }
-            return texts;
-        }
-
-        private List<String> texts(String name) throws IOException {
-            return texts(command, get(name));
-        }
     }
 }

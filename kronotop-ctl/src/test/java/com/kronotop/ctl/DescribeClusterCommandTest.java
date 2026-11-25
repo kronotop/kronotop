@@ -17,13 +17,8 @@
 package com.kronotop.ctl;
 
 import org.junit.jupiter.api.Test;
-import picocli.CommandLine;
 
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.net.InetAddress;
-import java.net.ServerSocket;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -34,21 +29,12 @@ class DescribeClusterCommandTest {
     void shouldExitWithErrorWhenServerIsUnreachable() throws IOException {
         // Behavior: describe-cluster runs with --address set to a local port where nothing listens. It exits
         // with 1, prints "Could not connect to '<address>'" to stderr and prints nothing to stdout.
-        String address;
-        try (ServerSocket socket = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
-            address = socket.getInetAddress().getHostAddress() + ":" + socket.getLocalPort();
-        }
+        String address = CommandRunner.unreachableAddress();
 
-        StringWriter out = new StringWriter();
-        StringWriter err = new StringWriter();
-        CommandLine commandLine = new CommandLine(new KronotopControl());
-        commandLine.setOut(new PrintWriter(out));
-        commandLine.setErr(new PrintWriter(err));
+        CommandRunner.Result result = CommandRunner.run("describe-cluster", "--address", address);
 
-        int exitCode = commandLine.execute("describe-cluster", "--address", address);
-
-        assertEquals(1, exitCode);
-        assertTrue(err.toString().startsWith("Could not connect to '" + address + "'"));
-        assertEquals("", out.toString());
+        assertEquals(1, result.exitCode());
+        assertTrue(result.stderr().startsWith("Could not connect to '" + address + "'"));
+        assertEquals("", result.stdout());
     }
 }

@@ -20,11 +20,10 @@ import com.kronotop.resp.RespValue;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
 
+import static com.kronotop.ctl.RespValues.map;
+import static com.kronotop.ctl.RespValues.text;
+import static com.kronotop.ctl.RespValues.texts;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -32,23 +31,6 @@ class ClusterDescriptionTest {
     private static final String PRIMARY_ID = "006cdc459c59e600c76494e8388857fc3cba2fa8";
     private static final String STANDBY_ID = "a3f18b2e74d9c5601f82e4a7b390d612c8f7e149";
     private static final String SPARE_ID = "7be29f0c4d1a86e35b02c9d7f4a1e6083c5d2b9a";
-
-    private static RespValue text(String value) {
-        return new RespValue.BlobString(value);
-    }
-
-    private static RespValue texts(String... values) {
-        return new RespValue.Array(Stream.of(values).map(ClusterDescriptionTest::text).toList());
-    }
-
-    // Builds a map reply from alternating keys and values, in the given order.
-    private static RespValue map(RespValue... pairs) {
-        Map<RespValue, RespValue> values = new LinkedHashMap<>();
-        for (int i = 0; i < pairs.length; i += 2) {
-            values.put(pairs[i], pairs[i + 1]);
-        }
-        return new RespValue.RespMap(values);
-    }
 
     private static RespValue shard(String primary, RespValue standbys, String status, String volume) {
         return map(

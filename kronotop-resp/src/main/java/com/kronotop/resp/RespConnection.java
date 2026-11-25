@@ -33,8 +33,27 @@ public class RespConnection implements AutoCloseable {
     private final RespWriter writer;
 
     public RespConnection(String host, int port) throws IOException {
+        this(host, port, DEFAULT_CONNECT_TIMEOUT_MS, 0);
+    }
+
+    /**
+     * Opens a connection with a connect timeout and a read timeout.
+     *
+     * @param host                 the server host
+     * @param port                 the server port
+     * @param connectTimeoutMillis the longest time to wait for the connection
+     * @param readTimeoutMillis    the longest time to wait for a reply, or 0 to wait without a limit
+     * @throws IOException if the connection cannot be opened
+     */
+    public RespConnection(String host, int port, int connectTimeoutMillis, int readTimeoutMillis) throws IOException {
         socket = new Socket();
-        socket.connect(new InetSocketAddress(host, port), DEFAULT_CONNECT_TIMEOUT_MS);
+        try {
+            socket.connect(new InetSocketAddress(host, port), connectTimeoutMillis);
+            socket.setSoTimeout(readTimeoutMillis);
+        } catch (IOException e) {
+            socket.close();
+            throw e;
+        }
         reader = new RespReader(socket.getInputStream());
         writer = new RespWriter(socket.getOutputStream());
     }

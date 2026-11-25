@@ -36,7 +36,6 @@ import java.util.stream.IntStream;
         separator = " "
 )
 public class BootstrapCommand implements Callable<Integer> {
-
     private static final Logger logger = LoggerFactory.getLogger(BootstrapCommand.class);
     @Option(names = "--primary", arity = "1..*", paramLabel = "<host:port=shard-ids>",
             description = "Assign primary shards (repeatable). Example: --primary node1:3320=0,1,2")

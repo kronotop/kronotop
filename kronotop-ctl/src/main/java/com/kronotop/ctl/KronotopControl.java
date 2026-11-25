@@ -28,7 +28,7 @@ import picocli.CommandLine.Option;
 @Command(
         name = "kronotop-ctl",
         description = "Control tool for Kronotop clusters.",
-        subcommands = {BootstrapCommand.class, DescribeClusterCommand.class},
+        subcommands = {BootstrapCommand.class, DescribeClusterCommand.class, ListVolumesCommand.class},
         versionProvider = VersionProvider.class
 )
 public class KronotopControl implements Runnable {

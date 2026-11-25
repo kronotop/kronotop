@@ -107,3 +107,35 @@ MEMBER  STATUS   SILENT  INTERNAL       EXTERNAL
 006c    RUNNING  no      10.0.0.1:3320  10.0.0.1:5484
 a3f1    RUNNING  no      10.0.0.2:3320  10.0.0.2:5484
 ```
+
+### list-volumes
+
+Prints the volumes of a cluster, one row for each volume on each member that owns its shard (the primary and the
+standbys). It reads the shard owners from one member, then connects to the internal address of every owner and runs
+`VOLUME.ADMIN DESCRIBE` there. A row that cannot be read is printed with the reason in the `ERROR` column.
+
+```
+kronotop-ctl list-volumes [options]
+```
+
+**Options:**
+
+| Option                  | Description                                                                      |
+|-------------------------|----------------------------------------------------------------------------------|
+| `--address <host:port>` | Internal address of a cluster member. Default: `localhost:3320`                  |
+| `--shard <id>`          | Show only the volume of this shard.                                              |
+| `--member <id>`         | Show only the volumes on this member, as a full ID or its first four characters. |
+| `--timeout <seconds>`   | Max seconds to wait for each member to connect and reply. Default: 10            |
+| `--json`                | Print the output as JSON.                                                        |
+
+**Example:**
+
+```bash
+kronotop-ctl list-volumes --address node1:3320
+```
+
+```
+VOLUME   MEMBER  ROLE     STATUS     SEGMENTS  SIZE     USED     FREE       GARBAGE  ENTRIES  ERROR
+shard-0  006c    primary  READWRITE  2         2.0 GiB  1.0 GiB  512.0 MiB  25.0%    150      -
+shard-0  a3f1    standby  READWRITE  2         2.0 GiB  1.0 GiB  512.0 MiB  25.0%    150      -
+```

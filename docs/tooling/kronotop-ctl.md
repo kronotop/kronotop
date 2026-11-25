@@ -134,6 +134,66 @@ kronotop-ctl describe-cluster --json
 
 The command exits with 0 on success. On an error, it prints the message to stderr and exits with 1.
 
+## list-volumes
+
+`list-volumes` prints the volumes of a cluster. The volume of a shard is on its primary and on each of its standbys,
+and the command prints one row for each of these members.
+
+The command reads the shard owners from the member at `--address`, then connects to the internal address of each
+owner. Run it from a host that can reach those addresses.
+
+```bash
+kronotop-ctl list-volumes --address node1:3320
+```
+
+```
+VOLUME   MEMBER  ROLE     STATUS     SEGMENTS  SIZE     USED     FREE       GARBAGE  ENTRIES  ERROR
+shard-0  006c    primary  READWRITE  2         2.0 GiB  1.0 GiB  512.0 MiB  25.0%    150      -
+shard-0  a3f1    standby  READWRITE  2         2.0 GiB  1.0 GiB  512.0 MiB  25.0%    150      -
+shard-1  a3f1    standby  -          -         -        -        -          -        -        ERR Volume: 'shard-1' is not open
+```
+
+`MEMBER` shows the first four characters of the member ID, and `ROLE` is `primary` or `standby`. `SEGMENTS` is the
+number of segments the volume has on that member. `SIZE`, `USED`, `FREE` and `ENTRIES` are totals over those segments.
+`GARBAGE` is the share of `SIZE` that is neither used nor free.
+
+When a member cannot be read, `ERROR` has the reason and the other columns of its rows show `-`. The other rows are
+still printed.
+
+`--shard` limits the output to the volume of one shard. `--member` limits it to the volumes on one member, given as a
+full member ID or its first four characters. `--timeout` sets how many seconds the command waits for a member to
+connect and to answer. The default is 10.
+
+`--json` prints the same rows as indented JSON, with full member IDs and sizes in bytes. A row that cannot be read
+has `null` in its value fields.
+
+```bash
+kronotop-ctl list-volumes --shard 0 --member 006c --json
+```
+
+```json
+{
+  "volumes": [
+    {
+      "volume": "shard-0",
+      "member_id": "006cdc459c59e600c76494e8388857fc3cba2fa8",
+      "role": "primary",
+      "status": "READWRITE",
+      "segments": 2,
+      "size": 2147483648,
+      "used_bytes": 1073741824,
+      "free_bytes": 536870912,
+      "garbage_percentage": 25.0,
+      "entries": 150,
+      "error": null
+    }
+  ]
+}
+```
+
+The command exits with 0 when every row was read. It exits with 1 when a row has an error. It also exits with 1
+when it cannot read the shard owners or an option is not valid, and then it prints the message to stderr.
+
 ## Help
 
 ### kronotop-ctl
@@ -146,6 +206,7 @@ Control tool for Kronotop clusters.
 Commands:
   bootstrap         Bootstrap a Kronotop cluster.
   describe-cluster  Show the shards of a cluster with their status and owners.
+  list-volumes      List the volumes of a cluster.
 ```
 
 ### kronotop-ctl bootstrap
@@ -178,4 +239,22 @@ Show the shards of a cluster with their status and owners.
                Internal address of a cluster member. Default: localhost:3320
   -h, --help   Show help.
       --json   Print the output as JSON.
+```
+
+### kronotop-ctl list-volumes
+
+```
+Usage: kronotop-ctl list-volumes [-h] [--json] [--address <host:port>]
+                                 [--member <id>] [--shard <id>] [--timeout
+                                 <seconds>]
+List the volumes of a cluster.
+      --address <host:port> Internal address of a cluster member. Default:
+                              localhost:3320
+  -h, --help                Show help.
+      --json                Print the output as JSON.
+      --member <id>         Show only the volumes on this member. Takes a full
+                              member ID or its first four characters.
+      --shard <id>          Show only the volume of this shard.
+      --timeout <seconds>   Max seconds to wait for each member to connect and
+                              reply. Default: 10
 ```

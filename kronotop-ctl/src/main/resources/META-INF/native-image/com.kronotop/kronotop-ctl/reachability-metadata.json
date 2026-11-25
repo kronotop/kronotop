@@ -71,7 +71,39 @@
       ]
     },
     {
-      "type": "com.kronotop.ctl.KronotopCTL",
+      "type": "com.kronotop.ctl.ListVolumesCommand",
+      "fields": [
+        {
+          "name": "address"
+        },
+        {
+          "name": "helpRequested"
+        },
+        {
+          "name": "json"
+        },
+        {
+          "name": "member"
+        },
+        {
+          "name": "shard"
+        },
+        {
+          "name": "spec"
+        },
+        {
+          "name": "timeout"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.kronotop.ctl.KronotopControl",
       "fields": [
         {
           "name": "helpRequested"
