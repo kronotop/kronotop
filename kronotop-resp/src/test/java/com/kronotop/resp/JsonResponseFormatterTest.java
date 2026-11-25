@@ -14,9 +14,8 @@
  *  limitations under the License.
  */
 
-package com.kronotop.cli;
+package com.kronotop.resp;
 
-import com.kronotop.resp.RespValue;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
@@ -285,5 +284,28 @@ class JsonResponseFormatterTest {
         RespValue value = new RespValue.RespMap(map);
         String result = asciiSafeFormatter.format(value);
         assertTrue(result.contains("\\u00e9"));
+    }
+
+    @Test
+    void shouldFormatPrettyWithNestedValues() {
+        // Behavior: formatPretty writes each map field and each array element on its own line, with two spaces
+        // per nesting level and a space after each colon. An empty array stays on one line. Braces, brackets,
+        // commas and colons inside a string are left as they are.
+        Map<RespValue, RespValue> map = new LinkedHashMap<>();
+        map.put(new RespValue.BlobString("name"), new RespValue.BlobString("a{b},[c]:\"d\""));
+        map.put(new RespValue.BlobString("ids"),
+                new RespValue.Array(List.of(new RespValue.Number(1), new RespValue.Number(2))));
+        map.put(new RespValue.BlobString("empty"), new RespValue.Array(List.of()));
+
+        String expected = """
+                {
+                  "name": "a{b},[c]:\\"d\\"",
+                  "ids": [
+                    1,
+                    2
+                  ],
+                  "empty": []
+                }""";
+        assertEquals(expected, formatter.formatPretty(new RespValue.RespMap(map)));
     }
 }

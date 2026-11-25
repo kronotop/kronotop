@@ -16,6 +16,7 @@
 
 package com.kronotop.cli;
 
+import com.kronotop.resp.JsonResponseFormatter;
 import com.kronotop.resp.RespReader;
 import com.kronotop.resp.RespValue;
 import com.kronotop.resp.RespWriter;

@@ -78,10 +78,7 @@ public class BootstrapCommand implements Callable<Integer> {
                     .orElseThrow()
                     .address();
 
-            String[] hostPort = parseHostPort(firstPrimaryAddress);
-            try (RespConnection conn = new RespConnection(hostPort[0], Integer.parseInt(hostPort[1]))) {
-                conn.hello3();
-
+            try (RespConnection conn = ControlUtil.connect(firstPrimaryAddress)) {
                 if (initializeCluster(conn)) {
                     return 0;
                 }
@@ -95,11 +92,7 @@ public class BootstrapCommand implements Callable<Integer> {
                 return 0;
             }
         } catch (Exception e) {
-            String message = e.getMessage();
-            if (message != null && message.startsWith("Server error: ")) {
-                message = message.substring("Server error: ".length());
-            }
-            logger.error("{}", message);
+            logger.error("{}", ControlUtil.errorMessage(e));
             return 1;
         }
     }
@@ -112,9 +105,7 @@ public class BootstrapCommand implements Callable<Integer> {
         logger.info("Resolving member IDs");
         Map<String, String> addressToMemberId = new HashMap<>();
         for (String address : uniqueAddresses) {
-            String[] hostPort = parseHostPort(address);
-            try (RespConnection conn = new RespConnection(hostPort[0], Integer.parseInt(hostPort[1]))) {
-                conn.hello3();
+            try (RespConnection conn = ControlUtil.connect(address)) {
                 RespValue response = conn.execute(List.of("KR.ADMIN", "DESCRIBE-MEMBER"));
 
                 if (!(response instanceof RespValue.RespMap(Map<RespValue, RespValue> props))) {
@@ -182,7 +173,7 @@ public class BootstrapCommand implements Callable<Integer> {
     private void waitForShards(RespConnection conn) throws IOException {
         logger.info("Waiting for shard discovery (timeout: {}s)", shardDiscoveryTimeout);
         for (int attempt = 1; attempt <= shardDiscoveryTimeout; attempt++) {
-            if (!describeCluster(conn).isEmpty()) {
+            if (!ClusterDescription.fetch(conn).shards().isEmpty()) {
                 logger.info("All shards discovered");
                 return;
             }
@@ -197,30 +188,6 @@ public class BootstrapCommand implements Callable<Integer> {
         }
 
         throw new IOException("Timed out waiting for shards after " + shardDiscoveryTimeout + "s");
-    }
-
-    private Set<Integer> describeCluster(RespConnection conn) throws IOException {
-        RespValue response = conn.execute(List.of("KR.ADMIN", "DESCRIBE-CLUSTER"));
-
-        if (!(response instanceof RespValue.RespMap(Map<RespValue, RespValue> cluster))) {
-            throw new IOException("Unexpected DESCRIBE-CLUSTER response: " + response);
-        }
-
-        Set<Integer> shardIds = new HashSet<>();
-        for (Map.Entry<RespValue, RespValue> entry : cluster.entrySet()) {
-            if (!extractString(entry.getKey()).equals("shards")) {
-                continue;
-            }
-            if (!(entry.getValue() instanceof RespValue.RespMap(Map<RespValue, RespValue> value))) {
-                continue;
-            }
-            for (RespValue shardKey : value.keySet()) {
-                if (shardKey instanceof RespValue.Number(long id)) {
-                    shardIds.add((int) id);
-                }
-            }
-        }
-        return shardIds;
     }
 
     private void setRoutes(RespConnection conn, List<RouteAssignment> assignments,
@@ -266,14 +233,6 @@ public class BootstrapCommand implements Callable<Integer> {
                 .toList();
 
         return new RouteAssignment(routeKind, address, shardIds);
-    }
-
-    private String[] parseHostPort(String address) {
-        int lastColon = address.lastIndexOf(':');
-        if (lastColon < 0) {
-            throw new IllegalArgumentException("Invalid address (missing port): " + address);
-        }
-        return new String[]{address.substring(0, lastColon), address.substring(lastColon + 1)};
     }
 
     private String extractString(RespValue value) {

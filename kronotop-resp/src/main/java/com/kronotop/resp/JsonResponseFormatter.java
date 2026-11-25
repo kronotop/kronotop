@@ -14,12 +14,10 @@
  *  limitations under the License.
  */
 
-package com.kronotop.cli;
-
-import com.kronotop.resp.RespValue;
+package com.kronotop.resp;
 
 /**
- * Formats RESP values as compact JSON output, preserving map key order.
+ * Formats RESP values as JSON output, preserving map key order.
  */
 public class JsonResponseFormatter {
 
@@ -38,6 +36,67 @@ public class JsonResponseFormatter {
         formatValue(value, sb);
         String result = sb.toString();
         return asciiSafe ? escapeNonAscii(result) : result;
+    }
+
+    /**
+     * Formats a RESP value as JSON with one field or element per line, indented by two spaces.
+     *
+     * @param value the value to format
+     * @return the indented JSON, without a trailing newline
+     */
+    public String formatPretty(RespValue value) {
+        return indent(format(value));
+    }
+
+    // Reindents compact JSON. The input has no whitespace outside strings.
+    private String indent(String json) {
+        StringBuilder sb = new StringBuilder();
+        int depth = 0;
+        boolean inString = false;
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (inString) {
+                sb.append(c);
+                if (c == '\\') {
+                    sb.append(json.charAt(++i));
+                } else if (c == '"') {
+                    inString = false;
+                }
+                continue;
+            }
+            switch (c) {
+                case '"' -> {
+                    inString = true;
+                    sb.append(c);
+                }
+                case '{', '[' -> {
+                    char next = json.charAt(i + 1);
+                    if (next == '}' || next == ']') {
+                        // An empty object or array stays on one line.
+                        sb.append(c).append(next);
+                        i++;
+                    } else {
+                        sb.append(c);
+                        appendNewline(sb, ++depth);
+                    }
+                }
+                case '}', ']' -> {
+                    appendNewline(sb, --depth);
+                    sb.append(c);
+                }
+                case ',' -> {
+                    sb.append(c);
+                    appendNewline(sb, depth);
+                }
+                case ':' -> sb.append(": ");
+                default -> sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    private void appendNewline(StringBuilder sb, int depth) {
+        sb.append('\n').append("  ".repeat(depth));
     }
 
     private String escapeNonAscii(String s) {
