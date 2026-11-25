@@ -48,6 +48,29 @@
       ]
     },
     {
+      "type": "com.kronotop.ctl.DescribeClusterCommand",
+      "fields": [
+        {
+          "name": "address"
+        },
+        {
+          "name": "helpRequested"
+        },
+        {
+          "name": "json"
+        },
+        {
+          "name": "spec"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
       "type": "com.kronotop.ctl.KronotopCTL",
       "fields": [
         {

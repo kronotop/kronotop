@@ -28,10 +28,10 @@ import picocli.CommandLine.Option;
 @Command(
         name = "kronotop-ctl",
         description = "Control tool for Kronotop clusters.",
-        subcommands = {BootstrapCommand.class},
+        subcommands = {BootstrapCommand.class, DescribeClusterCommand.class},
         versionProvider = VersionProvider.class
 )
-public class KronotopCTL implements Runnable {
+public class KronotopControl implements Runnable {
 
     @Option(names = {"-v", "--version"}, versionHelp = true, description = "Print version information and quit.")
     private boolean versionRequested;
@@ -41,7 +41,7 @@ public class KronotopCTL implements Runnable {
 
     public static void main(String[] args) {
         configureLogging();
-        int exitCode = new CommandLine(new KronotopCTL()).execute(args);
+        int exitCode = new CommandLine(new KronotopControl()).execute(args);
         System.exit(exitCode);
     }
 

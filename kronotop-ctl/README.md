@@ -70,3 +70,40 @@ kronotop-ctl bootstrap \
 3. Resolve member IDs via `KR.ADMIN DESCRIBE-MEMBER` on each unique node
 4. Set routes via `KR.ADMIN ROUTE SET PRIMARY|STANDBY`
 5. Enable shards via `KR.ADMIN SET-SHARD-STATUS READWRITE`
+
+### describe-cluster
+
+Prints the shards and the members of a cluster. It reads `KR.ADMIN DESCRIBE-CLUSTER`, `KR.ADMIN LIST-MEMBERS` and
+`KR.ADMIN LIST-SILENT-MEMBERS` from one member. The shard table names each owner by the first four characters of its
+member ID. The member table lists every registered member with its status and addresses, and shows whether the
+connected member sees it as silent.
+
+```
+kronotop-ctl describe-cluster [options]
+```
+
+**Options:**
+
+| Option                  | Description                                                     |
+|-------------------------|-----------------------------------------------------------------|
+| `--address <host:port>` | Internal address of a cluster member. Default: `localhost:3320` |
+| `--json`                | Print the output as JSON.                                       |
+
+**Example:**
+
+```bash
+kronotop-ctl describe-cluster --address node1:3320
+```
+
+```
+Cluster:           my-cluster
+Metadata version:  1.0.0
+
+SHARD  STATUS      VOLUME   PRIMARY  STANDBYS
+0      READWRITE   shard-0  006c     a3f1
+1      INOPERABLE  shard-1  -        -
+
+MEMBER  STATUS   SILENT  INTERNAL       EXTERNAL
+006c    RUNNING  no      10.0.0.1:3320  10.0.0.1:5484
+a3f1    RUNNING  no      10.0.0.2:3320  10.0.0.2:5484
+```

@@ -17,7 +17,7 @@
     <description>Control tool for Kronotop clusters</description>
 
     <properties>
-        <main.class>com.kronotop.ctl.KronotopCTL</main.class>
+        <main.class>com.kronotop.ctl.KronotopControl</main.class>
     </properties>
 
     <dependencies>
