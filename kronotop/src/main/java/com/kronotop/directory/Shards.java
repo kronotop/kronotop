@@ -55,6 +55,10 @@ public class Shards extends KronotopDirectoryNode {
                 return new LastSeenVersions(layout);
             }
 
+            public Hosted hosted() {
+                return new Hosted(layout);
+            }
+
             public static class Maintenance extends KronotopDirectoryNode {
                 public Maintenance(List<String> layout) {
                     super(layout);
@@ -88,6 +92,13 @@ public class Shards extends KronotopDirectoryNode {
                 public LastSeenVersions(List<String> layout) {
                     super(layout);
                     layout.add("lastSeenVersions");
+                }
+            }
+
+            public static class Hosted extends KronotopDirectoryNode {
+                public Hosted(List<String> layout) {
+                    super(layout);
+                    layout.add("hosted");
                 }
             }
         }

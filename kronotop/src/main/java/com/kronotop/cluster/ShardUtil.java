@@ -171,6 +171,18 @@ public class ShardUtil {
         context.getDirectoryLayer().create(tr, directory.toList()).join();
     }
 
+    private static void createHostedDirectory(Context context, Transaction tr, int shardId) {
+        KronotopDirectoryNode directory = KronotopDirectory.
+                kronotop().
+                cluster(context.getClusterName()).
+                metadata().
+                shards().
+                shard(shardId).
+                buckets().
+                hosted();
+        context.getDirectoryLayer().create(tr, directory.toList()).join();
+    }
+
     private static void createVolumeMetadata(Context context, Transaction tr, int shardId) {
         DirectorySubspace volumeSubspace = VolumeMetadataUtil.createVolumeSubspace(
                 context,
@@ -206,6 +218,7 @@ public class ShardUtil {
         DirectorySubspace shardSubspace = subspace.create(tr, directory.excludeSubspace(subspace)).join();
         createIndexTasksDirectory(context, tr, shardId);
         createLastSeenVersionsDirectory(context, tr, shardId);
+        createHostedDirectory(context, tr, shardId);
         createVolumeMetadata(context, tr, shardId);
         setShardStatus(tr, ShardStatus.INOPERABLE, shardSubspace);
         return shardSubspace;

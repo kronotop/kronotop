@@ -16,13 +16,17 @@
 
 package com.kronotop.bucket;
 
+import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.index.*;
 import com.kronotop.commands.BucketCommandBuilder;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.UUIDUtil;
 import com.kronotop.journal.Consumer;
@@ -392,6 +396,34 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
             SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.ALL);
             assertNotNull(index);
             assertNotNull(index.subspace());
+        }
+    }
+
+    @Test
+    void shouldWriteBucketPrefixToHostedSubspaceOfEachShard() {
+        // Behavior: Creating a bucket writes its prefix to the hosted subspace of every shard in its shards list,
+        // and that prefix is the only key there.
+        Session session = getSession();
+        BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            for (int shardId : metadata.shards()) {
+                KronotopDirectoryNode directory = KronotopDirectory.
+                        kronotop().
+                        cluster(context.getClusterName()).
+                        metadata().
+                        shards().
+                        shard(shardId).
+                        buckets().
+                        hosted();
+                DirectorySubspace subspace = context.getDirectoryLayer().open(tr, directory.toList()).join();
+
+                List<Prefix> prefixes = new ArrayList<>();
+                for (KeyValue keyValue : tr.getRange(subspace.range())) {
+                    prefixes.add(Prefix.fromBytes(subspace.unpack(keyValue.getKey()).getBytes(0)));
+                }
+                assertThat(prefixes).containsExactly(metadata.prefix());
+            }
         }
     }
 

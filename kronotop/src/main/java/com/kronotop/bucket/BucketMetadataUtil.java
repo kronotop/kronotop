@@ -35,6 +35,7 @@ import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.statistics.Histogram;
 import com.kronotop.bucket.index.statistics.HistogramCodec;
 import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.UUIDUtil;
 import com.kronotop.journal.JournalName;
@@ -129,6 +130,27 @@ public class BucketMetadataUtil {
     private static void setInitialVersion(Context context, Transaction tr, DirectorySubspace subspace) {
         byte[] delta = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(context.now()).array();
         increaseVersion(tr, subspace, delta);
+    }
+
+    private static DirectorySubspace openHostedSubspace(Context context, ReadTransaction tr, int shardId) {
+        KronotopDirectoryNode directory = KronotopDirectory.
+                kronotop().
+                cluster(context.getClusterName()).
+                metadata().
+                shards().
+                shard(shardId).
+                buckets().
+                hosted();
+        return context.getDirectoryLayer().open(tr, directory.toList()).join();
+    }
+
+    // Maps each shard to the buckets it hosts, so we can find them later when we move them.
+    private static void writeHosted(Context context, Transaction tr, List<Integer> shards, Prefix prefix) {
+        for (int shardId : shards) {
+            DirectorySubspace subspace = openHostedSubspace(context, tr, shardId);
+            byte[] key = subspace.pack(Tuple.from((Object) prefix.asBytes()));
+            tr.set(key, NULL_BYTES);
+        }
     }
 
     /**
@@ -270,6 +292,8 @@ public class BucketMetadataUtil {
             writeCollation(tr, bucketSubspace, collation);
         }
         long version = readVersion(tr, bucketSubspace);
+
+        writeHosted(context, tr, shards, prefix);
 
         return new BucketMetadata(
                 uuid,
