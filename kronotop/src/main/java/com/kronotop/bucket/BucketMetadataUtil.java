@@ -144,12 +144,31 @@ public class BucketMetadataUtil {
         return context.getDirectoryLayer().open(tr, directory.toList()).join();
     }
 
+    private static byte[] packHostedKey(DirectorySubspace subspace, Prefix prefix) {
+        return subspace.pack(Tuple.from((Object) prefix.asBytes()));
+    }
+
     // Maps each shard to the buckets it hosts, so we can find them later when we move them.
     private static void writeHosted(Context context, Transaction tr, List<Integer> shards, Prefix prefix) {
         for (int shardId : shards) {
             DirectorySubspace subspace = openHostedSubspace(context, tr, shardId);
-            byte[] key = subspace.pack(Tuple.from((Object) prefix.asBytes()));
+            byte[] key = packHostedKey(subspace, prefix);
             tr.set(key, NULL_BYTES);
+        }
+    }
+
+    /**
+     * Removes the bucket from the hosted buckets of every shard in its shards list.
+     *
+     * @param context the context providing environment and services
+     * @param tr      the transaction for database access
+     * @param shards  the shards list of the bucket
+     * @param prefix  the prefix of the bucket to remove
+     */
+    public static void clearHosted(Context context, Transaction tr, List<Integer> shards, Prefix prefix) {
+        for (int shardId : shards) {
+            DirectorySubspace subspace = BucketMetadataUtil.openHostedSubspace(context, tr, shardId);
+            tr.clear(packHostedKey(subspace, prefix));
         }
     }
 

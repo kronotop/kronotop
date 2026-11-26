@@ -17,6 +17,8 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.KronotopException;
 import com.kronotop.TestUtil;
@@ -27,8 +29,10 @@ import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.index.SingleFieldIndexUtil;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.KronotopCommandBuilder;
+import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.*;
+import com.kronotop.volume.Prefix;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.protocol.Command;
@@ -259,6 +263,22 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
      */
     protected BucketShard getShard(int shardId) {
         return ((BucketService) context.getService(BucketService.NAME)).getShard(shardId);
+    }
+
+    /**
+     * Returns whether the shard has a hosted record for the bucket prefix.
+     *
+     * @param shardId the shard identifier
+     * @param prefix  the prefix of the bucket
+     * @return true if the record exists
+     */
+    protected boolean hostedExists(int shardId, Prefix prefix) {
+        List<String> path = KronotopDirectory.kronotop().cluster(context.getClusterName()).metadata()
+                .shards().shard(shardId).buckets().hosted().toList();
+        try (Transaction tr = context.getTransactionManager().create()) {
+            DirectorySubspace subspace = context.getDirectoryLayer().open(tr, path).join();
+            return tr.get(subspace.pack(Tuple.from((Object) prefix.asBytes()))).join() != null;
+        }
     }
 
     /**

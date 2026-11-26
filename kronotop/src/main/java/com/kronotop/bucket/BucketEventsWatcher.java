@@ -128,10 +128,11 @@ public class BucketEventsWatcher implements Runnable {
 
     private void processStaleBucketEvent(Transaction tr, StaleBucketEvent evt) {
         UUID uuid = UUID.fromString(evt.pointer());
+        Prefix prefix = Prefix.fromLong(evt.prefix());
         BucketService bucketService = context.getService(BucketService.NAME);
 
         // Local leftovers. Both calls are no-ops when there is nothing to remove.
-        context.getBucketMetadataCache().invalidateBinding(Prefix.fromLong(evt.prefix()));
+        context.getBucketMetadataCache().invalidateBinding(prefix);
         bucketService.deleteVectorIndexFiles(uuid, null);
 
         List<String> registryPath = BucketMetadataUtil.registryPath(context.getClusterName(), uuid);
@@ -158,6 +159,7 @@ public class BucketEventsWatcher implements Runnable {
             DirectorySubspace subspace = openLastSeenVersionsSubspace(tr, shardId);
             tr.clear(subspace.pack(Tuple.from(uuid)));
         }
+        BucketMetadataUtil.clearHosted(context, tr, shards, prefix);
         context.getDirectoryLayer().removeIfExists(tr, registryPath).join();
     }
 

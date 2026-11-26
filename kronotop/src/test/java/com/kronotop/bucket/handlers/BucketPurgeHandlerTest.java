@@ -356,7 +356,9 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldUnregisterPrefixFromGlobalSubspaceAfterPurge() {
-        // Behavior: After remove + purge, the bucket's prefix must no longer exist in the global PREFIXES subspace.
+        // Behavior: a bucket's prefix is registered in the global PREFIXES subspace and has a hosted
+        // record in each of the bucket's shards. BUCKET.REMOVE and then BUCKET.PURGE delete the prefix
+        // from both places.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
 
         {
@@ -368,9 +370,11 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
 
         // Capture the prefix before removal
         Prefix prefix;
+        List<Integer> shards;
         try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             prefix = metadata.prefix();
+            shards = metadata.shards();
         }
 
         // Verify the prefix is registered in the global PREFIXES subspace
@@ -378,6 +382,9 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             byte[] prefixKey = prefixesSubspace.pack(Tuple.from((Object) prefix.asBytes()));
             assertNotNull(tr.get(prefixKey).join(), "Prefix should be registered before purge");
+        }
+        for (int shardId : shards) {
+            assertTrue(hostedExists(shardId, prefix), "Prefix should be hosted before purge");
         }
 
         {
@@ -399,6 +406,9 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             byte[] prefixKey = prefixesSubspace.pack(Tuple.from((Object) prefix.asBytes()));
             assertNull(tr.get(prefixKey).join(), "Prefix should be unregistered after purge");
+        }
+        for (int shardId : shards) {
+            assertFalse(hostedExists(shardId, prefix), "Prefix should not be hosted after purge");
         }
     }
 

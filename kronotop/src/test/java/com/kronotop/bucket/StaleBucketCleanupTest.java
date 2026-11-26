@@ -77,11 +77,10 @@ class StaleBucketCleanupTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldRemoveBucketLeftoversAfterNamespacePurge() throws IOException {
-        // Behavior: a bucket with a vector index and a pending index building task lives in a
-        // namespace that is removed and purged.NAMESPACE PURGE leaves the bucket's registry directory,
-        // its index maintenance tasks, its lastSeenVersions records and its vector files on disk behind.
-        // Running the stale prefix collector publishes a stale bucket event, and the watcher removes
-        // all four leftovers.
+        // Behavior: a bucket has a vector index, a pending index building task and vector files on disk.
+        // Its namespace is removed and purged, then the stale prefix collector runs. The watcher deletes
+        // what the purge left behind: the bucket's registry directory, its index maintenance tasks, its
+        // lastSeenVersions records, its hosted record in every shard and its vector files.
         String namespace = newNamespace();
         useNamespace(channel, namespace);
         assertOK(run(bucketCmd.create(TEST_BUCKET, BucketCreateArgs.Builder.indexes(
@@ -96,6 +95,7 @@ class StaleBucketCleanupTest extends BaseBucketHandlerTest {
             metadata = BucketMetadataUtil.reload(context, tr, namespace, TEST_BUCKET);
         }
         UUID uuid = metadata.uuid();
+        Prefix prefix = metadata.prefix();
         List<Integer> shards = metadata.shards();
 
         BucketService bucketService = context.getService(BucketService.NAME);
@@ -109,6 +109,7 @@ class StaleBucketCleanupTest extends BaseBucketHandlerTest {
         assertTrue(registryExists(uuid));
         assertTrue(shards.stream().anyMatch(shardId -> lastSeenVersionExists(shardId, uuid)));
         assertTrue(shards.stream().anyMatch(shardId -> countTasks(shardId) > 0));
+        assertTrue(shards.stream().allMatch(shardId -> hostedExists(shardId, prefix)));
 
         KronotopCommandBuilder<String, String> nsCmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         assertOK(run(nsCmd.namespaceRemove(namespace)));
@@ -119,6 +120,7 @@ class StaleBucketCleanupTest extends BaseBucketHandlerTest {
         await().atMost(Duration.ofSeconds(15)).until(() -> !registryExists(uuid));
         for (int shardId : shards) {
             assertFalse(lastSeenVersionExists(shardId, uuid));
+            assertFalse(hostedExists(shardId, prefix));
             assertEquals(0, countTasks(shardId));
         }
         assertFalse(Files.exists(vectorDir));
