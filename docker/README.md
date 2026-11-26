@@ -9,9 +9,9 @@
 **2-** Copy the JAR files and the launcher script to `docker` folder:
 
 ```
-cp kronotop/target/kronotop-2026.11-2.jar docker/kronotop.jar
-cp kronotop-ctl/target/kronotop-ctl-2026.11-2.jar docker/kronotop-ctl.jar
-cp kronotop-cli/target/kronotop-cli-2026.11-2.jar docker/kronotop-cli.jar
+cp kronotop/target/kronotop-2026.11-3.jar docker/kronotop.jar
+cp kronotop-ctl/target/kronotop-ctl-2026.11-3.jar docker/kronotop-ctl.jar
+cp kronotop-cli/target/kronotop-cli-2026.11-3.jar docker/kronotop-cli.jar
 cp bin/kronotop-server docker/kronotop-server
 ```
 

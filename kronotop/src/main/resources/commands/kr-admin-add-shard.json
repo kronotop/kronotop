@@ -3,7 +3,7 @@
     "summary": "Adds a new shard to the cluster.",
     "complexity": "O(1)",
     "group": "cluster",
-    "since": "2026.11-2",
+    "since": "2026.11-3",
     "arity": 2,
     "container": "KR.ADMIN",
     "command_flags": [

@@ -11,7 +11,7 @@ otherwise do by hand with a series of `KR.ADMIN` commands.
 Run the jar directly:
 
 ```bash
-java -jar kronotop-ctl-2026.11-2.jar <command> [options]
+java -jar kronotop-ctl-2026.11-3.jar <command> [options]
 ```
 
 Or use the jar bundled in the Docker image:
