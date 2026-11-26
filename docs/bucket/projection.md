@@ -4,7 +4,7 @@ description: "Projection controls which fields appear in documents returned by B
 ---
 
 Projection controls which fields appear in documents returned by `BUCKET.QUERY` and `BUCKET.VECTOR`. The `PROJECTION`
-argument accepts a JSON specification that selects fields to include or exclude.
+argument accepts a JSON or BSON specification that selects fields to include or exclude.
 
 Projection is applied after query execution. It does not affect which documents match a filter or how vector similarity
 is ranked. It only shapes what each returned document contains.
@@ -15,7 +15,7 @@ BUCKET.QUERY users '{"status": "active"}' PROJECTION '{"name": 1, "email": 1}'
 
 ## Projection Spec
 
-A projection spec is a JSON object where keys are field names and values are `1` (include) or `0` (exclude).
+A projection spec is a JSON or BSON document where keys are field names and values are `1` (include) or `0` (exclude).
 
 ### Inclusion Mode
 

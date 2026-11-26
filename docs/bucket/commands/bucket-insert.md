@@ -32,9 +32,9 @@ An ObjectId is a 12-byte unique identifier. The encoding format of returned Obje
 `object_id_format` setting:
 
 | Format  | Response Type | Description                               |
-|---------|---------------|-------------------------------------------|
-| `hex`   | String        | 24-character hex-encoded string (default) |
-| `bytes` | Binary        | Raw 12-byte array                         |
+|---------|---------------|------------------------------------------|
+| `hex`   | String        | 24-character hex-encoded string|
+| `bytes` | Binary        | Raw 12-byte array (default)|
 
 To change the format:
 

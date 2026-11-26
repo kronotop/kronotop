@@ -168,7 +168,9 @@ public class BucketVectorHandler extends AbstractBucketHandler implements Handle
 
                 byte[] projectionBytes = message.getProjection();
                 if (projectionBytes != null) {
-                    BsonDocument projectionSpec = BSONUtil.fromJson(projectionBytes);
+                    BsonDocument projectionSpec = BqlParser.isBSON(projectionBytes) ?
+                            BSONUtil.fromBson(projectionBytes) :
+                            BSONUtil.fromJson(projectionBytes);
                     BqlExpr parsedQuery = message.getFilter() != null ? BqlParser.parse(message.getFilter()) : null;
                     results = applyVectorProjection(results, projectionSpec, parsedQuery);
                 }

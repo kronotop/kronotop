@@ -462,7 +462,10 @@ public abstract class AbstractBucketHandler implements Handler {
         ctx.setUserVersionSupplier(() -> TransactionUtil.getUserVersion(session));
 
         if (arguments.getProjection() != null) {
-            ctx.setProjectionSpec(BSONUtil.fromJson(arguments.getProjection()));
+            BsonDocument parsedSpec = BqlParser.isBSON(arguments.getProjection()) ?
+                    BSONUtil.fromBson(arguments.getProjection()) :
+                    BSONUtil.fromJson(arguments.getProjection());
+            ctx.setProjectionSpec(parsedSpec);
             ctx.setParsedQuery(expr);
         }
 
