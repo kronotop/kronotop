@@ -17,8 +17,8 @@ services:
     depends_on:
       - foundationdb
     ports:
-      - "5484:5484/tcp"
-      - "3320:3320/tcp"
+      - "127.0.0.1:5484:5484/tcp"
+      - "127.0.0.1:3320:3320/tcp"
     environment:
       FDB_COORDINATOR: foundationdb
       FDB_API_VERSION: 630
