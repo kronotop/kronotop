@@ -865,25 +865,6 @@ public class BucketMetadataUtil {
     }
 
     /**
-     * Persists the shard list for a bucket, increments its version, and publishes an update event.
-     *
-     * @param tx       the transactional context
-     * @param metadata the bucket metadata
-     * @param shards   the shard IDs to assign to the bucket
-     */
-    public static void setShards(TransactionalContext tx, BucketMetadata metadata, List<Integer> shards) {
-        checkShardsList(shards);
-
-        if (shards.size() > 1 && !metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.ALL).isEmpty()) {
-            throw new KronotopException("Vector indexes require single-shard buckets");
-        }
-
-        writeShards(tx.tr(), metadata.subspace(), shards);
-        increaseVersion(tx.tr(), metadata.subspace(), POSITIVE_DELTA_ONE);
-        publishBucketMetadataUpdatedEvent(tx, metadata);
-    }
-
-    /**
      * Physically removes the bucket's registry directory and pointer from FoundationDB.
      * This operation is irreversible and should only be called after the bucket has been
      * marked as removed and all cluster members have observed the removal.

@@ -513,58 +513,6 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldSetAndReadShards() {
-        // Behavior: setShards persists shard IDs sorted, increments the version, and round-trips through reload.
-        Session session = getSession();
-        BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
-        long initialVersion = metadata.version();
-
-        try (Transaction tr = context.getTransactionManager().create()) {
-            TransactionalContext tx = new TransactionalContext(context, tr);
-            BucketMetadataUtil.setShards(tx, metadata, List.of(2, 0, 1));
-            tr.commit().join();
-        }
-
-        // Flush cache and reload
-        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(context::now, 0);
-        cleanup.run();
-
-        try (Transaction tr = context.getTransactionManager().create()) {
-            BucketMetadata reloaded = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-            assertEquals(List.of(0, 1, 2), reloaded.shards());
-            assertEquals(initialVersion + 1, reloaded.version());
-        }
-    }
-
-    @Test
-    void shouldFailWhenExpandingToMultiShardWithVectorIndex() {
-        // Behavior: setShards rejects expanding to multiple shards when the bucket has a vector index.
-        Session session = getSession();
-        BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
-
-        String vectorName = VectorIndexNameGenerator.generate("embedding", 3, DistanceFunction.COSINE);
-        VectorIndexDefinition vectorDef = VectorIndexDefinition.create(vectorName, "embedding", 3, DistanceFunction.COSINE, IndexStatus.WAITING);
-        try (Transaction tr = context.getTransactionManager().create()) {
-            TransactionalContext tx = new TransactionalContext(context, tr);
-            VectorIndexUtil.create(tx, metadata, vectorDef);
-            tr.commit().join();
-        }
-
-        // Reload metadata so the vectorIndexes registry is populated
-        try (Transaction tr = context.getTransactionManager().create()) {
-            metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-        }
-
-        BucketMetadata finalMetadata = metadata;
-        try (Transaction tr = context.getTransactionManager().create()) {
-            TransactionalContext tx = new TransactionalContext(context, tr);
-            KronotopException exception = assertThrows(KronotopException.class, () ->
-                    BucketMetadataUtil.setShards(tx, finalMetadata, List.of(1, 2)));
-            assertEquals("Vector indexes require single-shard buckets", exception.getMessage());
-        }
-    }
-
-    @Test
     void shouldResolvePointerBytes() {
         // Behavior: resolvePointerBytes returns the UUID pointer bytes for a given prefix.
         Session session = getSession();
