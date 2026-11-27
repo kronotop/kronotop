@@ -20,7 +20,7 @@ import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.bql.ast.ObjectIdVal;
-import com.kronotop.bucket.handlers.protocol.SortDirection;
+import com.kronotop.bucket.index.SortDirection;
 import com.kronotop.bucket.planner.Operator;
 import org.bson.types.ObjectId;
 

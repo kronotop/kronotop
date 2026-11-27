@@ -24,7 +24,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.bql.ast.*;
-import com.kronotop.bucket.handlers.protocol.SortDirection;
+import com.kronotop.bucket.index.SortDirection;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;

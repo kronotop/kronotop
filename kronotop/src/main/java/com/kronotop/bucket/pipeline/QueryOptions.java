@@ -17,7 +17,7 @@
 package com.kronotop.bucket.pipeline;
 
 import com.kronotop.bucket.Collation;
-import com.kronotop.bucket.handlers.protocol.SortDirection;
+import com.kronotop.bucket.index.SortDirection;
 
 
 /**

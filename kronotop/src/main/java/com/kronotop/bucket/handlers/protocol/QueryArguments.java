@@ -17,6 +17,7 @@
 package com.kronotop.bucket.handlers.protocol;
 
 import com.kronotop.bucket.Collation;
+import com.kronotop.bucket.index.SortDirection;
 
 /**
  * Holds the optional arguments parsed from BUCKET.QUERY, BUCKET.DELETE and BUCKET.UPDATE.

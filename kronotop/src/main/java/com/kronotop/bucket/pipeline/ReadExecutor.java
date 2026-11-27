@@ -20,7 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.ibm.icu.text.Collator;
 import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.TypeBracketComparator;
-import com.kronotop.bucket.handlers.protocol.SortDirection;
+import com.kronotop.bucket.index.SortDirection;
 import com.kronotop.bucket.index.SelectorMatcher;
 import com.kronotop.internal.StringUtil;
 import org.bson.BsonType;

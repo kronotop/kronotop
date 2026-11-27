@@ -19,7 +19,7 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.handlers.protocol.SortDirection;
+import com.kronotop.bucket.index.SortDirection;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;

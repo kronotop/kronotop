@@ -25,7 +25,7 @@ import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.CollatorCache;
 import com.kronotop.bucket.NumericWidening;
 import com.kronotop.bucket.bql.ast.*;
-import com.kronotop.bucket.handlers.protocol.SortDirection;
+import com.kronotop.bucket.index.SortDirection;
 import com.kronotop.bucket.index.IndexMaintainer;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.PrimaryIndex;

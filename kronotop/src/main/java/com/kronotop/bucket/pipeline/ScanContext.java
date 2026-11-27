@@ -20,7 +20,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.CollatorCache;
 import com.kronotop.bucket.bql.ast.BqlValue;
-import com.kronotop.bucket.handlers.protocol.SortDirection;
+import com.kronotop.bucket.index.SortDirection;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 
 import java.util.Collections;

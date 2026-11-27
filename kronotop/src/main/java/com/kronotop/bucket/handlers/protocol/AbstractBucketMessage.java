@@ -18,6 +18,7 @@
 package com.kronotop.bucket.handlers.protocol;
 
 import com.kronotop.bucket.handlers.CollationHelper;
+import com.kronotop.bucket.index.SortDirection;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.StringUtil;
 import com.kronotop.server.ProtocolMessage;

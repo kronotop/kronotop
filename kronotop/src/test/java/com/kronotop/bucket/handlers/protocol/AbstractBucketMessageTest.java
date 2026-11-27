@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
+import com.kronotop.bucket.index.SortDirection;
 import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.Request;
 import com.kronotop.server.Session;
