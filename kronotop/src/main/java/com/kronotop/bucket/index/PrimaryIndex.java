@@ -40,6 +40,16 @@ public final class PrimaryIndex {
      * Creates a new primary index definition with READY status.
      */
     public static SingleFieldIndexDefinition createDefinition() {
-        return SingleFieldIndexDefinition.create(NAME, SELECTOR, BSON_TYPE, false, IndexStatus.READY, null, true);
+        return SingleFieldIndexDefinition.create(
+                NAME,
+                SELECTOR,
+                BSON_TYPE,
+                SortDirection.ASC,
+                NullPosition.FIRST,
+                false,
+                IndexStatus.READY,
+                null,
+                true
+        );
     }
 }

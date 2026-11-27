@@ -22,6 +22,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.CollationTypeMismatchException;
+import com.kronotop.bucket.index.NullPosition;
+import com.kronotop.bucket.index.SortDirection;
 import org.bson.BsonType;
 import tools.jackson.databind.annotation.JsonDeserialize;
 
@@ -32,6 +34,12 @@ public class SingleFieldIndexSchema {
     @JsonProperty("bson_type")
     @JsonDeserialize(using = BsonTypeDeserializer.class)
     private BsonType bsonType;
+
+    @JsonProperty("direction")
+    private SortDirection sortDirection;
+
+    @JsonProperty("nulls")
+    private NullPosition nullPosition;
 
     /**
      * When true, creates a multi-key index for array fields. Each array element
@@ -58,6 +66,22 @@ public class SingleFieldIndexSchema {
 
     public void setBsonType(BsonType bsonType) {
         this.bsonType = bsonType;
+    }
+
+    public SortDirection getSortDirection() {
+        return sortDirection;
+    }
+
+    public void setSortDirection(SortDirection sortDirection) {
+        this.sortDirection = sortDirection;
+    }
+
+    public NullPosition getNullPosition() {
+        return nullPosition;
+    }
+
+    public void setNullPosition(NullPosition nullPosition) {
+        this.nullPosition = nullPosition;
     }
 
     public Boolean getMultiKey() {

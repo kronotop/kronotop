@@ -69,10 +69,19 @@ class IndexCreationHelper {
                 collation = metadata.collation();
             }
 
+            SortDirection sortDirection = schema.getSortDirection() != null ?
+                    schema.getSortDirection() : SortDirection.ASC;
+            NullPosition nullPosition = schema.getNullPosition();
+            if (nullPosition == null) {
+                nullPosition = sortDirection == SortDirection.ASC ?
+                        NullPosition.FIRST : NullPosition.LAST;
+            }
             SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(
                     name,
                     entry.getKey(),
                     schema.getBsonType(),
+                    sortDirection,
+                    nullPosition,
                     schema.getMultiKey(),
                     initialStatus,
                     collation,
