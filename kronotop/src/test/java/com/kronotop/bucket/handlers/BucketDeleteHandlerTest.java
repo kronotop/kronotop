@@ -558,8 +558,8 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         // UnionNode. Each ADVANCE DELETE batch deletes at most 2 documents. All matching documents
         // are deleted across multiple ADVANCE calls without missing or double-deleting.
 
-        SingleFieldIndexDefinition typeIndex = SingleFieldIndexDefinition.create("type-idx", "type", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition levelIndex = SingleFieldIndexDefinition.create("level-idx", "level", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition typeIndex = TestIndexDefinitions.singleField("type-idx", "type", BsonType.STRING, false);
+        SingleFieldIndexDefinition levelIndex = TestIndexDefinitions.singleField("level-idx", "level", BsonType.INT32, false);
         createIndexThenWaitForReadiness(typeIndex);
         createIndexThenWaitForReadiness(levelIndex);
 
@@ -824,8 +824,8 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     void shouldDeleteWidenedInt32DocumentAndCleanUpInt64IndexEntry() {
         // Behavior: Deleting a document whose INT32 value was widened to INT64 at insert-time
         // correctly removes the widened index entry and decrements cardinality.
-        SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(
-                "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDefinition = TestIndexDefinitions.singleField(
+                "age-index", "age", BsonType.INT64, false);
         createIndexThenWaitForReadiness(indexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -894,8 +894,8 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     void shouldDeleteWidenedInt32DocumentAndCleanUpDoubleIndexEntry() {
         // Behavior: Deleting a document whose INT32 value was widened to DOUBLE at insert-time
         // correctly removes the widened index entry and decrements cardinality.
-        SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(
-                "score-index", "score", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDefinition = TestIndexDefinitions.singleField(
+                "score-index", "score", BsonType.DOUBLE, false);
         createIndexThenWaitForReadiness(indexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -956,8 +956,8 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     void shouldDeleteWidenedInt32DocumentViaInt64IndexRangeScan() {
         // Behavior: DELETE with INT32 range predicate on INT64 index uses IndexPredicateResolver
         // widening to find and delete widened documents via index range scan.
-        SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(
-                "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDefinition = TestIndexDefinitions.singleField(
+                "age-index", "age", BsonType.INT64, false);
         createIndexThenWaitForReadiness(indexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -1036,8 +1036,8 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     void shouldDeleteAllWidenedInt32DocumentsAndResetInt64IndexCardinalityToZero() {
         // Behavior: Deleting all documents whose INT32 values were widened to INT64 at insert-time
         // removes every index entry and resets cardinality to zero.
-        SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(
-                "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDefinition = TestIndexDefinitions.singleField(
+                "age-index", "age", BsonType.INT64, false);
         createIndexThenWaitForReadiness(indexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);

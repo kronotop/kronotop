@@ -20,8 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -375,7 +375,7 @@ class AllOperatorIntegrationTest extends BasePipelineTest {
         // Behavior: $all on a field with an index should fall back to FullScanNode and return correct results.
         final String TEST_BUCKET_NAME = "test-bucket-all-indexed";
 
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags-index", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         List<byte[]> documents = List.of(

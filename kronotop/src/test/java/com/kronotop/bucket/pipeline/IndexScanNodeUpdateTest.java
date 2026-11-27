@@ -20,8 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.SortDirection;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.transaction.TransactionUtil;
 import org.bson.BsonBoolean;
 import org.bson.BsonString;
@@ -40,7 +40,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void shouldUpdateWithGreaterThanFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -92,7 +92,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void shouldUpdateWithGreaterThanFilterWithBatch() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan-with-batch";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -135,7 +135,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void shouldUpdateWithGreaterThanFilterWithBatchReverse() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan-with-batch-reverse";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -187,8 +187,8 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void shouldUpdateWithGreaterThanFilterWithDoubleIndex() {
         final String TEST_BUCKET_NAME = "test-bucket-double-index-update";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-index", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         List<byte[]> documents = List.of(
@@ -247,7 +247,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void shouldUnsetFieldWithGreaterThanFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-unset-field-scan";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -298,7 +298,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void shouldUnsetAndSetFieldsWithGreaterThanFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-unset-set-fields-scan";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(

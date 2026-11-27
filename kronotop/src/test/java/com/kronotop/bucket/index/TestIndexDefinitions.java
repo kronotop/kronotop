@@ -1,0 +1,40 @@
+/*
+ * Copyright (c) 2023-2026 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.kronotop.bucket.index;
+
+import org.bson.BsonType;
+
+/**
+ * Creates index definitions for tests that do not care about index ordering. A single field index
+ * is ascending, puts nulls first, has no collation and is not unique.
+ */
+public final class TestIndexDefinitions {
+
+    private TestIndexDefinitions() {
+    }
+
+    public static SingleFieldIndexDefinition singleField(String name, String selector, BsonType bsonType,
+                                                         boolean multiKey) {
+        return singleField(name, selector, bsonType, multiKey, IndexStatus.WAITING);
+    }
+
+    public static SingleFieldIndexDefinition singleField(String name, String selector, BsonType bsonType,
+                                                         boolean multiKey, IndexStatus status) {
+        return SingleFieldIndexDefinition.create(name, selector, bsonType,
+                SortDirection.ASC, NullPosition.FIRST, multiKey, status, null, false);
+    }
+}

@@ -21,8 +21,8 @@ import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.SortDirection;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.*;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
@@ -118,7 +118,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -153,7 +153,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("negative-number-index", "negative", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("negative-number-index", "negative", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -185,7 +185,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("negative-number-index", "negative", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("negative-number-index", "negative", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -217,7 +217,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -251,7 +251,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-eq-operator-with-reverse-batch-int32";
 
         // Create an age index for this test
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -299,7 +299,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-eq-operator-with-reverse-batch-string";
 
         // Create an age index for this test
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, nameIndex);
 
         // Insert multiple documents with different field types and values
@@ -349,7 +349,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-ne-operator-reverse-filter-with-batch";
 
         // Create an age index for this test
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -393,7 +393,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     void shouldHandleIndexWithDoubleMaxValue() {
         final String TEST_BUCKET_NAME = "test-bucket-index-with-double-max-value";
 
-        SingleFieldIndexDefinition doubleIndex = SingleFieldIndexDefinition.create("double-index", "double", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition doubleIndex = TestIndexDefinitions.singleField("double-index", "double", BsonType.DOUBLE, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, doubleIndex);
 
         String document = String.format("{\"double\": %s, \"string\": \"John\"}", Double.MAX_VALUE);
@@ -420,7 +420,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     void shouldHandleIndexWithInt64MaxValue() {
         final String TEST_BUCKET_NAME = "test-bucket-index-with-long-max-value";
 
-        SingleFieldIndexDefinition longIndex = SingleFieldIndexDefinition.create("long-index", "long", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition longIndex = TestIndexDefinitions.singleField("long-index", "long", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, longIndex);
 
         String document = String.format("{\"long\": {\"$numberLong\": \"%s\"}, \"string\": \"John\"}", Long.MAX_VALUE);
@@ -448,7 +448,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-with-integer-max-value";
 
         // Create an age index for this test
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("integer-index", "integer", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("integer-index", "integer", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         String document = String.format("{\"integer\": %s, \"string\": \"John\"}", Integer.MAX_VALUE);
@@ -476,7 +476,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-empty-result-gt";
 
         // Create an age index for this test
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert documents with ages all below the query threshold
@@ -507,7 +507,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-ne";
 
         // Create an age index for this test
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different ages, including some with age 25
@@ -546,7 +546,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-comparison-" + operator.toLowerCase() + "-" + bsonType.name().toLowerCase();
 
         // Create index for the test field
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create(fieldName + "-index", fieldName, bsonType, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField(fieldName + "-index", fieldName, bsonType, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
 
         // Insert test documents
@@ -588,7 +588,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-comparison-reverse-" + operator.toLowerCase() + "-" + bsonType.name().toLowerCase();
 
         // Create index for the test field
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create(fieldName + "-index", fieldName, bsonType, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField(fieldName + "-index", fieldName, bsonType, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
 
         // Insert test documents
@@ -817,7 +817,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         // Behavior: INT32 query literal should use INT64 index via lossless widening and return correct results
         final String TEST_BUCKET_NAME = "test-bucket-widening-int32-to-int64-eq";
 
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("ts-index", "ts", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("ts-index", "ts", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
 
         List<byte[]> documents = List.of(
@@ -838,7 +838,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         // Behavior: INT32 range predicate ($gt) should use INT64 index via lossless widening
         final String TEST_BUCKET_NAME = "test-bucket-widening-int32-to-int64-gt";
 
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("ts-index", "ts", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("ts-index", "ts", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
 
         List<byte[]> documents = List.of(
@@ -863,7 +863,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         // Behavior: INT32 query literal should use DOUBLE index via lossless widening
         final String TEST_BUCKET_NAME = "test-bucket-widening-int32-to-double";
 
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("price-index", "price", BsonType.DOUBLE, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
 
         List<byte[]> documents = List.of(

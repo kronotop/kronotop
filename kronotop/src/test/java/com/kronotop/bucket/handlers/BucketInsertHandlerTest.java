@@ -222,7 +222,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @MethodSource("indexCreationTestData")
     void shouldCreateIndexEntriesDuringDocumentInsertion(String fieldName, BsonType bsonType, String jsonDocument, Object expectedIndexValue) {
         // Create an index for the field
-        SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(fieldName + "-index", fieldName, bsonType, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDefinition = TestIndexDefinitions.singleField(fieldName + "-index", fieldName, bsonType, false);
 
         // Create bucket metadata and register the index
         createIndexThenWaitForReadiness(indexDefinition);
@@ -280,8 +280,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldNotIgnoreMissingFieldsInDocument() {
         // Create indexes for fields that don't exist in the document
-        SingleFieldIndexDefinition nameIndexDefinition = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndexDefinition = TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
 
         createIndexThenWaitForReadiness(nameIndexDefinition, ageIndexDefinition);
 
@@ -335,7 +335,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldThrowIndexTypeMismatchExceptionWhenStrictTypesEnabled() {
         // Create an index expecting INT32 for 'age' field
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
 
         // Create bucket metadata and register the index
         createIndexThenWaitForReadiness(ageIndexDefinition);
@@ -362,7 +362,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldThrowIndexTypeMismatchExceptionForInt64WithInt32Index() {
         // Create an index expecting INT32 for 'count' field
-        SingleFieldIndexDefinition countIndexDefinition = SingleFieldIndexDefinition.create("count-index", "count", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition countIndexDefinition = TestIndexDefinitions.singleField("count-index", "count", BsonType.INT32, false);
         createIndexThenWaitForReadiness(countIndexDefinition);
 
         // Insert document where 'count' is INT64 instead of INT32
@@ -382,7 +382,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldThrowIndexTypeMismatchExceptionForDoubleWithInt32Index() {
         // Create an index expecting INT32 for 'value' field
-        SingleFieldIndexDefinition valueIndexDefinition = SingleFieldIndexDefinition.create("value-index", "value", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valueIndexDefinition = TestIndexDefinitions.singleField("value-index", "value", BsonType.INT32, false);
         createIndexThenWaitForReadiness(valueIndexDefinition);
 
         // Insert document where 'value' is DOUBLE instead of INT32
@@ -402,7 +402,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldThrowIndexTypeMismatchExceptionForBooleanWithStringIndex() {
         // Create an index expecting STRING for 'status' field
-        SingleFieldIndexDefinition statusIndexDefinition = SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndexDefinition = TestIndexDefinitions.singleField("status-index", "status", BsonType.STRING, false);
         createIndexThenWaitForReadiness(statusIndexDefinition);
 
         // Insert document where 'status' is BOOLEAN instead of STRING
@@ -422,7 +422,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldSucceedWhenValueTypeMatchesIndexType() {
         // Create an index expecting INT32 for 'age' field
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Insert document where 'age' is correctly INT32
@@ -441,9 +441,9 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldCreateMultipleIndexEntriesForSingleDocument() {
         // Create multiple indexes
-        SingleFieldIndexDefinition nameIndexDefinition = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition activeIndexDefinition = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndexDefinition = TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition activeIndexDefinition = TestIndexDefinitions.singleField("active-index", "active", BsonType.BOOLEAN, false);
 
         // Create bucket metadata and register the indexes
         createIndexThenWaitForReadiness(nameIndexDefinition, ageIndexDefinition, activeIndexDefinition);
@@ -513,7 +513,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldUpdateIndexCardinalityAfterInsertion() {
         // Create an INT32 index for 'age' field
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
 
         // Create bucket metadata and register the index
         createIndexThenWaitForReadiness(ageIndexDefinition);
@@ -706,7 +706,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldIndexMissingFieldsAsNull() {
         // Create an index for the 'age' field
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -750,7 +750,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldIndexExplicitNullValues() {
         // Create an index for the 'age' field
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -917,7 +917,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldCreateMultikeyIndexEntriesForArrayOfDocuments() {
         // Create an index on "scores.type" field within the array
-        SingleFieldIndexDefinition typeIndexDefinition = SingleFieldIndexDefinition.create("scores-type-index", "scores.type", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition typeIndexDefinition = TestIndexDefinitions.singleField("scores-type-index", "scores.type", BsonType.STRING, false);
         createIndexThenWaitForReadiness(typeIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -957,7 +957,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldDeduplicateMultikeyIndexEntries() {
         // Create an index on "scores.type" field
-        SingleFieldIndexDefinition typeIndexDefinition = SingleFieldIndexDefinition.create("scores-type-index", "scores.type", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition typeIndexDefinition = TestIndexDefinitions.singleField("scores-type-index", "scores.type", BsonType.STRING, false);
         createIndexThenWaitForReadiness(typeIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -998,7 +998,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldUpdateCardinalityCorrectlyForMultikeyIndex() {
         // Create an index on "tags" field within array
-        SingleFieldIndexDefinition tagsIndexDefinition = SingleFieldIndexDefinition.create("tags-index", "items.tag", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndexDefinition = TestIndexDefinitions.singleField("tags-index", "items.tag", BsonType.STRING, false);
         createIndexThenWaitForReadiness(tagsIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -1028,7 +1028,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldDeduplicateAndTrackCardinalityCorrectlyForMultikeyIndex() {
         // Create an index on the "tags.name" field within an array
-        SingleFieldIndexDefinition tagsIndexDefinition = SingleFieldIndexDefinition.create("tags-name-index", "tags.name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndexDefinition = TestIndexDefinitions.singleField("tags-name-index", "tags.name", BsonType.STRING, false);
         createIndexThenWaitForReadiness(tagsIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -1111,7 +1111,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     void shouldIndexNullElementsInMultikeyArray() {
         // Behavior: Array with null elements should index ONE null entry (deduplicated)
         // along with non-null values for consistent semantics with single-value indexes.
-        SingleFieldIndexDefinition tagsIndexDefinition = SingleFieldIndexDefinition.create("tags-index", "tags.name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndexDefinition = TestIndexDefinitions.singleField("tags-index", "tags.name", BsonType.STRING, false);
         createIndexThenWaitForReadiness(tagsIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -1149,7 +1149,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldIndexArrayWithOnlyNullElements() {
         // Behavior: Array containing only nulls should create exactly one null index entry.
-        SingleFieldIndexDefinition tagsIndexDefinition = SingleFieldIndexDefinition.create("tags-index", "tags.name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndexDefinition = TestIndexDefinitions.singleField("tags-index", "tags.name", BsonType.STRING, false);
         createIndexThenWaitForReadiness(tagsIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -1182,7 +1182,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldUpdateCardinalityCorrectlyForMultikeyIndexWithNulls() {
         // Behavior: Cardinality tracking should count null entries like other values.
-        SingleFieldIndexDefinition tagsIndexDefinition = SingleFieldIndexDefinition.create("tags-index", "tags.name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndexDefinition = TestIndexDefinitions.singleField("tags-index", "tags.name", BsonType.STRING, false);
         createIndexThenWaitForReadiness(tagsIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -1699,8 +1699,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldWidenInt32ValueToInt64Index() {
         // Behavior: INT32 document value is losslessly widened to INT64 when stored in an INT64 index.
-        SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(
-                "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDefinition = TestIndexDefinitions.singleField(
+                "age-index", "age", BsonType.INT64, false);
         createIndexThenWaitForReadiness(indexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -1735,8 +1735,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldWidenInt32ValueToDoubleIndex() {
         // Behavior: INT32 document value is losslessly widened to DOUBLE when stored in a DOUBLE index.
-        SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(
-                "score-index", "score", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDefinition = TestIndexDefinitions.singleField(
+                "score-index", "score", BsonType.DOUBLE, false);
         createIndexThenWaitForReadiness(indexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -1773,8 +1773,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldWidenMultipleInt32ValuesToInt64IndexAndTrackCardinality() {
         // Behavior: Multiple INT32 values are widened and indexed correctly, cardinality tracks all widened entries.
-        SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(
-                "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDefinition = TestIndexDefinitions.singleField(
+                "age-index", "age", BsonType.INT64, false);
         createIndexThenWaitForReadiness(indexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -1818,8 +1818,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldRejectInt64ValueInDoubleIndex() {
         // Behavior: INT64 to DOUBLE widening is forbidden (lossy: 64-bit integers exceed double's 53-bit mantissa).
-        SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(
-                "value-index", "value", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDefinition = TestIndexDefinitions.singleField(
+                "value-index", "value", BsonType.DOUBLE, false);
         createIndexThenWaitForReadiness(indexDefinition);
 
         String jsonDocument = "{\"name\": \"Test\", \"value\": {\"$numberLong\": \"999999999999\"}}";
@@ -1838,8 +1838,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldFindWidenedInt32DocumentViaInt64IndexEqQuery() {
         // Behavior: An INT32 value widened to INT64 at store-time is found by an INT32 $eq query predicate via index lookup.
-        SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(
-                "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDefinition = TestIndexDefinitions.singleField(
+                "age-index", "age", BsonType.INT64, false);
         createIndexThenWaitForReadiness(indexDefinition);
 
         BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
@@ -1867,8 +1867,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldFindWidenedInt32DocumentsViaInt64IndexRangeQuery() {
         // Behavior: INT32 values widened to INT64 at store-time are found by an INT32 $gte range query via index range scan.
-        SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(
-                "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDefinition = TestIndexDefinitions.singleField(
+                "age-index", "age", BsonType.INT64, false);
         createIndexThenWaitForReadiness(indexDefinition);
 
         String[] documents = {
@@ -1906,8 +1906,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldFindDoubleDocumentsViaDoubleIndexWithInt32GtPredicate() {
         // Behavior: DOUBLE values stored in a DOUBLE index are found by an INT32 $gt query predicate via index range scan.
-        SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(
-                "score-index", "score", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDefinition = TestIndexDefinitions.singleField(
+                "score-index", "score", BsonType.DOUBLE, false);
         createIndexThenWaitForReadiness(indexDefinition);
 
         String[] documents = {

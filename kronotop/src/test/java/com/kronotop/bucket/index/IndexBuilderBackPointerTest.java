@@ -148,7 +148,7 @@ class IndexBuilderBackPointerTest extends BaseIndexMaintainerTest {
     @ParameterizedTest
     @MethodSource("indexValueTestData")
     void shouldCreateBackPointerWhenSettingIndexEntry(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(indexName, fieldName, bsonType, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(indexName, fieldName, bsonType, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
         AppendedEntry entry = createAppendedEntry(0);
         ObjectId objectId = new ObjectId();
@@ -164,7 +164,7 @@ class IndexBuilderBackPointerTest extends BaseIndexMaintainerTest {
 
     @Test
     void shouldCreateBackPointerWithCorrectStructure() {
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
         AppendedEntry entry = createAppendedEntry(42);
         String indexValue = "test-value";
@@ -200,7 +200,7 @@ class IndexBuilderBackPointerTest extends BaseIndexMaintainerTest {
 
     @Test
     void shouldRetrieveIndexKeysUsingBackPointer() {
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
 
         AppendedEntry entry = createAppendedEntry(100);
@@ -220,8 +220,8 @@ class IndexBuilderBackPointerTest extends BaseIndexMaintainerTest {
 
     @Test
     void shouldCreateBackPointersForMultipleIndexes() {
-        SingleFieldIndexDefinition stringIndex = SingleFieldIndexDefinition.create("string-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition intIndex = SingleFieldIndexDefinition.create("int-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition stringIndex = TestIndexDefinitions.singleField("string-index", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition intIndex = TestIndexDefinitions.singleField("int-index", "age", BsonType.INT32, false);
 
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, stringIndex, intIndex);
 
@@ -246,9 +246,9 @@ class IndexBuilderBackPointerTest extends BaseIndexMaintainerTest {
 
     @Test
     void shouldScanBackPointersForObjectId() {
-        SingleFieldIndexDefinition stringIndex = SingleFieldIndexDefinition.create("string-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition intIndex = SingleFieldIndexDefinition.create("int-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition doubleIndex = SingleFieldIndexDefinition.create("double-index", "score", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition stringIndex = TestIndexDefinitions.singleField("string-index", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition intIndex = TestIndexDefinitions.singleField("int-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition doubleIndex = TestIndexDefinitions.singleField("double-index", "score", BsonType.DOUBLE, false);
 
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, stringIndex, intIndex, doubleIndex);
 
@@ -287,7 +287,7 @@ class IndexBuilderBackPointerTest extends BaseIndexMaintainerTest {
 
     @Test
     void shouldHandleMultipleEntriesWithSameObjectId() {
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("multi-entry-index", "value", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("multi-entry-index", "value", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
 
         ObjectId objectId = new ObjectId();
@@ -311,7 +311,7 @@ class IndexBuilderBackPointerTest extends BaseIndexMaintainerTest {
 
     @Test
     void shouldCreateBackPointersForNullValues() {
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("null-index", "nullable", BsonType.NULL, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("null-index", "nullable", BsonType.NULL, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
         AppendedEntry entry = createAppendedEntry(500);
         ObjectId objectId = new ObjectId();

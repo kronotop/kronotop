@@ -20,8 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.transaction.TransactionUtil;
 import org.bson.BsonString;
 import org.bson.BsonType;
@@ -54,8 +54,8 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
         // chained, not a TransformWithResidualPredicateNode after the union itself.
         final String TEST_BUCKET_NAME = "test-pushdown-plan-structure";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create(
-                "role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField(
+                "role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata,
@@ -85,8 +85,8 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
         // and return fewer than 4 results.
         final String TEST_BUCKET_NAME = "test-pushdown-low-selectivity";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create(
-                "role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField(
+                "role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = new ArrayList<>();
@@ -133,8 +133,8 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
         // via ADVANCE calls should return all 12 docs without duplicates or missing entries.
         final String TEST_BUCKET_NAME = "test-pushdown-pagination";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create(
-                "role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField(
+                "role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         Set<Integer> targetSeqs = Set.of(10, 30, 50, 70, 90, 110, 130, 150, 170, 190, 5, 95);
@@ -193,8 +193,8 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
         // pushdown plan shape.
         final String TEST_BUCKET_NAME = "test-pushdown-delete";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create(
-                "role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField(
+                "role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -237,8 +237,8 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
         // the indexed $in predicate and the non-indexed residual predicate.
         final String TEST_BUCKET_NAME = "test-pushdown-update";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create(
-                "role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField(
+                "role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -292,8 +292,8 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
         // all residual predicates should be pushed into each child and evaluated correctly.
         final String TEST_BUCKET_NAME = "test-pushdown-multiple-residuals";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create(
-                "role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField(
+                "role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -344,8 +344,8 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
         // the pushdown should not alter correctness (no filtering happens, all entries pass through).
         final String TEST_BUCKET_NAME = "test-pushdown-all-pass";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create(
-                "role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField(
+                "role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -382,8 +382,8 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
         // empty and all children should be exhausted.
         final String TEST_BUCKET_NAME = "test-pushdown-none-pass";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create(
-                "role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField(
+                "role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(

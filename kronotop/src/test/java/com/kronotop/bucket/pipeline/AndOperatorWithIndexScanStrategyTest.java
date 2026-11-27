@@ -20,8 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.SortDirection;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -38,7 +38,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         // Behavior: AND query with one indexed field and one non-indexed field returns correct results.
         final String TEST_BUCKET_NAME = "test-intersection-with-two-fields-and-single-index";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -71,7 +71,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         // Behavior: AND query with batch size returns correct batches across multiple cursor advances.
         final String TEST_BUCKET_NAME = "test-intersection-batched-iteration";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 20 documents with 7 matching the query criteria
@@ -132,7 +132,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         // Behavior: AND query with batch size and DESC sort returns correct batches in reverse order.
         final String TEST_BUCKET_NAME = "test-intersection-batched-iteration-reverse";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 20 documents with 7 matching the query criteria
@@ -194,8 +194,8 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         // Behavior: AND query with two indexed fields returns correct results using index intersection strategy.
         final String TEST_BUCKET_NAME = "test-intersection-with-two-fields-and-double-index";
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         List<byte[]> documents = List.of(
@@ -228,8 +228,8 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         // Behavior: AND query with range condition and two indexes returns correct results.
         final String TEST_BUCKET_NAME = "test-intersection-with-two-fields-and-double-index";
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         List<byte[]> documents = List.of(
@@ -261,8 +261,8 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     void shouldExecuteAndQueryWithTwoEqPredicates() {
         // Behavior: AND query with two EQ conditions on indexed fields returns the single matching document.
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex, nameIndex);
 
         List<byte[]> documents = List.of(
@@ -292,8 +292,8 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         // other two: (23, 120) and (35, 140).
         final String TEST_BUCKET_NAME = "test-bucket-and-index-scan";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-index", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         List<byte[]> documents = List.of(
@@ -325,8 +325,8 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         // returns the Johns aged 23, 25 and 35.
         final String TEST_BUCKET_NAME = "test-equality-with-multiple-documents";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // Insert documents where exactly 3 match the AND condition (age > 22 AND name == 'John')

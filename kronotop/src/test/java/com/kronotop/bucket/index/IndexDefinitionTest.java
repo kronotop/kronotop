@@ -27,7 +27,7 @@ class IndexDefinitionTest {
     @Test
     void shouldEncodeDecode() {
         // Behavior: a single-field definition survives a JSON round-trip, including the unique flag.
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.BINARY, false, IndexStatus.WAITING, null, true);
+        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.BINARY, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, null, true);
         byte[] data = JSONUtil.writeValueAsBytes(index);
 
         SingleFieldIndexDefinition decoded = JSONUtil.readValue(data, SingleFieldIndexDefinition.class);
@@ -42,14 +42,14 @@ class IndexDefinitionTest {
     @Test
     void shouldDefaultUniqueToFalse() {
         // Behavior: factory overloads without a unique argument default the flag to false.
-        assertFalse(SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, false, IndexStatus.WAITING).unique());
-        assertFalse(SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, false, IndexStatus.WAITING, null).unique());
+        assertFalse(SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING).unique());
+        assertFalse(SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, null).unique());
     }
 
     @Test
     void shouldPreserveUniqueOnStatusUpdate() {
         // Behavior: updateStatus keeps the unique flag unchanged.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, false, IndexStatus.WAITING, null, true);
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, null, true);
         assertTrue(definition.updateStatus(IndexStatus.BUILDING).unique());
     }
 
@@ -58,7 +58,7 @@ class IndexDefinitionTest {
         // Behavior: the canonical constructor rejects a unique multi-key index, so no path
         // (direct construction, deserialization) can produce this invariant-breaking definition.
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-                new SingleFieldIndexDefinition(1L, "i", "f", BsonType.STRING, true, IndexStatus.WAITING, null, true));
+                new SingleFieldIndexDefinition(1L, "i", "f", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, true, IndexStatus.WAITING, null, true));
         assertEquals("A unique index cannot be multi-key", exception.getMessage());
     }
 
@@ -66,24 +66,24 @@ class IndexDefinitionTest {
     void shouldRejectUniqueMultiKeyViaFactory() {
         // Behavior: the factory also rejects a unique multi-key index.
         assertThrows(IllegalArgumentException.class, () ->
-                SingleFieldIndexDefinition.create("i", "f", BsonType.STRING, true, IndexStatus.WAITING, null, true));
+                SingleFieldIndexDefinition.create("i", "f", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, true, IndexStatus.WAITING, null, true));
     }
 
     @Test
     void DECIMAL128NotImplementedYet() {
-        assertThrows(NotImplementedException.class, () -> SingleFieldIndexDefinition.create("index-name", "_id", BsonType.DECIMAL128, false, IndexStatus.WAITING));
+        assertThrows(NotImplementedException.class, () -> SingleFieldIndexDefinition.create("index-name", "_id", BsonType.DECIMAL128, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING));
     }
 
     @Test
     void shouldUpdateStatus() {
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING);
         SingleFieldIndexDefinition updated = definition.updateStatus(IndexStatus.BUILDING);
         assertEquals(IndexStatus.BUILDING, updated.status());
     }
 
     @Test
     void shouldNotUpdateStatusFromDroppedToOtherStatus() {
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING);
         SingleFieldIndexDefinition dropped = definition.updateStatus(IndexStatus.DROPPED);
         assertEquals(IndexStatus.DROPPED, dropped.status());
 
@@ -95,7 +95,7 @@ class IndexDefinitionTest {
 
     @Test
     void shouldAllowUpdatingDroppedStatusToDroppedAgain() {
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING);
         SingleFieldIndexDefinition dropped = definition.updateStatus(IndexStatus.DROPPED);
         assertEquals(IndexStatus.DROPPED, dropped.status());
 

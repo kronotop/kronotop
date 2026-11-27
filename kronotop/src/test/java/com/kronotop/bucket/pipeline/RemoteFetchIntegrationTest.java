@@ -30,6 +30,7 @@ import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.index.SingleFieldIndexUtil;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.optimizer.Optimizer;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
@@ -168,7 +169,7 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
     @Test
     void shouldExecuteIndexedQueryWithRemoteFetch() {
         createBucket(BUCKET_NAME);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", org.bson.BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", org.bson.BsonType.INT32, false);
         createIndex(BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(

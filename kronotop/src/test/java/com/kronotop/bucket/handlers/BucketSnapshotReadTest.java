@@ -17,8 +17,8 @@
 package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.BSONUtil;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.BucketQueryArgs;
 import com.kronotop.commands.KronotopCommandBuilder;
@@ -181,7 +181,7 @@ class BucketSnapshotReadTest extends BaseBucketHandlerTest {
     void shouldQueryWithSnapshotReadUsingSecondaryIndex() {
         // Behavior: SNAPSHOTREAD ON works with secondary index scans (IndexScanNode path).
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex);
 
         List<byte[]> documents = Arrays.asList(

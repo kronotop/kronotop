@@ -23,6 +23,7 @@ import com.kronotop.bucket.index.CompoundIndexDefinition;
 import com.kronotop.bucket.index.CompoundIndexField;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.planner.physical.PhysicalPlanValidationException;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.KronotopCommandBuilder;
@@ -55,7 +56,7 @@ class PipelineIntegrationTest extends BasePipelineTest {
         // should select a RangeScanNode using that index with null bounds for full range scan.
 
         // Create an index on the age field
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex);
 
         // Create execution plan with empty filter and sortBy age
@@ -82,7 +83,7 @@ class PipelineIntegrationTest extends BasePipelineTest {
         // The sort direction is handled at execution time, not at plan creation.
 
         // Create an index on the age field
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex);
 
         // Create an execution plan with empty filter and sortBy age (DESC uses the same index, direction handled at execution)
@@ -105,7 +106,7 @@ class PipelineIntegrationTest extends BasePipelineTest {
         // no index provides natural ordering for the requested sort field.
 
         // Create an index on age field only
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex);
 
         assertThrows(PhysicalPlanValidationException.class,
@@ -118,8 +119,8 @@ class PipelineIntegrationTest extends BasePipelineTest {
         // sortBy field. Each sortBy field gets its corresponding index for optimal ordering.
 
         // Create indexes on both age and name fields
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name-idx", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex, nameIndex);
 
         // Create execution plan with empty filter and sortBy age
@@ -180,7 +181,7 @@ class PipelineIntegrationTest extends BasePipelineTest {
 
         final String TEST_BUCKET_NAME = "test-id-range-indexed-field";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -264,7 +265,7 @@ class PipelineIntegrationTest extends BasePipelineTest {
 
         final String TEST_BUCKET_NAME = "test-id-range-lte-indexed";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -306,7 +307,7 @@ class PipelineIntegrationTest extends BasePipelineTest {
 
         final String TEST_BUCKET_NAME = "test-id-range-between-indexed";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -353,8 +354,8 @@ class PipelineIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-equal-selectivity-indexes";
 
         // Create indexes on both price and quantity fields
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-idx", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-idx", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-idx", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-idx", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         List<byte[]> documents = List.of(

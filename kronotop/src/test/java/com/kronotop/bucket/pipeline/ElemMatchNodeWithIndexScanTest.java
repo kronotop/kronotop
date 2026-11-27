@@ -19,8 +19,8 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonType;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
@@ -50,7 +50,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-index-combined";
 
         // Create index on 'category' field
-        SingleFieldIndexDefinition categoryIndex = SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition categoryIndex = TestIndexDefinitions.singleField("category-index", "category", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex);
 
         // Insert documents with category and items array
@@ -96,7 +96,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-range-combined";
 
         // Create index on 'priority' field
-        SingleFieldIndexDefinition priorityIndex = SingleFieldIndexDefinition.create("priority-index", "priority", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priorityIndex = TestIndexDefinitions.singleField("priority-index", "priority", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priorityIndex);
 
         // Insert documents
@@ -142,8 +142,8 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-multi-index";
 
         // Create indexes on 'status' and 'region' fields
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition regionIndex = SingleFieldIndexDefinition.create("region-index", "region", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-index", "status", BsonType.STRING, false);
+        SingleFieldIndexDefinition regionIndex = TestIndexDefinitions.singleField("region-index", "region", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex, regionIndex);
 
         // Insert documents
@@ -187,7 +187,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-or-index";
 
         // Create index on 'type' field
-        SingleFieldIndexDefinition typeIndex = SingleFieldIndexDefinition.create("type-index", "type", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition typeIndex = TestIndexDefinitions.singleField("type-index", "type", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, typeIndex);
 
         // Insert documents
@@ -226,7 +226,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-multi-cond-index";
 
         // Create index on 'department' field
-        SingleFieldIndexDefinition deptIndex = SingleFieldIndexDefinition.create("dept-index", "department", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition deptIndex = TestIndexDefinitions.singleField("dept-index", "department", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, deptIndex);
 
         // Insert documents
@@ -272,7 +272,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-multikey-role";
 
         // Create multiKey index on nested 'members.role' field
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "members.role", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "members.role", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         // Insert documents with members array containing role field
@@ -313,8 +313,8 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-multiple-indexes";
 
         // Create both indexes: multiKey on members.role and regular on name
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "members.role", BsonType.STRING, true, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "members.role", BsonType.STRING, true);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex, nameIndex);
 
         // Insert documents
@@ -355,8 +355,8 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-multiple-indexes-or";
 
         // Create both indexes: multiKey on members.role and regular on name
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "members.role", BsonType.STRING, true, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "members.role", BsonType.STRING, true);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex, nameIndex);
 
         // Insert documents
@@ -396,7 +396,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-no-match-index";
 
         // Create index on 'status' field
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-index", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex);
 
         // Insert documents
@@ -439,7 +439,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-operator";
 
         // Create index on 'category' field
-        SingleFieldIndexDefinition categoryIndex = SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition categoryIndex = TestIndexDefinitions.singleField("category-index", "category", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex);
 
         // Insert documents
@@ -478,7 +478,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-nested-index";
 
         // Create index on 'active' field
-        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition activeIndex = TestIndexDefinitions.singleField("active-index", "active", BsonType.BOOLEAN, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, activeIndex);
 
         // Insert documents with a nested structure
@@ -526,7 +526,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-scalar-string-index";
 
         // Create index on 'status' field
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-index", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex);
 
         // Insert documents with scalar string array
@@ -566,7 +566,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-scalar-number-index";
 
         // Create index on 'grade' field
-        SingleFieldIndexDefinition gradeIndex = SingleFieldIndexDefinition.create("grade-index", "grade", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition gradeIndex = TestIndexDefinitions.singleField("grade-index", "grade", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, gradeIndex);
 
         // Insert documents with scalar number array
@@ -606,7 +606,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-scalar-range-index";
 
         // Create index on 'priority' field
-        SingleFieldIndexDefinition priorityIndex = SingleFieldIndexDefinition.create("priority-index", "priority", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priorityIndex = TestIndexDefinitions.singleField("priority-index", "priority", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priorityIndex);
 
         // Insert documents with scalar number array
@@ -646,7 +646,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-scalar-in-index";
 
         // Create index on 'category' field
-        SingleFieldIndexDefinition categoryIndex = SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition categoryIndex = TestIndexDefinitions.singleField("category-index", "category", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex);
 
         // Insert documents with scalar string array
@@ -685,8 +685,8 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-scalar-multi-index";
 
         // Create indexes on 'status' and 'region' fields
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition regionIndex = SingleFieldIndexDefinition.create("region-index", "region", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-index", "status", BsonType.STRING, false);
+        SingleFieldIndexDefinition regionIndex = TestIndexDefinitions.singleField("region-index", "region", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex, regionIndex);
 
         // Insert documents with scalar number array
@@ -726,7 +726,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-scalar-range-cond";
 
         // Create index on 'type' field
-        SingleFieldIndexDefinition typeIndex = SingleFieldIndexDefinition.create("type-index", "type", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition typeIndex = TestIndexDefinitions.singleField("type-index", "type", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, typeIndex);
 
         // Insert documents with scalar number array
@@ -766,7 +766,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-scalar-no-match";
 
         // Create index on 'active' field
-        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition activeIndex = TestIndexDefinitions.singleField("active-index", "active", BsonType.BOOLEAN, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, activeIndex);
 
         // Insert documents with scalar number array
@@ -805,7 +805,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-scalar-array-indexed";
 
         // Create index on the scalar array field 'temperatures' (multikey)
-        SingleFieldIndexDefinition temperaturesIndex = SingleFieldIndexDefinition.create("temperatures-index", "temperatures", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition temperaturesIndex = TestIndexDefinitions.singleField("temperatures-index", "temperatures", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, temperaturesIndex);
 
         // Insert documents with scalar number array
@@ -841,7 +841,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-scalar-string-array-indexed";
 
         // Create index on the scalar array field 'tags' (multikey)
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags-index", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         // Insert documents with scalar string array
@@ -877,8 +877,8 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-array-and-field-indexed";
 
         // Create index on both a regular field and the scalar array field (multikey)
-        SingleFieldIndexDefinition typeIndex = SingleFieldIndexDefinition.create("type-index", "type", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition typeIndex = TestIndexDefinitions.singleField("type-index", "type", BsonType.STRING, false);
+        SingleFieldIndexDefinition scoresIndex = TestIndexDefinitions.singleField("scores-index", "scores", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, typeIndex, scoresIndex);
 
         // Insert documents with scalar number array
@@ -914,7 +914,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-scalar-array-range-indexed";
 
         // Create index on the scalar array field 'prices' (multikey)
-        SingleFieldIndexDefinition pricesIndex = SingleFieldIndexDefinition.create("prices-index", "prices", BsonType.DOUBLE, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition pricesIndex = TestIndexDefinitions.singleField("prices-index", "prices", BsonType.DOUBLE, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, pricesIndex);
 
         // Insert documents with scalar number array (doubles)
@@ -954,7 +954,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-scalar-array-indexed-no-match";
 
         // Create index on the scalar array field 'values' (multikey)
-        SingleFieldIndexDefinition valuesIndex = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valuesIndex = TestIndexDefinitions.singleField("values-index", "values", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valuesIndex);
 
         // Insert documents with scalar number array
@@ -987,7 +987,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-with-elemmatch";
 
         // Create index on the scalar array field (multikey)
-        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoresIndex = TestIndexDefinitions.singleField("scores-index", "scores", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoresIndex);
 
         // Insert documents with scalar number array
@@ -1028,8 +1028,8 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-multiple-elemmatch";
 
         // Create indexes on two different array fields (multiKey for arrays)
-        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, true, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ratingsIndex = SingleFieldIndexDefinition.create("ratings-index", "ratings", BsonType.DOUBLE, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoresIndex = TestIndexDefinitions.singleField("scores-index", "scores", BsonType.INT32, true);
+        SingleFieldIndexDefinition ratingsIndex = TestIndexDefinitions.singleField("ratings-index", "ratings", BsonType.DOUBLE, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoresIndex, ratingsIndex);
 
         // Insert documents with two scalar arrays
@@ -1069,8 +1069,8 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-multiple-elemmatch-range";
 
         // Create indexes on two different array fields (multiKey for arrays)
-        SingleFieldIndexDefinition pricesIndex = SingleFieldIndexDefinition.create("prices-index", "prices", BsonType.DOUBLE, true, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantitiesIndex = SingleFieldIndexDefinition.create("quantities-index", "quantities", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition pricesIndex = TestIndexDefinitions.singleField("prices-index", "prices", BsonType.DOUBLE, true);
+        SingleFieldIndexDefinition quantitiesIndex = TestIndexDefinitions.singleField("quantities-index", "quantities", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, pricesIndex, quantitiesIndex);
 
         // Insert documents with two scalar arrays
@@ -1112,7 +1112,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-doc-indexed";
 
         // Create index on nested field inside array of documents (multiKey for arrays)
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("items-status-index", "items.status", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("items-status-index", "items.status", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex);
 
         List<byte[]> documents = List.of(
@@ -1149,7 +1149,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-indexed";
 
         // Create index on scalar array field (multiKey for arrays)
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags-index", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         List<byte[]> documents = List.of(
@@ -1186,7 +1186,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-indexed-numbers";
 
         // Create index on scalar number array field (multiKey for arrays)
-        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoresIndex = TestIndexDefinitions.singleField("scores-index", "scores", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoresIndex);
 
         List<byte[]> documents = List.of(
@@ -1222,7 +1222,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-combined-indexed";
 
         // Create index on scalar number array field (multiKey for arrays)
-        SingleFieldIndexDefinition pricesIndex = SingleFieldIndexDefinition.create("prices-index", "prices", BsonType.DOUBLE, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition pricesIndex = TestIndexDefinitions.singleField("prices-index", "prices", BsonType.DOUBLE, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, pricesIndex);
 
         List<byte[]> documents = List.of(
@@ -1258,7 +1258,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-no-match-indexed";
 
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags-index", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         List<byte[]> documents = List.of(
@@ -1291,8 +1291,8 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-multi-index";
 
         // Create indexes on an array field (multiKey) and a regular field
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags-index", "tags", BsonType.STRING, true);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-index", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex, statusIndex);
 
         List<byte[]> documents = List.of(
@@ -1331,7 +1331,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-or-doc-indexed";
 
         // Create index on nested field inside array of documents (multiKey for arrays)
-        SingleFieldIndexDefinition subjectIndex = SingleFieldIndexDefinition.create("scores-subject-index", "scores.subject", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition subjectIndex = TestIndexDefinitions.singleField("scores-subject-index", "scores.subject", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, subjectIndex);
 
         List<byte[]> documents = List.of(
@@ -1374,7 +1374,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-or-scalar-indexed";
 
         // Create index on scalar array field (multiKey for arrays)
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags-index", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         List<byte[]> documents = List.of(
@@ -1413,8 +1413,8 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-or-combined-indexed";
 
         // Create indexes on nested fields (multiKey for arrays)
-        SingleFieldIndexDefinition subjectIndex = SingleFieldIndexDefinition.create("scores-subject-index", "scores.subject", BsonType.STRING, true, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("scores-score-index", "scores.score", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition subjectIndex = TestIndexDefinitions.singleField("scores-subject-index", "scores.subject", BsonType.STRING, true);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("scores-score-index", "scores.score", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, subjectIndex, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -1458,7 +1458,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
         // Create index on nested field (multiKey for arrays) - note: $all on array field cannot directly use index
         // but other conditions in the same $elemMatch can use indexes
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("items-price-index", "items.price", BsonType.DOUBLE, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("items-price-index", "items.price", BsonType.DOUBLE, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -1498,7 +1498,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-all-combined-indexed";
 
         // Create index on status field (multiKey for arrays)
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("items-status-index", "items.status", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("items-status-index", "items.status", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex);
 
         List<byte[]> documents = List.of(
@@ -1543,7 +1543,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-size-indexed";
 
         // Create index on priority field (multiKey for arrays)
-        SingleFieldIndexDefinition priorityIndex = SingleFieldIndexDefinition.create("tasks-priority-index", "tasks.priority", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priorityIndex = TestIndexDefinitions.singleField("tasks-priority-index", "tasks.priority", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priorityIndex);
 
         List<byte[]> documents = List.of(
@@ -1586,7 +1586,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-size-range-indexed";
 
         // Create index on count field (multiKey for arrays)
-        SingleFieldIndexDefinition countIndex = SingleFieldIndexDefinition.create("entries-count-index", "entries.count", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition countIndex = TestIndexDefinitions.singleField("entries-count-index", "entries.count", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, countIndex);
 
         List<byte[]> documents = List.of(
@@ -1628,7 +1628,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-nested-elemmatch-indexed";
 
         // Create index on nested price field (multiKey for arrays)
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("products-price-index", "departments.products.price", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("products-price-index", "departments.products.price", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -1667,7 +1667,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-nested-elemmatch-outer-indexed";
 
         // Create index on department name (multiKey for arrays)
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("dept-name-index", "departments.name", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("dept-name-index", "departments.name", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, nameIndex);
 
         List<byte[]> documents = List.of(
@@ -1710,8 +1710,8 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-nested-elemmatch-multi-indexed";
 
         // Create multiple indexes (multiKey for arrays)
-        SingleFieldIndexDefinition teamNameIndex = SingleFieldIndexDefinition.create("team-name-index", "teams.name", BsonType.STRING, true, IndexStatus.WAITING);
-        SingleFieldIndexDefinition memberRoleIndex = SingleFieldIndexDefinition.create("member-role-index", "teams.members.role", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition teamNameIndex = TestIndexDefinitions.singleField("team-name-index", "teams.name", BsonType.STRING, true);
+        SingleFieldIndexDefinition memberRoleIndex = TestIndexDefinitions.singleField("member-role-index", "teams.members.role", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, teamNameIndex, memberRoleIndex);
 
         List<byte[]> documents = List.of(
@@ -1752,7 +1752,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-multi-elemmatch-same-field-indexed";
 
         // Create index on items.price (multiKey for arrays)
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("items-price-index", "items.price", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("items-price-index", "items.price", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -1793,7 +1793,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-deep-nested-indexed";
 
         // Create index on deeply nested field (multiKey for arrays)
-        SingleFieldIndexDefinition valueIndex = SingleFieldIndexDefinition.create("items-value-index", "items.details.info.value", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valueIndex = TestIndexDefinitions.singleField("items-value-index", "items.details.info.value", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valueIndex);
 
         List<byte[]> documents = List.of(
@@ -1832,7 +1832,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-multi-deep-indexed";
 
         // Create index on one of the deeply nested fields (multiKey for arrays)
-        SingleFieldIndexDefinition countIndex = SingleFieldIndexDefinition.create("entries-count-index", "entries.meta.stats.count", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition countIndex = TestIndexDefinitions.singleField("entries-count-index", "entries.meta.stats.count", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, countIndex);
 
         List<byte[]> documents = List.of(
@@ -1874,7 +1874,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-compound-range-indexed";
 
         // Create index on price field (multiKey for arrays)
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("variants-price-index", "variants.price", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("variants-price-index", "variants.price", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -1914,7 +1914,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-scalar-compound-range-indexed";
 
         // Create index on readings array (multiKey for arrays)
-        SingleFieldIndexDefinition readingsIndex = SingleFieldIndexDefinition.create("readings-index", "readings", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition readingsIndex = TestIndexDefinitions.singleField("readings-index", "readings", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, readingsIndex);
 
         List<byte[]> documents = List.of(
@@ -1958,7 +1958,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-ne-doc-indexed";
 
         // Create index on items.status (multiKey for arrays)
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("items-status-index", "items.status", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("items-status-index", "items.status", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex);
 
         List<byte[]> documents = List.of(
@@ -2000,7 +2000,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-ne-scalar-indexed";
 
         // Create index on values array (multiKey for arrays)
-        SingleFieldIndexDefinition valuesIndex = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valuesIndex = TestIndexDefinitions.singleField("values-index", "values", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valuesIndex);
 
         List<byte[]> documents = List.of(
@@ -2042,7 +2042,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-ne-combined-indexed";
 
         // Create index on user field (multiKey for arrays)
-        SingleFieldIndexDefinition userIndex = SingleFieldIndexDefinition.create("assignments-user-index", "assignments.user", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition userIndex = TestIndexDefinitions.singleField("assignments-user-index", "assignments.user", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, userIndex);
 
         List<byte[]> documents = List.of(
@@ -2087,7 +2087,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-large-array-indexed";
 
         // Create index on values array (multiKey for arrays)
-        SingleFieldIndexDefinition valuesIndex = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valuesIndex = TestIndexDefinitions.singleField("values-index", "values", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valuesIndex);
 
         // Create documents with large arrays (50 elements)
@@ -2145,7 +2145,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-scalar-objectid-array-indexed";
 
         // Create index on the scalar array field 'refs' (multikey)
-        SingleFieldIndexDefinition refsIndex = SingleFieldIndexDefinition.create("refs-index", "refs", BsonType.OBJECT_ID, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition refsIndex = TestIndexDefinitions.singleField("refs-index", "refs", BsonType.OBJECT_ID, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, refsIndex);
 
         ObjectId oid1 = new ObjectId();
@@ -2187,7 +2187,7 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-objectid-index-combined";
 
         // Create index on 'category' field
-        SingleFieldIndexDefinition categoryIndex = SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition categoryIndex = TestIndexDefinitions.singleField("category-index", "category", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex);
 
         ObjectId ref1 = new ObjectId();

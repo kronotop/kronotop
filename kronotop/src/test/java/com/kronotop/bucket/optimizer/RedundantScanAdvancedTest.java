@@ -16,8 +16,8 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.PhysicalFilter;
 import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
@@ -36,9 +36,9 @@ class RedundantScanAdvancedTest extends BaseOptimizerTest {
     @Test
     void shouldHandleDeeplyNestedRedundantStructures() {
         // Create index for name
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField(
                 "name-index", "name", BsonType.STRING
-                , false, IndexStatus.WAITING);
+                , false);
         createIndex(nameIndex);
 
         // Test deeply nested redundant query: AND(AND(AND(name="john", name="john"), name="john"), name="john")
@@ -64,9 +64,9 @@ class RedundantScanAdvancedTest extends BaseOptimizerTest {
     @Test
     void shouldEliminateRedundancyInNestedStructures() {
         // Create index for status
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField(
                 "status-index", "status", BsonType.STRING
-                , false, IndexStatus.WAITING);
+                , false);
         createIndex(statusIndex);
 
         // Test nested OR with redundancy: OR(OR(status="active", status="active"), status="active")

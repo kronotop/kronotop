@@ -21,8 +21,8 @@ import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.SortDirection;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonDocument;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -39,7 +39,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
     void shouldBatchWith200Documents() {
         final String TEST_BUCKET_NAME = "test-bucket-batching-200-docs";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = new ArrayList<>();
@@ -103,7 +103,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
     void shouldFilterInt32RangeWithMixedInputReverseAndBatch() {
         final String TEST_BUCKET_NAME = "test-int32-range-with-mixed-input-with-batch-and-reverse";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(

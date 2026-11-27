@@ -25,6 +25,7 @@ import com.kronotop.bucket.index.CompoundIndexDefinition;
 import com.kronotop.bucket.index.CompoundIndexField;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.planner.physical.PhysicalPlanValidationException;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -48,7 +49,7 @@ class SortByIntegrationTest extends BasePipelineTest {
     void shouldSortByIndexedFieldAscending() {
         final String BUCKET = "test-sortby-indexed-asc";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -85,7 +86,7 @@ class SortByIntegrationTest extends BasePipelineTest {
     void shouldSortByIndexedFieldDescending() {
         final String BUCKET = "test-sortby-indexed-desc";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -124,8 +125,8 @@ class SortByIntegrationTest extends BasePipelineTest {
     void shouldPreferSortByIndexOverMoreSelectiveIndex() {
         final String BUCKET = "test-sortby-index-preference";
 
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-idx", "status", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition createdAtIndex = SingleFieldIndexDefinition.create("created-idx", "createdAt", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-idx", "status", BsonType.STRING, false);
+        SingleFieldIndexDefinition createdAtIndex = TestIndexDefinitions.singleField("created-idx", "createdAt", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, statusIndex, createdAtIndex);
 
         List<byte[]> documents = List.of(
@@ -646,7 +647,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         // The index scan iterates in order and skips the excluded value via residual NE predicate.
         final String BUCKET = "test-sortby-ne-asc";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -686,8 +687,8 @@ class SortByIntegrationTest extends BasePipelineTest {
         // on X does not provide ordering on Y.
         final String BUCKET = "test-sortby-ne-different-field-rejected";
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name-idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, nameIndex, ageIndex);
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class, () ->
@@ -706,7 +707,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         // index scan with residual NE predicate, preserving age index ordering.
         final String BUCKET = "test-sortby-nin-asc";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -746,7 +747,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         // Behavior: $nin with SORTBY DESC produces globally sorted results in descending order.
         final String BUCKET = "test-sortby-nin-desc";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -789,7 +790,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         // by executing EQ scans sequentially in value order via OrderedConcatNode.
         final String BUCKET = "test-sortby-in-asc";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -830,7 +831,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         // results in descending order.
         final String BUCKET = "test-sortby-in-desc";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -870,7 +871,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         // Behavior: $in + SORTBY correctly paginates across EQ value boundaries.
         final String BUCKET = "test-sortby-in-pagination";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -926,8 +927,8 @@ class SortByIntegrationTest extends BasePipelineTest {
         // on X does not provide ordering on Y.
         final String BUCKET = "test-sortby-nin-different-field-rejected";
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name-idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, nameIndex, ageIndex);
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class, () ->
@@ -945,7 +946,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         // cannot guarantee global ordering without scanning the entire index.
         final String BUCKET = "test-sortby-nor-rejected";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, ageIndex);
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class, () ->
@@ -961,8 +962,8 @@ class SortByIntegrationTest extends BasePipelineTest {
         // children scan X, not Y.
         final String BUCKET = "test-sortby-in-different-field-rejected";
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name-idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, nameIndex, ageIndex);
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class, () ->

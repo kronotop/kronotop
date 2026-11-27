@@ -241,8 +241,8 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
     @Test
     void shouldEvacuateEntryAndUpdateSingleFieldIndex() throws IOException {
         // Behavior: evacuating an entry with a single field index updates both the primary index and the single field index entry values
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
-                "age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField(
+                "age_idx", "age", BsonType.INT32, false
         );
         createIndexThenWaitForReadiness(ageIndex);
 
@@ -435,8 +435,8 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
     @Test
     void shouldEvacuateEntryAndUpdateAllIndexTypes() throws IOException {
         // Behavior: evacuating an entry updates the primary index, single field index, compound index, and vector index simultaneously
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
-                "age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField(
+                "age_idx", "age", BsonType.INT32, false
         );
         createIndexThenWaitForReadiness(ageIndex);
 
@@ -502,8 +502,8 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
     @Test
     void shouldEvacuateMultipleEntries() throws IOException {
         // Behavior: each evacuation independently updates all index entries for the evacuated document
-        SingleFieldIndexDefinition keyIndex = SingleFieldIndexDefinition.create(
-                "key_idx", "key", BsonType.STRING, false, IndexStatus.WAITING
+        SingleFieldIndexDefinition keyIndex = TestIndexDefinitions.singleField(
+                "key_idx", "key", BsonType.STRING, false
         );
         createIndexThenWaitForReadiness(keyIndex);
 
@@ -607,8 +607,8 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
     @Test
     void shouldEvacuateEntryWithMultiValueSingleFieldIndex() throws IOException {
         // Behavior: evacuating an entry with a multi-key single field index updates all back-pointed entries for array values
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create(
-                "tags_idx", "tags", BsonType.STRING, true, IndexStatus.WAITING
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField(
+                "tags_idx", "tags", BsonType.STRING, true
         );
         createIndexThenWaitForReadiness(tagsIndex);
 
@@ -815,8 +815,8 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
     @Test
     void shouldReturnCorrectResultsFromQueryAfterEvacuation() throws IOException {
         // Behavior: after evacuating all entries, BUCKET.QUERY still returns the correct documents
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
-                "age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField(
+                "age_idx", "age", BsonType.INT32, false
         );
         createIndexThenWaitForReadiness(ageIndex);
 
@@ -872,8 +872,8 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
 
         // Create a single-field index that stays WAITING: the low-level create persists the
         // definition without scheduling a boundary/build task, so it never flips to READY.
-        SingleFieldIndexDefinition waitingIndex = SingleFieldIndexDefinition.create(
-                "age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING
+        SingleFieldIndexDefinition waitingIndex = TestIndexDefinitions.singleField(
+                "age_idx", "age", BsonType.INT32, false
         );
         BucketMetadata initial = getBucketMetadata(TEST_BUCKET);
         try (Transaction tr = context.getTransactionManager().create()) {

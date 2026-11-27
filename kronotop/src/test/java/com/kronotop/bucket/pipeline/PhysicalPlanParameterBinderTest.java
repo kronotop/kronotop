@@ -23,6 +23,7 @@ import com.kronotop.bucket.index.CompoundIndexDefinition;
 import com.kronotop.bucket.index.CompoundIndexField;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.bson.BsonType;
@@ -290,7 +291,7 @@ class PhysicalPlanParameterBinderTest {
     @Test
     void shouldBindBothBoundsFromRangeScan() {
         // Behavior: RangeScan with lower+upper produces 2 bindings: paramIndex 0,1 with occurrences 0,1
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         Int32Val lower = new Int32Val(18);
         Int32Val upper = new Int32Val(65);
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(nextId(), "age",
@@ -307,7 +308,7 @@ class PhysicalPlanParameterBinderTest {
     @Test
     void shouldBindLowerBoundOnlyFromRangeScan() {
         // Behavior: RangeScan with only lower bound produces 1 binding: (paramIndex=0, occurrence=0)
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         Int32Val lower = new Int32Val(18);
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(nextId(), "age",
                 lower, null, true, false, index);
@@ -322,7 +323,7 @@ class PhysicalPlanParameterBinderTest {
     @Test
     void shouldBindUpperBoundOnlyFromRangeScan() {
         // Behavior: RangeScan with only upper bound produces 1 binding: (paramIndex=0, occurrence=0)
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         Int32Val upper = new Int32Val(65);
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(nextId(), "age",
                 null, upper, false, true, index);
@@ -341,7 +342,7 @@ class PhysicalPlanParameterBinderTest {
         // Behavior: IndexScan wrapping PhysicalFilter binds through to inner filter
         Int32Val value = new Int32Val(25);
         PhysicalFilter innerFilter = filter(Operator.EQ, "age", value);
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         PhysicalIndexScan indexScan = new PhysicalIndexScan(nextId(), innerFilter, index);
         List<BqlValue> parameters = List.of(value);
 
@@ -375,7 +376,7 @@ class PhysicalPlanParameterBinderTest {
         Int32Val v3 = new Int32Val(3);
         List<Object> values = List.of(v1, v2, v3);
         PhysicalFilter innerFilter = filter(Operator.IN, "status", values);
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("status_idx", "status", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("status_idx", "status", BsonType.INT32, false);
         PhysicalIndexScan indexScan = new PhysicalIndexScan(nextId(), innerFilter, index);
         List<BqlValue> parameters = List.of(v1, v2, v3);
 
@@ -633,8 +634,8 @@ class PhysicalPlanParameterBinderTest {
         PhysicalFilter filterName = filter(Operator.EQ, "name", nameVal);
         PhysicalFilter filterAge = filter(Operator.EQ, "age", ageVal);
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalIndexIntersection intersection = new PhysicalIndexIntersection(
                 nextId(), List.of(nameIndex, ageIndex), List.of(filterName, filterAge));
@@ -661,8 +662,8 @@ class PhysicalPlanParameterBinderTest {
         PhysicalFilter filterAge2 = filter(Operator.EQ, "age", ageVal2);
         List<BqlValue> parameters2 = List.of(nameVal2, ageVal2);
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalIndexIntersection intersection1 = new PhysicalIndexIntersection(
                 nextId(), List.of(nameIndex, ageIndex), List.of(filterName1, filterAge1));
@@ -1127,7 +1128,7 @@ class PhysicalPlanParameterBinderTest {
     @Test
     void shouldBindMixedScanTypesInAnd() {
         // Behavior: AND containing IndexScan and FullScan binds all inner filter parameters
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         Int32Val ageVal = new Int32Val(25);
         StringVal nameVal = new StringVal("john");
@@ -1151,8 +1152,8 @@ class PhysicalPlanParameterBinderTest {
     @Test
     void shouldBindOrWithMultipleScanTypes() {
         // Behavior: OR containing IndexScan and RangeScan binds all parameters
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
 
         Int32Val ageVal = new Int32Val(25);
         StringVal lowerName = new StringVal("a");
@@ -1176,7 +1177,7 @@ class PhysicalPlanParameterBinderTest {
     @Test
     void shouldBindRangeScanCombinedWithFilters() {
         // Behavior: AND containing RangeScan and regular filters binds all parameters
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         Int32Val lower = new Int32Val(18);
         Int32Val upper = new Int32Val(65);
@@ -1207,9 +1208,9 @@ class PhysicalPlanParameterBinderTest {
         PhysicalFilter filterAge = filter(Operator.EQ, "age", ageVal);
         PhysicalFilter filterCity = filter(Operator.EQ, "city", cityVal);
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition cityIndex = SingleFieldIndexDefinition.create("city_idx", "city", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition cityIndex = TestIndexDefinitions.singleField("city_idx", "city", BsonType.STRING, false);
 
         PhysicalIndexIntersection intersection = new PhysicalIndexIntersection(
                 nextId(),
@@ -1251,7 +1252,7 @@ class PhysicalPlanParameterBinderTest {
     @Test
     void shouldProduceSameBindingOrderForMixedScanTypesWithDifferentOrder() {
         // Behavior: Mixed scan types with reordered children produce same parameter indices
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         // First version: IndexScan, FullScan order
         Int32Val ageVal1 = new Int32Val(25);
@@ -1426,7 +1427,7 @@ class PhysicalPlanParameterBinderTest {
         // Behavior: When AND has children wrapped with IndexScan vs FullScan,
         // the parameter binding order should be based on the underlying filter shape,
         // not the wrapper type.
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("idx", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("idx", "field", BsonType.INT32, false);
 
         // Two different filters with IndexScan wrapping
         Int32Val v1 = new Int32Val(1);
@@ -1467,7 +1468,7 @@ class PhysicalPlanParameterBinderTest {
     void shouldProduceSameOrderForMixedIndexScanAndFullScanWrappers() {
         // Behavior: AND with one IndexScan child and one FullScan child should produce
         // the same parameter binding order as AND with both as FullScan (or both as IndexScan).
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("idx", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("idx", "field", BsonType.INT32, false);
 
         // Version 1: IndexScan for 'a', FullScan for 'b'
         Int32Val v1 = new Int32Val(1);
@@ -1606,8 +1607,8 @@ class PhysicalPlanParameterBinderTest {
         BqlExpr bqlExpr = BqlParser.parse(query);
         List<BqlValue> extractedParams = ParameterExtractor.extract(bqlExpr);
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
 
         Int32Val ageVal = new Int32Val(18);
         StringVal nameVal = new StringVal("john");
@@ -1688,7 +1689,7 @@ class PhysicalPlanParameterBinderTest {
     void shouldProduceSameOrderRegardlessOfWrapperTypeForThreeChildren() {
         // Behavior: AND with three children using different wrapper types produces
         // same parameter ordering as AND with uniform wrapper types.
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("idx", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("idx", "field", BsonType.INT32, false);
 
         // Version 1: Mixed wrappers (IndexScan, FullScan, IndexScan)
         Int32Val v1 = new Int32Val(1);
@@ -1737,7 +1738,7 @@ class PhysicalPlanParameterBinderTest {
     void shouldHandleOrInsideAndWithMixedWrappers() {
         // Behavior: Complex structure AND(OR(wrapped, wrapped), wrapped) produces
         // correct parameter ordering matching ParameterExtractor.
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("idx", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("idx", "field", BsonType.INT32, false);
 
         String query = "{\"$and\": [{\"$or\": [{\"x\": 1}, {\"y\": 2}]}, {\"z\": 3}]}";
         BqlExpr bqlExpr = BqlParser.parse(query);

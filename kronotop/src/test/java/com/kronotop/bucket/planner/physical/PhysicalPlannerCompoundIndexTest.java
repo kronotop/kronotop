@@ -20,6 +20,7 @@ import com.kronotop.bucket.index.CompoundIndexDefinition;
 import com.kronotop.bucket.index.CompoundIndexField;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.planner.Operator;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -251,9 +252,9 @@ class PhysicalPlannerCompoundIndexTest extends BasePhysicalPlannerTest {
     @Test
     void shouldFallBackToSingleFieldIndexesWhenNoCompoundMatch() {
         // Behavior: No compound index defined, should use existing single-field behavior
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
                 "idx_a", "a", BsonType.INT32
-                , false, IndexStatus.WAITING));
+                , false));
 
         PhysicalNode result = planQuery("{ 'a': 1, 'b': 2 }");
 
@@ -369,8 +370,8 @@ class PhysicalPlannerCompoundIndexTest extends BasePhysicalPlannerTest {
     void shouldPreferCompoundIndexOverSingleFieldIndexWhenSortByMatches() {
         // Behavior: When both a single-field index and a compound index exist,
         // the compound index should be preferred when sortByField matches.
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_cat", "category", BsonType.STRING, false, IndexStatus.WAITING));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_cat", "category", BsonType.STRING, false));
         createCompoundIndex(CompoundIndexDefinition.create("idx_cat_pri", List.of(
                 new CompoundIndexField("category", BsonType.STRING, false),
                 new CompoundIndexField("priority", BsonType.INT32, false)

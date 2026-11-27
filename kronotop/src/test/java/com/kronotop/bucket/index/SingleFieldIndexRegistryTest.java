@@ -75,7 +75,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
     @MethodSource("statusPolicyTestData")
     void shouldGetIndexForAllStatusAndPolicyCombinations(IndexStatus status, IndexSelectionPolicy policy, boolean shouldReturnIndex) {
         // Create index definition with the specific status
-        SingleFieldIndexDefinition baseDefinition = SingleFieldIndexDefinition.create("test-index", "test.field", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition baseDefinition = TestIndexDefinitions.singleField("test-index", "test.field", BsonType.STRING, false);
         SingleFieldIndexDefinition definitionWithStatus = baseDefinition.updateStatus(status);
 
         // Register the index
@@ -105,15 +105,15 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldOnlyReturnReadyIndexesForReadOnlyPolicy() {
         // Register indexes with different statuses
-        SingleFieldIndexDefinition waitingDef = SingleFieldIndexDefinition.create("waiting-index", "waiting.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition waitingDef = TestIndexDefinitions.singleField("waiting-index", "waiting.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.WAITING);
-        SingleFieldIndexDefinition buildingDef = SingleFieldIndexDefinition.create("building-index", "building.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition buildingDef = TestIndexDefinitions.singleField("building-index", "building.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.BUILDING);
-        SingleFieldIndexDefinition readyDef = SingleFieldIndexDefinition.create("ready-index", "ready.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition readyDef = TestIndexDefinitions.singleField("ready-index", "ready.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.READY);
-        SingleFieldIndexDefinition droppedDef = SingleFieldIndexDefinition.create("dropped-index", "dropped.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition droppedDef = TestIndexDefinitions.singleField("dropped-index", "dropped.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.DROPPED);
-        SingleFieldIndexDefinition failedDef = SingleFieldIndexDefinition.create("failed-index", "failed.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition failedDef = TestIndexDefinitions.singleField("failed-index", "failed.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.FAILED);
 
         indexRegistry.register(waitingDef, testSubspace);
@@ -136,15 +136,15 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
         // WAITING is excluded because foreground writes must not touch secondary
         // indexes until the boundary routine captures the boundary and transitions
         // the index to BUILDING.
-        SingleFieldIndexDefinition waitingDef = SingleFieldIndexDefinition.create("waiting-index", "waiting.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition waitingDef = TestIndexDefinitions.singleField("waiting-index", "waiting.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.WAITING);
-        SingleFieldIndexDefinition buildingDef = SingleFieldIndexDefinition.create("building-index", "building.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition buildingDef = TestIndexDefinitions.singleField("building-index", "building.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.BUILDING);
-        SingleFieldIndexDefinition readyDef = SingleFieldIndexDefinition.create("ready-index", "ready.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition readyDef = TestIndexDefinitions.singleField("ready-index", "ready.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.READY);
-        SingleFieldIndexDefinition droppedDef = SingleFieldIndexDefinition.create("dropped-index", "dropped.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition droppedDef = TestIndexDefinitions.singleField("dropped-index", "dropped.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.DROPPED);
-        SingleFieldIndexDefinition failedDef = SingleFieldIndexDefinition.create("failed-index", "failed.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition failedDef = TestIndexDefinitions.singleField("failed-index", "failed.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.FAILED);
 
         indexRegistry.register(waitingDef, testSubspace);
@@ -166,7 +166,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
         // Register indexes with all statuses
         for (IndexStatus status : IndexStatus.values()) {
             String fieldName = status.name().toLowerCase() + ".field";
-            SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(status.name() + "-index", fieldName, BsonType.STRING, false, IndexStatus.WAITING)
+            SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(status.name() + "-index", fieldName, BsonType.STRING, false)
                     .updateStatus(status);
             indexRegistry.register(definition, testSubspace);
 
@@ -179,9 +179,9 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldHandleCaseSensitiveSelectors() {
-        SingleFieldIndexDefinition lowerCaseDef = SingleFieldIndexDefinition.create("lower-index", "field.name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition upperCaseDef = SingleFieldIndexDefinition.create("upper-index", "Field.Name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition mixedCaseDef = SingleFieldIndexDefinition.create("mixed-index", "FIELD.name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition lowerCaseDef = TestIndexDefinitions.singleField("lower-index", "field.name", BsonType.STRING, false);
+        SingleFieldIndexDefinition upperCaseDef = TestIndexDefinitions.singleField("upper-index", "Field.Name", BsonType.STRING, false);
+        SingleFieldIndexDefinition mixedCaseDef = TestIndexDefinitions.singleField("mixed-index", "FIELD.name", BsonType.STRING, false);
 
         indexRegistry.register(lowerCaseDef, testSubspace);
         indexRegistry.register(upperCaseDef, testSubspace);
@@ -204,7 +204,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldPreserveIndexDefinitionImmutability() {
         // Create and register an index
-        SingleFieldIndexDefinition originalDef = SingleFieldIndexDefinition.create("immutable-index", "immutable.field", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition originalDef = TestIndexDefinitions.singleField("immutable-index", "immutable.field", BsonType.STRING, false);
         indexRegistry.register(originalDef, testSubspace);
 
         // Get the index
@@ -218,11 +218,11 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldThrowExceptionForDuplicateSelector() {
         // Register an index
-        SingleFieldIndexDefinition firstDef = SingleFieldIndexDefinition.create("first-index", "shared.field", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition firstDef = TestIndexDefinitions.singleField("first-index", "shared.field", BsonType.STRING, false);
         indexRegistry.register(firstDef, testSubspace);
 
         // Try to register another index with the same selector (should throw exception)
-        SingleFieldIndexDefinition secondDef = SingleFieldIndexDefinition.create("second-index", "shared.field", BsonType.INT32, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition secondDef = TestIndexDefinitions.singleField("second-index", "shared.field", BsonType.INT32, false)
                 .updateStatus(IndexStatus.BUILDING);
         DirectorySubspace secondSubspace = createOrOpenSubspaceUnderCluster("test-index-2");
 
@@ -243,8 +243,8 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldRemoveExistingIndexOnDeregister() {
         // Register multiple indexes
-        SingleFieldIndexDefinition def1 = SingleFieldIndexDefinition.create("index1", "field1", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition def2 = SingleFieldIndexDefinition.create("index2", "field2", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition def1 = TestIndexDefinitions.singleField("index1", "field1", BsonType.STRING, false);
+        SingleFieldIndexDefinition def2 = TestIndexDefinitions.singleField("index2", "field2", BsonType.INT32, false);
         indexRegistry.register(def1, testSubspace);
         indexRegistry.register(def2, testSubspace);
 
@@ -267,7 +267,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldNotThrowWhenDeregisteringNonExistentIndex() {
-        SingleFieldIndexDefinition nonExistentDef = SingleFieldIndexDefinition.create("non-existent", "non.existent", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nonExistentDef = TestIndexDefinitions.singleField("non-existent", "non.existent", BsonType.STRING, false);
 
         // Initialize statistics to avoid NPE in deregister
         indexRegistry.updateStatistics(new java.util.HashMap<>());
@@ -279,7 +279,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldUpdateExistingIndexDefinitionSuccessfully() {
         // Register an index with READY status
-        SingleFieldIndexDefinition originalDef = SingleFieldIndexDefinition.create("test-index", "test.field", BsonType.STRING, false, IndexStatus.WAITING).
+        SingleFieldIndexDefinition originalDef = TestIndexDefinitions.singleField("test-index", "test.field", BsonType.STRING, false).
                 updateStatus(IndexStatus.READY);
         indexRegistry.register(originalDef, testSubspace);
 
@@ -292,12 +292,12 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldAffectPolicySegregationOnStatusChanges() {
         // Register indexes with different statuses
-        SingleFieldIndexDefinition waitingDef = SingleFieldIndexDefinition.create("waiting-index", "waiting.field", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition readyDef = SingleFieldIndexDefinition.create("ready-index", "ready.field", BsonType.STRING, false, IndexStatus.WAITING).
+        SingleFieldIndexDefinition waitingDef = TestIndexDefinitions.singleField("waiting-index", "waiting.field", BsonType.STRING, false);
+        SingleFieldIndexDefinition readyDef = TestIndexDefinitions.singleField("ready-index", "ready.field", BsonType.STRING, false).
                 updateStatus(IndexStatus.READY);
-        SingleFieldIndexDefinition buildingDef = SingleFieldIndexDefinition.create("building-index", "building.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition buildingDef = TestIndexDefinitions.singleField("building-index", "building.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.BUILDING);
-        SingleFieldIndexDefinition failedDef = SingleFieldIndexDefinition.create("failed-index", "failed.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition failedDef = TestIndexDefinitions.singleField("failed-index", "failed.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.FAILED);
 
         indexRegistry.register(waitingDef, testSubspace);
@@ -314,15 +314,15 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldReturnCorrectCountsForPolicySegregation() {
         // Register indexes with all possible statuses
-        SingleFieldIndexDefinition waitingDef = SingleFieldIndexDefinition.create("waiting-index", "waiting.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition waitingDef = TestIndexDefinitions.singleField("waiting-index", "waiting.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.WAITING);
-        SingleFieldIndexDefinition buildingDef = SingleFieldIndexDefinition.create("building-index", "building.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition buildingDef = TestIndexDefinitions.singleField("building-index", "building.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.BUILDING);
-        SingleFieldIndexDefinition readyDef = SingleFieldIndexDefinition.create("ready-index", "ready.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition readyDef = TestIndexDefinitions.singleField("ready-index", "ready.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.READY);
-        SingleFieldIndexDefinition droppedDef = SingleFieldIndexDefinition.create("dropped-index", "dropped.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition droppedDef = TestIndexDefinitions.singleField("dropped-index", "dropped.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.DROPPED);
-        SingleFieldIndexDefinition failedDef = SingleFieldIndexDefinition.create("failed-index", "failed.field", BsonType.STRING, false, IndexStatus.WAITING)
+        SingleFieldIndexDefinition failedDef = TestIndexDefinitions.singleField("failed-index", "failed.field", BsonType.STRING, false)
                 .updateStatus(IndexStatus.FAILED);
 
         indexRegistry.register(waitingDef, testSubspace);
@@ -352,7 +352,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldReturnUnmodifiableCollections() {
-        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "test.field", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition def = TestIndexDefinitions.singleField("test-index", "test.field", BsonType.STRING, false);
         indexRegistry.register(def, testSubspace);
 
         // Get collections for each policy

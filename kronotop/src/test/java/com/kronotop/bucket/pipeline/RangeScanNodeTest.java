@@ -21,8 +21,8 @@ import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.SortDirection;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.*;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
@@ -101,7 +101,7 @@ class RangeScanNodeTest extends BasePipelineTest {
     void shouldScanIdIndexRange() {
         final String TEST_BUCKET_NAME = "test-bucket-id-range-scan-logic-gt";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -135,7 +135,7 @@ class RangeScanNodeTest extends BasePipelineTest {
     void shouldFilterWithGtOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -166,7 +166,7 @@ class RangeScanNodeTest extends BasePipelineTest {
     void shouldReturnEmptyResultSetWithGtOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-range-scan-empty-result-gt";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert documents with ages all below the query threshold
@@ -197,7 +197,7 @@ class RangeScanNodeTest extends BasePipelineTest {
                                               String rangeQuery, int expectedCount, String testDescription) {
         final String TEST_BUCKET_NAME = "test-bucket-range-" + fieldName + "-" + bsonType.name().toLowerCase();
 
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create(fieldName + "-index", fieldName, bsonType, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField(fieldName + "-index", fieldName, bsonType, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
 
         List<byte[]> documents = testDocuments.stream()
@@ -235,7 +235,7 @@ class RangeScanNodeTest extends BasePipelineTest {
                                                      String rangeQuery, int expectedCount, String testDescription) {
         final String TEST_BUCKET_NAME = "test-bucket-range-reverse-" + fieldName + "-" + bsonType.name().toLowerCase();
 
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create(fieldName + "-index", fieldName, bsonType, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField(fieldName + "-index", fieldName, bsonType, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
 
         List<byte[]> documents = testDocuments.stream()
@@ -414,7 +414,7 @@ class RangeScanNodeTest extends BasePipelineTest {
     void shouldFilterInt32RangeWithMixedInput() {
         final String TEST_BUCKET_NAME = "test-int32-range-with-mixed-input";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(

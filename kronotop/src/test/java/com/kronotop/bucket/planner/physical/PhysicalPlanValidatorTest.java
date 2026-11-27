@@ -22,7 +22,10 @@ import com.kronotop.bucket.bql.ast.BqlExpr;
 import com.kronotop.bucket.index.CompoundIndexDefinition;
 import com.kronotop.bucket.index.CompoundIndexField;
 import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.NullPosition;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.SortDirection;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.optimizer.Optimizer;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 import org.bson.BsonType;
@@ -94,8 +97,8 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     @Test
     void shouldPassWhenIndexScanMatchesSortField() {
         // Behavior: IndexScan on a field provides natural ordering on that field.
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_age", "age", BsonType.INT32, false, IndexStatus.WAITING));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_age", "age", BsonType.INT32, false));
 
         assertDoesNotThrow(() -> planAndValidate("{ 'age': { '$gte': 0 } }", "age"));
     }
@@ -103,8 +106,8 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     @Test
     void shouldPassWhenRangeScanMatchesSortField() {
         // Behavior: RangeScan on a field provides natural ordering on that field.
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_age", "age", BsonType.INT32, false, IndexStatus.WAITING));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_age", "age", BsonType.INT32, false));
 
         assertDoesNotThrow(() -> planAndValidate("{ 'age': { '$gt': 0, '$lt': 100 } }", "age"));
     }
@@ -136,8 +139,8 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     @Test
     void shouldPassWhenAndChildScanMatchesSortField() {
         // Behavior: An $and query passes when one child is a scan matching the sort field.
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_age", "age", BsonType.INT32, false, IndexStatus.WAITING));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_age", "age", BsonType.INT32, false));
 
         assertDoesNotThrow(() -> planAndValidate(
                 "{ '$and': [{ 'status': 'active' }, { 'age': { '$gte': 0 } }] }", "age"));
@@ -147,8 +150,8 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     void shouldPassWhenTrueNodeAndSortFieldIndexExists() {
         // Behavior: PhysicalTrue (from empty $and) passes when a sort-field index exists
         // because PipelineRewriter converts it to a RangeScan using that index.
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_age", "age", BsonType.INT32, false, IndexStatus.WAITING));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_age", "age", BsonType.INT32, false));
 
         assertDoesNotThrow(() -> planAndValidate("{ '$and': [] }", "age"));
     }
@@ -158,8 +161,8 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
         // Behavior: Having an index on the sort field is not enough, the execution plan
         // must actually provide ordering on that field. A FullScan on an unindexed field
         // iterates by _id, not by the sort field.
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_priority", "priority", BsonType.INT32, false, IndexStatus.WAITING));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_priority", "priority", BsonType.INT32, false));
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class,
                 () -> planAndValidate("{ 'category': 'bugs' }", "priority"));
@@ -171,8 +174,8 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     void shouldRejectWhenFullScanDoesNotProvideSortOrder() {
         // Behavior: A filter on an unindexed field produces a FullScan on _id. The sort
         // field index exists but is not used by the plan, so SORTBY is rejected.
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_score", "score", BsonType.INT32, false, IndexStatus.WAITING));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_score", "score", BsonType.INT32, false));
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class,
                 () -> planAndValidate("{ 'age': { '$gt': 20 } }", "score"));
@@ -184,12 +187,12 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     void shouldRejectWhenOrNodeDoesNotProvideSortOrder() {
         // Behavior: PhysicalOr scans role and status indexes, neither provides ordering
         // on salary. The salary index exists but is not part of the plan.
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_role", "role", BsonType.STRING, false, IndexStatus.WAITING));
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_status", "status", BsonType.STRING, false, IndexStatus.WAITING));
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_salary", "salary", BsonType.INT32, false, IndexStatus.WAITING));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_role", "role", BsonType.STRING, false));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_status", "status", BsonType.STRING, false));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_salary", "salary", BsonType.INT32, false));
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class,
                 () -> planAndValidate("{ '$or': [{'role': 'admin'}, {'status': 'active'}] }", "salary"));
@@ -206,8 +209,8 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
                 new CompoundIndexField("age", BsonType.INT32, false),
                 new CompoundIndexField("score", BsonType.INT32, false)
         ), IndexStatus.WAITING));
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_age", "age", BsonType.INT32, false, IndexStatus.WAITING));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_age", "age", BsonType.INT32, false));
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class,
                 () -> planAndValidate("{ 'score': { '$gt': 50 } }", "age"));
@@ -231,8 +234,8 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     void shouldRejectIndexScanWhenSortFieldHasNoIndex() {
         // Behavior: IndexScan on 'category' with SORTBY 'priority' is rejected when
         // no index on 'priority' exists.
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_cat", "category", BsonType.STRING, false, IndexStatus.WAITING));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_cat", "category", BsonType.STRING, false));
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class,
                 () -> planAndValidate("{ 'category': 'bugs' }", "priority")
@@ -259,10 +262,10 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     void shouldRejectOrNodeWhenNoSortFieldIndex() {
         // Behavior: PhysicalOr does not provide natural ordering. Without a sort-field
         // index, the hint suggests creating one.
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_role", "role", BsonType.STRING, false, IndexStatus.WAITING));
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_status", "status", BsonType.STRING, false, IndexStatus.WAITING));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_role", "role", BsonType.STRING, false));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_status", "status", BsonType.STRING, false));
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class,
                 () -> planAndValidate("{ '$or': [{'role': 'admin'}, {'status': 'active'}] }", "salary")
@@ -455,7 +458,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
         // Behavior: STRING index with collation "en" cannot provide sort ordering when
         // query specifies collation "tr", validation rejects with collation mismatch error.
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_name", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
+                "idx_name", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, collation("en")));
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class,
                 () -> planAndValidate("{ 'category': 'bugs' }", "name", collation("tr"))
@@ -470,7 +473,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
         // {category: 'bugs'} is a FullScan on _id, it does not use the name index.
         // Validation rejects because the execution plan cannot provide sort ordering.
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_name", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
+                "idx_name", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, collation("en")));
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class,
                 () -> planAndValidate("{ 'category': 'bugs' }", "name", collation("en"))
@@ -485,7 +488,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
         // {category: 'bugs'} is a FullScan, the name index is not used regardless
         // of collation compatibility.
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_name", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
+                "idx_name", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, collation("en")));
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class,
                 () -> planAndValidate("{ 'category': 'bugs' }", "name", null)
@@ -498,8 +501,8 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     void shouldRejectSortByWhenPlanDoesNotProvideOrderingOnNonStringIndex() {
         // Behavior: Even though INT32 indexes are unaffected by collation, the plan for
         // {category: 'bugs'} is a FullScan, the score index is not used for ordering.
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_score", "score", BsonType.INT32, false, IndexStatus.WAITING));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_score", "score", BsonType.INT32, false));
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class,
                 () -> planAndValidate("{ 'category': 'bugs' }", "score", collation("tr"))
@@ -512,8 +515,8 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     void shouldRejectSortByWhenStringIndexHasNullCollationButQueryHasCollation() {
         // Behavior: STRING index with binary ordering (null collation) cannot serve
         // locale-aware sort ordering, validation rejects with collation mismatch error.
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_name", "name", BsonType.STRING, false, IndexStatus.WAITING));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_name", "name", BsonType.STRING, false));
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class,
                 () -> planAndValidate("{ 'category': 'bugs' }", "name", collation("en"))
@@ -529,7 +532,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
         // Behavior: PhysicalTrue (empty $and) with collation-mismatched STRING index
         // cannot provide sort ordering, validation rejects with collation mismatch error.
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_name", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
+                "idx_name", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, collation("en")));
 
         PhysicalPlanValidationException ex = assertThrows(PhysicalPlanValidationException.class,
                 () -> planAndValidate("{ '$and': [] }", "name", collation("tr"))
@@ -542,7 +545,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     void shouldPassTrueNodeSortByWhenCollationMatches() {
         // Behavior: PhysicalTrue with matching collation on STRING index, sort is valid.
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_name", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
+                "idx_name", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, collation("en")));
 
         assertDoesNotThrow(() -> planAndValidate("{ '$and': [] }", "name", collation("en")));
     }
@@ -551,7 +554,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     void shouldPassTrueNodeSortByWithNullQueryCollation() {
         // Behavior: No query collation means any index is usable (backward compat).
         createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_name", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
+                "idx_name", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, collation("en")));
 
         assertDoesNotThrow(() -> planAndValidate("{ '$and': [] }", "name", null));
     }
@@ -559,8 +562,8 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     @Test
     void shouldPassTrueNodeSortByOnNonStringIndexWithCollation() {
         // Behavior: Non-string (INT32) index is unaffected by query collation in PhysicalTrue path.
-        createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                "idx_age", "age", BsonType.INT32, false, IndexStatus.WAITING));
+        createSingleFieldIndex(TestIndexDefinitions.singleField(
+                "idx_age", "age", BsonType.INT32, false));
 
         assertDoesNotThrow(() -> planAndValidate("{ '$and': [] }", "age", collation("tr")));
     }

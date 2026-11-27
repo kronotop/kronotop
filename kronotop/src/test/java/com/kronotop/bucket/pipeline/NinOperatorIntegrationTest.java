@@ -20,8 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonType;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
@@ -75,7 +75,7 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
         // $nin with index: rewritten to AND(NE, NE...) -> IndexScanNode with residual predicate
         final String TEST_BUCKET_NAME = "test-bucket-nin-operator-indexed";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -231,7 +231,7 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
     void shouldMatchSingleValueNinViaIndexScan() {
         final String TEST_BUCKET_NAME = "test-bucket-single-value-nin-indexed";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -303,7 +303,7 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
     void shouldMatchAllDocumentsWhenValuesNotPresentViaIndexScan() {
         final String TEST_BUCKET_NAME = "test-bucket-nin-no-match-indexed";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -444,7 +444,7 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
     void shouldHandleNinWithAndOperatorViaIndexScan() {
         final String TEST_BUCKET_NAME = "test-bucket-nin-with-and-indexed";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -522,7 +522,7 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
     void shouldHandleNinWithOrOperatorViaIndexScan() {
         final String TEST_BUCKET_NAME = "test-bucket-nin-with-or-indexed";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -595,7 +595,7 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
     void shouldHandleNinWithNumericTypes() {
         final String TEST_BUCKET_NAME = "test-bucket-nin-numeric";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -634,7 +634,7 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
     void shouldHandleDuplicateValuesInNinList() {
         final String TEST_BUCKET_NAME = "test-bucket-duplicate-values-nin";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -865,7 +865,7 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
         // $nin on array field with multi-key index falls back to FullScan
         final String TEST_BUCKET_NAME = "test-bucket-array-nin-multikey";
 
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags-index", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         List<byte[]> documents = List.of(
@@ -905,7 +905,7 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
         // Single value $nin on multi-key index also falls back to FullScan
         final String TEST_BUCKET_NAME = "test-bucket-array-nin-single-multikey";
 
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags-index", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         List<byte[]> documents = List.of(
@@ -946,7 +946,7 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
         // $nin on integer array field with multi-key index falls back to FullScan
         final String TEST_BUCKET_NAME = "test-bucket-int-array-nin-multikey";
 
-        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoresIndex = TestIndexDefinitions.singleField("scores-index", "scores", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoresIndex);
 
         List<byte[]> documents = List.of(
@@ -983,7 +983,7 @@ class NinOperatorIntegrationTest extends BasePipelineTest {
         // $nin on multi-key index combined with other conditions falls back to FullScan
         final String TEST_BUCKET_NAME = "test-bucket-array-nin-combined-multikey";
 
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags-index", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         List<byte[]> documents = List.of(

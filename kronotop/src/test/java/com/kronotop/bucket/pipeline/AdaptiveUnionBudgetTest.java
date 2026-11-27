@@ -20,8 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.SortDirection;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -63,8 +63,8 @@ class AdaptiveUnionBudgetTest extends BasePipelineTest {
         // the adaptive budget must grow to scan past gaps in a union query with $in + $and.
         final String TEST_BUCKET_NAME = "test-adaptive-union-low-selectivity";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create(
-                "role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField(
+                "role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = createDocumentsForUnionTest(5000, 10);
@@ -116,8 +116,8 @@ class AdaptiveUnionBudgetTest extends BasePipelineTest {
         // Behavior: Same low-selectivity union test in reverse sort order.
         final String TEST_BUCKET_NAME = "test-adaptive-union-low-selectivity-reverse";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create(
-                "role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField(
+                "role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = createDocumentsForUnionTest(5000, 10);
@@ -169,8 +169,8 @@ class AdaptiveUnionBudgetTest extends BasePipelineTest {
         // matches even if budget must grow multiple times to exhaust the scan.
         final String TEST_BUCKET_NAME = "test-adaptive-union-batch-larger";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create(
-                "role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField(
+                "role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = createDocumentsForUnionTest(5000, 10);

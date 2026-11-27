@@ -21,11 +21,13 @@ import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.Collation;
+import com.kronotop.bucket.index.NullPosition;
 import com.kronotop.bucket.index.SortDirection;
 import com.kronotop.bucket.index.CompoundIndexDefinition;
 import com.kronotop.bucket.index.CompoundIndexField;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -52,7 +54,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         final String BUCKET = "test-resultsort-nonindexed-asc";
 
         // Only create the index on 'status', not on 'score'
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-idx", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-idx", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, statusIndex);
 
         List<byte[]> documents = List.of(
@@ -91,7 +93,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         // Behavior: RESULTSORT on a non-indexed field sorts fetched results in-memory by that field in DESC order.
         final String BUCKET = "test-resultsort-nonindexed-desc";
 
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-idx", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-idx", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, statusIndex);
 
         List<byte[]> documents = List.of(
@@ -131,7 +133,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         // Behavior: RESULTSORT on a string field sorts results lexicographically in ASC order.
         final String BUCKET = "test-resultsort-string-asc";
 
-        SingleFieldIndexDefinition categoryIndex = SingleFieldIndexDefinition.create("cat-idx", "category", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition categoryIndex = TestIndexDefinitions.singleField("cat-idx", "category", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, categoryIndex);
 
         List<byte[]> documents = List.of(
@@ -169,7 +171,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         // Behavior: RESULTSORT on a double field sorts results numerically in DESC order.
         final String BUCKET = "test-resultsort-double-desc";
 
-        SingleFieldIndexDefinition typeIndex = SingleFieldIndexDefinition.create("type-idx", "type", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition typeIndex = TestIndexDefinitions.singleField("type-idx", "type", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, typeIndex);
 
         List<byte[]> documents = List.of(
@@ -209,7 +211,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         // Behavior: RESULTSORT ASC places null and missing values first, then sorted non-null values.
         final String BUCKET = "test-resultsort-nulls-first";
 
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-idx", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-idx", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, statusIndex);
 
         List<byte[]> documents = List.of(
@@ -250,7 +252,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         // Behavior: RESULTSORT DESC places non-null values first (descending), then null and missing values last.
         final String BUCKET = "test-resultsort-nulls-last-desc";
 
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-idx", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-idx", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, statusIndex);
 
         List<byte[]> documents = List.of(
@@ -293,7 +295,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         // Behavior: RESULTSORT with mixed BSON types sorts by type bracketing order (Null < Numeric < String < Boolean).
         final String BUCKET = "test-resultsort-mixed-types";
 
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-idx", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-idx", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, statusIndex);
 
         // Documents with different types for the 'value' field
@@ -340,7 +342,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         // Behavior: RESULTSORT DESC with mixed BSON types sorts in reverse type bracketing order (numerics sorted by value descending).
         final String BUCKET = "test-resultsort-mixed-types-desc";
 
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-idx", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-idx", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, statusIndex);
 
         List<byte[]> documents = List.of(
@@ -383,7 +385,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         // Behavior: RESULTSORT with mixed types sorts by type bracket first, then by value within the same type.
         final String BUCKET = "test-resultsort-mixed-same-type-values";
 
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-idx", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-idx", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, statusIndex);
 
         // Multiple Int32 values mixed with other types
@@ -431,8 +433,8 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         // Behavior: $or query with multiple indexed fields returns results sorted by RESULTSORT field in-memory.
         final String BUCKET = "test-resultsort-or-indexes";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-idx", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-idx", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-idx", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-idx", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, priceIndex, quantityIndex);
 
         List<byte[]> documents = List.of(
@@ -732,7 +734,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         final String BUCKET = "test-resultsort-nested";
 
         // Index on the top-level field, but RESULTSORT on the nested field
-        SingleFieldIndexDefinition typeIndex = SingleFieldIndexDefinition.create("type-idx", "type", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition typeIndex = TestIndexDefinitions.singleField("type-idx", "type", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, typeIndex);
 
         // Documents with nested structure: user.profile.score
@@ -772,7 +774,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         // Behavior: RESULTSORT on a field within nested arrays of documents sorts by the nested array element value.
         final String BUCKET = "test-resultsort-nested-arrays";
 
-        SingleFieldIndexDefinition typeIndex = SingleFieldIndexDefinition.create("type-idx", "type", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition typeIndex = TestIndexDefinitions.singleField("type-idx", "type", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, typeIndex);
 
         // Document structure:
@@ -878,10 +880,10 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         // true top-K documents across all matching results, not a biased subset from each branch.
         final String BUCKET = "test-or-resultsort-batch-topk";
 
-        SingleFieldIndexDefinition roleIdx = SingleFieldIndexDefinition.create(
-                "idx_role", "role", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition statusIdx = SingleFieldIndexDefinition.create(
-                "idx_status", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIdx = TestIndexDefinitions.singleField(
+                "idx_role", "role", BsonType.STRING, false);
+        SingleFieldIndexDefinition statusIdx = TestIndexDefinitions.singleField(
+                "idx_status", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET,
                 new SingleFieldIndexDefinition[]{roleIdx, statusIdx}, new CompoundIndexDefinition[]{});
 
@@ -937,7 +939,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
 
         BucketMetadata metadata;
         createBucketWithCollation(BUCKET, "{\"locale\": \"en\", \"strength\": 1}");
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-idx", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-idx", "status", BsonType.STRING, false);
         createIndexThenWaitForReadiness(TEST_NAMESPACE, BUCKET, statusIndex);
         metadata = getBucketMetadata(BUCKET);
 
@@ -979,7 +981,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
 
         BucketMetadata metadata;
         createBucketWithCollation(BUCKET, "{\"locale\": \"en\", \"strength\": 1}");
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-idx", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-idx", "status", BsonType.STRING, false);
         createIndexThenWaitForReadiness(TEST_NAMESPACE, BUCKET, statusIndex);
         metadata = getBucketMetadata(BUCKET);
 
@@ -1019,7 +1021,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         // must sort case-insensitively. QueryOptions.collation must be applied by resultSortIfNeeded.
         final String BUCKET = "test-resultsort-query-collation-asc";
 
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-idx", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-idx", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, statusIndex);
 
         List<byte[]> documents = List.of(
@@ -1064,9 +1066,9 @@ class ResultSortIntegrationTest extends BasePipelineTest {
 
         Collation enPrimary = Collation.create("en", 1, null, null, null, null, null, null, null);
         SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create(
-                "name-idx", "name", BsonType.STRING, false, IndexStatus.WAITING, enPrimary);
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create(
-                "status-idx", "status", BsonType.STRING, false, IndexStatus.WAITING);
+                "name-idx", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, enPrimary);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField(
+                "status-idx", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET, nameIndex, statusIndex);
 
         List<byte[]> documents = List.of(

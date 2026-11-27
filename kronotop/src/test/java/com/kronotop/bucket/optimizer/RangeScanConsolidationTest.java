@@ -16,8 +16,8 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.bson.BsonType;
@@ -33,7 +33,7 @@ class RangeScanConsolidationTest extends BaseOptimizerTest {
     @Test
     void shouldConsolidateRangeConditions() {
         // Create index for age field
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_index", "age", BsonType.INT32, false);
         createIndex(ageIndex);
 
         // Create: AND(age > 18, age < 65)
@@ -58,7 +58,7 @@ class RangeScanConsolidationTest extends BaseOptimizerTest {
     @Test
     void shouldConsolidateRangeWithEqualityBounds() {
         // Create index for score field
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score_index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score_index", "score", BsonType.INT32, false);
         createIndex(scoreIndex);
 
         // Create: AND(score >= 80, score <= 100)
@@ -83,8 +83,8 @@ class RangeScanConsolidationTest extends BaseOptimizerTest {
     @Test
     void shouldNotConsolidateDifferentFields() {
         // Create indexes for age and score fields
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score_index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score_index", "score", BsonType.INT32, false);
         createIndexes(ageIndex, scoreIndex);
 
         // Create: AND(age > 18, score < 100)
@@ -105,7 +105,7 @@ class RangeScanConsolidationTest extends BaseOptimizerTest {
     @Test
     void shouldNotConsolidateNonRangeOperators() {
         // Create index for name field
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_index", "name", BsonType.STRING, false);
         createIndex(nameIndex);
 
         // Create: AND(name = "john", name = "jane") - equality operators

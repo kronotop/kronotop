@@ -19,8 +19,8 @@ package com.kronotop.bucket;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,7 +62,7 @@ class BucketMetadataConvergenceTest extends BaseBucketHandlerTest {
         long initialVersion = initialMetadata.version();
 
         // Update metadata by adding an index
-        SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(indexDefinition);
 
         BucketMetadata updatedMetadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);

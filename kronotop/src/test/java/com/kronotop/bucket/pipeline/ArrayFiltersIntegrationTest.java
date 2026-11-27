@@ -19,8 +19,8 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -293,7 +293,7 @@ class ArrayFiltersIntegrationTest extends BasePipelineTest {
      * - doc3: name=Charlie, grades=[85, 100, 90]
      */
     private BucketMetadata insertTestDocumentsWithIndex() {
-        SingleFieldIndexDefinition gradesIndex = SingleFieldIndexDefinition.create("grades-idx", "grades", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition gradesIndex = TestIndexDefinitions.singleField("grades-idx", "grades", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(INDEXED_ARRAY_BUCKET, gradesIndex);
 
         List<byte[]> documents = List.of(

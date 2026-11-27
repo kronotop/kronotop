@@ -16,8 +16,8 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.planner.physical.*;
 import org.junit.jupiter.api.Test;
 
@@ -50,9 +50,9 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
     @Test
     void shouldKeepRangeScanWithIndexUnchanged() {
         // Create an index for this test
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField(
                 "age-index", "age", org.bson.BsonType.INT32
-                , false, IndexStatus.WAITING);
+                , false);
         createIndex(ageIndex);
 
         // Create a PhysicalRangeScan with a valid index
@@ -74,9 +74,9 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
     @Test
     void shouldHandleComplexPlanWithMixedRangeScans() {
         // Create an index for one field but not another
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField(
                 "age-index", "age", org.bson.BsonType.INT32
-                , false, IndexStatus.WAITING);
+                , false);
         createIndex(ageIndex);
 
         PlannerContext context = new PlannerContext(metadata);

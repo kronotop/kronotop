@@ -16,8 +16,7 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexStatus;
-import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.bson.BsonType;
@@ -42,8 +41,8 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         void shouldApplyRulesInCorrectPriorityOrder() {
             // Create indexes
             createIndexes(
-                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false)
             );
 
             // Create plan that can benefit from multiple rules:
@@ -92,9 +91,9 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         void shouldHandleComplexNestedScenariosWithMultipleRules() {
             // Create indexes
             createIndexes(
-                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false),
+                    TestIndexDefinitions.singleField("status-index", "status", BsonType.STRING, false)
             );
 
             // Complex query with multiple optimization opportunities:
@@ -139,8 +138,8 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
             // Create scenario where different rules might conflict
             // e.g., range consolidation vs index intersection on same fields
             createIndexes(
-                    SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("price-index", "price", BsonType.DOUBLE, false),
+                    TestIndexDefinitions.singleField("category-index", "category", BsonType.STRING, false)
             );
 
             // Query that could benefit from different optimizations:
@@ -233,9 +232,9 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         @DisplayName("Should handle mixed indexed and non-indexed complex scenarios")
         void shouldHandleMixedIndexedAndNonIndexedComplexScenarios() {
             // Create only one index
-            createIndex(SingleFieldIndexDefinition.create(
+            createIndex(TestIndexDefinitions.singleField(
                     "name-index", "name", BsonType.STRING
-                    , false, IndexStatus.WAITING));
+                    , false));
 
             // Query with mix of indexed and non-indexed fields
             String query = "{ $and: [" +
@@ -269,8 +268,8 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         void shouldConvergeWithinIterationLimits() {
             // Create scenario that might require multiple optimization passes
             createIndexes(
-                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false)
             );
 
             // Create complex plan with multiple levels of optimization opportunities
@@ -307,9 +306,9 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         @DisplayName("Should handle scenarios requiring no optimization")
         void shouldHandleScenariosRequiringNoOptimization() {
             // Create optimal plan that needs no optimization
-            createIndex(SingleFieldIndexDefinition.create(
+            createIndex(TestIndexDefinitions.singleField(
                     "name-index", "name", BsonType.STRING
-                    , false, IndexStatus.WAITING));
+                    , false));
 
             String query = "{ \"name\": \"john\" }"; // Simple, optimal query
 
@@ -326,9 +325,9 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         void shouldStabilizeAfterApplyingAllBeneficialOptimizations() {
             // Create comprehensive optimization scenario
             createIndexes(
-                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false),
+                    TestIndexDefinitions.singleField("status-index", "status", BsonType.STRING, false)
             );
 
             // Query with multiple optimization opportunities
@@ -365,10 +364,10 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         void shouldOptimizeComplexEcommerceQuery() {
             // Simulate e-commerce product search scenario
             createIndexes(
-                    SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("brand-index", "brand", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("rating-index", "rating", BsonType.DOUBLE, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("category-index", "category", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("brand-index", "brand", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("price-index", "price", BsonType.DOUBLE, false),
+                    TestIndexDefinitions.singleField("rating-index", "rating", BsonType.DOUBLE, false)
             );
 
             // Complex e-commerce query:
@@ -413,9 +412,9 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         void shouldOptimizeUserAnalyticsQueryWithTemporalConstraints() {
             // Simulate user analytics scenario
             createIndexes(
-                    SingleFieldIndexDefinition.create("user_id-index", "user_id", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("event_type-index", "event_type", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("timestamp-index", "timestamp", BsonType.DATE_TIME, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("user_id-index", "user_id", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("event_type-index", "event_type", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("timestamp-index", "timestamp", BsonType.DATE_TIME, false)
             );
 
             // Analytics query: Find specific user's events of certain type within time range

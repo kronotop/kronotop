@@ -20,8 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -45,8 +45,8 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
         // No batch has more than 2 documents, and each of the 116 matching documents comes back exactly once.
         final String TEST_BUCKET_NAME = "test-bucket-intersection-350-docs";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-index", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         List<byte[]> documents = new ArrayList<>(DOCUMENT_COUNT);

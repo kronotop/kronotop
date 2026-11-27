@@ -82,11 +82,11 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
 
             halfLatch.await();
 
-            SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+            SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                     "test-index",
                     "age",
                     BsonType.INT32
-                    , false, IndexStatus.WAITING);
+                    , false);
 
             DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
             try (Transaction tr = context.getTransactionManager().create()) {

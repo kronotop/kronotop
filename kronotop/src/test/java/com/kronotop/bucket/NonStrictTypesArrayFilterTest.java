@@ -66,7 +66,7 @@ class NonStrictTypesArrayFilterTest extends BaseBucketHandlerTest {
         // only type-compatible values.
 
         // Create INT32 index on 'scores'
-        SingleFieldIndexDefinition scoresIndexDefinition = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoresIndexDefinition = TestIndexDefinitions.singleField("scores-index", "scores", BsonType.INT32, true);
         createIndexThenWaitForReadiness(scoresIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -127,7 +127,7 @@ class NonStrictTypesArrayFilterTest extends BaseBucketHandlerTest {
         // index removes old INT32 entries and adds new ones, while STRING values remain skipped.
 
         // Create INT32 index on 'values'
-        SingleFieldIndexDefinition valuesIndexDefinition = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valuesIndexDefinition = TestIndexDefinitions.singleField("values-index", "values", BsonType.INT32, true);
         createIndexThenWaitForReadiness(valuesIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -189,7 +189,7 @@ class NonStrictTypesArrayFilterTest extends BaseBucketHandlerTest {
         // becomes invisible to queries using that index (falls back to collection scan).
 
         // Create INT32 index on 'items.price'
-        SingleFieldIndexDefinition priceIndexDefinition = SingleFieldIndexDefinition.create("price-index", "items.price", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndexDefinition = TestIndexDefinitions.singleField("price-index", "items.price", BsonType.INT32, true);
         createIndexThenWaitForReadiness(priceIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -239,7 +239,7 @@ class NonStrictTypesArrayFilterTest extends BaseBucketHandlerTest {
         // succeeds when strict_types=false. The document is created but the mismatched field
         // is not indexed.
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);

@@ -43,8 +43,8 @@ class UpdateExecutorTest extends BasePipelineTest {
         // The document becomes queryable by the new value while the old value returns no results.
 
         // Create two secondary indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex, nameIndex);
 
         // Insert documents
@@ -121,8 +121,8 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Both old entries are removed and new entries are created atomically.
 
         // Create two secondary indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex, nameIndex);
 
         // Insert documents
@@ -180,7 +180,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // field is added via update, the null entry is replaced with the actual value.
 
         // Create an INT32 index on age field BEFORE inserting documents
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex);
 
         // Insert documents WITHOUT the indexed field
@@ -267,7 +267,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         final String TEST_BUCKET = "test-bucket-nested-field-update";
 
         // Create an INT32 index on nested field "a.b.c" BEFORE inserting documents
-        SingleFieldIndexDefinition nestedIndex = SingleFieldIndexDefinition.create("nested_idx", "a.b.c", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nestedIndex = TestIndexDefinitions.singleField("nested_idx", "a.b.c", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, nestedIndex);
 
         // Insert documents WITHOUT the nested indexed field
@@ -397,7 +397,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // The null entry is removed and replaced with entries for each array value.
 
         // Create a multikey index on "tags.name"
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags_idx", "tags.name", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags_idx", "tags.name", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, tagsIndex);
 
         // Insert a document without the tags field
@@ -446,7 +446,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Only unique values get index entries, preventing redundant storage.
 
         // Create a multikey index on "tags.name"
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags_idx", "tags.name", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags_idx", "tags.name", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, tagsIndex);
 
         // Insert a document without the tags field
@@ -492,7 +492,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Updates adjust cardinality by removing old entries count and adding new entries count.
 
         // Create a multikey index on "langs.name"
-        SingleFieldIndexDefinition langsIndex = SingleFieldIndexDefinition.create("langs_idx", "langs.name", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition langsIndex = TestIndexDefinitions.singleField("langs_idx", "langs.name", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, langsIndex);
 
         // Insert two documents without the langs field
@@ -556,7 +556,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // correctly. Each document contributes unique values count to the total cardinality.
 
         // Create a multikey index on "skills.name"
-        SingleFieldIndexDefinition skillsIndex = SingleFieldIndexDefinition.create("skills_idx", "skills.name", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition skillsIndex = TestIndexDefinitions.singleField("skills_idx", "skills.name", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, skillsIndex);
 
         // Insert documents without skills field
@@ -672,7 +672,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: Upsert creates document and maintains both primary and secondary indexes.
         // The document is queryable by both _id and indexed field values.
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex);
 
         // No documents exist - upsert should create one
@@ -716,7 +716,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: Upsert with array value on multikey-indexed field creates
         // multiple index entries (one per unique array element).
 
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags_idx", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags_idx", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, tagsIndex);
 
         BsonArray tags = new BsonArray();
@@ -760,7 +760,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: When upsert creates a document that's missing an indexed field,
         // a null index entry is created so the document is queryable via null queries.
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex);
 
         // Upsert document WITHOUT the indexed "age" field
@@ -795,7 +795,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: When upsert creates a document with an indexed field explicitly set to null,
         // a null index entry is created so the document is queryable via null queries.
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex);
 
         // Upsert document WITH indexed "age" field explicitly set to null
@@ -905,9 +905,9 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: Upsert with multiple secondary indexes creates entries in all indexes.
         // Each index gets its own entry based on the indexed field value.
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition cityIndex = SingleFieldIndexDefinition.create("city_idx", "city", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition cityIndex = TestIndexDefinitions.singleField("city_idx", "city", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex, nameIndex, cityIndex);
 
         String query = "{status: {$eq: \"active\"}}";
@@ -958,7 +958,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: Upsert with a multikey-indexed array field explicitly set to null
         // creates a single null index entry.
 
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags_idx", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags_idx", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, tagsIndex);
 
         String query = "{name: {$eq: \"NullTags\"}}";
@@ -999,7 +999,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: First upsert creates a document with missing indexed field (null entry).
         // Second upsert to the same document adds the field, replacing null entry with actual value.
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex);
 
         // First upsert: create the document WITHOUT an age field
@@ -1061,7 +1061,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: Upsert with index on deeply nested path (a.b.c.d) when document
         // only has a partial path (a.x) creates null index entry for missing nested field.
 
-        SingleFieldIndexDefinition deepIndex = SingleFieldIndexDefinition.create("deep_idx", "a.b.c.d", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition deepIndex = TestIndexDefinitions.singleField("deep_idx", "a.b.c.d", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, deepIndex);
 
         // Upsert with partial path - has "a" but not "a.b.c.d"
@@ -1155,7 +1155,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Cardinality is adjusted to reflect the new smaller array.
 
         // Create a multikey index on "tags.name"
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags_idx", "tags.name", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags_idx", "tags.name", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, tagsIndex);
 
         // Insert a document with tags array
@@ -1216,7 +1216,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // existing value entry and creates a null index entry. The document becomes
         // queryable via {field: {$eq: null}}.
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex);
 
         // Insert a document with the age field
@@ -1287,7 +1287,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // with a single null entry. The document becomes queryable via null query.
 
         // Create a multikey index on "tags.name"
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags_idx", "tags.name", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags_idx", "tags.name", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, tagsIndex);
 
         // Insert a document with tags array
@@ -1352,7 +1352,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // should be removed, and new entries for the updated array should be created.
 
         // Create a multikey index on "scores"
-        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores_idx", "scores", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoresIndex = TestIndexDefinitions.singleField("scores_idx", "scores", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, scoresIndex);
 
         // Insert a document with scores array [55, 60, 65, 70, 75]
@@ -1428,7 +1428,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // the array and updates the multi-key index accordingly.
 
         // Create a multikey index on "scores"
-        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores_idx", "scores", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoresIndex = TestIndexDefinitions.singleField("scores_idx", "scores", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, scoresIndex);
 
         // Insert a document with scores array [55, 60, 65, 70, 75]
@@ -1484,7 +1484,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // correctly maintains the multi-key index by replacing all entries with the new value.
 
         // Create a multikey index on "scores"
-        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores_idx", "scores", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoresIndex = TestIndexDefinitions.singleField("scores_idx", "scores", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, scoresIndex);
 
         // Insert a document with scores array [55, 60, 65, 70, 75]
@@ -1543,7 +1543,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // correctly maintains the multi-key index on the nested field path.
 
         // Create a multikey index on "items.price"
-        SingleFieldIndexDefinition pricesIndex = SingleFieldIndexDefinition.create("prices_idx", "items.price", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition pricesIndex = TestIndexDefinitions.singleField("prices_idx", "items.price", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, pricesIndex);
 
         // Insert a document with items array containing objects with the price field
@@ -1618,7 +1618,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // created for the updated values.
 
         // Create a multikey index on "items.status"
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status_idx", "items.status", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status_idx", "items.status", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, statusIndex);
 
         // Insert documents with items arrays containing status fields
@@ -1713,7 +1713,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // entry should be removed and the new value's entry should be added.
 
         // Create a multikey index on "tags" (scalar string array)
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags_idx", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags_idx", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, tagsIndex);
 
         // Insert document with scalar string array
@@ -1783,7 +1783,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // leaves a null in the array position).
 
         // Create a multikey index on "tags" (scalar string array)
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags_idx", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags_idx", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, tagsIndex);
 
         // Insert a document with a scalar string array
@@ -1999,7 +1999,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // ONE deduplicated null index entry along with non-null values.
 
         // Create a multikey index on "tags"
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags_idx", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags_idx", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, tagsIndex);
 
         // Insert a document with a simple array
@@ -2066,7 +2066,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: Upsert creating a document with an array containing null elements should create
         // ONE deduplicated null index entry along with non-null values.
 
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags_idx", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags_idx", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, tagsIndex);
 
         // Create an array with null elements mixed with non-null values
@@ -2133,7 +2133,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: Updating one field of a compound index drops the old compound entry and creates
         // a new one with the updated value combined with the unchanged field.
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create("name_age_idx", List.of(
                 new CompoundIndexField("name", BsonType.STRING, false),
                 new CompoundIndexField("age", BsonType.INT32, false)
@@ -2183,7 +2183,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: Updating a field NOT in the compound index leaves entries/back pointers unchanged;
         // only entry metadata is updated.
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create("name_age_idx", List.of(
                 new CompoundIndexField("name", BsonType.STRING, false),
                 new CompoundIndexField("age", BsonType.INT32, false)
@@ -2229,7 +2229,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: Updating all fields of a compound index drops the old entry and creates a new
         // entry with all new values.
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create("name_age_idx", List.of(
                 new CompoundIndexField("name", BsonType.STRING, false),
                 new CompoundIndexField("age", BsonType.INT32, false)
@@ -2281,7 +2281,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: Documents missing a compound index field have null at that position. Adding
         // the field via update replaces the null entry with actual values.
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create("name_age_idx", List.of(
                 new CompoundIndexField("name", BsonType.STRING, false),
                 new CompoundIndexField("age", BsonType.INT32, false)
@@ -2332,7 +2332,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: Compound index with multiKey field: updating the array drops old expanded entries
         // and creates new entries for each unique element.
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create("name_tags_idx", List.of(
                 new CompoundIndexField("name", BsonType.STRING, false),
                 new CompoundIndexField("tags", BsonType.STRING, true)
@@ -2378,8 +2378,8 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: When both single-field and compound indexes exist and the update affects a
         // shared field, all indexes are updated consistently.
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create("name_age_idx", List.of(
                 new CompoundIndexField("name", BsonType.STRING, false),
                 new CompoundIndexField("age", BsonType.INT32, false)
@@ -2439,7 +2439,7 @@ class UpdateExecutorTest extends BasePipelineTest {
     void shouldCreateCompoundIndexEntriesOnUpsert() {
         // Behavior: Upsert creates compound index entries for the new document.
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create("name_age_idx", List.of(
                 new CompoundIndexField("name", BsonType.STRING, false),
                 new CompoundIndexField("age", BsonType.INT32, false)
@@ -2490,7 +2490,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: $unset on a compound index field drops old entry and creates new entry with
         // null for the unset field.
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create("name_age_idx", List.of(
                 new CompoundIndexField("name", BsonType.STRING, false),
                 new CompoundIndexField("age", BsonType.INT32, false)
@@ -2543,7 +2543,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: The $ positional operator correctly finds the matching array element when the
         // document stores Int64 values but the query filter uses Int32 (cross-numeric-type match).
 
-        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores_idx", "scores", BsonType.INT64, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoresIndex = TestIndexDefinitions.singleField("scores_idx", "scores", BsonType.INT64, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, scoresIndex);
 
         // Insert document with Int64 values in the array
@@ -2586,7 +2586,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // dropped from the index and new values are indexed, so indexed queries see the
         // updated document content.
 
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags_idx", "tags.name", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags_idx", "tags.name", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, tagsIndex);
 
         List<byte[]> documents = List.of(
@@ -2631,7 +2631,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: $unset of a parent path leaves a child-selector index with a single null
         // entry, matching the state a fresh insert of the updated document would produce.
 
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags_idx", "tags.name", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags_idx", "tags.name", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, tagsIndex);
 
         List<byte[]> documents = List.of(
@@ -2672,8 +2672,8 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: Setting one nested field does not touch an index on a sibling nested field.
         // The sibling index keeps its entries and cardinality; only entry metadata is refreshed.
 
-        SingleFieldIndexDefinition colorIndex = SingleFieldIndexDefinition.create("color_idx", "meta.color", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("meta_name_idx", "meta.name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition colorIndex = TestIndexDefinitions.singleField("color_idx", "meta.color", BsonType.STRING, false);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("meta_name_idx", "meta.name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, colorIndex, nameIndex);
 
         List<byte[]> documents = List.of(
@@ -2719,7 +2719,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // Behavior: Setting an array element by numeric index refreshes a multikey index whose
         // selector is the array field itself.
 
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags_idx", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags_idx", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, tagsIndex);
 
         List<byte[]> documents = List.of(
@@ -2756,7 +2756,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         // normalized selector. Positional segments in the op path are normalized before
         // affected-index detection.
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score_idx", "grades.score", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score_idx", "grades.score", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, scoreIndex);
 
         List<byte[]> documents = List.of(

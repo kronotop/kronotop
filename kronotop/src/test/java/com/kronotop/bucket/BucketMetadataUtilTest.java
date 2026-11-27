@@ -125,11 +125,11 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Session session = getSession();
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
-        final SingleFieldIndexDefinition numericIndexDefinition = SingleFieldIndexDefinition.create(
+        final SingleFieldIndexDefinition numericIndexDefinition = TestIndexDefinitions.singleField(
                 "numeric-index",
                 "numeric-selector",
                 BsonType.INT32
-                , false, IndexStatus.WAITING);
+                , false);
 
         createIndexThenWaitForReadiness(numericIndexDefinition);
 

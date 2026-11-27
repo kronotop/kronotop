@@ -20,8 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -71,7 +71,7 @@ class EqOperatorIntegrationTest extends BasePipelineTest {
     void shouldFindNullAndMissingFieldsViaIndexScanWithEqNull() {
         final String TEST_BUCKET_NAME = "test-bucket-indexscan-null-eq";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -106,7 +106,7 @@ class EqOperatorIntegrationTest extends BasePipelineTest {
     void shouldHandleIndexScanNodeWithNullValuesEq() {
         final String TEST_BUCKET_NAME = "test-bucket-indexscan-null-eq-2";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -158,7 +158,7 @@ class EqOperatorIntegrationTest extends BasePipelineTest {
     void shouldReturnEmptyResultForEmptyBucketViaIndexScan() {
         final String TEST_BUCKET_NAME = "test-bucket-empty-indexscan";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$eq': 25}}");
@@ -176,7 +176,7 @@ class EqOperatorIntegrationTest extends BasePipelineTest {
     void shouldHandleMixedIndexedAndNonIndexedFields() {
         final String TEST_BUCKET_NAME = "test-bucket-mixed-indexed-nonindexed";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -247,7 +247,7 @@ class EqOperatorIntegrationTest extends BasePipelineTest {
     void shouldHandleNestedFieldQueryViaIndexScan() {
         final String TEST_BUCKET_NAME = "test-bucket-nested-field-indexscan";
 
-        SingleFieldIndexDefinition nestedIndex = SingleFieldIndexDefinition.create("user-name-index", "user.name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nestedIndex = TestIndexDefinitions.singleField("user-name-index", "user.name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, nestedIndex);
 
         List<byte[]> documents = List.of(

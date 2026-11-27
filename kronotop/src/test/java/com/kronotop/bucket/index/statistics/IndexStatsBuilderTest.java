@@ -42,7 +42,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         // Behavior: setHintForStats(tr, index, objectId, value) stores an ObjectId in STAT_HINTS
         // subspace when the value passes the probabilistic selector.
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-matching-value");
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test_index", "field", BsonType.INT32, false);
         SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         // BsonNull always matches the probabilistic selector (hash = 0, 0 & 0x3FFF = 0)
@@ -70,7 +70,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         // Behavior: setHintForStats(tr, index, objectId, value) does not store anything when
         // the value fails the probabilistic selector.
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-non-matching-value");
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test_index", "field", BsonType.INT32, false);
         SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         BsonValue nonMatchingValue = new BsonInt32(1);
@@ -98,7 +98,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         // Behavior: setHintForStats(tr, index, objectId) stores an ObjectId in STAT_HINTS
         // subspace unconditionally, bypassing the probabilistic selector.
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-unconditional");
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test_index", "field", BsonType.INT32, false);
         SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         ObjectId objectId = new ObjectId();
@@ -121,7 +121,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
     void shouldUseCorrectKeyStructure() {
         // Behavior: setHintForStats creates a key with structure (STAT_HINTS, ObjectId bytes).
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-key-structure");
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test_index", "field", BsonType.STRING, false);
         SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         ObjectId objectId = new ObjectId();
@@ -175,7 +175,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         // Behavior: setHintForStatsIfSelected stores an ObjectId in STAT_HINTS when the ObjectId
         // bytes pass the probabilistic selector.
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-if-selected-match");
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test_index", "field", BsonType.INT32, false);
         SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         ObjectId objectId = findMatchingObjectId();
@@ -199,7 +199,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         // Behavior: setHintForStatsIfSelected does not store anything when the ObjectId bytes
         // fail the probabilistic selector.
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-if-selected-no-match");
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test_index", "field", BsonType.INT32, false);
         SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         ObjectId objectId = findNonMatchingObjectId();

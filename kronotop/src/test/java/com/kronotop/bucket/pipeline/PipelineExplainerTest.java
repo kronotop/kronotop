@@ -60,7 +60,7 @@ class PipelineExplainerTest {
 
     @Test
     void shouldExplainIndexScanNode() {
-        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDef = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         IndexScanPredicate predicate = new IndexScanPredicate(1, "age", Operator.EQ, new Operand.Literal(new Int32Val(25)));
         IndexScanNode node = new IndexScanNode(1, indexDef, predicate);
 
@@ -88,7 +88,7 @@ class PipelineExplainerTest {
 
     @Test
     void shouldExplainRangeScanNode() {
-        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDef = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         RangeScanPredicate predicate = new RangeScanPredicate("age",
                 new Operand.Literal(new Int32Val(18)),
                 new Operand.Literal(new Int32Val(65)),
@@ -107,7 +107,7 @@ class PipelineExplainerTest {
 
     @Test
     void shouldExplainUnionNode() {
-        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDef = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         IndexScanPredicate predicate1 = new IndexScanPredicate(1, "name", Operator.EQ, new Operand.Literal(new StringVal("Alice")));
         IndexScanPredicate predicate2 = new IndexScanPredicate(2, "name", Operator.EQ, new Operand.Literal(new StringVal("Bob")));
         IndexScanNode child1 = new IndexScanNode(1, indexDef, predicate1);
@@ -135,7 +135,7 @@ class PipelineExplainerTest {
 
     @Test
     void shouldExplainChainedNodes() {
-        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDef = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         IndexScanPredicate scanPredicate = new IndexScanPredicate(1, "age", Operator.GT, new Operand.Literal(new Int32Val(18)));
         IndexScanNode scanNode = new IndexScanNode(1, indexDef, scanPredicate);
 
@@ -153,7 +153,7 @@ class PipelineExplainerTest {
     @Test
     void shouldReturnArrayRedisMessageWhenRESP2() {
         // Behavior: RESP2 has no map type, so the rendered plan reaches the client as a flat array.
-        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDef = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         IndexScanPredicate predicate = new IndexScanPredicate(1, "age", Operator.EQ, new Operand.Literal(new Int32Val(25)));
         IndexScanNode node = new IndexScanNode(1, indexDef, predicate);
 
@@ -164,7 +164,7 @@ class PipelineExplainerTest {
 
     @Test
     void shouldReturnMapRedisMessage() {
-        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDef = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         IndexScanPredicate predicate = new IndexScanPredicate(1, "age", Operator.EQ, new Operand.Literal(new Int32Val(25)));
         IndexScanNode node = new IndexScanNode(1, indexDef, predicate);
 
@@ -215,7 +215,7 @@ class PipelineExplainerTest {
     void shouldExplainOrderedConcatNode() {
         // Behavior: An ordered concat node with two EQ children should produce operation
         // ORDERED_CONCAT and a children array containing both child plans.
-        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDef = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         IndexScanPredicate predicate1 = new IndexScanPredicate(1, "age", Operator.EQ, new Operand.Literal(new Int32Val(10)));
         IndexScanPredicate predicate2 = new IndexScanPredicate(2, "age", Operator.EQ, new Operand.Literal(new Int32Val(30)));
         IndexScanNode child1 = new IndexScanNode(1, indexDef, predicate1);
@@ -241,7 +241,7 @@ class PipelineExplainerTest {
     void shouldExplainOrderedConcatNodeWithChainedNext() {
         // Behavior: An ordered concat node with a chained TransformWithResidualPredicateNode
         // should include both the children array and the next node in the output.
-        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDef = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         IndexScanPredicate predicate1 = new IndexScanPredicate(1, "age", Operator.EQ, new Operand.Literal(new Int32Val(10)));
         IndexScanNode child1 = new IndexScanNode(1, indexDef, predicate1);
         OrderedConcatNode orderedConcatNode = new OrderedConcatNode(2, List.of(child1));
@@ -449,7 +449,7 @@ class PipelineExplainerTest {
     @Test
     void shouldFlattenNestedMapsUnderChildrenWhenRESP2() {
         // Behavior: union children are maps inside an array, they must be flattened for RESP2 as well.
-        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDef = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         IndexScanNode child1 = new IndexScanNode(1, indexDef, new IndexScanPredicate(1, "name", Operator.EQ, new Operand.Literal(new StringVal("Alice"))));
         IndexScanNode child2 = new IndexScanNode(2, indexDef, new IndexScanPredicate(2, "name", Operator.EQ, new Operand.Literal(new StringVal("Bob"))));
 
@@ -498,7 +498,7 @@ class PipelineExplainerTest {
     }
 
     private IndexScanNode indexScanNodeWith(Operand operand) {
-        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDef = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         return new IndexScanNode(1, indexDef, new IndexScanPredicate(1, "age", Operator.EQ, operand));
     }
 
@@ -507,7 +507,7 @@ class PipelineExplainerTest {
     }
 
     private RangeScanNode boundedRangeScanNode() {
-        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDef = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         RangeScanPredicate predicate = new RangeScanPredicate("age",
                 new Operand.Literal(new Int32Val(18)),
                 new Operand.Literal(new Int32Val(65)),
@@ -531,7 +531,7 @@ class PipelineExplainerTest {
     }
 
     private RangeScanNode unboundedRangeScanNode() {
-        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDef = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         RangeScanPredicate predicate = new RangeScanPredicate("age", null, new Operand.Literal(new Int32Val(65)), false, false);
         return new TestRangeScanNode(1, indexDef, predicate);
     }

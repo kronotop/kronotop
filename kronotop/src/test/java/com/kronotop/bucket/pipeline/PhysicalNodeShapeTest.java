@@ -24,6 +24,7 @@ import com.kronotop.bucket.index.CompoundIndexDefinition;
 import com.kronotop.bucket.index.CompoundIndexField;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.bson.BsonType;
@@ -312,7 +313,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldProduceSameHashForRangeScanWithDifferentBoundValues() {
         // Behavior: RangeScan(lower=10, upper=20) == RangeScan(lower=5, upper=50) with same types and inclusivity
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalRangeScan range1 = new PhysicalRangeScan(nextId(), "age",
                 new Int32Val(10), new Int32Val(20), true, false, index);
@@ -328,7 +329,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldProduceDifferentHashForRangeScanWithDifferentIncludeLower() {
         // Behavior: RangeScan(includeLower=true) != RangeScan(includeLower=false)
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalRangeScan range1 = new PhysicalRangeScan(nextId(), "age",
                 new Int32Val(10), new Int32Val(20), true, false, index);
@@ -344,7 +345,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldProduceDifferentHashForRangeScanWithDifferentIncludeUpper() {
         // Behavior: RangeScan(includeUpper=true) != RangeScan(includeUpper=false)
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalRangeScan range1 = new PhysicalRangeScan(nextId(), "age",
                 new Int32Val(10), new Int32Val(20), true, true, index);
@@ -360,8 +361,8 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldProduceDifferentHashForRangeScanOnDifferentSelectors() {
         // Behavior: RangeScan on "age" vs "score" different shape
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score_idx", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score_idx", "score", BsonType.INT32, false);
 
         PhysicalRangeScan rangeAge = new PhysicalRangeScan(nextId(), "age",
                 new Int32Val(10), new Int32Val(20), true, false, ageIndex);
@@ -377,7 +378,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldProduceDifferentHashForRangeScanWithDifferentBoundTypes() {
         // Behavior: RangeScan with Int32 bounds vs Int64 bounds produce different hashes
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("value_idx", "value", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("value_idx", "value", BsonType.INT32, false);
 
         PhysicalRangeScan rangeInt32 = new PhysicalRangeScan(nextId(), "value",
                 new Int32Val(10), new Int32Val(20), true, false, index);
@@ -393,7 +394,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldProduceSameHashForRangeScanWithOnlyLowerBound() {
         // Behavior: RangeScan with only lower bound and different values produce same hash
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalRangeScan range1 = new PhysicalRangeScan(nextId(), "age",
                 new Int32Val(10), null, true, false, index);
@@ -409,7 +410,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldProduceSameHashForRangeScanWithOnlyUpperBound() {
         // Behavior: RangeScan with only upper bound and different values produce same hash
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalRangeScan range1 = new PhysicalRangeScan(nextId(), "age",
                 null, new Int32Val(20), false, true, index);
@@ -428,7 +429,7 @@ class PhysicalNodeShapeTest {
     void shouldIncludeNodeTypeInHashForIndexScan() {
         // Behavior: PhysicalIndexScan wrapping a filter has different hash than bare filter
         PhysicalFilter filterNode = filter(Operator.EQ, "age", new Int32Val(25));
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalIndexScan indexScan = new PhysicalIndexScan(nextId(), filterNode, index);
 
@@ -455,7 +456,7 @@ class PhysicalNodeShapeTest {
     void shouldProduceDifferentHashForIndexScanVsFullScan() {
         // Behavior: IndexScan and FullScan wrapping same filter produce different hashes
         PhysicalFilter filterNode = filter(Operator.EQ, "age", new Int32Val(25));
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalIndexScan indexScan = new PhysicalIndexScan(nextId(), filterNode, index);
         PhysicalFullScan fullScan = new PhysicalFullScan(nextId(), filterNode);
@@ -471,7 +472,7 @@ class PhysicalNodeShapeTest {
         // Behavior: IndexScan with different filter values but same structure produce same hash
         PhysicalFilter filter1 = filter(Operator.EQ, "age", new Int32Val(25));
         PhysicalFilter filter2 = filter(Operator.EQ, "age", new Int32Val(50));
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalIndexScan indexScan1 = new PhysicalIndexScan(nextId(), filter1, index);
         PhysicalIndexScan indexScan2 = new PhysicalIndexScan(nextId(), filter2, index);
@@ -572,8 +573,8 @@ class PhysicalNodeShapeTest {
         PhysicalFilter filterA = filter(Operator.EQ, "name", new StringVal("john"));
         PhysicalFilter filterB = filter(Operator.EQ, "age", new Int32Val(25));
 
-        SingleFieldIndexDefinition indexA = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition indexB = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexA = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition indexB = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalIndexIntersection intersection1 = new PhysicalIndexIntersection(
                 nextId(), List.of(indexA, indexB), List.of(filterA, filterB));
@@ -593,9 +594,9 @@ class PhysicalNodeShapeTest {
         PhysicalFilter filterB = filter(Operator.EQ, "age", new Int32Val(25));
         PhysicalFilter filterC = filter(Operator.EQ, "status", new StringVal("active"));
 
-        SingleFieldIndexDefinition indexA = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition indexB = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition indexC = SingleFieldIndexDefinition.create("status_idx", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexA = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition indexB = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition indexC = TestIndexDefinitions.singleField("status_idx", "status", BsonType.STRING, false);
 
         PhysicalIndexIntersection intersection1 = new PhysicalIndexIntersection(
                 nextId(), List.of(indexA, indexB), List.of(filterA, filterB));
@@ -617,8 +618,8 @@ class PhysicalNodeShapeTest {
         PhysicalFilter filterA2 = filter(Operator.EQ, "name", new StringVal("jane"));
         PhysicalFilter filterB2 = filter(Operator.EQ, "age", new Int32Val(30));
 
-        SingleFieldIndexDefinition indexA = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition indexB = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexA = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition indexB = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalIndexIntersection intersection1 = new PhysicalIndexIntersection(
                 nextId(), List.of(indexA, indexB), List.of(filterA1, filterB1));
@@ -733,8 +734,8 @@ class PhysicalNodeShapeTest {
                 )
                 , IndexStatus.WAITING);
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalCompoundIndexScan scan = new PhysicalCompoundIndexScan(
                 nextId(), compoundIndex, List.of(filterName, filterAge));
@@ -934,7 +935,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldHandleMixedScanTypesInAnd() {
         // Behavior: AND containing IndexScan and FullScan wrapped nodes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalFilter ageFilter = filter(Operator.EQ, "age", new Int32Val(25));
         PhysicalIndexScan indexScan = new PhysicalIndexScan(nextId(), ageFilter, ageIndex);
@@ -962,7 +963,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldHandleRangeScanCombinedWithFilters() {
         // Behavior: AND containing RangeScan and regular filters
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(nextId(), "age",
                 new Int32Val(18), new Int32Val(65), true, false, ageIndex);
@@ -984,8 +985,8 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldHandleOrWithMultipleScanTypes() {
         // Behavior: OR containing different scan types produces consistent hash
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
 
         PhysicalFilter ageFilter = filter(Operator.EQ, "age", new Int32Val(25));
         PhysicalIndexScan indexScan = new PhysicalIndexScan(nextId(), ageFilter, ageIndex);
@@ -1275,9 +1276,9 @@ class PhysicalNodeShapeTest {
         PhysicalFilter filterAge = filter(Operator.EQ, "age", new Int32Val(25));
         PhysicalFilter filterCity = filter(Operator.EQ, "city", new StringVal("NYC"));
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition cityIndex = SingleFieldIndexDefinition.create("city_idx", "city", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition cityIndex = TestIndexDefinitions.singleField("city_idx", "city", BsonType.STRING, false);
 
         PhysicalIndexIntersection intersection1 = new PhysicalIndexIntersection(
                 nextId(),
@@ -1553,7 +1554,7 @@ class PhysicalNodeShapeTest {
     void shouldComputeForBindingSkipIndexScanPrefix() {
         // Behavior: computeForBinding skips NODE_INDEX_SCAN prefix, producing same hash as bare filter
         PhysicalFilter filterNode = filter(Operator.EQ, "age", new Int32Val(25));
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         PhysicalIndexScan indexScan = new PhysicalIndexScan(nextId(), filterNode, index);
 
         long hashBareFilter = PhysicalNodeShape.computeForBinding(filterNode);
@@ -1580,7 +1581,7 @@ class PhysicalNodeShapeTest {
     void shouldComputeForBindingProduceSameHashForIndexScanAndFullScan() {
         // Behavior: IndexScan and FullScan wrapping same filter produce same binding hash
         PhysicalFilter filterNode = filter(Operator.EQ, "age", new Int32Val(25));
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalIndexScan indexScan = new PhysicalIndexScan(nextId(), filterNode, index);
         PhysicalFullScan fullScan = new PhysicalFullScan(nextId(), filterNode);
@@ -1620,7 +1621,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldComputeForBindingPreserveOrderingWithMixedWrapperTypes() {
         // Behavior: Mixed IndexScan and FullScan wrappers produce same ordering as QueryShape
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         BqlExpr bqlAge = new BqlEq("age", new Int32Val(25));
         BqlExpr bqlName = new BqlEq("name", new StringVal("john"));
@@ -1645,7 +1646,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldComputeForBindingHandleOrWithWrappedChildren() {
         // Behavior: OR children with different wrapper types produce correct binding order
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("field_idx", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("field_idx", "field", BsonType.INT32, false);
 
         PhysicalFilter filterA = filter(Operator.EQ, "a", new Int32Val(1));
         PhysicalFilter filterB = filter(Operator.EQ, "b", new Int32Val(2));
@@ -1696,7 +1697,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldComputeForBindingHandleRangeScan() {
         // Behavior: RangeScan binding hash is computed correctly
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalRangeScan range1 = new PhysicalRangeScan(nextId(), "age",
                 new Int32Val(18), new Int32Val(65), true, false, index);
@@ -1769,8 +1770,8 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldComputeForBindingHandleAndWithMixedWrappers() {
         // Behavior: AND with mixed wrapper types produces correct ordering
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         BqlExpr bqlName = new BqlEq("name", new StringVal("john"));
         BqlExpr bqlAge = new BqlGte("age", new Int32Val(18));
@@ -1797,7 +1798,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldComputeForBindingHandleNestedAndOrWithWrappers() {
         // Behavior: Nested AND/OR with wrapped children produces correct ordering
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("field_idx", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("field_idx", "field", BsonType.INT32, false);
 
         PhysicalFilter filterA = filter(Operator.EQ, "a", new Int32Val(1));
         PhysicalFilter filterB = filter(Operator.EQ, "b", new Int32Val(2));
@@ -1852,7 +1853,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldComputeForBindingSkipRangeScanPrefix() {
         // Behavior: computeForBinding for RangeScan skips NODE_RANGE_SCAN prefix
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(nextId(), "age",
                 new Int32Val(18), new Int32Val(65), true, false, index);
@@ -1868,7 +1869,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldComputeForBindingPreserveRangeScanLowerOnlyOrdering() {
         // Behavior: RangeScan with only lower bound produces correct binding hash
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalRangeScan rangeLowerOnly1 = new PhysicalRangeScan(nextId(), "age",
                 new Int32Val(18), null, true, false, index);
@@ -1885,7 +1886,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldComputeForBindingPreserveRangeScanUpperOnlyOrdering() {
         // Behavior: RangeScan with only the upper bound produces the correct binding hash
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalRangeScan rangeUpperOnly1 = new PhysicalRangeScan(nextId(), "age",
                 null, new Int32Val(65), false, true, index);
@@ -1902,7 +1903,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldComputeForBindingDifferForRangeScanWithDifferentInclusivity() {
         // Behavior: RangeScan with different inclusivity flags produces different binding hashes
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalRangeScan rangeInclusive = new PhysicalRangeScan(nextId(), "age",
                 new Int32Val(18), new Int32Val(65), true, true, index);
@@ -1924,8 +1925,8 @@ class PhysicalNodeShapeTest {
         PhysicalFilter filterA = filter(Operator.EQ, "name", new StringVal("john"));
         PhysicalFilter filterB = filter(Operator.EQ, "age", new Int32Val(25));
 
-        SingleFieldIndexDefinition indexA = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition indexB = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexA = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition indexB = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalIndexIntersection intersection = new PhysicalIndexIntersection(
                 nextId(), List.of(indexA, indexB), List.of(filterA, filterB));
@@ -1944,8 +1945,8 @@ class PhysicalNodeShapeTest {
         PhysicalFilter filterName = filter(Operator.EQ, "name", new StringVal("john"));
         PhysicalFilter filterAge = filter(Operator.EQ, "age", new Int32Val(25));
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalIndexIntersection intersection1 = new PhysicalIndexIntersection(
                 nextId(), List.of(nameIndex, ageIndex), List.of(filterName, filterAge));
@@ -1971,8 +1972,8 @@ class PhysicalNodeShapeTest {
         PhysicalFilter filterName = filter(Operator.EQ, "name", new StringVal("john"));
         PhysicalFilter filterAge = filter(Operator.EQ, "age", new Int32Val(25));
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
 
         PhysicalIndexIntersection intersection = new PhysicalIndexIntersection(
                 nextId(), List.of(nameIndex, ageIndex), List.of(filterName, filterAge));
@@ -2073,7 +2074,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldComputeForBindingUseSameLogicalHashForWrappedAndBareChildren() {
         // Behavior: AND with wrapped children produces the same hash as AND with bare children
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("field_idx", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("field_idx", "field", BsonType.INT32, false);
 
         // AND with wrapped children
         PhysicalFilter filterA = filter(Operator.EQ, "a", new Int32Val(1));
@@ -2097,7 +2098,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldComputeForBindingUseSameOrHashForWrappedAndBareChildren() {
         // Behavior: OR with wrapped children produces same hash as OR with bare children
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("field_idx", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("field_idx", "field", BsonType.INT32, false);
 
         // OR with wrapped children
         PhysicalFilter filterA = filter(Operator.EQ, "a", new Int32Val(1));
@@ -2129,7 +2130,7 @@ class PhysicalNodeShapeTest {
         int[] bqlOrder = getSortedIndicesByQueryShape(bqlList);
 
         // Create AND with IndexScan/FullScan wrapped children
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("idx", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("idx", "field", BsonType.INT32, false);
 
         PhysicalFilter filterA = filter(Operator.EQ, "a", new Int32Val(1));
         PhysicalFilter filterB = filter(Operator.EQ, "b", new Int32Val(2));
@@ -2157,7 +2158,7 @@ class PhysicalNodeShapeTest {
         int[] bqlOrder = getSortedIndicesByQueryShape(bqlList);
 
         // Create OR with wrapped children
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("idx", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("idx", "field", BsonType.INT32, false);
 
         PhysicalFilter filterX = filter(Operator.EQ, "x", new Int32Val(10));
         PhysicalFilter filterY = filter(Operator.EQ, "y", new StringVal("hello"));
@@ -2177,7 +2178,7 @@ class PhysicalNodeShapeTest {
     @Test
     void shouldComputeForBindingDifferFromComputeForAndWithWrappedChildren() {
         // Behavior: AND with wrapped children has different compute() vs computeForBinding()
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("idx", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition index = TestIndexDefinitions.singleField("idx", "field", BsonType.INT32, false);
 
         PhysicalFilter filterA = filter(Operator.EQ, "a", new Int32Val(1));
         PhysicalFilter filterB = filter(Operator.EQ, "b", new Int32Val(2));

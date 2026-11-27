@@ -18,8 +18,8 @@ package com.kronotop.bucket;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.TestUtil;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.pipeline.BasePipelineTest;
 import com.kronotop.bucket.pipeline.IndexScanNode;
 import com.kronotop.bucket.pipeline.QueryContext;
@@ -38,7 +38,7 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldQueryBooleanIndexWithTrue() {
-        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition activeIndex = TestIndexDefinitions.singleField("active-index", "active", BsonType.BOOLEAN, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, activeIndex);
 
         List<byte[]> documents = List.of(
@@ -73,7 +73,7 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldQueryBooleanIndexWithFalse() {
-        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition activeIndex = TestIndexDefinitions.singleField("active-index", "active", BsonType.BOOLEAN, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, activeIndex);
 
         List<byte[]> documents = List.of(
@@ -108,7 +108,7 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldQueryBooleanIndexWithGtFalse() {
-        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition activeIndex = TestIndexDefinitions.singleField("active-index", "active", BsonType.BOOLEAN, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, activeIndex);
 
         List<byte[]> documents = List.of(
@@ -142,7 +142,7 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldQueryBooleanIndexWithLtFalse() {
-        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition activeIndex = TestIndexDefinitions.singleField("active-index", "active", BsonType.BOOLEAN, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, activeIndex);
 
         List<byte[]> documents = List.of(
@@ -167,7 +167,7 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldQueryBooleanIndexWithLtTrue() {
-        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition activeIndex = TestIndexDefinitions.singleField("active-index", "active", BsonType.BOOLEAN, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, activeIndex);
 
         List<byte[]> documents = List.of(
@@ -201,7 +201,7 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldReturnEmptyWhenComparingBooleanWithString() {
-        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition activeIndex = TestIndexDefinitions.singleField("active-index", "active", BsonType.BOOLEAN, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, activeIndex);
 
         List<byte[]> documents = List.of(

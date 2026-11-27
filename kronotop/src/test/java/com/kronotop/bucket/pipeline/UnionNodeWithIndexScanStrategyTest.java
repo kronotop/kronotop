@@ -21,8 +21,8 @@ import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.SortDirection;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonBoolean;
 import org.bson.BsonType;
 import org.bson.types.ObjectId;
@@ -41,8 +41,8 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void shouldHandleOrQueryWithMultipleIndexes() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-multi-index";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-index", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         List<byte[]> documents = List.of(
@@ -82,8 +82,8 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void shouldHandleOrQueryWithAllDocumentsMatching() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-all-match";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-index", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         List<byte[]> documents = List.of(
@@ -123,8 +123,8 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void shouldHandleOrQueryWithBatchAndPagination() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-batch-pagination";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-index", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         List<byte[]> documents = List.of(
@@ -173,8 +173,8 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void shouldHandleOrQueryWithRangeScanAndComparison() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-range-scan";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-index", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         List<byte[]> documents = List.of(
@@ -215,7 +215,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void shouldHandleOrQueryWithIndexedAndNonIndexedFields() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-mixed-strategy";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -255,7 +255,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void shouldHandleOrQueryWithNonIndexedFieldReturningEmpty() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-empty-branch";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -291,7 +291,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void shouldHandleThreeWayOrQueryWithMixedIndexing() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-three-way-mixed";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -334,7 +334,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void shouldReturnEmptyForThreeWayOrQueryWithAllEmptyBranches() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-all-empty-branches";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -367,8 +367,8 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
 
         final String TEST_BUCKET_NAME = "test-union-exact-batch-boundary";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-index", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         // 6 docs with no overlap between branches: 3 match price>30, 3 match quantity<=25
@@ -422,7 +422,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
 
         final String TEST_BUCKET_NAME = "test-union-mixed-rewind";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         // 10 docs: 3 match both, 3 match price only (IndexScan), 2 match category only (FullScan), 2 match neither
@@ -484,8 +484,8 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
 
         final String TEST_BUCKET_NAME = "test-union-update-or-paginated-rewind";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-index", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         // 8 docs: 2 match both (price>100 AND quantity<=25), 2 price-only, 2 quantity-only, 2 neither
@@ -553,8 +553,8 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
 
         final String TEST_BUCKET_NAME = "test-union-update-or-batch-two-rewind";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-index", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         // 10 docs: 3 match both (price>100 AND quantity<=25), 2 price-only, 3 quantity-only, 2 neither
@@ -622,7 +622,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
 
         final String TEST_BUCKET_NAME = "test-bucket-or-query-single-sub";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -653,8 +653,8 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
 
         final String TEST_BUCKET_NAME = "test-bucket-or-query-two-fields-reverse";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-index", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         List<byte[]> documents = List.of(
@@ -698,8 +698,8 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
 
         final String TEST_BUCKET_NAME = "test-union-index-large-dataset-batch";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-index", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         // Insert 200 documents with controlled distribution for OR query: price > 250 OR quantity <= 250
@@ -801,8 +801,8 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
 
         final String TEST_BUCKET_NAME = "test-union-index-large-dataset-batch-reverse";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-index", "quantity", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         // Insert 200 documents with controlled distribution for OR query: price > 250 OR quantity <= 250

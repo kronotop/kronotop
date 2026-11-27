@@ -135,7 +135,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     @MethodSource("indexValueTestData")
     void shouldSetSingleFieldIndexValueForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
         // Behavior: Verifies that setEntry creates an index entry and back pointer for each supported BSON type.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(indexName, fieldName, bsonType, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(indexName, fieldName, bsonType, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
         ObjectId objectId = new ObjectId();
@@ -169,7 +169,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     @Test
     void shouldDropSingleFieldIndexEntry() {
         // Behavior: Verifies that dropEntry removes the index entry, back pointer, and decrements cardinality.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
         String indexValue = "test-value";
@@ -231,7 +231,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     @MethodSource("indexValueTestData")
     void shouldDropSingleFieldIndexEntryForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue) {
         // Behavior: Verifies that dropEntry correctly removes index entries and back pointers for each supported BSON type.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(indexName, fieldName, bsonType, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(indexName, fieldName, bsonType, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
         ObjectId objectId = new ObjectId();
@@ -285,8 +285,8 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     @Test
     void shouldDropMultipleSingleFieldIndexEntriesForSameObjectId() {
         // Behavior: Verifies that dropEntry removes entries from multiple indexes independently for the same ObjectId.
-        SingleFieldIndexDefinition stringIndex = SingleFieldIndexDefinition.create("string-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition intIndex = SingleFieldIndexDefinition.create("int-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition stringIndex = TestIndexDefinitions.singleField("string-index", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition intIndex = TestIndexDefinitions.singleField("int-index", "age", BsonType.INT32, false);
 
         createIndexThenWaitForReadiness(stringIndex, intIndex);
         // Refresh metadata
@@ -366,7 +366,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     @Test
     void shouldHandleDropSingleFieldIndexEntryForNonExistentObjectId() {
         // Behavior: Verifies that dropEntry does not throw for a non-existent ObjectId and cardinality remains unchanged.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
         SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
@@ -393,7 +393,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     @Test
     void shouldDropOnlySpecificObjectIdEntries() {
         // Behavior: Verifies that dropEntry removes only the targeted ObjectId's entries, leaving other entries intact.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
         ObjectId objectId0 = new ObjectId();
@@ -459,7 +459,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     @Test
     void shouldUpdateIndexEntry() {
         // Behavior: Verifies that updateIndexEntry replaces entry metadata without changing the indexed key.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
         AppendedEntry entry = entries[0];
@@ -510,7 +510,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     @Test
     void shouldUpdateIndexEntryForMultipleIndexValues() {
         // Behavior: Verifies that updateIndexEntry updates all index entries sharing the same ObjectId across multiple index values.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("multi-value-index", "tag", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("multi-value-index", "tag", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
         AppendedEntry[] entries = getAppendedEntries();
@@ -568,7 +568,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     @Test
     void shouldHandleUpdateIndexEntryForNonExistentObjectId() {
         // Behavior: Verifies that updateIndexEntry does not throw or create entries for a non-existent ObjectId.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("empty-index", "value", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("empty-index", "value", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
         SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
@@ -601,7 +601,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     @MethodSource("indexValueTestData")
     void shouldUpdateIndexEntryForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue) {
         // Behavior: Verifies that updateIndexEntry correctly updates entry metadata for each supported BSON type.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(indexName, fieldName, bsonType, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(indexName, fieldName, bsonType, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
         AppendedEntry entry = entries[0];
@@ -652,7 +652,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     void shouldSetSingleFieldIndexEntryByObjectId() {
         // Behavior: Verifies that setEntryByObjectId creates an index entry, back pointer,
         // and cardinality update.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
         String indexValue = "test-value";
@@ -737,7 +737,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     void shouldSetSingleFieldIndexEntryByObjectIdWithObjectIdValue() {
         // Behavior: Verifies that setEntryByObjectId correctly converts an ObjectId index value
         // to its byte array representation when creating the index entry and back pointer.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "ref_id", BsonType.OBJECT_ID, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test-index", "ref_id", BsonType.OBJECT_ID, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
         ObjectId indexValue = new ObjectId();
@@ -822,7 +822,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     void shouldInsertSingleFieldIndexEntry() {
         // Behavior: Verifies that insertEntry creates an index entry, back pointer, and cardinality
         // update using direct tr.set() instead of atomic mutation.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
         String indexValue = "insert-test";
@@ -892,7 +892,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     @MethodSource("indexValueTestData")
     void shouldInsertSingleFieldIndexEntryForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
         // Behavior: Verifies that insertEntry creates correct index entries for each supported BSON type.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(indexName, fieldName, bsonType, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(indexName, fieldName, bsonType, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
         ObjectId objectId = new ObjectId();
@@ -934,7 +934,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     void shouldFindIndexedObjectIdsForListedIds() {
         // Behavior: Verifies that findIndexedObjectIds returns every listed ObjectId that has a back
         // pointer in this index.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         byte[] entryMetadata = getEncodedEntryMetadata();
 
@@ -956,7 +956,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     void shouldReturnOnlyIndexedIdsFromList() {
         // Behavior: Verifies that findIndexedObjectIds returns only the listed ObjectIds that are
         // indexed and excludes a listed ObjectId that has no back pointer.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("test-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         byte[] entryMetadata = getEncodedEntryMetadata();
 
@@ -979,7 +979,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     void shouldDeduplicateObjectIdWithMultipleBackPointers() {
         // Behavior: Verifies that findIndexedObjectIds returns a single ObjectId even when it has
         // several back pointers (multikey index with multiple values).
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("multi-index", "tag", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("multi-index", "tag", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         byte[] entryMetadata = getEncodedEntryMetadata();
 
@@ -999,7 +999,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     void shouldReturnEmptyWhenNoObjectIdsIndexed() {
         // Behavior: Verifies that findIndexedObjectIds returns an empty set when none of the listed
         // ObjectIds have a back pointer in this index.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("empty-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField("empty-index", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
         DirectorySubspace indexSubspace = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ).subspace();

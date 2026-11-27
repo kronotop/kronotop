@@ -18,8 +18,8 @@ package com.kronotop.bucket.pipeline;
 
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.bql.BqlParseException;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -55,7 +55,7 @@ class ParserValidationIntegrationTest extends BasePipelineTest {
     void shouldRejectRangeScanWithNullBoundaries() {
         final String TEST_BUCKET_NAME = "test-bucket-rangescan-null-boundaries";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         assertThrows(BqlParseException.class, () ->

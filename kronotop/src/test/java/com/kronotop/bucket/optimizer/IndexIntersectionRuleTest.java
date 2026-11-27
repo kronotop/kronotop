@@ -16,8 +16,7 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexStatus;
-import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.bson.BsonType;
@@ -42,8 +41,8 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
         void shouldCreateIntersectionForTwoIndexedEqConditions() {
             // Create indexes for name and age fields
             createIndexes(
-                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false)
             );
 
             // Test: AND(name="john", age=25)
@@ -77,9 +76,9 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
         void shouldCreateIntersectionForThreeIndexedEqConditions() {
             // Create indexes for multiple fields
             createIndexes(
-                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false),
+                    TestIndexDefinitions.singleField("status-index", "status", BsonType.STRING, false)
             );
 
             // Test: AND(name="john", age=25, status="active")
@@ -110,9 +109,9 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
         @DisplayName("Should not create intersection for single indexed condition")
         void shouldNotCreateIntersectionForSingleIndexedCondition() {
             // Create index for name field only
-            createIndex(SingleFieldIndexDefinition.create(
+            createIndex(TestIndexDefinitions.singleField(
                     "name-index", "name", BsonType.STRING
-                    , false, IndexStatus.WAITING));
+                    , false));
 
             // Test: name="john" (single condition)
             String query = "{ \"name\": \"john\" }";
@@ -132,8 +131,8 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
         void shouldCreateIntersectionForIndexedAndPreserveNonIndexed() {
             // Create indexes for name and age, but not for score
             createIndexes(
-                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false)
             );
 
             // Test: AND(name="john", age=25, score > 80) - score has no index
@@ -168,9 +167,9 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
         void shouldCreateIntersectionForIndexedEqAndPreserveRangeConditions() {
             // Create indexes for all fields
             createIndexes(
-                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("score-index", "score", BsonType.DOUBLE, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false),
+                    TestIndexDefinitions.singleField("score-index", "score", BsonType.DOUBLE, false)
             );
 
             // Test: AND(name="john", age=25, score > 80) - only EQ should be intersected
@@ -211,8 +210,8 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
         void shouldNotCreateIntersectionForNonEqOperators() {
             // Create indexes for both fields
             createIndexes(
-                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("score-index", "score", BsonType.DOUBLE, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false),
+                    TestIndexDefinitions.singleField("score-index", "score", BsonType.DOUBLE, false)
             );
 
             // Test: AND(age > 18, score < 100) - no EQ operators
@@ -238,9 +237,9 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
         void shouldHandleMixedEqAndNonEqOperatorsCorrectly() {
             // Create indexes for all fields
             createIndexes(
-                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("score-index", "score", BsonType.DOUBLE, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false),
+                    TestIndexDefinitions.singleField("score-index", "score", BsonType.DOUBLE, false)
             );
 
             // Test: AND(name="john", age > 18, score="high")
@@ -293,9 +292,9 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
         @DisplayName("Should not create intersection when indexes are missing")
         void shouldNotCreateIntersectionWhenIndexesAreMissing() {
             // Create index only for name field
-            createIndex(SingleFieldIndexDefinition.create(
+            createIndex(TestIndexDefinitions.singleField(
                     "name-index", "name", BsonType.STRING
-                    , false, IndexStatus.WAITING));
+                    , false));
 
             // Test: AND(name="john", age=25) - age has no index
             String query = "{ $and: [{ \"name\": \"john\" }, { \"age\": 25 }] }";
@@ -322,8 +321,8 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
         void shouldCreateIntersectionOnlyForIndexedFields() {
             // Create indexes for name and status, but not age
             createIndexes(
-                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("status-index", "status", BsonType.STRING, false)
             );
 
             // Test: AND(name="john", age=25, status="active") - age has no index
@@ -365,8 +364,8 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
         void shouldCreateIntersectionInNestedAndOperations() {
             // Create indexes
             createIndexes(
-                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false)
             );
 
             // Create manual nested structure: AND(OR(status="active"), AND(name="john", age=25))
@@ -399,8 +398,8 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
         void shouldHandleIntersectionWithNotOperations() {
             // Create indexes
             createIndexes(
-                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false)
             );
 
             // Create: NOT(AND(name="john", age=25))
@@ -432,9 +431,9 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
         void shouldReduceNumberOfIndexScansThoughIntersection() {
             // Create indexes for multiple fields
             createIndexes(
-                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false),
+                    TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false),
+                    TestIndexDefinitions.singleField("status-index", "status", BsonType.STRING, false)
             );
 
             // Test: AND(name="john", age=25, status="active")
@@ -465,8 +464,8 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
         void shouldPreservePlanStructureWhenIntersectionNotBeneficial() {
             // Create indexes
             createIndexes(
-                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING),
-                    SingleFieldIndexDefinition.create("score-index", "score", BsonType.DOUBLE, false, IndexStatus.WAITING)
+                    TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false),
+                    TestIndexDefinitions.singleField("score-index", "score", BsonType.DOUBLE, false)
             );
 
             // Test: AND(age > 18, score < 100) - no EQ conditions for intersection

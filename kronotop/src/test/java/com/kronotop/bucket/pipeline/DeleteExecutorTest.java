@@ -39,8 +39,8 @@ class DeleteExecutorTest extends BasePipelineTest {
         // Both index entries and back pointers are cleaned for each deleted document.
 
         // Create two secondary indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex, nameIndex);
 
         // Insert documents
@@ -112,8 +112,8 @@ class DeleteExecutorTest extends BasePipelineTest {
         // Non-matching documents and their index entries remain intact across all indexes.
 
         // Create two secondary indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex, nameIndex);
 
         // Insert documents
@@ -183,8 +183,8 @@ class DeleteExecutorTest extends BasePipelineTest {
         // entries from other indexes (category). All indexes stay consistent after deletion.
 
         // Create two secondary indexes on different fields
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition categoryIndex = SingleFieldIndexDefinition.create("category_idx", "category", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition categoryIndex = TestIndexDefinitions.singleField("category_idx", "category", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex, categoryIndex);
 
         // Insert documents with various ages and categories
@@ -310,7 +310,7 @@ class DeleteExecutorTest extends BasePipelineTest {
         // Behavior: Delete with a predicate removes compound index entries only for matching documents.
         // Non-matching documents retain their compound index entries and back pointers.
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create("name_age_idx", List.of(
                 new CompoundIndexField("name", BsonType.STRING, false),
                 new CompoundIndexField("age", BsonType.INT32, false)
@@ -362,7 +362,7 @@ class DeleteExecutorTest extends BasePipelineTest {
         // Behavior: When both single-field and compound indexes exist, deleting documents cleans
         // entries from all index types consistently.
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create("name_age_idx", List.of(
                 new CompoundIndexField("name", BsonType.STRING, false),
                 new CompoundIndexField("age", BsonType.INT32, false)
@@ -424,7 +424,7 @@ class DeleteExecutorTest extends BasePipelineTest {
                 new CompoundIndexField("name", BsonType.STRING, false),
                 new CompoundIndexField("tags", BsonType.STRING, true)
         ), IndexStatus.WAITING);
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_idx", "name", BsonType.STRING, false);
         createIndexesAndLoadBucketMetadata(
                 TEST_BUCKET, new SingleFieldIndexDefinition[]{nameIndex},
                 new CompoundIndexDefinition[]{compoundDef}

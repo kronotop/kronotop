@@ -16,8 +16,8 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -146,9 +146,9 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     @Test
     void shouldNotConvertRangeScanWithValidIndex() {
         // Create a mock index for this test
-        SingleFieldIndexDefinition mockIndex = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition mockIndex = TestIndexDefinitions.singleField(
                 "age-index", "age", org.bson.BsonType.INT32
-                , false, IndexStatus.WAITING);
+                , false);
 
         // Create a range scan with a valid index (should not be converted)
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
@@ -231,9 +231,9 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     @Test
     void shouldReturnFalseForCanApplyWithRangeScanValidIndex() {
         // Create a mock index for this test
-        SingleFieldIndexDefinition mockIndex = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition mockIndex = TestIndexDefinitions.singleField(
                 "age-index", "age", org.bson.BsonType.INT32
-                , false, IndexStatus.WAITING);
+                , false);
 
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
                 1, "age", 18, 65, true, false, mockIndex

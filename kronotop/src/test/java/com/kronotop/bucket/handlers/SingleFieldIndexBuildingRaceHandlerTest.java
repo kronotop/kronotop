@@ -204,8 +204,8 @@ class SingleFieldIndexBuildingRaceHandlerTest extends BaseBucketHandlerTest {
         // boundary task, so it never advances and no build backfills the writes. Drop the cache so
         // the write handlers reload and observe the WAITING index.
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
-                "sk_idx", "sk", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
+                "sk_idx", "sk", BsonType.STRING, false);
 
         DirectorySubspace skIndexSubspace;
         try (Transaction tr = context.getTransactionManager().create()) {

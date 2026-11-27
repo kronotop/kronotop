@@ -21,9 +21,9 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.index.SingleFieldIndexUtil;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.BucketCreateArgs;
 import com.kronotop.commands.BucketVectorArgs;
@@ -85,8 +85,8 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
 
         // Create the "label" field index and wait for readiness
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
-        SingleFieldIndexDefinition labelIndex = SingleFieldIndexDefinition.create(
-                "label_string_idx", "label", BsonType.STRING, false, IndexStatus.WAITING
+        SingleFieldIndexDefinition labelIndex = TestIndexDefinitions.singleField(
+                "label_string_idx", "label", BsonType.STRING, false
         );
 
         DirectorySubspace subspace;

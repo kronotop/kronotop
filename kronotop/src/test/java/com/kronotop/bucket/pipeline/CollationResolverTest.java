@@ -67,7 +67,7 @@ class CollationResolverTest {
             // Behavior: returns collation from the single-field index on the selector
             SingleFieldIndexRegistry indexes = new SingleFieldIndexRegistry(null);
             SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create(
-                    "name_idx", "name", BsonType.STRING, false, IndexStatus.READY, collation("tr"));
+                    "name_idx", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.READY, collation("tr"));
             indexes.register(def, null);
 
             BucketMetadata meta = metadata(indexes, null);
@@ -82,7 +82,7 @@ class CollationResolverTest {
             // Behavior: single-field index collation takes precedence over bucket-level collation
             SingleFieldIndexRegistry indexes = new SingleFieldIndexRegistry(null);
             SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create(
-                    "name_idx", "name", BsonType.STRING, false, IndexStatus.READY, collation("tr"));
+                    "name_idx", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.READY, collation("tr"));
             indexes.register(def, null);
 
             BucketMetadata meta = metadata(indexes, collation("en"));
@@ -95,7 +95,7 @@ class CollationResolverTest {
         void shouldFallBackToBucketCollation() {
             // Behavior: when single-field index has no collation, bucket collation is used
             SingleFieldIndexRegistry indexes = new SingleFieldIndexRegistry(null);
-            SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create(
+            SingleFieldIndexDefinition def = TestIndexDefinitions.singleField(
                     "name_idx", "name", BsonType.STRING, false, IndexStatus.READY);
             indexes.register(def, null);
 
@@ -134,7 +134,7 @@ class CollationResolverTest {
             // Behavior: DROPPED indexes are invisible under READ policy, falls back to bucket
             SingleFieldIndexRegistry indexes = new SingleFieldIndexRegistry(null);
             SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create(
-                    "name_idx", "name", BsonType.STRING, false, IndexStatus.DROPPED, collation("tr"));
+                    "name_idx", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.DROPPED, collation("tr"));
             indexes.register(def, null);
 
             BucketMetadata meta = metadata(indexes, collation("en"));
@@ -148,7 +148,7 @@ class CollationResolverTest {
             // Behavior: BUILDING indexes are invisible under READ policy, falls back to bucket
             SingleFieldIndexRegistry indexes = new SingleFieldIndexRegistry(null);
             SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create(
-                    "name_idx", "name", BsonType.STRING, false, IndexStatus.BUILDING, collation("tr"));
+                    "name_idx", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.BUILDING, collation("tr"));
             indexes.register(def, null);
 
             BucketMetadata meta = metadata(indexes, collation("en"));
@@ -179,7 +179,7 @@ class CollationResolverTest {
             // Behavior: query-level collation overrides index-level collation
             SingleFieldIndexRegistry indexes = new SingleFieldIndexRegistry(null);
             SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create(
-                    "name_idx", "name", BsonType.STRING, false, IndexStatus.READY, collation("tr"));
+                    "name_idx", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.READY, collation("tr"));
             indexes.register(def, null);
 
             BucketMetadata meta = metadata(indexes, null);
@@ -204,7 +204,7 @@ class CollationResolverTest {
             // Behavior: query-level collation overrides both index-level and bucket-level collation
             SingleFieldIndexRegistry indexes = new SingleFieldIndexRegistry(null);
             SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create(
-                    "name_idx", "name", BsonType.STRING, false, IndexStatus.READY, collation("tr"));
+                    "name_idx", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.READY, collation("tr"));
             indexes.register(def, null);
 
             BucketMetadata meta = metadata(indexes, collation("en"));
@@ -218,7 +218,7 @@ class CollationResolverTest {
             // Behavior: null query collation falls back to index-level collation
             SingleFieldIndexRegistry indexes = new SingleFieldIndexRegistry(null);
             SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create(
-                    "name_idx", "name", BsonType.STRING, false, IndexStatus.READY, collation("tr"));
+                    "name_idx", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.READY, collation("tr"));
             indexes.register(def, null);
 
             BucketMetadata meta = metadata(indexes, collation("en"));
@@ -231,7 +231,7 @@ class CollationResolverTest {
         void shouldFallBackToBucketWhenQueryAndIndexNull() {
             // Behavior: null query collation and no index collation falls back to bucket-level collation
             SingleFieldIndexRegistry indexes = new SingleFieldIndexRegistry(null);
-            SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create(
+            SingleFieldIndexDefinition def = TestIndexDefinitions.singleField(
                     "name_idx", "name", BsonType.STRING, false, IndexStatus.READY);
             indexes.register(def, null);
 

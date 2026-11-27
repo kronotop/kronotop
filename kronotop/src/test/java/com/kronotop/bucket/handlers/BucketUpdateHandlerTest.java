@@ -638,7 +638,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldThrowIndexTypeMismatchExceptionWhenUpdatingWithWrongType() {
         // Create an index expecting INT32 for 'age' field
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Insert a document with correct type
@@ -670,7 +670,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldThrowIndexTypeMismatchExceptionWhenUpdatingInt32IndexWithDouble() {
         // Create an index expecting INT32 for 'count' field
-        SingleFieldIndexDefinition countIndexDefinition = SingleFieldIndexDefinition.create("count-index", "count", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition countIndexDefinition = TestIndexDefinitions.singleField("count-index", "count", BsonType.INT32, false);
         createIndexThenWaitForReadiness(countIndexDefinition);
 
         // Insert a document with correct type
@@ -702,7 +702,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // The update is rejected to maintain index integrity.
 
         // Create an INT32 multikey index on 'scores'
-        SingleFieldIndexDefinition scoresIndexDefinition = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoresIndexDefinition = TestIndexDefinitions.singleField("scores-index", "scores", BsonType.INT32, true);
         createIndexThenWaitForReadiness(scoresIndexDefinition);
 
         // Insert document with INT32 array [55, 60, 65]
@@ -742,7 +742,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Documents are updated in the specified order, and cursor continuation maintains global ordering.
 
         // Create index on age field for sorted updates
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Insert documents with shuffled ages (50, 20, 40, 10, 30)
@@ -846,7 +846,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // BUCKET.ADVANCE calls. Documents are updated from highest to lowest value.
 
         // Create index on age field
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Insert documents with shuffled ages
@@ -926,7 +926,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Behavior: UPDATE with SORTBY ASC processes documents in ascending order by the
         // specified indexed field when updating all matching documents in a single batch.
 
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         List<byte[]> testDocuments = Arrays.asList(
@@ -977,7 +977,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Behavior: UPDATE with SORTBY DESC processes documents in descending order by the
         // specified indexed field when updating all matching documents in a single batch.
 
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         List<byte[]> testDocuments = Arrays.asList(
@@ -1027,7 +1027,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Behavior: UPDATE with SORTBY and BATCH only updates the specified number of documents,
         // selecting them in sorted order.
 
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         List<byte[]> testDocuments = Arrays.asList(
@@ -1078,7 +1078,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Behavior: UPDATE with SORTBY on a STRING indexed field processes documents in
         // alphabetical order.
 
-        SingleFieldIndexDefinition nameIndexDefinition = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndexDefinition = TestIndexDefinitions.singleField("name-index", "name", BsonType.STRING, false);
         createIndexThenWaitForReadiness(nameIndexDefinition);
 
         List<byte[]> testDocuments = Arrays.asList(
@@ -1127,7 +1127,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     void shouldUpdateWithSortByReturnsEmptyWhenNoMatch() {
         // Behavior: UPDATE with SORTBY on a non-matching filter returns empty versionstamps array.
 
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         List<byte[]> testDocuments = Arrays.asList(
@@ -1157,7 +1157,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     void shouldUpdateSingleDocumentWithSortBy() {
         // Behavior: UPDATE with SORTBY works correctly when only one document matches the filter.
 
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         List<byte[]> testDocuments = Arrays.asList(
@@ -1231,8 +1231,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // would be rejected. With the AND, the planner sees both indexes and can select
         // score as the primary scan for sort ordering.
 
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndexDefinition = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndexDefinition = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
         createIndexThenWaitForReadiness(scoreIndexDefinition);
 
@@ -1278,7 +1278,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Behavior: UPDATE with SORTBY handles documents where the sort field is missing or null.
         // Documents with missing/null sort field values are included in results.
 
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Insert documents: some have age, some don't
@@ -1335,7 +1335,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Behavior: UPDATE with SORTBY on a nested field (e.g., "address.city") sorts documents
         // by the nested field value when that field is indexed.
 
-        SingleFieldIndexDefinition cityIndexDefinition = SingleFieldIndexDefinition.create("city-index", "address.city", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition cityIndexDefinition = TestIndexDefinitions.singleField("city-index", "address.city", BsonType.STRING, false);
         createIndexThenWaitForReadiness(cityIndexDefinition);
 
         // Insert documents with nested address.city field
@@ -1389,7 +1389,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Behavior: UPDATE with SORTBY but without BATCH returns all matching documents
         // in sorted order within a single response.
 
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Insert documents with shuffled ages
@@ -1442,7 +1442,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Behavior: UPDATE with SORTBY only (no explicit BATCH) can still use BUCKET.ADVANCE
         // to iterate through results while maintaining sort order across advances.
 
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Insert documents with shuffled ages
@@ -1572,7 +1572,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldThrowIndexTypeMismatchExceptionWhenUpdatingWithMixedTypeArray() {
         // Create an index expecting INT32 for 'values' field
-        SingleFieldIndexDefinition valuesIndexDefinition = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valuesIndexDefinition = TestIndexDefinitions.singleField("values-index", "values", BsonType.INT32, false);
         createIndexThenWaitForReadiness(valuesIndexDefinition);
 
         // Insert a document with the correct type
@@ -1619,8 +1619,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // UnionNode. Each ADVANCE UPDATE batch updates at most 1 document. All matching documents
         // are updated exactly once across multiple ADVANCE calls.
 
-        SingleFieldIndexDefinition deptIndex = SingleFieldIndexDefinition.create("dept-idx", "department", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition salaryIndex = SingleFieldIndexDefinition.create("salary-idx", "salary", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition deptIndex = TestIndexDefinitions.singleField("dept-idx", "department", BsonType.STRING, false);
+        SingleFieldIndexDefinition salaryIndex = TestIndexDefinitions.singleField("salary-idx", "salary", BsonType.INT32, false);
         createIndexThenWaitForReadiness(deptIndex);
         createIndexThenWaitForReadiness(salaryIndex);
 
@@ -1719,8 +1719,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // excess entries in the same batch. All matching documents are updated exactly once across multiple
         // ADVANCE calls.
 
-        SingleFieldIndexDefinition deptIndex = SingleFieldIndexDefinition.create("dept-idx", "department", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition salaryIndex = SingleFieldIndexDefinition.create("salary-idx", "salary", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition deptIndex = TestIndexDefinitions.singleField("dept-idx", "department", BsonType.STRING, false);
+        SingleFieldIndexDefinition salaryIndex = TestIndexDefinitions.singleField("salary-idx", "salary", BsonType.INT32, false);
         createIndexThenWaitForReadiness(deptIndex);
         createIndexThenWaitForReadiness(salaryIndex);
 
@@ -1820,8 +1820,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // ObjectId dedup path. Every iteration produces the full union set from both children, and
         // returnedObjectIds must filter all previously-updated documents before selecting the next batch.
 
-        SingleFieldIndexDefinition deptIndex = SingleFieldIndexDefinition.create("dept-idx", "department", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition salaryIndex = SingleFieldIndexDefinition.create("salary-idx", "salary", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition deptIndex = TestIndexDefinitions.singleField("dept-idx", "department", BsonType.STRING, false);
+        SingleFieldIndexDefinition salaryIndex = TestIndexDefinitions.singleField("salary-idx", "salary", BsonType.INT32, false);
         createIndexThenWaitForReadiness(deptIndex);
         createIndexThenWaitForReadiness(salaryIndex);
 
@@ -1911,8 +1911,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     void shouldWidenInt32SetValueToInt64IndexDuringUpdate() {
         // Behavior: When $set writes an INT32 value to a field backed by an INT64 index,
         // the value is widened to INT64 in the index and the update succeeds.
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create(
-                "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField(
+                "age-index", "age", BsonType.INT64, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Insert a document with INT64 age so the initial insert matches the index type
@@ -1956,8 +1956,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     void shouldWidenInt32SetValueToDoubleIndexDuringUpdate() {
         // Behavior: When $set writes an INT32 value to a field backed by a DOUBLE index,
         // the value is widened to DOUBLE in the index and the update succeeds.
-        SingleFieldIndexDefinition scoreIndexDefinition = SingleFieldIndexDefinition.create(
-                "score-index", "score", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndexDefinition = TestIndexDefinitions.singleField(
+                "score-index", "score", BsonType.DOUBLE, false);
         createIndexThenWaitForReadiness(scoreIndexDefinition);
 
         // Insert a document with DOUBLE score
@@ -2001,8 +2001,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     void shouldRejectInt64ToDoubleWideningDuringUpdate() {
         // Behavior: INT64 to DOUBLE widening is forbidden (lossy: 64-bit integers exceed
         // double's 53-bit mantissa). $set with INT64 value on DOUBLE index throws INDEXTYPE_MISMATCH.
-        SingleFieldIndexDefinition valueIndexDefinition = SingleFieldIndexDefinition.create(
-                "value-index", "value", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valueIndexDefinition = TestIndexDefinitions.singleField(
+                "value-index", "value", BsonType.DOUBLE, false);
         createIndexThenWaitForReadiness(valueIndexDefinition);
 
         // Insert a document with DOUBLE value
@@ -2084,8 +2084,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     void shouldUpdateViaInt64IndexWithInt32Predicate() {
         // Behavior: INT32 values widened to INT64 at insert-time are found by INT32
         // predicate via index scan during UPDATE (IndexPredicateResolver widening).
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create(
-                "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField(
+                "age-index", "age", BsonType.INT64, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Insert INT32 documents, widened to INT64 at store time
@@ -2144,8 +2144,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     void shouldUpdateViaDoubleIndexWithInt32RangePredicate() {
         // Behavior: DOUBLE values in a DOUBLE index are found by INT32 range predicate
         // via index scan during UPDATE (IndexPredicateResolver widening).
-        SingleFieldIndexDefinition scoreIndexDefinition = SingleFieldIndexDefinition.create(
-                "score-index", "score", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndexDefinition = TestIndexDefinitions.singleField(
+                "score-index", "score", BsonType.DOUBLE, false);
         createIndexThenWaitForReadiness(scoreIndexDefinition);
 
         List<byte[]> testDocuments = Arrays.asList(
@@ -2206,8 +2206,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     void shouldWidenInt32UpsertValueInInt64Index() {
         // Behavior: Upsert that creates a new document with INT32 value widens it
         // in the INT64 index (exercises setSecondaryIndexesForUpsert).
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create(
-                "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField(
+                "age-index", "age", BsonType.INT64, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Upsert a new document with INT32 age
@@ -2245,8 +2245,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Behavior: Full pipeline. INT32 docs are widened to INT64 at insert, found by
         // INT32 predicate via index scan, and $set new INT32 value is widened back to INT64
         // in the index.
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create(
-                "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField(
+                "age-index", "age", BsonType.INT64, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Insert INT32 documents, widened to INT64 at store time
@@ -2303,8 +2303,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     void shouldUpdateWithSortByOnWidenedInt64Index() {
         // Behavior: SORTBY on an INT64 index works correctly when documents were inserted
         // with INT32 values (widened at store time). BATCH selects the lowest-aged documents.
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create(
-                "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField(
+                "age-index", "age", BsonType.INT64, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Insert INT32 documents with shuffled ages, widened to INT64 at store time
@@ -2883,7 +2883,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     void shouldFindDocumentByChildSelectorAfterParentPathUpdate() {
         // Behavior: After BUCKET.UPDATE replaces a parent array, BUCKET.QUERY on a child-selector
         // index returns the document by its new values and no longer by the removed values.
-        SingleFieldIndexDefinition tagsIndexDefinition = SingleFieldIndexDefinition.create("tags-name-index", "tags.name", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndexDefinition = TestIndexDefinitions.singleField("tags-name-index", "tags.name", BsonType.STRING, true);
         createIndexThenWaitForReadiness(tagsIndexDefinition);
 
         List<byte[]> testDocuments = List.of(
@@ -3045,7 +3045,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Behavior: With an INT32 index on age, a BUCKET.UPDATE that sets age to a string fails
         // with INDEXTYPE_MISMATCH. After the failure, BUCKET.CURSORS UPDATE lists no cursor.
         createIndexThenWaitForReadiness(
-                SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING));
+                TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false));
         insertDocumentsAndGetObjectIds(List.of(BSONUtil.jsonToDocumentThenBytes("{\"age\": 25}")));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);

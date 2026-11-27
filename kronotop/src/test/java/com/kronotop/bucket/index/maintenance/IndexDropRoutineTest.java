@@ -60,12 +60,11 @@ class IndexDropRoutineTest extends BaseBucketHandlerTest {
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
         assertEquals(2, actualMessage.children().size());
 
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "test-index",
                 "age",
                 BsonType.INT32,
-                false,
-                IndexStatus.WAITING
+                false
         );
         createIndexThenWaitForReadiness(definition);
 

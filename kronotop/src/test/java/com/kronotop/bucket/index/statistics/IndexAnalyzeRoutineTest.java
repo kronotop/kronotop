@@ -51,12 +51,11 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldBuildHistogramWhenNoHintFound() {
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "test-index",
                 "numeric",
                 BsonType.INT32,
-                false,
-                IndexStatus.WAITING
+                false
         );
 
         List<byte[]> documents = generateRandomDocumentsWithNumericContent("numeric", 1000);
@@ -119,12 +118,11 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldBuildHistogramWhenNotReadyToAnalyze() {
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "test-index",
                 "numeric",
                 BsonType.INT32,
-                false,
-                IndexStatus.WAITING
+                false
         );
         createIndexThenWaitForReadiness(definition);
 
@@ -235,12 +233,11 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
     void shouldBuildHistogramWithHints() {
         // Behavior: IndexAnalyzeRoutine builds a histogram using ObjectId-based hints when hints
         // are present in the STAT_HINTS subspace.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "test-index",
                 "numeric",
                 BsonType.INT32,
-                false,
-                IndexStatus.WAITING
+                false
         );
 
         List<byte[]> documents = generateRandomDocumentsWithNumericContent("numeric", 1000);

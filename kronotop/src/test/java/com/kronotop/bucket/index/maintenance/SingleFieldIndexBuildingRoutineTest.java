@@ -76,11 +76,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         List<ObjectId> expectedObjectIds = TestUtil.extractObjectIds(actualMessage);
         assertEquals(2, expectedObjectIds.size());
 
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "test-index",
                 "age",
                 BsonType.INT32
-                , false, IndexStatus.WAITING);
+                , false);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -135,11 +135,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         // document count.
 
         // Create the index first so the online insert path maintains it during the build.
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "age-dedup-index",
                 "age",
                 BsonType.INT32
-                , false, IndexStatus.WAITING);
+                , false);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -212,11 +212,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         assertEquals(2, actualMessage.children().size());
 
         // Create an index expecting INT32 for the 'age' field
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "age-index",
                 "age",
                 BsonType.INT32
-                , false, IndexStatus.WAITING);
+                , false);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -269,11 +269,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         assertEquals(2, actualMessage.children().size());
 
         // Create a multikey index on "scores.type"
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "scores-type-index",
                 "scores.type",
                 BsonType.STRING
-                , false, IndexStatus.WAITING);
+                , false);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -316,11 +316,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
         // Create a multikey index on "tags.name"
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "tags-name-index",
                 "tags.name",
                 BsonType.STRING
-                , false, IndexStatus.WAITING);
+                , false);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -366,11 +366,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
         // Create a multikey index on "items.color"
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "items-color-index",
                 "items.color",
                 BsonType.STRING
-                , false, IndexStatus.WAITING);
+                , false);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -410,11 +410,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
         // Create a multikey index on "langs.name"
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "langs-name-index",
                 "langs.name",
                 BsonType.STRING
-                , false, IndexStatus.WAITING);
+                , false);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -481,11 +481,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         List<ObjectId> expectedObjectIds = TestUtil.extractObjectIds(actualMessage);
         assertEquals(2, expectedObjectIds.size());
 
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "ref-id-index",
                 "ref_id",
                 BsonType.OBJECT_ID
-                , false, IndexStatus.WAITING);
+                , false);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -547,11 +547,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
         assertEquals(2, actualMessage.children().size());
 
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "refs-index",
                 "refs",
                 BsonType.OBJECT_ID
-                , false, IndexStatus.WAITING);
+                , false);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -612,11 +612,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
         // Create a multikey index on "tags"
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "tags-index",
                 "tags",
                 BsonType.STRING
-                , false, IndexStatus.WAITING);
+                , false);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -668,11 +668,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         List<ObjectId> expectedObjectIds = TestUtil.extractObjectIds(actualMessage);
         assertEquals(2, expectedObjectIds.size());
 
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "age-int64-index",
                 "age",
                 BsonType.INT64
-                , false, IndexStatus.WAITING);
+                , false);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -717,11 +717,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "score-double-index",
                 "score",
                 BsonType.DOUBLE
-                , false, IndexStatus.WAITING);
+                , false);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -764,11 +764,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "value-double-index",
                 "value",
                 BsonType.DOUBLE
-                , false, IndexStatus.WAITING);
+                , false);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -817,11 +817,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "scores-int64-index",
                 "scores",
                 BsonType.INT64
-                , false, IndexStatus.WAITING);
+                , false);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -864,11 +864,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "age-int64-cardinality-index",
                 "age",
                 BsonType.INT64
-                , false, IndexStatus.WAITING);
+                , false);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -907,11 +907,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         List<ObjectId> expectedObjectIds = TestUtil.extractObjectIds(actualMessage);
         assertEquals(3, expectedObjectIds.size());
 
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "age-mixed-int64-index",
                 "age",
                 BsonType.INT64
-                , false, IndexStatus.WAITING);
+                , false);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -957,11 +957,11 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "value-mixed-double-index",
                 "value",
                 BsonType.DOUBLE
-                , false, IndexStatus.WAITING);
+                , false);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -1023,7 +1023,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         Collation turkishPrimary = Collation.create("tr", 1, null, null, null, null, null, null, null);
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
-                "name-collated-index", "name", BsonType.STRING, false, IndexStatus.WAITING, turkishPrimary);
+                "name-collated-index", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, turkishPrimary);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -1079,7 +1079,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         // Create a unique index on "email" after the duplicate documents already exist.
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
-                "email-unique-index", "email", BsonType.STRING, false, IndexStatus.WAITING, null, true);
+                "email-unique-index", "email", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, null, true);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -1135,7 +1135,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         assertEquals(2, ((ArrayRedisMessage) msg).children().size());
 
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
-                "email-unique-index", "email", BsonType.STRING, false, IndexStatus.WAITING, null, true);
+                "email-unique-index", "email", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, null, true);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);

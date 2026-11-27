@@ -25,6 +25,7 @@ import com.kronotop.bucket.index.CompoundIndexDefinition;
 import com.kronotop.bucket.index.CompoundIndexField;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.*;
 import org.bson.types.Decimal128;
 import org.junit.jupiter.api.Test;
@@ -48,7 +49,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldFindStringValueViaFullScanWhenQueryingInt32IndexWithStringPredicate() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -83,7 +84,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldFindInt32ValueViaFullScanWhenQueryingStringIndexWithInt32Predicate() {
         final String TEST_BUCKET_NAME = "test-bucket-int32-predicate";
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, nameIndex);
 
         List<byte[]> documents = List.of(
@@ -116,7 +117,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // in PredicateEvaluator allows INT32 values to be compared against DOUBLE predicates.
         final String TEST_BUCKET_NAME = "test-bucket-double-predicate";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -151,7 +152,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldFindInt64ValueViaFullScanWhenQueryingStringIndexWithInt64Predicate() {
         final String TEST_BUCKET_NAME = "test-bucket-int64-predicate";
 
-        SingleFieldIndexDefinition idIndex = SingleFieldIndexDefinition.create("bigid-index", "bigId", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition idIndex = TestIndexDefinitions.singleField("bigid-index", "bigId", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, idIndex);
 
         List<byte[]> documents = List.of(
@@ -182,7 +183,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldFindBooleanValueViaFullScanWhenQueryingInt32IndexWithBooleanPredicate() {
         final String TEST_BUCKET_NAME = "test-bucket-boolean-predicate";
 
-        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition activeIndex = TestIndexDefinitions.singleField("active-index", "active", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, activeIndex);
 
         List<byte[]> documents = List.of(
@@ -213,7 +214,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldFindDecimal128ValueViaFullScanWhenQueryingInt32IndexWithDecimal128Predicate() {
         final String TEST_BUCKET_NAME = "test-bucket-decimal128-predicate";
 
-        SingleFieldIndexDefinition amountIndex = SingleFieldIndexDefinition.create("amount-index", "amount", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition amountIndex = TestIndexDefinitions.singleField("amount-index", "amount", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, amountIndex);
 
         List<byte[]> documents = List.of(
@@ -244,7 +245,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldFindDateTimeValueViaFullScanWhenQueryingStringIndexWithDateTimePredicate() {
         final String TEST_BUCKET_NAME = "test-bucket-datetime-predicate";
 
-        SingleFieldIndexDefinition createdIndex = SingleFieldIndexDefinition.create("created-index", "created", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition createdIndex = TestIndexDefinitions.singleField("created-index", "created", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, createdIndex);
 
         List<byte[]> documents = List.of(
@@ -275,7 +276,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldFindBinaryValueViaFullScanWhenQueryingStringIndexWithBinaryPredicate() {
         final String TEST_BUCKET_NAME = "test-bucket-binary-predicate";
 
-        SingleFieldIndexDefinition dataIndex = SingleFieldIndexDefinition.create("data-index", "data", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition dataIndex = TestIndexDefinitions.singleField("data-index", "data", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, dataIndex);
 
         byte[] binaryData = new byte[]{0x01, 0x02, 0x03, 0x04};
@@ -323,7 +324,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldFindTimestampValueViaFullScanWhenQueryingStringIndexWithTimestampPredicate() {
         final String TEST_BUCKET_NAME = "test-bucket-timestamp-predicate";
 
-        SingleFieldIndexDefinition tsIndex = SingleFieldIndexDefinition.create("ts-index", "ts", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tsIndex = TestIndexDefinitions.singleField("ts-index", "ts", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tsIndex);
 
         BsonTimestamp timestamp = new BsonTimestamp(1234567890, 1);
@@ -372,7 +373,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-in-query-type-mismatch";
 
         // INT32 index, but we query with STRING values
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -409,7 +410,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldMatchPartialValuesWithInOperatorWhenSomeTypesMismatch() {
         final String TEST_BUCKET_NAME = "test-bucket-in-partial-type-match";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         // Documents with mixed types for score field
@@ -452,7 +453,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-in-multikey-mixed-types";
 
         // INT32 index on values field (multikey for arrays)
-        SingleFieldIndexDefinition valuesIndex = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valuesIndex = TestIndexDefinitions.singleField("values-index", "values", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valuesIndex);
 
         // Documents with arrays containing mixed types
@@ -515,7 +516,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-in-multikey-mixed-query";
 
         // INT32 index on values field (multikey for arrays)
-        SingleFieldIndexDefinition valuesIndex = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valuesIndex = TestIndexDefinitions.singleField("values-index", "values", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valuesIndex);
 
         // Documents with arrays containing mixed types
@@ -586,7 +587,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-nin-query-type-mismatch";
 
         // INT32 index, but we query with STRING values
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -624,7 +625,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldMatchDocumentsWithNinOperatorWhenDocumentTypesMismatch() {
         final String TEST_BUCKET_NAME = "test-bucket-nin-doc-type-mismatch";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         // Documents with mixed types for score field
@@ -790,7 +791,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldFallbackToFullScanWithMixedTypeNinQueryOnTypedIndex() {
         final String TEST_BUCKET_NAME = "test-bucket-nin-mixed-type-query";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         // Documents with mixed types for score field
@@ -846,7 +847,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-query-type-mismatch";
 
         // INT32 index on items.price (multikey), but we query with STRING predicate
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "items.price", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "items.price", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -881,7 +882,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-mixed-type-docs";
 
         // INT32 index on items.price (multikey)
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "items.price", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "items.price", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         // Documents with mixed INT32/STRING prices
@@ -922,7 +923,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-scalar-elemmatch-type-mismatch";
 
         // INT32 index on scores array (multikey)
-        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoresIndex = TestIndexDefinitions.singleField("scores-index", "scores", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoresIndex);
 
         // Documents with INT32 and STRING scores
@@ -967,7 +968,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-scalar-elemmatch-mixed-elements";
 
         // INT32 index on values array (multikey)
-        SingleFieldIndexDefinition valuesIndex = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valuesIndex = TestIndexDefinitions.singleField("values-index", "values", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valuesIndex);
 
         // Documents with arrays containing mixed INT32/STRING elements
@@ -1026,7 +1027,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-mixed-types";
 
         // INT32 index on items.qty (multikey)
-        SingleFieldIndexDefinition qtyIndex = SingleFieldIndexDefinition.create("qty-index", "items.qty", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition qtyIndex = TestIndexDefinitions.singleField("qty-index", "items.qty", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, qtyIndex);
 
         List<byte[]> documents = List.of(
@@ -1070,7 +1071,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-nin-mixed-types";
 
         // INT32 index on items.qty (multikey)
-        SingleFieldIndexDefinition qtyIndex = SingleFieldIndexDefinition.create("qty-index", "items.qty", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition qtyIndex = TestIndexDefinitions.singleField("qty-index", "items.qty", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, qtyIndex);
 
         List<byte[]> documents = List.of(
@@ -1116,7 +1117,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
     void shouldCombineTypeMismatchedIndexWithElemMatch() {
         final String TEST_BUCKET_NAME = "test-bucket-combined-type-mismatch";
 
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-index", "status", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-index", "status", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex);
 
         // Documents with mixed status types and items arrays
@@ -1157,7 +1158,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-nested-elemmatch-type-mismatch";
 
         // Index on outer department name (multikey)
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("dept-name-index", "departments.name", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("dept-name-index", "departments.name", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, nameIndex);
 
         // Documents with nested arrays, inner prices have mixed types
@@ -1199,7 +1200,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-null-mixed";
 
         // INT32 index on values array (multikey)
-        SingleFieldIndexDefinition valuesIndex = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valuesIndex = TestIndexDefinitions.singleField("values-index", "values", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valuesIndex);
 
         // Documents with arrays containing nulls and mixed types
@@ -1257,7 +1258,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-partial-type-match";
 
         // INT32 index on items.quantity (multikey)
-        SingleFieldIndexDefinition qtyIndex = SingleFieldIndexDefinition.create("qty-index", "items.quantity", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition qtyIndex = TestIndexDefinitions.singleField("qty-index", "items.quantity", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, qtyIndex);
 
         // Each document's items array has elements with mixed types for quantity
@@ -1386,7 +1387,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-mixed-scalars-documents-indexed";
 
         // Create INT32 multiKey index on 'data' array for scalar values
-        SingleFieldIndexDefinition dataIndex = SingleFieldIndexDefinition.create("data-index", "data", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition dataIndex = TestIndexDefinitions.singleField("data-index", "data", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, dataIndex);
 
         // Documents with arrays containing both scalars and embedded documents
@@ -1489,7 +1490,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT32 values to INT64 for comparison.
         final String TEST_BUCKET_NAME = "test-bucket-int64-gt-predicate";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -1516,7 +1517,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // enables boundary equality comparison between INT32 and INT64.
         final String TEST_BUCKET_NAME = "test-bucket-int64-gte-predicate";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -1542,7 +1543,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // enables boundary equality comparison between INT32 and INT64.
         final String TEST_BUCKET_NAME = "test-bucket-int64-lte-predicate";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -1570,7 +1571,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT64 values to DECIMAL128 for comparison.
         final String TEST_BUCKET_NAME = "test-bucket-decimal128-gt-int64";
 
-        SingleFieldIndexDefinition amountIndex = SingleFieldIndexDefinition.create("amount-index", "amount", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition amountIndex = TestIndexDefinitions.singleField("amount-index", "amount", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, amountIndex);
 
         List<byte[]> documents = List.of(
@@ -1596,7 +1597,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT64 values to DECIMAL128 for comparison.
         final String TEST_BUCKET_NAME = "test-bucket-decimal128-lt-int64";
 
-        SingleFieldIndexDefinition amountIndex = SingleFieldIndexDefinition.create("amount-index", "amount", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition amountIndex = TestIndexDefinitions.singleField("amount-index", "amount", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, amountIndex);
 
         List<byte[]> documents = List.of(
@@ -1624,7 +1625,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes DOUBLE values to DECIMAL128 for comparison.
         final String TEST_BUCKET_NAME = "test-bucket-decimal128-gte-double";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.DOUBLE, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -1652,7 +1653,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // enables cross-type inequality comparison, excluding the matching INT32 value.
         final String TEST_BUCKET_NAME = "test-bucket-double-ne-predicate";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -1678,7 +1679,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // enables INT64 vs DECIMAL128 inequality comparison.
         final String TEST_BUCKET_NAME = "test-bucket-decimal128-ne-int64";
 
-        SingleFieldIndexDefinition countIndex = SingleFieldIndexDefinition.create("count-index", "count", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition countIndex = TestIndexDefinitions.singleField("count-index", "count", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, countIndex);
 
         List<byte[]> documents = List.of(
@@ -1706,7 +1707,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // both promoted to DECIMAL128 via commonType for comparison.
         final String TEST_BUCKET_NAME = "test-bucket-double-lt-int64";
 
-        SingleFieldIndexDefinition valueIndex = SingleFieldIndexDefinition.create("value-index", "value", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valueIndex = TestIndexDefinitions.singleField("value-index", "value", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valueIndex);
 
         List<byte[]> documents = List.of(
@@ -1734,7 +1735,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // in valuesEqual enables INT32 documents to match DOUBLE operands.
         final String TEST_BUCKET_NAME = "test-bucket-in-double-widening";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -1775,7 +1776,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // enables INT32 documents to be excluded by DECIMAL128 operands.
         final String TEST_BUCKET_NAME = "test-bucket-nin-decimal128-widening";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -1816,7 +1817,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // Numeric widening enables element-wise INT32 vs DOUBLE comparison.
         final String TEST_BUCKET_NAME = "test-bucket-array-int32-double-widening";
 
-        SingleFieldIndexDefinition valuesIndex = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valuesIndex = TestIndexDefinitions.singleField("values-index", "values", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valuesIndex);
 
         BsonDocument doc1 = new BsonDocument()
@@ -1933,7 +1934,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT32 value to INT64 for equality comparison.
         final String TEST_BUCKET_NAME = "test-bucket-eq-int32-vs-int64";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -1967,7 +1968,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT32 value to DOUBLE for equality comparison.
         final String TEST_BUCKET_NAME = "test-bucket-eq-int32-vs-double";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -1988,7 +1989,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT32 value to DECIMAL128 for equality comparison.
         final String TEST_BUCKET_NAME = "test-bucket-eq-int32-vs-decimal128";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2009,7 +2010,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT64 value to DECIMAL128 for equality comparison.
         final String TEST_BUCKET_NAME = "test-bucket-eq-int64-vs-decimal128";
 
-        SingleFieldIndexDefinition amountIndex = SingleFieldIndexDefinition.create("amount-index", "amount", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition amountIndex = TestIndexDefinitions.singleField("amount-index", "amount", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, amountIndex);
 
         List<byte[]> documents = List.of(
@@ -2030,7 +2031,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes DOUBLE value to DECIMAL128 for equality comparison.
         final String TEST_BUCKET_NAME = "test-bucket-eq-double-vs-decimal128";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.DOUBLE, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -2051,7 +2052,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // both promoted to DECIMAL128 via commonType for equality comparison.
         final String TEST_BUCKET_NAME = "test-bucket-eq-int64-vs-double";
 
-        SingleFieldIndexDefinition valueIndex = SingleFieldIndexDefinition.create("value-index", "value", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valueIndex = TestIndexDefinitions.singleField("value-index", "value", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valueIndex);
 
         List<byte[]> documents = List.of(
@@ -2074,7 +2075,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT32 values to INT64 for less-than comparison.
         final String TEST_BUCKET_NAME = "test-bucket-lt-int32-vs-int64";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2095,7 +2096,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // enables cross-type inequality between INT32 and INT64.
         final String TEST_BUCKET_NAME = "test-bucket-ne-int32-vs-int64";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2120,7 +2121,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // in valuesEqual enables INT32 documents to match INT64 operands.
         final String TEST_BUCKET_NAME = "test-bucket-in-int32-vs-int64";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2160,7 +2161,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // enables INT32 documents to be excluded by INT64 operands.
         final String TEST_BUCKET_NAME = "test-bucket-nin-int32-vs-int64";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2200,7 +2201,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT32 values to DOUBLE for boundary comparison.
         final String TEST_BUCKET_NAME = "test-bucket-gte-int32-vs-double";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2225,7 +2226,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT32 values to DOUBLE for less-than comparison.
         final String TEST_BUCKET_NAME = "test-bucket-lt-int32-vs-double";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2246,7 +2247,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT32 values to DOUBLE for boundary comparison.
         final String TEST_BUCKET_NAME = "test-bucket-lte-int32-vs-double";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2271,7 +2272,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // enables INT32 documents to be excluded by DOUBLE operands.
         final String TEST_BUCKET_NAME = "test-bucket-nin-int32-vs-double";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2311,7 +2312,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT32 values to DECIMAL128 for comparison.
         final String TEST_BUCKET_NAME = "test-bucket-gt-int32-vs-decimal128";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2336,7 +2337,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT32 values to DECIMAL128 for comparison.
         final String TEST_BUCKET_NAME = "test-bucket-lt-int32-vs-decimal128";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2357,7 +2358,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // in valuesEqual enables INT32 documents to match DECIMAL128 operands.
         final String TEST_BUCKET_NAME = "test-bucket-in-int32-vs-decimal128";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2399,7 +2400,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT64 values to DECIMAL128 for boundary comparison.
         final String TEST_BUCKET_NAME = "test-bucket-gte-int64-vs-decimal128";
 
-        SingleFieldIndexDefinition amountIndex = SingleFieldIndexDefinition.create("amount-index", "amount", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition amountIndex = TestIndexDefinitions.singleField("amount-index", "amount", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, amountIndex);
 
         List<byte[]> documents = List.of(
@@ -2424,7 +2425,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes INT64 values to DECIMAL128 for boundary comparison.
         final String TEST_BUCKET_NAME = "test-bucket-lte-int64-vs-decimal128";
 
-        SingleFieldIndexDefinition amountIndex = SingleFieldIndexDefinition.create("amount-index", "amount", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition amountIndex = TestIndexDefinitions.singleField("amount-index", "amount", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, amountIndex);
 
         List<byte[]> documents = List.of(
@@ -2449,7 +2450,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // in valuesEqual enables INT64 documents to match DECIMAL128 operands.
         final String TEST_BUCKET_NAME = "test-bucket-in-int64-vs-decimal128";
 
-        SingleFieldIndexDefinition amountIndex = SingleFieldIndexDefinition.create("amount-index", "amount", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition amountIndex = TestIndexDefinitions.singleField("amount-index", "amount", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, amountIndex);
 
         List<byte[]> documents = List.of(
@@ -2489,7 +2490,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // enables INT64 documents to be excluded by DECIMAL128 operands.
         final String TEST_BUCKET_NAME = "test-bucket-nin-int64-vs-decimal128";
 
-        SingleFieldIndexDefinition amountIndex = SingleFieldIndexDefinition.create("amount-index", "amount", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition amountIndex = TestIndexDefinitions.singleField("amount-index", "amount", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, amountIndex);
 
         List<byte[]> documents = List.of(
@@ -2529,7 +2530,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes DOUBLE values to DECIMAL128 for comparison.
         final String TEST_BUCKET_NAME = "test-bucket-gt-double-vs-decimal128";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.DOUBLE, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -2554,7 +2555,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // promotes DOUBLE values to DECIMAL128 for comparison.
         final String TEST_BUCKET_NAME = "test-bucket-lt-double-vs-decimal128";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.DOUBLE, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -2579,7 +2580,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // enables DOUBLE vs DECIMAL128 inequality comparison.
         final String TEST_BUCKET_NAME = "test-bucket-ne-double-vs-decimal128";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.DOUBLE, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -2604,7 +2605,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // in valuesEqual enables DOUBLE documents to match DECIMAL128 operands.
         final String TEST_BUCKET_NAME = "test-bucket-in-double-vs-decimal128";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.DOUBLE, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -2644,7 +2645,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // enables DOUBLE documents to be excluded by DECIMAL128 operands.
         final String TEST_BUCKET_NAME = "test-bucket-nin-double-vs-decimal128";
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.DOUBLE, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -2684,7 +2685,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // both promoted to DECIMAL128 via commonType for comparison.
         final String TEST_BUCKET_NAME = "test-bucket-gt-int64-vs-double";
 
-        SingleFieldIndexDefinition valueIndex = SingleFieldIndexDefinition.create("value-index", "value", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valueIndex = TestIndexDefinitions.singleField("value-index", "value", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valueIndex);
 
         List<byte[]> documents = List.of(
@@ -2709,7 +2710,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // both promoted to DECIMAL128 via commonType in valuesEqual.
         final String TEST_BUCKET_NAME = "test-bucket-in-int64-vs-double";
 
-        SingleFieldIndexDefinition valueIndex = SingleFieldIndexDefinition.create("value-index", "value", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valueIndex = TestIndexDefinitions.singleField("value-index", "value", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valueIndex);
 
         List<byte[]> documents = List.of(
@@ -2749,7 +2750,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // both promoted to DECIMAL128 via commonType in valuesEqual.
         final String TEST_BUCKET_NAME = "test-bucket-nin-int64-vs-double";
 
-        SingleFieldIndexDefinition valueIndex = SingleFieldIndexDefinition.create("value-index", "value", BsonType.INT64, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valueIndex = TestIndexDefinitions.singleField("value-index", "value", BsonType.INT64, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valueIndex);
 
         List<byte[]> documents = List.of(
@@ -2789,7 +2790,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // in valuesEqual. $all always uses full scan.
         final String TEST_BUCKET_NAME = "test-bucket-all-int64-vs-int32";
 
-        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoresIndex = TestIndexDefinitions.singleField("scores-index", "scores", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoresIndex);
 
         BsonDocument doc1 = new BsonDocument()
@@ -2837,7 +2838,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // elements via numeric widening. Each element is compared using valuesEqual.
         final String TEST_BUCKET_NAME = "test-bucket-all-mixed-numeric";
 
-        SingleFieldIndexDefinition valuesIndex = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition valuesIndex = TestIndexDefinitions.singleField("values-index", "values", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valuesIndex);
 
         BsonDocument doc1 = new BsonDocument()
@@ -2889,7 +2890,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // full scan.
         final String TEST_BUCKET_NAME = "test-bucket-not-gt-int64-widening";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2924,7 +2925,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // full scan.
         final String TEST_BUCKET_NAME = "test-bucket-not-eq-double-widening";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2959,7 +2960,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // another matches string values. Both branches execute via full scan and results are unioned.
         final String TEST_BUCKET_NAME = "test-bucket-or-numeric-string-mix";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -2996,8 +2997,8 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // on INT32 field and DECIMAL128 predicate on DOUBLE field. Results are unioned.
         final String TEST_BUCKET_NAME = "test-bucket-or-two-numeric-widening";
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-index", "price", BsonType.DOUBLE, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoreIndex, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -3036,7 +3037,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // types share the same type bracket and are sorted by numeric value using lossless widening.
         final String TEST_BUCKET_NAME = "test-bucket-resultsort-mixed-numeric-asc";
 
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-index", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex);
 
         BsonDocument doc1 = new BsonDocument()
@@ -3094,7 +3095,7 @@ class NonStrictTypesIntegrationTest extends BasePipelineTest {
         // widening.
         final String TEST_BUCKET_NAME = "test-bucket-resultsort-mixed-numeric-desc";
 
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status-index", "status", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex);
 
         BsonDocument doc1 = new BsonDocument()

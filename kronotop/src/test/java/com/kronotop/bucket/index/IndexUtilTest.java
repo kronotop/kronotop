@@ -42,11 +42,11 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndexUtilTest extends BaseStandaloneInstanceTest {
-    final SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+    final SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
             "numeric-index",
             "numeric-selector",
             BsonType.INT32
-            , false, IndexStatus.WAITING);
+            , false);
 
     @BeforeEach
     public void setUp() {
@@ -266,7 +266,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         Set<Long> uniqueIds = new HashSet<>();
 
         for (int i = 0; i < numberOfIndexes; i++) {
-            SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create(indexName, selector, bsonType, false, IndexStatus.WAITING);
+            SingleFieldIndexDefinition indexDefinition = TestIndexDefinitions.singleField(indexName, selector, bsonType, false);
             createdIndexes.add(indexDefinition);
             uniqueIds.add(indexDefinition.id());
         }

@@ -21,11 +21,13 @@ import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.Collation;
+import com.kronotop.bucket.index.NullPosition;
 import com.kronotop.bucket.index.SortDirection;
 import com.kronotop.bucket.index.CompoundIndexDefinition;
 import com.kronotop.bucket.index.CompoundIndexField;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.planner.physical.PhysicalPlanValidationException;
 import org.bson.*;
 import org.junit.jupiter.api.Test;
@@ -77,7 +79,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         String collationJson = String.format("{\"locale\": \"%s\", \"strength\": %d}", bucketCollation.locale(), bucketCollation.strength());
         createBucketWithCollation(bucketName, collationJson);
         SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create(
-                selector + "_1", selector, BsonType.STRING, false, IndexStatus.WAITING, indexCollation
+                selector + "_1", selector, BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, indexCollation
         );
         createIndexThenWaitForReadiness(TEST_NAMESPACE, bucketName, indexDef);
         return getBucketMetadata(bucketName);
@@ -1724,7 +1726,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         Collation numericCollation = Collation.create("en", 3, null, null, true, null, null, null, null);
         createBucketWithCollation(BUCKET_NAME, "{\"locale\": \"en\", \"strength\": 3, \"numeric_ordering\": true}");
         SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create(
-                "name_1", "name", BsonType.STRING, false, IndexStatus.WAITING, numericCollation);
+                "name_1", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, numericCollation);
         createIndexThenWaitForReadiness(TEST_NAMESPACE, BUCKET_NAME, indexDef);
         BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
 
@@ -1765,7 +1767,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         Collation numericCollation = Collation.create("en", 3, null, null, true, null, null, null, null);
         createBucketWithCollation(BUCKET_NAME, "{\"locale\": \"en\", \"strength\": 3, \"numeric_ordering\": true}");
         SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create(
-                "name_1", "name", BsonType.STRING, false, IndexStatus.WAITING, numericCollation);
+                "name_1", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, numericCollation);
         createIndexThenWaitForReadiness(TEST_NAMESPACE, BUCKET_NAME, indexDef);
         BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
 
@@ -1815,7 +1817,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         Collation numericCollation = Collation.create("en", 3, null, null, true, null, null, null, null);
         createBucketWithCollation(BUCKET_NAME, "{\"locale\": \"en\", \"strength\": 3, \"numeric_ordering\": true}");
         SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create(
-                "name_1", "name", BsonType.STRING, false, IndexStatus.WAITING, numericCollation);
+                "name_1", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, numericCollation);
         createIndexThenWaitForReadiness(TEST_NAMESPACE, BUCKET_NAME, indexDef);
         BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
 
@@ -1866,7 +1868,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         Collation numericCollation = Collation.create("en", 3, null, null, true, null, null, null, null);
         createBucketWithCollation(BUCKET_NAME, "{\"locale\": \"en\", \"strength\": 3, \"numeric_ordering\": true}");
         SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create(
-                "name_1", "name", BsonType.STRING, false, IndexStatus.WAITING, numericCollation);
+                "name_1", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, numericCollation);
         createIndexThenWaitForReadiness(TEST_NAMESPACE, BUCKET_NAME, indexDef);
         BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
 
@@ -1918,7 +1920,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         Collation numericCollation = Collation.create("en", 3, null, null, true, null, null, null, null);
         createBucketWithCollation(BUCKET_NAME, "{\"locale\": \"en\", \"strength\": 3, \"numeric_ordering\": true}");
         SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create(
-                "name_1", "name", BsonType.STRING, false, IndexStatus.WAITING, numericCollation);
+                "name_1", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, numericCollation);
         createIndexThenWaitForReadiness(TEST_NAMESPACE, BUCKET_NAME, indexDef);
         BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
 
@@ -1969,7 +1971,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         Collation numericCollation = Collation.create("en", 3, null, null, true, null, null, null, null);
         createBucketWithCollation(BUCKET_NAME, "{\"locale\": \"en\", \"strength\": 3, \"numeric_ordering\": true}");
         SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create(
-                "name_1", "name", BsonType.STRING, false, IndexStatus.WAITING, numericCollation);
+                "name_1", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, numericCollation);
         createIndexThenWaitForReadiness(TEST_NAMESPACE, BUCKET_NAME, indexDef);
         BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
 
@@ -2020,7 +2022,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         Collation noNumericCollation = Collation.create("en", 3, null, null, null, null, null, null, null);
         createBucketWithCollation(BUCKET_NAME, "{\"locale\": \"en\", \"strength\": 3}");
         SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create(
-                "name_1", "name", BsonType.STRING, false, IndexStatus.WAITING, noNumericCollation);
+                "name_1", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, noNumericCollation);
         createIndexThenWaitForReadiness(TEST_NAMESPACE, BUCKET_NAME, indexDef);
         BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
 
@@ -2110,7 +2112,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         Collation numericCollation = Collation.create("en", 3, null, null, true, null, null, null, null);
         createBucketWithCollation(BUCKET_NAME, "{\"locale\": \"en\", \"strength\": 3, \"numeric_ordering\": true}");
         SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create(
-                "name_1", "name", BsonType.STRING, false, IndexStatus.WAITING, numericCollation);
+                "name_1", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, numericCollation);
         createIndexThenWaitForReadiness(TEST_NAMESPACE, BUCKET_NAME, indexDef);
         BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
 
@@ -2162,7 +2164,7 @@ class CollationIntegrationTest extends BasePipelineTest {
         Collation numericCollation = Collation.create("en", 3, null, null, true, null, null, null, null);
         createBucketWithCollation(BUCKET_NAME, "{\"locale\": \"en\", \"strength\": 3, \"numeric_ordering\": true}");
         SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create(
-                "name_1", "name", BsonType.STRING, false, IndexStatus.WAITING, numericCollation);
+                "name_1", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, numericCollation);
         createIndexThenWaitForReadiness(TEST_NAMESPACE, BUCKET_NAME, indexDef);
         BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
 
@@ -2262,8 +2264,8 @@ class CollationIntegrationTest extends BasePipelineTest {
         final String BUCKET_NAME = "test-empty-query-sort-binary-vs-collation";
 
         createBucket(BUCKET_NAME);
-        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create(
-                "name_1", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDef = TestIndexDefinitions.singleField(
+                "name_1", "name", BsonType.STRING, false);
         createIndexThenWaitForReadiness(TEST_NAMESPACE, BUCKET_NAME, indexDef);
         BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
 
@@ -2288,8 +2290,8 @@ class CollationIntegrationTest extends BasePipelineTest {
         final String BUCKET_NAME = "test-empty-query-sort-nonstring-collation";
 
         createBucket(BUCKET_NAME);
-        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create(
-                "age_1", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition indexDef = TestIndexDefinitions.singleField(
+                "age_1", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(TEST_NAMESPACE, BUCKET_NAME, indexDef);
         BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
 

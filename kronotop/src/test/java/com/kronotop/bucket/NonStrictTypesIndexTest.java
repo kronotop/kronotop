@@ -60,7 +60,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
     @Test
     void shouldSkipIndexEntryOnTypeMismatchDuringInsert() {
         // Create an index expecting INT32 for the 'age' field
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -99,7 +99,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
     @Test
     void shouldSkipMultipleMismatchedTypesAndIndexCorrectOnes() {
         // Create an index expecting INT32 for the 'score' field
-        SingleFieldIndexDefinition scoreIndexDefinition = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndexDefinition = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(scoreIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -146,7 +146,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
     @Test
     void shouldDropIndexEntryOnTypeMismatchDuringUpdate() {
         // Create an index expecting INT32 for the 'age' field
-        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndexDefinition = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -208,11 +208,11 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
         assertEquals(2, actualMessage.children().size());
 
         // Create an index expecting INT32 for the 'age' field
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "age-index",
                 "age",
                 BsonType.INT32
-                , false, IndexStatus.WAITING);
+                , false);
 
         DirectorySubspace indexSubspace;
         try (Transaction tr = context.getTransactionManager().create()) {

@@ -17,7 +17,9 @@
 package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.NullPosition;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.SortDirection;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.ArrayRedisMessage;
@@ -37,7 +39,7 @@ class BucketUniqueIndexTest extends BaseBucketHandlerTest {
     void setUp() {
         // Behavior: every test runs against a bucket with a unique single-field index on "email".
         SingleFieldIndexDefinition emailIndex = SingleFieldIndexDefinition.create(
-                "email-index", "email", BsonType.STRING, false, IndexStatus.WAITING, null, true);
+                "email-index", "email", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, null, true);
         createIndexThenWaitForReadiness(emailIndex);
     }
 
@@ -79,7 +81,7 @@ class BucketUniqueIndexTest extends BaseBucketHandlerTest {
         // Runs on a dedicated bucket with a unique "tag" index.
         String bucket = "uniq-tag-1";
         createIndexThenWaitForReadiness(TEST_NAMESPACE, bucket, SingleFieldIndexDefinition.create(
-                "tag-index", "tag", BsonType.STRING, false, IndexStatus.WAITING, null, true));
+                "tag-index", "tag", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, null, true));
         assertInstanceOf(ArrayRedisMessage.class, insertRawInto(bucket, "{\"tag\": [\"x\"]}"));
         assertDuplicateKey(insertRawInto(bucket, "{\"tag\": [\"x\"]}"));
     }
@@ -90,7 +92,7 @@ class BucketUniqueIndexTest extends BaseBucketHandlerTest {
         // does not conflict with itself.
         String bucket = "uniq-tag-2";
         createIndexThenWaitForReadiness(TEST_NAMESPACE, bucket, SingleFieldIndexDefinition.create(
-                "tag-index", "tag", BsonType.STRING, false, IndexStatus.WAITING, null, true));
+                "tag-index", "tag", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, null, true));
         assertInstanceOf(ArrayRedisMessage.class, insertRawInto(bucket, "{\"tag\": [\"x\", \"x\"]}"));
     }
 

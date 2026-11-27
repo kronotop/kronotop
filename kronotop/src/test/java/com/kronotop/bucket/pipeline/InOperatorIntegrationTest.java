@@ -20,8 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonType;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
@@ -73,7 +73,7 @@ class InOperatorIntegrationTest extends BasePipelineTest {
     void shouldMatchDocumentsWithInOperatorViaIndexScan() {
         final String TEST_BUCKET_NAME = "test-bucket-in-operator-indexscan";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -181,7 +181,7 @@ class InOperatorIntegrationTest extends BasePipelineTest {
     void shouldMatchSingleValueInViaIndexScan() {
         final String TEST_BUCKET_NAME = "test-bucket-single-value-in-indexed";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -243,7 +243,7 @@ class InOperatorIntegrationTest extends BasePipelineTest {
     void shouldMatchNoDocumentsWhenNoValuesMatchViaIndexScan() {
         final String TEST_BUCKET_NAME = "test-bucket-no-match-in-indexed";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -361,7 +361,7 @@ class InOperatorIntegrationTest extends BasePipelineTest {
     void shouldHandleInWithAndOperatorViaIndexScan() {
         final String TEST_BUCKET_NAME = "test-bucket-in-with-and-indexed";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -441,7 +441,7 @@ class InOperatorIntegrationTest extends BasePipelineTest {
     void shouldHandleInWithOrOperatorViaIndexScan() {
         final String TEST_BUCKET_NAME = "test-bucket-in-with-or-indexed";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -516,7 +516,7 @@ class InOperatorIntegrationTest extends BasePipelineTest {
     void shouldHandleInWithNumericTypes() {
         final String TEST_BUCKET_NAME = "test-bucket-in-numeric";
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -553,7 +553,7 @@ class InOperatorIntegrationTest extends BasePipelineTest {
     void shouldHandleDuplicateValuesInList() {
         final String TEST_BUCKET_NAME = "test-bucket-duplicate-values-in";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         List<byte[]> documents = List.of(
@@ -826,7 +826,7 @@ class InOperatorIntegrationTest extends BasePipelineTest {
         // which is exactly what $in requires.
         final String TEST_BUCKET_NAME = "test-bucket-in-multikey-index";
 
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags-index", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         List<byte[]> documents = List.of(
@@ -878,7 +878,7 @@ class InOperatorIntegrationTest extends BasePipelineTest {
         // Single value $in on multiKey index optimizes to IndexScanNode (not UnionNode)
         final String TEST_BUCKET_NAME = "test-bucket-in-multikey-single";
 
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags-index", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         List<byte[]> documents = List.of(
@@ -923,7 +923,7 @@ class InOperatorIntegrationTest extends BasePipelineTest {
         // INT32 multiKey index basic happy path
         final String TEST_BUCKET_NAME = "test-bucket-in-multikey-int";
 
-        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoresIndex = TestIndexDefinitions.singleField("scores-index", "scores", BsonType.INT32, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoresIndex);
 
         List<byte[]> documents = List.of(
@@ -975,7 +975,7 @@ class InOperatorIntegrationTest extends BasePipelineTest {
         // $in on multiKey index combined with $and and other predicates
         final String TEST_BUCKET_NAME = "test-bucket-in-multikey-combined";
 
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags-index", "tags", BsonType.STRING, true);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         List<byte[]> documents = List.of(
@@ -1079,7 +1079,7 @@ class InOperatorIntegrationTest extends BasePipelineTest {
         // the residual predicate should be pushed into each union child, not placed after the union.
         final String TEST_BUCKET_NAME = "test-bucket-residual-push-down";
 
-        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition roleIndex = TestIndexDefinitions.singleField("role-index", "role", BsonType.STRING, false);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata,

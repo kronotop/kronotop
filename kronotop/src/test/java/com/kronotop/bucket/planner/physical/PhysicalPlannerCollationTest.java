@@ -20,7 +20,10 @@ import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.index.CompoundIndexDefinition;
 import com.kronotop.bucket.index.CompoundIndexField;
 import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.NullPosition;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.SortDirection;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import org.bson.BsonType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -54,7 +57,7 @@ class PhysicalPlannerCollationTest extends BasePhysicalPlannerTest {
         void shouldSkipStringIndexWhenQueryCollationDiffers() {
             // Behavior: STRING index with collation "en" is skipped when query specifies collation "tr"
             createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                    "name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
+                    "name_idx", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, collation("en")));
 
             PhysicalNode result = planQuery("{ 'name': 'alice' }", null, collation("tr"));
 
@@ -65,7 +68,7 @@ class PhysicalPlannerCollationTest extends BasePhysicalPlannerTest {
         void shouldUseStringIndexWhenQueryCollationMatches() {
             // Behavior: STRING index with collation "en" is used when query specifies the same collation
             createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                    "name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
+                    "name_idx", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, collation("en")));
 
             PhysicalNode result = planQuery("{ 'name': 'alice' }", null, collation("en"));
 
@@ -76,7 +79,7 @@ class PhysicalPlannerCollationTest extends BasePhysicalPlannerTest {
         void shouldUseStringIndexWhenNoQueryCollation() {
             // Behavior: STRING index is used normally when query specifies no collation (existing behavior preserved)
             createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                    "name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
+                    "name_idx", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, collation("en")));
 
             PhysicalNode result = planQuery("{ 'name': 'alice' }");
 
@@ -86,8 +89,8 @@ class PhysicalPlannerCollationTest extends BasePhysicalPlannerTest {
         @Test
         void shouldNotSkipNonStringIndexWhenQueryCollationDiffers() {
             // Behavior: INT32 index is unaffected by query collation since collation is irrelevant for non-string types
-            createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                    "age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING));
+            createSingleFieldIndex(TestIndexDefinitions.singleField(
+                    "age_idx", "age", BsonType.INT32, false));
 
             PhysicalNode result = planQuery("{ 'age': 25 }", null, collation("tr"));
 
@@ -97,8 +100,8 @@ class PhysicalPlannerCollationTest extends BasePhysicalPlannerTest {
         @Test
         void shouldSkipStringIndexWithNullCollationWhenQueryHasCollation() {
             // Behavior: STRING index with binary ordering (null collation) cannot serve locale-aware queries
-            createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                    "name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING));
+            createSingleFieldIndex(TestIndexDefinitions.singleField(
+                    "name_idx", "name", BsonType.STRING, false));
 
             PhysicalNode result = planQuery("{ 'name': 'alice' }", null, collation("en"));
 
@@ -109,7 +112,7 @@ class PhysicalPlannerCollationTest extends BasePhysicalPlannerTest {
         void shouldSkipStringIndexForInOperatorWhenCollationDiffers() {
             // Behavior: $in optimization is skipped when index collation doesn't match query collation
             createSingleFieldIndex(SingleFieldIndexDefinition.create(
-                    "name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING, collation("en")));
+                    "name_idx", "name", BsonType.STRING, SortDirection.ASC, NullPosition.FIRST, false, IndexStatus.WAITING, collation("en")));
 
             PhysicalNode result = planQuery("{ 'name': { '$in': ['alice', 'bob'] } }", null, collation("tr"));
 

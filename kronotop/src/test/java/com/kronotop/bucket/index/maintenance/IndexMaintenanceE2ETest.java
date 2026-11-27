@@ -150,8 +150,8 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
     }
 
     private void createAgeIndex() {
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
-                "test-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
+                "test-index", "age", BsonType.INT32, false);
         try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
@@ -309,12 +309,11 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
 
             halfLatch.await();
 
-            SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+            SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                     "test-index",
                     "age",
                     BsonType.INT32,
-                    false,
-                    IndexStatus.WAITING
+                    false
             );
 
             try (Transaction tr = context.getTransactionManager().create()) {
@@ -370,12 +369,11 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
 
             halfLatch.await();
 
-            SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+            SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                     "test-index",
                     "age",
                     BsonType.INT32,
-                    false,
-                    IndexStatus.WAITING
+                    false
             );
 
             TransactionUtil.executeThenCommit(context, tr -> {
@@ -460,11 +458,11 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
 
         insertDocumentsAndGetObjectIds(documents);
 
-        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition definition = TestIndexDefinitions.singleField(
                 "test-index",
                 "value",
                 BsonType.INT32
-                , false, IndexStatus.WAITING);
+                , false);
 
         createIndexThenWaitForReadiness(definition);
 

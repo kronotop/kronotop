@@ -69,8 +69,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldSelectLowerValueForLT() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -103,8 +103,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldSelectHigherValueForGT() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -137,8 +137,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldPreferLTOverGTWhenMoreSelective() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -171,8 +171,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldPreferGTOverLTWhenMoreSelective() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -205,8 +205,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldClampLowPercentileToEpsilon() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -240,8 +240,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldClampHighPercentileToOneMinusEpsilon() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -277,8 +277,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldHandleEqualSelectivity() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -315,8 +315,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldSelectNarrowerRangeForRangeScan() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -351,8 +351,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldSelectRangeWithSameWidthByListOrder() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -391,8 +391,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldReturnUnknownWhenUpperLessThanLower() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -428,8 +428,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldClampLowerBoundBelowHistogramRange() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -467,8 +467,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldClampUpperBoundAboveHistogramRange() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -506,8 +506,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldPreferRangeScanOverIndexScanWhenMoreSelective() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -544,8 +544,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldPreferIndexScanOverRangeScanWhenMoreSelective() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -596,8 +596,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldSelectNodeWithStatsOverNodeWithoutStats() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -628,8 +628,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldReturnUnknownWhenHistogramIsNull() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -658,8 +658,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldEstimateForLTEOperator() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -686,8 +686,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldEstimateForGTEOperator() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -714,8 +714,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldReturnUnknownForEQOperator() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -745,8 +745,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldReturnUnknownForNEOperator() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -776,8 +776,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldReturnUnknownWhenValueTypeDoesNotMatchIndex() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -805,7 +805,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldReturnSingleNodeWhenOnlyOneProvided() {
         // Create bucket and index
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -828,8 +828,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldReturnFirstNodeWhenAllHaveUnknownSelectivity() {
         // Create bucket and indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -865,8 +865,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         runCommand(channel, insertBuf);
 
         // Create two secondary indexes
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -905,8 +905,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldSelectIndexWithParamOperandForLT() {
         // Behavior: Param(0) in LT predicate resolves for selectivity estimation.
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -936,8 +936,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldSelectIndexWithParamOperandForGT() {
         // Behavior: Param(0) in GT predicate resolves for selectivity estimation.
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -967,8 +967,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldSelectRangeIndexWithParamBounds() {
         // Behavior: Both bounds as Param operands resolve for range selectivity estimation.
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -1046,7 +1046,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
                         new CompoundIndexField("price", BsonType.INT32, false)
                 ),
                 IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(compoundDef);
         createIndexThenWaitForReadiness(scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
@@ -1090,7 +1090,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
                         new CompoundIndexField("price", BsonType.INT32, false)
                 ),
                 IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(compoundDef);
         createIndexThenWaitForReadiness(scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
@@ -1132,7 +1132,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
                         new CompoundIndexField("status", BsonType.INT32, false)
                 ),
                 IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(compoundDef);
         createIndexThenWaitForReadiness(scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
@@ -1176,7 +1176,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
                         new CompoundIndexField("price", BsonType.INT32, false)
                 ),
                 IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(compoundDef);
         createIndexThenWaitForReadiness(scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
@@ -1220,7 +1220,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
                         new CompoundIndexField("price", BsonType.INT32, false)
                 ),
                 IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(compoundDef);
         createIndexThenWaitForReadiness(scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
@@ -1256,7 +1256,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
                         new CompoundIndexField("price", BsonType.INT32, false)
                 ),
                 IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-index", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(compoundDef);
         createIndexThenWaitForReadiness(scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);

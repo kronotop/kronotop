@@ -16,8 +16,8 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.PhysicalFilter;
 import com.kronotop.bucket.planner.physical.PhysicalIndexIntersection;
@@ -37,12 +37,12 @@ class IndexIntersectionAdvancedTest extends BaseOptimizerTest {
     @Test
     void shouldCreateIntersectionInNestedAndOperations() {
         // Create indexes for name and age
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField(
                 "name-index", "name", BsonType.STRING
-                , false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
+                , false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField(
                 "age-index", "age", BsonType.INT32
-                , false, IndexStatus.WAITING);
+                , false);
         createIndexes(nameIndex, ageIndex);
 
         // Test nested AND: { $and: [{ $and: [{ name: "john" }, { age: 25 }] }] }
@@ -59,9 +59,9 @@ class IndexIntersectionAdvancedTest extends BaseOptimizerTest {
     @Test
     void shouldHandleSingleChild() {
         // Create index for name
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField(
                 "name-index", "name", BsonType.STRING
-                , false, IndexStatus.WAITING);
+                , false);
         createIndex(nameIndex);
 
         // Test query with single condition in AND

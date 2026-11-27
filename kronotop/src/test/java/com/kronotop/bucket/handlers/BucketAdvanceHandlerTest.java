@@ -25,6 +25,7 @@ import com.kronotop.bucket.index.CompoundIndexDefinition;
 import com.kronotop.bucket.index.CompoundIndexField;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.BucketQueryArgs;
 import com.kronotop.server.RESPVersion;
@@ -401,7 +402,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // Documents are returned in ascending order across all cursor advances.
 
         // Create index on age field and wait for it to be ready
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex);
 
         // Insert documents with different ages (shuffled order)
@@ -468,7 +469,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // Documents are returned in descending order across all cursor advances.
 
         // Create index on age field and wait for it to be ready
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex);
 
         // Insert documents with different ages (shuffled order)
@@ -615,7 +616,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // The string index enables globally sorted results across all cursor advances.
 
         // Create index on name field (string type) and wait for it to be ready
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name-idx", "name", BsonType.STRING, false);
         createIndexThenWaitForReadiness(nameIndex);
 
         // Insert documents with various names (shuffled order)
@@ -683,7 +684,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // efficient filtering and globally sorted results across all cursor advances.
 
         // Create an index on age field for sorting and wait for it to be ready
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex);
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
@@ -761,7 +762,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // enabling globally sorted results. Only documents with the indexed field are returned.
 
         // Create index on age field and wait for it to be ready
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex);
 
         // Insert documents with different ages (shuffled order)
@@ -827,7 +828,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // Behavior: RESULTSORT on a non-indexed field guarantees ordering only within each batch, not across cursor advances.
 
         // Create index on age field only - priority is NOT indexed
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex);
 
         // Insert documents with age (indexed) and priority (non-indexed) fields
@@ -909,7 +910,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     void shouldAdvanceCursorWithSortByIndexedFieldAndEmptyFilterDescending() {
         // Behavior: Empty filter with sortBy on indexed field DESC should use the index in reverse order.
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex);
 
         List<byte[]> documents = Arrays.asList(
@@ -1001,8 +1002,8 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // would be rejected. With the AND, the planner sees both indexes and can select
         // score as the primary scan for sort ordering.
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-idx", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-idx", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex);
         createIndexThenWaitForReadiness(scoreIndex);
 
@@ -1097,7 +1098,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     void shouldAdvanceCursorWithSortByStringFieldDescending() {
         // Behavior: SortBy on indexed string field DESC should use the index in reverse order.
 
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name-idx", "name", BsonType.STRING, false);
         createIndexThenWaitForReadiness(nameIndex);
 
         List<byte[]> documents = Arrays.asList(
@@ -1160,7 +1161,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // Behavior: When filtering on the indexed field with sortBy on the same field,
         // documents missing the field are not in the index and won't be returned.
 
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-idx", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-idx", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(scoreIndex);
 
         // Some documents have score, some don't
@@ -1230,8 +1231,8 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // Behavior: $or queries on multiple indexed fields return each matching document exactly once
         // across cursor advances. Documents matching multiple OR branches are deduplicated.
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-idx", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-idx", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-idx", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-idx", "quantity", BsonType.INT32, false);
         createIndexThenWaitForReadiness(priceIndex);
         createIndexThenWaitForReadiness(quantityIndex);
 
@@ -1313,8 +1314,8 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // fetching from FDB until the batch is complete or all sources are exhausted.
         // This tests that batch completion works correctly after deduplication.
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-idx", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-idx", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-idx", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-idx", "quantity", BsonType.INT32, false);
         createIndexThenWaitForReadiness(priceIndex);
         createIndexThenWaitForReadiness(quantityIndex);
 
@@ -1418,7 +1419,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     void shouldAdvanceCursorWithIndexedFilterAndSortByNonIndexedFieldDescending() {
         // Behavior: Filter uses index, RESULTSORT on non-indexed field DESC - each batch sorted independently.
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex);
 
         List<byte[]> documents = Arrays.asList(
@@ -1495,8 +1496,8 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // fetching from the remaining branch until all results are retrieved. This tests that
         // UnionNode correctly handles asymmetric exhaustion across multiple BUCKET.ADVANCE calls.
 
-        SingleFieldIndexDefinition categoryIndex = SingleFieldIndexDefinition.create("category-idx", "category", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-idx", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition categoryIndex = TestIndexDefinitions.singleField("category-idx", "category", BsonType.STRING, false);
+        SingleFieldIndexDefinition scoreIndex = TestIndexDefinitions.singleField("score-idx", "score", BsonType.INT32, false);
         createIndexThenWaitForReadiness(categoryIndex);
         createIndexThenWaitForReadiness(scoreIndex);
 
@@ -1600,8 +1601,8 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // cursor rewind. This stress tests the rewind mechanism across many iterations,
         // ensuring no data loss or duplicates.
 
-        SingleFieldIndexDefinition typeIndex = SingleFieldIndexDefinition.create("type-idx", "type", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition levelIndex = SingleFieldIndexDefinition.create("level-idx", "level", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition typeIndex = TestIndexDefinitions.singleField("type-idx", "type", BsonType.STRING, false);
+        SingleFieldIndexDefinition levelIndex = TestIndexDefinitions.singleField("level-idx", "level", BsonType.INT32, false);
         createIndexThenWaitForReadiness(typeIndex);
         createIndexThenWaitForReadiness(levelIndex);
 
@@ -1716,8 +1717,8 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // Behavior: When batch=1 with 2 OR branches, each child gets at least limit=1 to avoid
         // FDB's "limit=0 means unlimited" behavior. Deduplication and buffering handle excess.
 
-        SingleFieldIndexDefinition typeIndex = SingleFieldIndexDefinition.create("type-idx", "type", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition levelIndex = SingleFieldIndexDefinition.create("level-idx", "level", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition typeIndex = TestIndexDefinitions.singleField("type-idx", "type", BsonType.STRING, false);
+        SingleFieldIndexDefinition levelIndex = TestIndexDefinitions.singleField("level-idx", "level", BsonType.INT32, false);
         createIndexThenWaitForReadiness(typeIndex);
         createIndexThenWaitForReadiness(levelIndex);
 
@@ -1886,8 +1887,8 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // Global ordering is NOT guaranteed across cursor advances; only within-batch ordering is ensured.
         // This documents intentional behavior: cross-batch ordering is undefined for $or queries.
 
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-idx", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-idx", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-idx", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-idx", "quantity", BsonType.INT32, false);
         createIndexThenWaitForReadiness(priceIndex);
         createIndexThenWaitForReadiness(quantityIndex);
 
@@ -2449,12 +2450,11 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // Behavior: With an index on age, $in on age with SORTBY age matches 3 of 5 documents.
         // With BATCH 2, BUCKET.QUERY returns ages 10 and 30 and keeps the cursor open.
         // BUCKET.ADVANCE returns age 50 and cursor_id -1. A later BUCKET.ADVANCE with the old id fails.
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField(
                 "age-idx",
                 "age",
                 BsonType.INT32,
-                false,
-                IndexStatus.WAITING
+                false
         );
         createIndexThenWaitForReadiness(ageIndex);
 
@@ -2547,8 +2547,8 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     void shouldApplyLimitToOrQuery() {
         // Behavior: LIMIT caps the merged output of an $or query. The returned documents are
         // unique, each matches the predicate, and the round that fills LIMIT returns cursor_id -1.
-        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-idx", "price", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-idx", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition priceIndex = TestIndexDefinitions.singleField("price-idx", "price", BsonType.INT32, false);
+        SingleFieldIndexDefinition quantityIndex = TestIndexDefinitions.singleField("quantity-idx", "quantity", BsonType.INT32, false);
         createIndexThenWaitForReadiness(priceIndex);
         createIndexThenWaitForReadiness(quantityIndex);
 
@@ -2590,7 +2590,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     void shouldApplyLimitWithSortBy() {
         // Behavior: SORTBY on an indexed field with LIMIT returns the first LIMIT documents in
         // sorted order across rounds. The round that fills LIMIT returns cursor_id -1.
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age-idx", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex);
 
         List<Integer> ages = new ArrayList<>();

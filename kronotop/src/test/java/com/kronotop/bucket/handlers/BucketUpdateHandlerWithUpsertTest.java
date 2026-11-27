@@ -18,8 +18,8 @@ package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BsonHelper;
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.BucketQueryArgs;
 import com.kronotop.server.RESPVersion;
@@ -277,7 +277,7 @@ class BucketUpdateHandlerWithUpsertTest extends BaseBucketHandlerTest {
         // Index should have one entry per unique array element.
 
         // First, create a multikey index on "tags"
-        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags_idx", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition tagsIndex = TestIndexDefinitions.singleField("tags_idx", "tags", BsonType.STRING, true);
         createIndexThenWaitForReadiness(tagsIndex);
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
@@ -338,7 +338,7 @@ class BucketUpdateHandlerWithUpsertTest extends BaseBucketHandlerTest {
         // Behavior: Upsert with a value that doesn't match the indexed field's expected type
         // throws IndexTypeMismatchException when strict_types=true (default).
 
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_idx", "age", BsonType.INT32, false);
         createIndexThenWaitForReadiness(ageIndex);
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);

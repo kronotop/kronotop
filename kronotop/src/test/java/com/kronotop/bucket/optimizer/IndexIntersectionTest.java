@@ -16,8 +16,8 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.TestIndexDefinitions;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.bson.BsonType;
@@ -33,8 +33,8 @@ class IndexIntersectionTest extends BaseOptimizerTest {
     @Test
     void shouldCreateIndexIntersection() {
         // Create indexes for name and age fields
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_index", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_index", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_index", "age", BsonType.INT32, false);
         createIndexes(nameIndex, ageIndex);
 
         // Create: AND(name="john", age=25)
@@ -56,9 +56,9 @@ class IndexIntersectionTest extends BaseOptimizerTest {
     @Test
     void shouldCreateIndexIntersectionWithThreeIndexes() {
         // Create indexes for name, age, and status fields
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_index", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_index", "age", BsonType.INT32, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status_index", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_index", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_index", "age", BsonType.INT32, false);
+        SingleFieldIndexDefinition statusIndex = TestIndexDefinitions.singleField("status_index", "status", BsonType.STRING, false);
         createIndexes(nameIndex, ageIndex, statusIndex);
 
         // Create: AND(name="john", age=25, status="active")
@@ -82,7 +82,7 @@ class IndexIntersectionTest extends BaseOptimizerTest {
     @Test
     void shouldNotCreateIntersectionWithSingleIndex() {
         // Create index for name field only
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_index", "name", BsonType.STRING, false);
         createIndex(nameIndex);
 
         // Create: name="john" (single condition, no AND needed)
@@ -98,8 +98,8 @@ class IndexIntersectionTest extends BaseOptimizerTest {
     @Test
     void shouldNotCreateIntersectionWithNonEqualityOperators() {
         // Create indexes for name and age fields
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_index", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_index", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_index", "age", BsonType.INT32, false);
         createIndexes(nameIndex, ageIndex);
 
         // Create: AND(name="john", age>25) - mixed operators
@@ -120,8 +120,8 @@ class IndexIntersectionTest extends BaseOptimizerTest {
     @Test
     void shouldMixIntersectionWithOtherNodes() {
         // Create indexes for name and age fields
-        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_index", "name", BsonType.STRING, false, IndexStatus.WAITING);
-        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = TestIndexDefinitions.singleField("name_index", "name", BsonType.STRING, false);
+        SingleFieldIndexDefinition ageIndex = TestIndexDefinitions.singleField("age_index", "age", BsonType.INT32, false);
         createIndexes(nameIndex, ageIndex);
 
         // Create: AND(name="john", age=25, score>90) - mix of indexed and non-indexed
