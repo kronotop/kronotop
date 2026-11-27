@@ -109,7 +109,7 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
      *
      * @param definition    the index definition
      * @param metadata      the bucket metadata
-     * @param rawValue      the raw field value (may be null)
+     * @param rawValue      the raw field value (maybe null)
      * @param collatorCache the collator cache for collation-aware encoding
      * @return the encoded index value
      */
