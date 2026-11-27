@@ -17,11 +17,68 @@
 package com.kronotop.bucket.index;
 
 import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.apple.foundationdb.tuple.Tuple;
+import org.bson.BsonTimestamp;
+import org.bson.BsonType;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class SortDirectionTransformTest {
+
+    static Stream<Arguments> indexTypeTestData() {
+        return Stream.of(
+                Arguments.of(BsonType.INT32, 1988, 2026),
+                Arguments.of(BsonType.INT64, 1988L, 2026L),
+                Arguments.of(BsonType.DOUBLE, 19.88, 20.26),
+                Arguments.of(BsonType.STRING, "apple", "banana"),
+                Arguments.of(BsonType.BOOLEAN, false, true),
+                Arguments.of(
+                        BsonType.BINARY,
+                        "apple".getBytes(StandardCharsets.UTF_8),
+                        "banana".getBytes(StandardCharsets.UTF_8)
+                ),
+                Arguments.of(
+                        BsonType.DATE_TIME,
+                        Instant.parse("1988-01-01T00:00:00Z").toEpochMilli(),
+                        Instant.parse("2026-01-01T00:00:00Z").toEpochMilli()
+                ),
+                Arguments.of(
+                        BsonType.TIMESTAMP,
+                        new BsonTimestamp(1988, 0).getValue(),
+                        new BsonTimestamp(2026, 0).getValue()
+                ),
+                Arguments.of(
+                        BsonType.OBJECT_ID,
+                        new ObjectId(1988, 0).toByteArray(),
+                        new ObjectId(2026, 0).toByteArray()
+                )
+        );
+    }
+
+    @Test
+    void shouldReturnGivenValueWhenDirectionIsAsc() {
+        // Behavior: Applies ASC to the integer 1988. The result is 1988.
+        var value = 1988;
+
+        assertEquals(value, SortDirectionTransform.apply(value, SortDirection.ASC));
+    }
+
+    @Test
+    void shouldReturnGivenBytesWhenRevertDirectionIsAsc() {
+        // Behavior: Reverts the bytes of "kronotop" with ASC. The result is the bytes of "kronotop".
+        byte[] data = "kronotop".getBytes(StandardCharsets.UTF_8);
+
+        assertArrayEquals("kronotop".getBytes(StandardCharsets.UTF_8), SortDirectionTransform.revert(data, SortDirection.ASC));
+    }
 
     @Test
     void shouldReverseOrderOfValuesThatDifferAtAByte() {
@@ -47,5 +104,26 @@ class SortDirectionTransformTest {
 
         assertTrue(ByteArrayUtil.compareUnsigned(c, b) < 0);
         assertTrue(ByteArrayUtil.compareUnsigned(b, a) < 0);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("indexTypeTestData")
+    void shouldReverseOrderAndRevertForEachIndexType(BsonType bsonType, Object smaller, Object larger) {
+        // Behavior: For each supported index type, applies DESC to a smaller and a larger value. The result of
+        // the larger value sorts before the result of the smaller one. Reverting each result with DESC and
+        // unpacking it as a tuple gives the original value.
+        byte[] smallerApplied = (byte[]) SortDirectionTransform.apply(smaller, SortDirection.DESC);
+        byte[] largerApplied = (byte[]) SortDirectionTransform.apply(larger, SortDirection.DESC);
+
+        assertTrue(
+                ByteArrayUtil.compareUnsigned(largerApplied, smallerApplied) < 0,
+                "Larger value should sort first for " + bsonType
+        );
+
+        byte[] smallerReverted = SortDirectionTransform.revert(smallerApplied, SortDirection.DESC);
+        byte[] largerReverted = SortDirectionTransform.revert(largerApplied, SortDirection.DESC);
+
+        assertEquals(Tuple.from(smaller), Tuple.fromBytes(smallerReverted));
+        assertEquals(Tuple.from(larger), Tuple.fromBytes(largerReverted));
     }
 }
